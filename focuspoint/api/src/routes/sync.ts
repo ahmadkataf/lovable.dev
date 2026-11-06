@@ -13,6 +13,32 @@ import { isPlainObject } from '../validate'
 
 const MAX_OPS = 200
 
+/** When the database moved to new pounds (migration 0003), or null (a database created with new pounds). */
+async function newPoundsAt(db: D1Database): Promise<string | null> {
+  try { return (await db.prepare(`SELECT v FROM meta WHERE k = 'new_pounds_at'`).first<{ v: string }>())?.v ?? null } catch { return null }
+}
+const toNew = (v: unknown) => (typeof v === 'number' ? Math.round(v / 100) : v)
+
+/** An op the team app queued offline before the move to new pounds carries old-pound amounts: convert them. */
+export function convertOldPounds(op: SyncOp, cutoff: string | null): SyncOp {
+  if (!cutoff || typeof op.at !== 'string' || !(Date.parse(op.at) < Date.parse(cutoff))) return op
+  switch (op.op) {
+    case 'manual_booking': {
+      const data = { ...op.data } as Record<string, unknown>
+      delete data.price                       // the server prices it with today's list (method 'free' still gives 0)
+      return { ...op, data: data as typeof op.data }
+    }
+    case 'edit_booking': return op.data && 'price' in op.data ? { ...op, data: { ...op.data, price: toNew(op.data.price) as number } } : op
+    case 'room_upsert': {
+      const room = { ...op.room } as Record<string, unknown>
+      if ('price_hour' in room) room.price_hour = toNew(room.price_hour)
+      if ('price_day' in room && room.price_day !== null) room.price_day = toNew(room.price_day)
+      return { ...op, room: room as typeof op.room }
+    }
+    default: return op
+  }
+}
+
 async function applyOp(c: Ctx, op: SyncOp): Promise<SyncResult> {
   const user = requireUser(c), d = { env: c.env, exec: c.exec, now: c.now }
   // Ops recorded offline are validated against the moment the device recorded them (clamped to the server clock), so a
@@ -89,6 +115,7 @@ export const syncRoutes: Route[] = [
     const body = await readJson(c.req)
     if (!Array.isArray(body.ops) || body.ops.length > MAX_OPS) throw new HttpError(400, 'invalid_ops')
     const results: SyncResult[] = []
+    const cutoff = await newPoundsAt(c.env.DB)
     for (const raw of body.ops as unknown[]) {
       if (!isPlainObject(raw) || typeof raw.client_id !== 'string' || raw.client_id.length < 1 || raw.client_id.length > 64 || typeof raw.op !== 'string') {
         results.push({ client_id: typeof raw === 'object' && raw && typeof (raw as { client_id?: unknown }).client_id === 'string' ? (raw as { client_id: string }).client_id : '', ok: false, error: 'invalid_op' })
@@ -99,7 +126,7 @@ export const syncRoutes: Route[] = [
       if (stored) { results.push(JSON.parse(stored.result) as SyncResult); continue }
       let result: SyncResult, persist = true
       try {
-        result = await applyOp(c, op)
+        result = await applyOp(c, convertOldPounds(op, cutoff))
       } catch (err) {
         if (err instanceof HttpError) result = { client_id: op.client_id, ok: false, error: err.code }
         else { console.error('sync op failed', op.op, err); result = { client_id: op.client_id, ok: false, error: 'internal' }; persist = false }

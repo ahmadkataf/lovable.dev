@@ -16,6 +16,7 @@ export function PriceList({ settings, rooms, whatsapp, onSubscribe, steps = fals
   const active = rooms.filter((r) => r.active)
   const desk = active.find((r) => r.type === 'desk')
   const privates = active.filter((r) => r.type === 'private' && r.price_hour > 0).map((r) => r.price_hour)
+  const hourly = desk?.price_hour ?? (privates.length ? Math.min(...privates) : 100)
   const hall = active.some((r) => r.type === 'meeting' || r.type === 'hall')
   const wa = whatsapp && intlPhone(whatsapp) ? `${whatsappLink(whatsapp)}?text=${encodeURIComponent('مرحبا، بدي استفسر عن حجز القاعة التدريبية لكورس شخصي')}` : ''
   return (
@@ -29,10 +30,10 @@ export function PriceList({ settings, rooms, whatsapp, onSubscribe, steps = fals
       )}
       <h2 className="h3 price-list-title"><Icon name="cash" size={18} /> الأسعار <span className="muted tiny">بالليرة السورية الجديدة</span></h2>
       <ul className="price-rows">
-        {desk && (
+        {(desk || privates.length > 0) && (
           <li>
-            <span><b>{desk.name}</b><small>طاولة لشخص واحد · بتحجز مقعد أو أكتر</small></span>
-            <span className="money">{fmtMoney(desk.price_hour)} <small>للشخص بالساعة</small></span>
+            <span><b>الساعة</b><small>{desk && privates.length ? `كرسي بالمساحة المفتوحة (${desk.contents.tables || 5} طاولات × 4 كراسي) أو بغرفة خاصة` : desk ? 'كرسي على طاولة بالمساحة المفتوحة' : 'بغرفة خاصة'}</small></span>
+            <span className="money">{fmtMoney(hourly)} <small>للشخص</small></span>
           </li>
         )}
         {desk && p.subscriptions_enabled && (
@@ -45,12 +46,6 @@ export function PriceList({ settings, rooms, whatsapp, onSubscribe, steps = fals
           <li>
             <span><b>اشتراك شهري</b><small>مقعدك بالمساحة المفتوحة كل يوم طول الدوام · 30 يوم</small></span>
             <span className="money">{fmtMoney(p.sub_month_price)}{onSubscribe && <button type="button" className="btn btn-soft btn-sm" onClick={() => onSubscribe('month')}>اشترك</button>}</span>
-          </li>
-        )}
-        {privates.length > 0 && (
-          <li>
-            <span><b>الغرف الخاصة</b><small>الغرفة كاملة إلك أو لفريقك</small></span>
-            <span className="money">{Math.min(...privates) === Math.max(...privates) ? '' : 'من '}{fmtMoney(Math.min(...privates))} <small>للغرفة بالساعة</small></span>
           </li>
         )}
         {hall && (

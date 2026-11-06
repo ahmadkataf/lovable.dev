@@ -63,7 +63,7 @@ export interface Snapshot {
   fresh: number[]               // booking ids that just arrived by push (shown with a "جديد" badge for a minute)
 }
 
-const BASE_KEY = 'team:base'
+const BASE_KEY = 'team:base:v2'   // v2: after the move to new pounds every device pulls the bookings afresh
 const QUEUE_KEY = 'team:queue'
 const KEEP_DAYS = 90
 const EMPTY_BASE: Base = { rooms: [], bookings: [], settings: null, cursor: null, pulled_at: null }

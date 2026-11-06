@@ -160,6 +160,10 @@ async function main() {
   let r = wr(['d1', 'execute', 'focuspoint', '--remote', '--file=./schema.sql', '--yes'])
   if (r.code) die('فشل تطبيق مخطط قاعدة البيانات', r.all)
   ok('المخطط مطبّق')
+  // Build first: a failed build must not leave the old Worker running on a database moved to the new price list.
+  r = run('npm', ['run', 'build'], { cwd: WEB, capture: true })
+  if (r.code) die('فشل بناء تطبيق الويب', r.all)
+  ok('بُني التطبيق')
   // A database made before the price list (2026-11-06) lacks bookings.seats: add the columns and move to new pounds, once.
   r = wr(['d1', 'execute', 'focuspoint', '--remote', '--command', "SELECT COUNT(*) AS n FROM pragma_table_info('bookings') WHERE name = 'seats'", '--json', '--yes'])
   const hasSeats = Number(parseJsonOut(r.out)?.[0]?.results?.[0]?.n ?? NaN)
@@ -180,9 +184,6 @@ async function main() {
 
   // 4. build + deploy
   step('build + deploy', 'بناء التطبيق ونشره')
-  r = run('npm', ['run', 'build'], { cwd: WEB, capture: true })
-  if (r.code) die('فشل بناء تطبيق الويب', r.all)
-  ok('بُني التطبيق')
   r = wr(['deploy'])
   if (r.code) {
     const hint = /already has externally managed DNS|DNS record/i.test(r.all)

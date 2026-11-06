@@ -11,7 +11,7 @@ import { useOnline } from '../offline'
 import { addDays, addMinutes, fmtClock, fromLocal, todayLocal } from '../format'
 import { Badge, Card, Icon, Segmented, Select, Spinner } from '../ui'
 import { PriceList } from '../components/PriceList'
-import { fmtMoney } from '@shared/pricing'
+import { fmtMoney, SUB_DAYS } from '@shared/pricing'
 import { PlanView } from '../plan/PlanView'
 import { RoomSheet } from '../components/RoomSheet'
 import { RoomSwatch } from '../components/RoomPhotos'
@@ -35,10 +35,12 @@ export function BookHome() {
   const [pick, setPick] = useState<Pick | null>(null)
   useEffect(() => { if (settings && !pick) setPick(defaultPick(settings)) }, [settings, pick])
 
-  const availQ = useCached<Availability[]>(pick && !closed ? `/v1/availability?date=${pick.date}` : null, { pollMs: 60_000 })
+  const [mode, setMode] = useState<'hourly' | 'week' | 'month'>('hourly')
+  // A subscription needs a free seat on every day of its span: fetch the whole span.
+  const availPath = !pick || closed ? null : mode === 'hourly' ? `/v1/availability?date=${pick.date}` : `/v1/availability?date=${pick.date}&to=${addDays(pick.date, SUB_DAYS[mode] - 1)}`
+  const availQ = useCached<Availability[]>(availPath, { pollMs: 60_000 })
   const [selected, setSelected] = useState<Room | null>(null)
   // «بالساعة» books a time window; «اشتراك» books an open-space seat for a week or a month from the chosen day.
-  const [mode, setMode] = useState<'hourly' | 'week' | 'month'>('hourly')
   const subsOn = pricing(settings).subscriptions_enabled && rooms.some((r) => r.type === 'desk')
   const shown = useMemo(() => (mode === 'hourly' ? rooms : rooms.filter((r) => r.type === 'desk')), [rooms, mode])
 
@@ -56,9 +58,13 @@ export function BookHome() {
 
   const range = useMemo(() => {
     if (!pick) return null
+    if (mode !== 'hourly') {
+      if (!settings) return null
+      return { start: fromLocal(pick.date, settings.open), end: fromLocal(addDays(pick.date, SUB_DAYS[mode] - 1), settings.close) }
+    }
     const start = fromLocal(pick.date, pick.time)
     return { start, end: addMinutes(start, pick.minutes) }
-  }, [pick])
+  }, [pick, mode, settings])
 
   // A whole room is busy when any live booking overlaps; the open space only when every seat is taken.
   const seatsFree = useMemo(() => {
@@ -69,8 +75,9 @@ export function BookHome() {
   }, [rooms, availQ.data, range])
   const busyIds = useMemo(() => {
     const set = new Set<number>()
-    if (mode !== 'hourly' || !range || !availQ.data) return set
+    if (!range || !availQ.data) return set
     for (const a of availQ.data) {
+      if (mode !== 'hourly') continue           // subscriptions: only the open space's seats matter
       if (seatsFree.has(a.room_id)) continue
       if (blocks(a) && overlaps(a.start, a.end, range.start, range.end)) set.add(a.room_id)
     }
@@ -233,7 +240,7 @@ function RoomPrice({ room, settings, mode, free }: { room: Room; settings: Publi
   if (mode !== 'hourly') return <><b>{fmtMoney(mode === 'week' ? p.sub_week_price : p.sub_month_price)}</b><span>{KIND_LABEL[mode]}</span></>
   if (room.type === 'meeting' || room.type === 'hall') return <><b>{fmtMoney(p.hall_gov_hour)}</b><span>أو {fmtMoney(p.hall_org_usd_hour, 'USD')} بالساعة</span></>
   if (room.type === 'desk') return <><b>{fmtMoney(room.price_hour)}</b><span>للشخص بالساعة</span>{free !== undefined && <span className="seats-left">باقي {free} {free === 1 ? 'مقعد' : 'مقاعد'}</span>}</>
-  return <><b>{fmtMoney(room.price_hour)}</b><span>للغرفة بالساعة</span></>
+  return <><b>{fmtMoney(room.price_hour)}</b><span>للشخص بالساعة</span></>
 }
 
 /**

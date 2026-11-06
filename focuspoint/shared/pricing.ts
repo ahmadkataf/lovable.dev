@@ -4,7 +4,8 @@
 //
 // - Open space (room type 'desk'): booked by the seat — price_hour × seats × hours. Several bookings share the room up
 //   to its capacity (seats).
-// - Private rooms ('private'): the whole room — price_hour × hours (a full day ≥ 8 h takes price_day when cheaper).
+// - Private rooms ('private'): the whole room for the group — price_hour per person × people × hours (100 per person
+//   per hour, the centre's list).
 // - Training hall ('meeting' / 'hall'): by who books — private organisations & NGOs pay settings.hall_org_usd_hour
 //   in USD per hour, government bodies settings.hall_gov_hour in SYP per hour. Personal courses are arranged with the
 //   team (settings.course_share_percent of the course value), so they are not booked online.
@@ -29,7 +30,7 @@ export interface QuoteInput {
   room: Pick<Room, 'type' | 'price_hour' | 'price_day'>
   kind: BookingKind
   minutes: number          // hourly bookings; ignored for subscriptions
-  seats: number            // open space; 1 elsewhere
+  seats: number            // open space: seats; private room: people; 1 elsewhere
   tier: HallTier | null    // training hall only
 }
 export type Quote = { ok: true; price: number; currency: Currency } | { ok: false; error: 'tier_required' | 'not_subscribable' | 'invalid_seats' }
@@ -49,9 +50,8 @@ export function quote(q: QuoteInput, s: PricingSettings): Quote {
     if (!Number.isInteger(q.seats) || q.seats < 1) return { ok: false, error: 'invalid_seats' }
     return { ok: true, price: Math.round(hours * q.room.price_hour * q.seats), currency: 'SYP' }
   }
-  const hourly = Math.round(hours * q.room.price_hour)
-  if (q.room.price_day !== null && q.room.price_day !== undefined && q.minutes >= 8 * 60) return { ok: true, price: Math.min(q.room.price_day, hourly), currency: 'SYP' }
-  return { ok: true, price: hourly, currency: 'SYP' }
+  const people = Number.isInteger(q.seats) && q.seats >= 1 ? q.seats : 1
+  return { ok: true, price: Math.round(hours * q.room.price_hour * people), currency: 'SYP' }
 }
 
 /** "2,500 ل.س" / "10 $". */

@@ -50,7 +50,8 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
   const desk = !!room && isSeats(room), hall = !!room && isHall(room)
   useEffect(() => { if (!desk && kind !== 'hourly') setKind('hourly') }, [desk, kind])
   useEffect(() => { if (room && seats > room.capacity) setSeats(room.capacity) }, [room, seats])
-  const useSeats = desk && kind === 'hourly' ? seats : 1
+  const perHead = !!room && (desk || room.type === 'private') && kind === 'hourly'
+  const useSeats = perHead ? seats : 1
   const starts = settings ? startOptions(settings) : []
   const durations = settings ? durationOptions(settings, time) : []
   useEffect(() => { if (durations.length && !durations.includes(minutes)) setMinutes(durations[durations.length - 1]) }, [durations, minutes])
@@ -84,7 +85,7 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
     try {
       await store.manualBooking({
         room_id: roomId, start, end, name: name.trim(), phone: p!, method, price: pr!, note: note.trim() || undefined,
-        ...(desk ? { seats: useSeats } : {}), ...(hall ? { tier } : {}), ...(kind !== 'hourly' ? { kind, date } : {}),
+        ...(perHead ? { seats: useSeats } : {}), ...(hall ? { tier } : {}), ...(kind !== 'hourly' ? { kind, date } : {}),
       })
       toast.show(`تم حجز ${room!.name} لـ${name.trim()}`, 'ok')
       onClose()
@@ -95,7 +96,7 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
     <>
       <Field label="القاعة" error={errors.room}>
         <Select value={roomId} onChange={(e) => setRoomId(Number(e.target.value))}>
-          {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}{isSeats(r) ? ` — ${fmtMoney(r.price_hour)} للشخص/ساعة` : isHall(r) ? ' — حسب الجهة' : ` — ${fmtMoney(r.price_hour)}/ساعة`}</option>)}
+          {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}{isHall(r) ? ' — حسب الجهة' : ` — ${fmtMoney(r.price_hour)} للشخص/ساعة`}</option>)}
         </Select>
       </Field>
       {desk && (
@@ -108,9 +109,9 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
           <Segmented<HallTier> options={[{ value: 'org', label: 'خاصة / منظمة ($)' }, { value: 'gov', label: 'حكومية (ل.س)' }]} value={tier} onChange={(t) => { setTier(t); setPriceTouched(false) }} />
         </Field>
       )}
-      {desk && kind === 'hourly' && (
+      {perHead && (
         <div className="field">
-          <span className="field-label">عدد المقاعد</span>
+          <span className="field-label">{desk ? 'عدد المقاعد' : 'عدد الأشخاص'} ({fmtMoney(room!.price_hour)} للشخص بالساعة)</span>
           <Stepper value={seats} onChange={(n) => { setSeats(n); setPriceTouched(false) }} min={1} max={Math.max(1, room!.capacity)} />
         </div>
       )}

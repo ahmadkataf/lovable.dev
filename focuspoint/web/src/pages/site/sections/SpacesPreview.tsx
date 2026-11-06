@@ -1,4 +1,5 @@
 // Spaces preview on the landing page: one card per space type with live capacity and "from" price. Head texts from
+import type { PublicSettings } from '@shared/types'
 // content.home.spaces; each card's name, text, badge, icon and photo from content.spaces.groups (a room's own photo wins).
 import { Link } from 'react-router-dom'
 import { ContentText, hasText, plainText, usePhotoChain, useSite } from '../../../components/site/siteContent'
@@ -8,7 +9,7 @@ import {
 } from '../site'
 import { SiteIcon } from '../SiteIcon'
 
-function SpaceCard({ g, loading }: { g: SpaceGroup; loading: boolean }) {
+function SpaceCard({ g, loading, settings }: { g: SpaceGroup; loading: boolean; settings?: PublicSettings }) {
   const { vars } = useSite()
   const { photo, src, onError } = usePhotoChain([groupRoomPhoto(g.rooms), g.photo, g.defaultPhoto], true)
   const title = plainText(g.title, vars)
@@ -40,7 +41,7 @@ function SpaceCard({ g, loading }: { g: SpaceGroup; loading: boolean }) {
           </ul>
         )}
         <div className="fp-space-foot">
-          <FromPrice rooms={g.rooms} loading={loading} />
+          <FromPrice rooms={g.rooms} loading={loading} settings={settings} />
           <span className="fp-space-links">
             <Link to={`/spaces#sp-${g.id}`} className="fp-link" aria-label={`تفاصيل ${title}`}>التفاصيل</Link>
             <Link to="/book" className="btn btn-primary btn-sm fp-btn" aria-label={`احجز ${title}`}>احجز <SiteIcon name="arrow" size={16} /></Link>
@@ -62,7 +63,7 @@ export function SpacesPreview({ data, tint = true }: { data: SiteData; tint?: bo
         <Link to="/spaces" className="btn btn-outline fp-btn fp-hide-sm">كل المساحات <SiteIcon name="arrow" size={18} /></Link>
       </div>
       <div className="fp-grid fp-grid-3">
-        {groups.map((g) => <SpaceCard key={g.id} g={g} loading={data.roomsLoading} />)}
+        {groups.map((g) => <SpaceCard key={g.id} g={g} loading={data.roomsLoading} settings={data.settings} />)}
       </div>
       <div className="fp-show-sm fp-center-row">
         <Link to="/spaces" className="btn btn-outline btn-lg fp-btn">شوف كل المساحات <SiteIcon name="arrow" size={18} /></Link>

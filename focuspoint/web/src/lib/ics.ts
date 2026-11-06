@@ -2,6 +2,7 @@
 // reminder): 60 by default, none when reminders are off (0).
 import type { Booking, PublicSettings } from '@shared/types'
 import { reminderMinutes } from './booking'
+import { SUB_DAYS } from '@shared/pricing'
 
 type IcsSettings = Pick<PublicSettings, 'centre_name' | 'address' | 'phone'> & Partial<Pick<PublicSettings, 'reminder_minutes'>>
 
@@ -11,13 +12,17 @@ function esc(s: string): string { return s.replace(/\\/g, '\\\\').replace(/\n/g,
 export function buildIcs(b: Booking, s: IcsSettings | null): string {
   const title = `${s?.centre_name || 'فوكس بوينت'} — ${b.room_name || 'حجز'}`
   const alarm = reminderMinutes(s)
+  // A subscription: one event per day (opening to closing) repeated over its days, not one 7/30-day block.
+  const days = b.kind === 'week' || b.kind === 'month' ? SUB_DAYS[b.kind] : 1
+  const end = days > 1 ? new Date(Date.parse(b.end) - (days - 1) * 86400000).toISOString() : b.end
   const lines = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Focus Point//Booking//AR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT',
     `UID:fp-${b.code}@focuspoint`,
     `DTSTAMP:${stamp(new Date().toISOString())}`,
     `DTSTART:${stamp(b.start)}`,
-    `DTEND:${stamp(b.end)}`,
+    `DTEND:${stamp(end)}`,
+    days > 1 ? `RRULE:FREQ=DAILY;COUNT=${days}` : '',
     `SUMMARY:${esc(title)}`,
     `DESCRIPTION:${esc(`رمز الحجز: ${b.code}${s?.phone ? `\nهاتف المركز: ${s.phone}` : ''}`)}`,
     s?.address ? `LOCATION:${esc(s.address)}` : '',

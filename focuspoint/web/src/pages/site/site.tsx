@@ -7,6 +7,7 @@ import { DEFAULT_CONTENT, type Photo, type SiteContent, type SpaceGroupId } from
 import type { PublicSettings, Room, RoomContents, RoomType } from '@shared/types'
 import { useCached } from '../../lib/data'
 import { fmtSYP, shortClock, timeZone } from '../../format'
+import { pricing } from '../../lib/booking'
 import { brandWhatsapp, ContentText, hasText, pickPage, plainText, useSite } from '../../components/site/siteContent'
 export { shortClock }
 import { SiteIcon, type SiteIconName } from './SiteIcon'
@@ -191,16 +192,17 @@ export function groupAmenities(g: SpaceGroup): RoomContentsKey[] {
   return AMENITY_ORDER.filter((k) => contents.every((c) => !!c[k]))
 }
 
-export function minHourly(rooms: Room[]): number | null {
-  const p = rooms.map((r) => r.price_hour).filter((n) => n > 0)
+export function minHourly(rooms: Room[], settings?: PublicSettings): number | null {
+  // The training hall's lowest price is the government hour (the organisations' price is in dollars).
+  const p = rooms.map((r) => (r.type === 'meeting' || r.type === 'hall' ? pricing(settings).hall_gov_hour : r.price_hour)).filter((n) => n > 0)
   return p.length ? Math.min(...p) : null
 }
 
 /** "تبدأ من 15,000 ل.س بالساعة" from the live API (a shimmer while loading, a soft line if it failed). */
-export function FromPrice({ rooms, loading, compact = false }: { rooms: Room[]; loading: boolean; compact?: boolean }) {
+export function FromPrice({ rooms, loading, compact = false, settings }: { rooms: Room[]; loading: boolean; compact?: boolean; settings?: PublicSettings }) {
   const { c } = useSite()
   const s = c.spaces
-  const p = minHourly(rooms)
+  const p = minHourly(rooms, settings)
   if (p != null) {
     return (
       <span className="fp-price">

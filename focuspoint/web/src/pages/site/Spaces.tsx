@@ -51,8 +51,7 @@ function RoomCard({ room, group, settings }: { room: Room; group: SpaceGroup; se
               </>
             ) : (
               <>
-                <div><dt>بالساعة</dt><dd className="money">{fmtMoney(room.price_hour)}</dd></div>
-                {room.price_day != null && room.price_day > 0 && <div><dt>باليوم</dt><dd className="money">{fmtMoney(room.price_day)}</dd></div>}
+                <div><dt>للشخص بالساعة</dt><dd className="money">{fmtMoney(room.price_hour)}</dd></div>
               </>
             )}
           </dl>

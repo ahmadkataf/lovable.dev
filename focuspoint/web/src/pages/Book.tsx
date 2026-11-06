@@ -53,17 +53,21 @@ export function Book() {
   const [note, setNote] = useState('')
   const [method, setMethod] = useState<Method>('shamcash')
   const methods = paymentMethods(settings)
-  const choice = methods.shamcash && methods.cash          // both on: the customer picks (else the only method is used)
-  const payCash = methods.cash && (!methods.shamcash || method === 'cash')
+  const subOnly = kind !== 'hourly'                      // a subscription is paid first online (Sham Cash)
+  const choice = methods.shamcash && methods.cash && !subOnly   // both on: the customer picks (else the only method is used)
+  const payCash = !subOnly && methods.cash && (!methods.shamcash || method === 'cash')
   const closed = !!settings && !bookingOpen(settings)
   const [errors, setErrors] = useState<{ name?: string; phone?: string; form?: string }>({})
   const [busy, setBusy] = useState(false)
 
   useEffect(() => { if (!valid || closed) navigate('/book', { replace: true }) }, [valid, closed, navigate])
-  useEffect(() => { if (room && people > room.capacity) setPeople(room.capacity) }, [room, people])
+  // Seats still free (from the room sheet); the server's check stays the real guard.
+  const left = room ? Math.min(room.capacity, Math.max(1, Number(q.get('seats_left')) || room.capacity)) : 1
+  useEffect(() => { if (room && people > left) setPeople(left) }, [room, people, left])
 
   const desk = room?.type === 'desk', hall = room?.type === 'meeting' || room?.type === 'hall'
-  const seats = desk && kind === 'hourly' ? people : 1
+  const perHead = (desk || room?.type === 'private') && kind === 'hourly'
+  const seats = perHead ? people : 1
   const priced = room && settings ? quote({ room, kind, minutes, seats, tier: hall ? tier : null }, pricing(settings)) : null
   const price = priced && priced.ok ? priced.price : null
   const currency = priced && priced.ok ? priced.currency : 'SYP'
@@ -74,6 +78,7 @@ export function Book() {
     e.preventDefault()
     if (!room) return
     if (hall && !tier) { setErrors({ form: 'اختر نوع الجهة لنحسب السعر' }); return }
+    if (subOnly && !methods.shamcash) { setErrors({ form: 'الاشتراك أونلاين بالدفع عبر شام كاش، وهو متوقف حالياً — تواصل معنا لنسجّل اشتراكك' }); return }
     const errs: typeof errors = {}
     const cleanName = name.trim()
     const cleanPhone = normalisePhone(phone)
@@ -84,9 +89,9 @@ export function Book() {
     setBusy(true)
     try {
       const b = await api.post<Booking>('/v1/bookings', {
-        room_id: room.id, name: cleanName, phone: cleanPhone, people: desk ? seats : people,
+        room_id: room.id, name: cleanName, phone: cleanPhone, people: perHead ? seats : people,
         ...(kind === 'hourly' ? { start, end } : { kind, date }),
-        ...(desk ? { seats } : {}),
+        ...(perHead ? { seats } : {}),
         ...(hall && tier ? { tier } : {}),
         ...(note.trim() ? { note: note.trim().slice(0, 300) } : {}),
         ...(methods.cash ? { method: payCash ? 'cash' : 'shamcash' } : {}),     // only sent when the centre offers pay on arrival (older servers ignore unknown keys anyway)
@@ -118,7 +123,7 @@ export function Book() {
 
       <Card>
         <RoomPhotos key={room.id} photos={roomPhotos(room)} />
-        {start && end && <BookingSummary room={room} start={start} end={end} minutes={minutes} kind={kind} seats={desk ? seats : undefined}
+        {start && end && <BookingSummary room={room} start={start} end={end} minutes={minutes} kind={kind} seats={desk ? seats : undefined} people={!desk && perHead ? seats : undefined}
           price={price} currency={currency} priceHint={hall && !tier ? 'اختر نوع الجهة تحت' : undefined} />}
       </Card>
 
@@ -142,10 +147,10 @@ export function Book() {
           )}
           {kind === 'hourly' && (
             <div className="field">
-              <span className="field-label">{desk ? 'عدد المقاعد (لكل شخص طاولة)' : 'عدد الأشخاص'}</span>
+              <span className="field-label">{desk ? 'عدد المقاعد (كرسي لكل شخص)' : 'عدد الأشخاص'}</span>
               <div className="row between">
-                <Stepper value={people} onChange={setPeople} min={1} max={Math.max(1, room.capacity)} />
-                <span className="muted small">{desk ? `${room.price_hour.toLocaleString('en-US')} ل.س للشخص بالساعة` : `الحد الأقصى ${room.capacity}`}</span>
+                <Stepper value={people} onChange={setPeople} min={1} max={desk ? left : Math.max(1, room.capacity)} />
+                <span className="muted small">{desk ? `باقي ${left} · ${room.price_hour.toLocaleString('en-US')} ل.س للشخص بالساعة` : perHead ? `${room.price_hour.toLocaleString('en-US')} ل.س للشخص بالساعة · حتى ${room.capacity}` : `الحد الأقصى ${room.capacity}`}</span>
               </div>
             </div>
           )}

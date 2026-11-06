@@ -116,7 +116,7 @@ function PricesTab({ settings }: { settings: SettingsT }) {
         <p className="muted small">من قسم «القاعات» لكل غرفة:</p>
         <ul className="muted small" style={{ margin: '8px 0 0', paddingInlineStart: 18 }}>
           {desk && <li>{desk.name}: <b>{fmtMoney(desk.price_hour)}</b> للشخص بالساعة ({desk.capacity} مقاعد)</li>}
-          {privates.map((r) => <li key={r.id}>{r.name}: <b>{fmtMoney(r.price_hour)}</b> للغرفة بالساعة</li>)}
+          {privates.map((r) => <li key={r.id}>{r.name}: <b>{fmtMoney(r.price_hour)}</b> للشخص بالساعة</li>)}
         </ul>
         <Link to="/team/rooms" className="btn btn-soft mt">تعديل أسعار الغرف</Link>
       </Card>
@@ -585,10 +585,10 @@ function ReportsTab() {
 
   function csv() {
     if (!report) return
-    const rows: (string | number | null)[][] = [['الرمز', 'التاريخ', 'من', 'إلى', 'القاعة', 'الزبون', 'الهاتف', 'الحالة', 'الدفع', 'المبلغ', 'رقم العملية']]
+    const rows: (string | number | null)[][] = [['الرمز', 'التاريخ', 'من', 'إلى', 'القاعة', 'الزبون', 'الهاتف', 'الحالة', 'الدفع', 'المبلغ', 'العملة', 'النوع', 'رقم العملية']]
     for (const b of report.bookings) {
       const p = toLocalParts(b.start)
-      rows.push([b.code, p.date, p.time, toLocalParts(b.end).time, b.room_name ?? b.room_id, b.customer_name, b.customer_phone, statusLabel(b.status).text, METHOD[b.method], b.price, b.payment_ref])
+      rows.push([b.code, p.date, p.time, toLocalParts(b.end).time, b.room_name ?? b.room_id, b.customer_name, b.customer_phone, statusLabel(b.status).text, METHOD[b.method], b.price, b.currency === 'USD' ? 'USD' : 'SYP', b.kind && b.kind !== 'hourly' ? (b.kind === 'week' ? 'اشتراك أسبوعي' : 'اشتراك شهري') : 'بالساعة', b.payment_ref])
     }
     downloadText(`focuspoint-${from}-${to}.csv`, toCSV(rows), 'text/csv;charset=utf-8')
   }

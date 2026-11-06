@@ -28,7 +28,7 @@ export function RoomSheet({ room, pick, mode = 'hourly', seatsFree, busy, offlin
         <Badge tone="wine">{ROOM_TYPE[room.type]}</Badge>
         <span className="muted small row gap-sm"><Icon name="people" size={16} /> حتى {peopleLabel(room.capacity)}</span>
         {busy && <Badge tone="grey">{desk ? 'ممتلئة بهذا الوقت' : 'محجوزة بهذا الوقت'}</Badge>}
-        {!busy && desk && !sub && seatsFree !== undefined && <Badge tone="green">باقي {seatsFree} {seatsFree === 1 ? 'مقعد' : 'مقاعد'}</Badge>}
+        {!busy && desk && seatsFree !== undefined && <Badge tone="green">باقي {seatsFree} {seatsFree === 1 ? 'مقعد' : 'مقاعد'}</Badge>}
       </div>
       {room.description && <p className="muted small" style={{ marginBottom: 12 }}>{room.description}</p>}
       {items.length > 0 && (
@@ -52,11 +52,11 @@ export function RoomSheet({ room, pick, mode = 'hourly', seatsFree, busy, offlin
           <span className="muted tiny">الكورسات الشخصية: {p.course_share_percent}% من قيمة الكورس بالاتفاق مع المركز</span>
           <span className="muted tiny">بتختار الجهة بالخطوة الجاية.</span>
         </div>
-      ) : desk ? (
+      ) : desk || room.type === 'private' ? (
         <>
           <div className="price-line"><span className="muted">للشخص {pick ? `(${durationLabel(pick.minutes)})` : 'بالساعة'}</span>
             <b>{fmtMoney(pick ? Math.round((pick.minutes / 60) * room.price_hour) : room.price_hour)}</b></div>
-          <p className="muted tiny" style={{ marginTop: 4 }}>{fmtMoney(room.price_hour)} للشخص بالساعة · بتختار عدد المقاعد بالخطوة الجاية.</p>
+          <p className="muted tiny" style={{ marginTop: 4 }}>{fmtMoney(room.price_hour)} للشخص بالساعة · بتختار {desk ? 'عدد المقاعد' : 'عدد الأشخاص'} بالخطوة الجاية.</p>
         </>
       ) : (
         <>
@@ -68,11 +68,12 @@ export function RoomSheet({ room, pick, mode = 'hourly', seatsFree, busy, offlin
         </>
       )}
       {offline && <div className="alert alert-info mt">الحجز يحتاج اتصالاً بالإنترنت. اطّلع على الغرف الآن واحجز عند عودة الاتصال.</div>}
-      {busy && !offline && <div className="alert alert-info mt">{desk ? 'كل المقاعد محجوزة بالوقت المختار — غيّر الوقت.' : 'هذه الغرفة محجوزة بالوقت المختار — غيّر الوقت أو اختر غرفة ثانية.'}</div>}
+      {busy && !offline && <div className="alert alert-info mt">{desk ? (sub ? 'المساحة المفتوحة ممتلئة بيوم من أيام الاشتراك — جرّب يوم بداية آخر.' : 'كل المقاعد محجوزة بالوقت المختار — غيّر الوقت.') : 'هذه الغرفة محجوزة بالوقت المختار — غيّر الوقت أو اختر غرفة ثانية.'}</div>}
       {!validSlot && !offline && <div className="alert alert-info mt">هذا الوقت لم يعد متاحاً — اختر يوماً أو وقتاً آخر.</div>}
       <Button
         block size="lg" className="mt" disabled={!canBook}
-        onClick={() => pick && navigate(sub ? `/book/${room.id}?kind=${mode}&date=${pick.date}` : `/book/${room.id}?date=${pick.date}&start=${pick.time}&minutes=${pick.minutes}`)}
+        onClick={() => pick && navigate(sub ? `/book/${room.id}?kind=${mode}&date=${pick.date}`
+          : `/book/${room.id}?date=${pick.date}&start=${pick.time}&minutes=${pick.minutes}${desk && seatsFree !== undefined ? `&seats_left=${seatsFree}` : ''}`)}
       >
         {sub ? 'اشترك' : desk ? 'احجز مقعدك' : hall ? 'احجز القاعة' : 'احجز هالغرفة'}
       </Button>

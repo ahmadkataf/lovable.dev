@@ -101,15 +101,15 @@ interface What { start: string; end: string; minutes: number; kind: BookingKind;
 function parseWhat(b: Record<string, unknown>, room: Room, settings: Settings, now: Date, team: boolean): What {
   const kind = b.kind === undefined ? 'hourly' : oneOf(b.kind, KINDS, 'invalid_kind')
   let seats = 1
-  if (isSeats(room)) {
+  if (isSeats(room) || room.type === 'private') {
+    // open space: seats taken; private room: the people in it (priced per person, the room stays one booking)
     seats = optionalInt(b.seats, 'invalid_seats', 1, 500) ?? optionalInt(b.people, 'invalid_people', 1, 500) ?? 1
     if (seats > room.capacity) throw new HttpError(400, 'too_many_people')
   }
   let tier: HallTier | null = null
   if (isHall(room)) {
     if (b.tier !== undefined && b.tier !== null) tier = oneOf(b.tier, TIERS, 'invalid_tier')
-    else if (team) tier = 'gov'                 // older team apps (offline queue) send no group
-    else throw new HttpError(400, 'tier_required')
+    else tier = 'gov'        // older app builds (customer tabs, the team's offline queue) send no group; they showed the room's hourly price = government
   }
   if (kind !== 'hourly') {
     if (!isSeats(room)) throw new HttpError(400, 'not_subscribable')
@@ -160,8 +160,10 @@ export async function createCustomerBooking(d: Deps, deviceId: string, body: Rec
   if (method === 'cash' && !settings.allow_pay_on_arrival) throw new HttpError(400, 'cash_not_allowed')
   if (method === 'shamcash' && !settings.shamcash_enabled) throw new HttpError(400, 'shamcash_disabled')
   const w = parseWhat(body, room, settings, d.now, false)
+  // A subscription holds a seat for days: online it is paid first (Sham Cash); pay-on-arrival subscriptions go through the team.
+  if (method === 'cash' && w.kind !== 'hourly') throw new HttpError(400, 'cash_not_allowed')
   const { price, currency } = priceOf(room, w, settings)
-  const people = isSeats(room) ? w.seats : peopleIn
+  const people = isSeats(room) || room.type === 'private' ? w.seats : peopleIn
 
   // Quick pre-check (friendly 409 before writing) — the authoritative check happens after the insert.
   if (await clashes(db, room, w.start, w.end, unitsOf(room, w.seats), d.now, null)) throw new HttpError(409, 'slot_taken')
@@ -207,7 +209,7 @@ export async function createManualBooking(d: Deps, user: User, body: ApiContract
   const confirmed = method !== 'shamcash'
   return insertChecked(d, room, {
     code: await freshCode(db), phone, name, deviceId: null, clientId, roomId: room.id, start: w.start, end: w.end,
-    status: confirmed ? 'confirmed' : 'pending_payment', price, method, note, people: isSeats(room) ? w.seats : null,
+    status: confirmed ? 'confirmed' : 'pending_payment', price, method, note, people: isSeats(room) || room.type === 'private' ? w.seats : null,
     holdUntil: confirmed ? null : new Date(d.now.getTime() + settings.hold_minutes * 60000).toISOString(),
     verifiedBy: confirmed ? user.id : null, paidAt: confirmed ? d.now.toISOString() : null,
     currency: computed.currency, kind: w.kind, seats: w.seats, tier: w.tier,
@@ -275,6 +277,12 @@ export async function confirmBooking(d: Deps, id: number, verifiedBy: number | n
      WHERE id = ? AND status = ?${seated ? '' : ` AND ${NO_CONFLICT_SQL}`}`)
     .bind(iso, verifiedBy, iso, b.id, b.status, ...(seated ? [] : [b.room_id, b.end, b.start, b.id, iso])).run()
   if (res.meta.changes === 0) throw new HttpError(409, zeroRowsError(await getBooking(db, b.id), b.status))
+  // Open space: re-check after the write (two confirmations racing for the last seat); the later one steps back.
+  if (seated && room && (await clashes(db, room, b.start, b.end, unitsOf(room, b.seats), d.now, b.id))) {
+    await db.prepare('UPDATE bookings SET status = ?, updated_at = ?, verified_by = ?, paid_at = ? WHERE id = ? AND updated_at = ?')
+      .bind(b.status, new Date(d.now.getTime() + 1).toISOString(), b.verified_by, b.paid_at, b.id, iso).run()
+    throw new HttpError(409, 'slot_taken')
+  }
   const updated = await requireBooking(db, b.id)
   const settings = await loadSettings(db, d.env)
   await notifyDevice(d.env, d.exec, updated.device_id, texts.booking_confirmed(updated, await messageCtx(db, settings)))
@@ -323,26 +331,41 @@ export async function editBooking(d: Deps, id: number, body: Record<string, unkn
   const target = room ?? (await getRoom(db, roomId))
   if (!target) throw new HttpError(404, 'room_not_found')
   if (b.kind !== 'hourly' && (start !== b.start || end !== b.end || !isSeats(target))) throw new HttpError(400, 'not_subscribable')   // a subscription keeps its days
-  const seats = isSeats(target) ? (body.seats !== undefined ? requireInt(body.seats, 'invalid_seats', 1, 500) : Math.max(1, b.seats)) : 1
+  const perHead = isSeats(target) || target.type === 'private'
+  const seats = perHead ? (body.seats !== undefined ? requireInt(body.seats, 'invalid_seats', 1, 500) : Math.max(1, b.seats)) : 1
   if (seats > target.capacity) throw new HttpError(400, 'too_many_people')
 
   const moved = start !== b.start || end !== b.end || roomId !== b.room_id || seats !== b.seats
+  const settings = await loadSettings(db, d.env)
   if (moved && b.kind === 'hourly') {
-    const settings = await loadSettings(db, d.env)
     const slot = validateSlot(start, end, settings, { now: d.validateAt ?? d.now, allowPast: true })
     if (!slot.ok) throw new HttpError(400, slot.error)
   }
+  // The price group and currency follow the room: moving a $ hall booking into a private room makes it pounds.
+  const tier: HallTier | null = isHall(target) ? (body.tier !== undefined && body.tier !== null ? oneOf(body.tier, TIERS, 'invalid_tier') : (b.tier ?? 'gov')) : null
+  const minutes = (Date.parse(end) - Date.parse(start)) / 60000
+  const q = quote({ room: target, kind: b.kind, minutes, seats, tier }, settings)
+  const currency: Currency = q.ok ? q.currency : b.currency
+  // A price sent in the old currency (an old tab, or a move across currencies) is replaced by the server's price.
+  const finalPrice = currency !== b.currency && q.ok ? q.price : price
   const seated = isSeats(target)
-  if (moved && seated && (await clashes(db, target, start, end, seats, d.now, b.id))) throw new HttpError(409, 'slot_taken')
+  const units = unitsOf(target, seats)
+  if (moved && seated && (await clashes(db, target, start, end, units, d.now, b.id))) throw new HttpError(409, 'slot_taken')
   // One conditional UPDATE: still in the status we read and, when moved into a whole room, no live booking overlaps.
   const guard = moved && !seated
   const iso = d.now.toISOString()
   const res = await db.prepare(
     `UPDATE bookings SET start = ?, end = ?, room_id = ?, note = ?, price = ?, seats = ?, people = CASE WHEN ? THEN ? ELSE people END,
-       reminded = CASE WHEN start = ? THEN reminded ELSE 0 END, updated_at = ?
+       currency = ?, tier = ?, reminded = CASE WHEN start = ? THEN reminded ELSE 0 END, updated_at = ?
      WHERE id = ? AND status = ?${guard ? ` AND ${NO_CONFLICT_SQL}` : ''}`)
-    .bind(start, end, roomId, note, price, seats, seated ? 1 : 0, seats, start, iso, b.id, b.status, ...(guard ? [roomId, end, start, b.id, iso] : [])).run()
+    .bind(start, end, roomId, note, finalPrice, seats, perHead ? 1 : 0, seats, currency, tier, start, iso, b.id, b.status, ...(guard ? [roomId, end, start, b.id, iso] : [])).run()
   if (res.meta.changes === 0) throw new HttpError(409, zeroRowsError(await getBooking(db, b.id), b.status))
+  // Open space: re-check after the write (a racing booking may have taken the last seat between check and write); undo if so.
+  if (moved && seated && (await clashes(db, target, start, end, units, d.now, b.id))) {
+    await db.prepare(`UPDATE bookings SET start = ?, end = ?, room_id = ?, note = ?, price = ?, seats = ?, people = ?, currency = ?, tier = ?, reminded = ?, updated_at = ? WHERE id = ? AND updated_at = ?`)
+      .bind(b.start, b.end, b.room_id, b.note, b.price, b.seats, b.people, b.currency, b.tier, 0, new Date(d.now.getTime() + 1).toISOString(), b.id, iso).run()
+    throw new HttpError(409, 'slot_taken')
+  }
   return requireBooking(db, b.id)
 }
 

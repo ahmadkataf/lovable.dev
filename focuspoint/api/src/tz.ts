@@ -91,5 +91,7 @@ const WEEKDAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأ
 export function formatWhen(start: string, end: string, tz: string): string {
   const s = localParts(new Date(start), tz), e = localParts(new Date(end), tz)
   const hm = (p: LocalParts) => `${String(p.hh).padStart(2, '0')}:${String(p.mm).padStart(2, '0')}`
+  // A subscription spans days: "من 6/11 إلى 12/11 · 09:00–23:00 يومياً"
+  if (s.date !== e.date) return `من ${s.d}/${s.m} إلى ${e.d}/${e.m} · ${hm(s)}–${hm(e)} يومياً`
   return `${WEEKDAYS_AR[s.weekday]} ${s.d}/${s.m} · ${hm(s)}–${hm(e)}`
 }

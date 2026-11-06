@@ -9,7 +9,7 @@ import { cancelBooking, createCustomerBooking, submitPayment } from '../service'
 import { loadSettings, publicSettings } from '../settings'
 import { pushConfigured, sendPush, type SubscriptionRow } from '../push'
 import { absoluteUrl } from '../env'
-import { isDateString, localDayRange } from '../tz'
+import { addDays, isDateString, localDayRange } from '../tz'
 import { isPlainObject, requirePhone, requireString } from '../validate'
 
 const deps = (c: Ctx) => ({ env: c.env, exec: c.exec, now: c.now })
@@ -59,7 +59,11 @@ export const publicRoutes: Route[] = [
     const date = c.url.searchParams.get('date')
     if (!isDateString(date)) throw new HttpError(400, 'invalid_date')
     const { timezone } = await loadSettings(c.env.DB, c.env)
-    const { from, to } = localDayRange(date, timezone)
+    // ?to=YYYY-MM-DD (≤ 31 days on): a subscription's whole span, to count open-space seats over every day.
+    const toDate = c.url.searchParams.get('to')
+    if (toDate !== null && (!isDateString(toDate) || toDate < date || toDate > addDays(date, 30))) throw new HttpError(400, 'invalid_date')
+    const from = localDayRange(date, timezone).from
+    const to = localDayRange(toDate ?? date, timezone).to
     const rows = (await c.env.DB.prepare(
       `SELECT b.room_id, b.start, b.end, b.status, b.seats FROM bookings b WHERE b.start < ? AND b.end > ? AND ${ACTIVE_SQL} ORDER BY b.start`)
       .bind(to.toISOString(), from.toISOString(), c.now.toISOString()).all<Pick<Booking, 'room_id' | 'start' | 'end' | 'status' | 'seats'>>()).results

@@ -52,7 +52,7 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
             )}
             <div><dt>المبلغ</dt><dd>{fmtMoney(b.price, b.currency ?? 'SYP')} <span className="muted tiny">· {METHOD[b.method]}</span></dd></div>
             {b.tier && <div><dt>الجهة</dt><dd>{TIER_LABEL[b.tier]}</dd></div>}
-            {(b.seats ?? 1) > 1 && <div><dt>المقاعد</dt><dd>{b.seats}</dd></div>}
+            
             <div><dt>رمز الحجز</dt><dd><span className="num" style={{ letterSpacing: '0.12em', color: 'var(--wine)' }}>{b.code}</span></dd></div>
             <div><dt>الهاتف</dt><dd><span className="num">{b.customer_phone}</span></dd></div>
             {b.payment_ref && <div className="span2"><dt>رقم عملية شام كاش</dt><dd><span className="num">{b.payment_ref}</span></dd></div>}
@@ -136,11 +136,15 @@ function EditForm({ booking, onCancel, onDone }: { booking: Booking; onCancel: (
   const sub = !!booking.kind && booking.kind !== 'hourly'
   const room = rooms.find((r) => r.id === roomId)
   const desk = !!room && isSeats(room)
+  const perHead = !!room && (desk || room.type === 'private')
   const starts = settings ? startOptions(settings) : []
   const durations = settings ? durationOptions(settings, time) : []
-  const currency = booking.currency ?? 'SYP'
-  const auto = room ? priceFor(room, minutes, settings ?? undefined, { seats: desk ? seats : 1, tier: booking.tier, kind: booking.kind }).price : booking.price
-  useEffect(() => { if (!priceTouched && !sub) setPrice(String(auto)) }, [auto, priceTouched, sub])
+  const quoted = room ? priceFor(room, minutes, settings ?? undefined, { seats: perHead ? seats : 1, tier: room.type === 'meeting' || room.type === 'hall' ? (booking.tier ?? 'gov') : null, kind: booking.kind }) : null
+  const auto = quoted ? quoted.price : booking.price
+  const currency = quoted ? quoted.currency : (booking.currency ?? 'SYP')
+  // Re-price only when something that sets the price changes; a note-only edit keeps the recorded price.
+  const repriced = roomId !== booking.room_id || minutes !== minutesBetween(booking.start, booking.end) || (perHead && seats !== Math.max(1, booking.seats ?? 1))
+  useEffect(() => { if (!priceTouched && !sub) setPrice(String(repriced ? auto : booking.price)) }, [auto, repriced, priceTouched, sub, booking.price])
   const start = sub ? booking.start : fromLocal(date, time), end = sub ? booking.end : addMinutes(start, minutes)
   const conflict = useMemo(() => findConflict(bookings, roomId, start, end, booking.id, Date.now(), room ? { room, seats: desk ? seats : 1 } : undefined),
     [bookings, booking.id, roomId, start, end, room, desk, seats])
@@ -152,8 +156,9 @@ function EditForm({ booking, onCancel, onDone }: { booking: Booking; onCancel: (
     if (conflict) { setErr(desk ? 'المقاعد ممتلئة بهذا الوقت' : `يتداخل مع حجز ${conflict.customer_name} (${fmtRange(conflict.start, conflict.end)})`); return }
     setErr(null)
     try {
-      await store.editBooking(booking, sub ? { price: p, note: note.trim() || undefined, ...(desk ? { seats: 1 } : {}) }
-        : { start, end, room_id: roomId, price: p, note: note.trim() || undefined, ...(desk ? { seats } : {}) })
+      const sendPrice = priceTouched || repriced ? { price: p } : {}
+      await store.editBooking(booking, sub ? { ...sendPrice, note: note.trim() || undefined, ...(desk ? { seats: 1 } : {}) }
+        : { start, end, room_id: roomId, ...sendPrice, note: note.trim() || undefined, ...(perHead ? { seats } : {}) })
       toast.show('تم تعديل الحجز', 'ok')
       onDone()
     } catch (e) { toast.show(describeError(e), 'error') }
@@ -167,9 +172,9 @@ function EditForm({ booking, onCancel, onDone }: { booking: Booking; onCancel: (
           {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
         </Select>
       </Field>}
-      {!sub && desk && (
+      {!sub && perHead && (
         <div className="field">
-          <span className="field-label">عدد المقاعد</span>
+          <span className="field-label">{desk ? 'عدد المقاعد' : 'عدد الأشخاص'}</span>
           <Stepper value={seats} onChange={(n) => { setSeats(n); setPriceTouched(false) }} min={1} max={Math.max(1, room!.capacity)} />
         </div>
       )}
