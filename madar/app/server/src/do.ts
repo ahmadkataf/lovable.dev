@@ -23,6 +23,24 @@ export function splitSql(script: string): string[] {
 
 export class MadarDB extends DurableObject {
   private attemptsReady = false   // the login_attempts table is created lazily, on the first rate-limit check
+  // Rows read/written since the object started, per SQL text — the free tier bills (and caps) exactly these.
+  private usageBySql = new Map<string, { calls: number; read: number; written: number }>()
+  private ex(sql: string, ...params: (string | number | null | ArrayBuffer)[]): Record<string, unknown>[] {
+    const cur = this.ctx.storage.sql.exec(sql, ...params)
+    const rows = cur.toArray() as Record<string, unknown>[]
+    const key = sql.replace(/\s+/g, ' ').slice(0, 160)
+    const u = this.usageBySql.get(key) ?? { calls: 0, read: 0, written: 0 }
+    u.calls++; u.read += cur.rowsRead; u.written += cur.rowsWritten
+    this.usageBySql.set(key, u)
+    return rows
+  }
+  /** Totals and the heaviest statements since start (or since the last reset). */
+  usage(reset = false): { read: number; written: number; top: { sql: string; calls: number; read: number; written: number }[] } {
+    const all = [...this.usageBySql.entries()].map(([sql, u]) => ({ sql, ...u }))
+    const out = { read: all.reduce((n, x) => n + x.read, 0), written: all.reduce((n, x) => n + x.written, 0), top: all.sort((a, b) => b.read - a.read).slice(0, 15) }
+    if (reset) this.usageBySql.clear()
+    return out
+  }
 
   private hit(key: string, win: Window): Verdict {
     if (!this.attemptsReady) { ensureAttemptsTable(this.ctx.storage.sql); this.attemptsReady = true }
@@ -42,11 +60,10 @@ export class MadarDB extends DurableObject {
     return params.map(v => (v === undefined ? null : typeof v === 'boolean' ? (v ? 1 : 0) : v)) as (string | number | null | ArrayBuffer)[]
   }
   query(sql: string, params: unknown[] = []): QueryResult {
-    const cur = this.ctx.storage.sql.exec(sql, ...this.norm(params))
-    return { results: cur.toArray() as Record<string, unknown>[] }
+    return { results: this.ex(sql, ...this.norm(params)) }
   }
   run(sql: string, params: unknown[] = []): RunMeta {
-    this.ctx.storage.sql.exec(sql, ...this.norm(params)).toArray()
+    this.ex(sql, ...this.norm(params))
     const m = this.ctx.storage.sql.exec('SELECT last_insert_rowid() AS id, changes() AS changes').one() as { id: number; changes: number }
     return { changes: Number(m.changes), last_row_id: Number(m.id) }
   }
@@ -56,7 +73,7 @@ export class MadarDB extends DurableObject {
   /** Run a whole SQL script (schema or seed) in one transaction; returns the number of statements. */
   execScript(script: string): number {
     const stmts = splitSql(script)
-    this.ctx.storage.transactionSync(() => { for (const s of stmts) this.ctx.storage.sql.exec(s).toArray() })
+    this.ctx.storage.transactionSync(() => { for (const s of stmts) this.ex(s) })
     return stmts.length
   }
   /** Drop every table so the demo can be re-seeded with today's dates. */

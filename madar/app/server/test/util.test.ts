@@ -30,7 +30,7 @@ describe('Arabic phrasing helpers', () => {
 
   it('names the day with the Levantine month and uses tanwīn after the alif', () => {
     expect(dayPhrase(today())).toBe('اليوم')
-    expect(dayPhrase('2026-11-06')).toBe('يوم الجمعة ٦ تشرين الثاني')
+    expect(dayPhrase('2025-11-06')).toBe('يوم الخميس ٦ تشرين الثاني')
     expect(dayPhrase('2027-01-03')).toBe('يوم الأحد ٣ كانون الثاني')
     expect(dayPhrase(addDays(today(), 400))).toMatch(/^يوم \S+ [٠-٩]+ /)
     expect(periodsPhrase(1)).toBe('حصّة واحدة')

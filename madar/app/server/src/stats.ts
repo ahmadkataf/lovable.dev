@@ -8,7 +8,7 @@ export async function dayStatuses(db: D1Database, date: string, schoolId: number
   const { results } = await db.prepare(`
     SELECT st.id AS student_id, sec.id AS section_id, sec.grade, sec.school_id,
            (SELECT a.status FROM attendance a WHERE a.student_id = st.id AND a.date = ? ORDER BY a.period LIMIT 1) AS status
-    FROM students st JOIN sections sec ON sec.id = st.section_id WHERE ? IS NULL OR sec.school_id = ?`).bind(date, schoolId, schoolId).all<DayStatus>()
+    FROM sections sec CROSS JOIN students st WHERE st.section_id = sec.id AND (? IS NULL OR sec.school_id = ?)`).bind(date, schoolId, schoolId).all<DayStatus>()
   return results
 }
 
@@ -41,8 +41,8 @@ export async function schoolStats(db: D1Database, schoolId: number, date: string
                 WHERE a.date = ? AND u.school_id = ? GROUP BY s.status`).bind(date, schoolId).all<{ status: string; n: number }>(),
     db.prepare(`SELECT COUNT(*) AS n FROM homework h JOIN sections sec ON sec.id = h.section_id WHERE sec.school_id = ? AND date(h.created_at, '+3 hours') = ?`)
       .bind(schoolId, date).first<{ n: number }>(),
-    db.prepare(`SELECT MIN(a.created_at) AS first_at, MAX(a.confirmed) AS confirmed FROM attendance a JOIN students st ON st.id = a.student_id
-                JOIN sections sec ON sec.id = st.section_id WHERE a.date = ? AND sec.school_id = ?`).bind(date, schoolId).first<{ first_at: string | null; confirmed: number | null }>(),
+    db.prepare(`SELECT MIN(a.created_at) AS first_at, MAX(a.confirmed) AS confirmed FROM sections sec CROSS JOIN students st CROSS JOIN attendance a
+                WHERE st.section_id = sec.id AND a.student_id = st.id AND a.date = ? AND sec.school_id = ?`).bind(date, schoolId).first<{ first_at: string | null; confirmed: number | null }>(),
   ])
   // A school without pupil records reports its day as one summary row (school_days) and its enrolment in schools.enrolled.
   if (statuses.length === 0) {
@@ -100,10 +100,12 @@ export async function threeDayAbsences(db: D1Database, date: string, schoolId: n
       WHERE a.date IN (${placeholders(dates.length)}) AND a.status = 'absent' AND (? IS NULL OR sec.school_id = ?)
         AND a.period = (SELECT MIN(b.period) FROM attendance b WHERE b.student_id = a.student_id AND b.date = a.date)`)
       .bind(...dates, schoolId, schoolId).all<{ student_id: number; date: string; student_name: string; section_label: string; school: string; school_id: number }>(),
+    // One EXISTS probe per school and day (stops at the first row) instead of reading every attendance row of ten days.
     db.prepare(`
-      SELECT DISTINCT sec.school_id, a.date FROM attendance a JOIN students st ON st.id = a.student_id JOIN sections sec ON sec.id = st.section_id
-      WHERE a.date IN (${placeholders(dates.length)}) AND (? IS NULL OR sec.school_id = ?)`)
-      .bind(...dates, schoolId, schoolId).all<{ school_id: number; date: string }>(),
+      SELECT sc.id AS school_id, d.value AS date FROM schools sc, json_each(?) d
+      WHERE (? IS NULL OR sc.id = ?) AND EXISTS (SELECT 1 FROM sections sec CROSS JOIN students st CROSS JOIN attendance a
+        WHERE sec.school_id = sc.id AND st.section_id = sec.id AND a.student_id = st.id AND a.date = d.value)`)
+      .bind(JSON.stringify(dates), schoolId, schoolId).all<{ school_id: number; date: string }>(),
   ])
   const recordedDays = new Set(uploaded.results.map(r => `${r.school_id}|${r.date}`))   // days the school uploaded anything
   const byStudent = new Map<number, typeof absent.results>()
@@ -126,12 +128,11 @@ export async function threeDayAbsences(db: D1Database, date: string, schoolId: n
 export interface DayAttendance { school_id: number; date: string; recorded: number; attended: number }
 export async function attendanceByDay(db: D1Database, from: string, to: string, schoolId: number | null): Promise<DayAttendance[]> {
   const { results } = await db.prepare(`
-    WITH first AS (SELECT student_id, date, MIN(period) AS p FROM attendance WHERE date BETWEEN ? AND ? GROUP BY student_id, date)
-    SELECT sec.school_id, f.date, COUNT(*) AS recorded, SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) AS attended
-    FROM first f JOIN attendance a ON a.student_id = f.student_id AND a.date = f.date AND a.period = f.p
-    JOIN students st ON st.id = f.student_id JOIN sections sec ON sec.id = st.section_id
-    WHERE ? IS NULL OR sec.school_id = ?
-    GROUP BY sec.school_id, f.date
+    SELECT sec.school_id, a.date, COUNT(*) AS recorded, SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) AS attended
+    FROM sections sec CROSS JOIN students st CROSS JOIN attendance a
+    WHERE st.section_id = sec.id AND a.student_id = st.id AND a.date BETWEEN ? AND ? AND (? IS NULL OR sec.school_id = ?)
+      AND a.period = (SELECT MIN(b.period) FROM attendance b WHERE b.student_id = a.student_id AND b.date = a.date)
+    GROUP BY sec.school_id, a.date
     UNION ALL
     SELECT school_id, date, present + absent + late AS recorded, present + late AS attended FROM school_days
     WHERE date BETWEEN ? AND ? AND (? IS NULL OR school_id = ?)

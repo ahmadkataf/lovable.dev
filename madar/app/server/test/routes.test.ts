@@ -472,7 +472,7 @@ describe('dashboards (the demo day)', () => {
     expect(r.json.three_days).toEqual([{ student: 'يزن عماد', section: 'الخامس (أ)', days: expect.any(Number) }])
     expect(r.json.trend).toHaveLength(7)
     expect(r.json.trend[6].date).toBe(REPORT)
-    expect(r.json.trend.filter((t: any) => t.attendance_pct !== null)).toHaveLength(5)   // five school days of data
+    expect(r.json.trend.filter((t: any) => t.attendance_pct !== null)).toHaveLength(7)   // seven school days of data
     expect(r.json.trend.map((t: any) => t.date)).toEqual([...r.json.trend.map((t: any) => t.date)].sort())
     // the school that has not uploaded, and a wrong id
     const busra = (await call('GET', `/api/directorate/school/8?date=${REPORT}`, T.dir)).json

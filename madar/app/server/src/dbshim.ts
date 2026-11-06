@@ -13,6 +13,7 @@ export interface DbStub {
   health(): Promise<Record<string, number>>
   loginAttempt(ip: string): Promise<Verdict>
   loginSucceeded(ip: string): Promise<void>
+  usage(reset?: boolean): Promise<{ read: number; written: number; top: { sql: string; calls: number; read: number; written: number }[] }>
   adminAttempt(ip: string): Promise<Verdict>
 }
 

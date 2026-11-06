@@ -443,7 +443,7 @@ out.push(`INSERT OR IGNORE INTO submissions (homework_id, student_id, status, su
 // all day (absent = the whole day); a few arrive late in period 1. Absence rates differ per school (one weak school);
 // the hash step of 17 makes streaks of three impossible, so the only three-day streak is student 9's.
 const rateCase = 'CASE c.school_id ' + SCHOOLS.map(s => `WHEN ${s.id} THEN ${s.rate}`).join(' ') + ' END'
-out.push(`WITH recent AS (SELECT rn, d, wd FROM demo_days WHERE rn <= 5),
+out.push(`WITH recent AS (SELECT rn, d, wd FROM demo_days WHERE rn <= 7),
   periods(p) AS (VALUES (1), (2), (3), (4), (5), (6)),
   roster AS (SELECT st.id AS student_id, sec.id AS section_id, sec.school_id FROM students st JOIN sections sec ON sec.id = st.section_id),
   cells AS (
@@ -455,7 +455,7 @@ out.push(`WITH recent AS (SELECT rn, d, wd FROM demo_days WHERE rn <= 5),
   )
 INSERT OR IGNORE INTO attendance (student_id, date, period, status, recorded_by, confirmed, created_at)
 SELECT c.student_id, c.d, c.p,
-       CASE WHEN (c.student_id = ${THREE_DAY_STUDENT} AND c.rn <= 3) OR c.h < (${rateCase}) THEN 'absent'
+       CASE WHEN (c.student_id = ${THREE_DAY_STUDENT} AND c.rn <= 3) OR c.h < (${rateCase}) + (CAST(julianday(c.d) AS INTEGER) % 4) - 1 THEN 'absent'
             WHEN c.p = 1 AND c.l = 1 THEN 'late'
             ELSE 'present' END,
        COALESCE((SELECT t.teacher_id FROM timetable t WHERE t.section_id = c.section_id AND t.day = c.wd AND t.period = c.p),
@@ -467,8 +467,8 @@ FROM cells c;`)
 // Schools 4–10: one summary row per school and day (enrolment, present/absent/late, upload time) instead of pupil rows.
 // Same absence rates as above with a small day-to-day variation; the no-upload school has no row on the demo day.
 out.push(`INSERT OR IGNORE INTO school_days (school_id, date, students, present, absent, late, uploaded_at, confirmed) VALUES\n` +
-  SCHOOLS.filter(s => !DEEP.has(s.id)).flatMap(s => [1, 2, 3, 4, 5].filter(rn => !(rn === 1 && s.id === NO_UPLOAD_SCHOOL)).map(rn => {
-    const n = enrolled(s.id), absent = Math.round(n * (s.rate + ((s.id * 3 + rn * 5) % 5) - 2) / 100), late = Math.round(n * (1 + (s.id + rn) % 3) / 100)
+  SCHOOLS.filter(s => !DEEP.has(s.id)).flatMap(s => [1, 2, 3, 4, 5, 6, 7].filter(rn => !(rn === 1 && s.id === NO_UPLOAD_SCHOOL)).map(rn => {
+    const n = enrolled(s.id), absent = Math.round(n * (s.rate + ((s.id * 3 + rn * 2) % 5) - 2) / 100), late = Math.round(n * (1 + (s.id + rn) % 3) / 100)
     return `  (${s.id}, (SELECT d FROM demo_days WHERE rn = ${rn}), ${n}, ${n - absent - late}, ${absent}, ${late}, datetime((SELECT d FROM demo_days WHERE rn = ${rn}) || ' 07:${30 + (s.id * 7 + rn) % 25}:00', '-3 hours'), ${rn > 1 ? 1 : 0})`
   })).join(',\n') + ';')
 

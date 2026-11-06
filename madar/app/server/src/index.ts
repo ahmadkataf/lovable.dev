@@ -56,6 +56,10 @@ app.post('/api/admin/reseed', async c => {
   const { reseed } = await import('./worker')
   return c.json(await reseed(c.env))
 })
+app.get('/api/admin/usage', async c => {
+  const stub = doStub(c.env)
+  return c.json(stub ? await stub.usage(c.req.query('reset') === '1') : { note: 'no durable object binding' })
+})
 app.get('/api/admin/health', async c => {
   const stub = doStub(c.env)
   return c.json(stub ? await stub.health() : { note: 'no durable object binding' })

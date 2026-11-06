@@ -27,6 +27,12 @@ CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY, user_id INTEGER, a
 CREATE TABLE IF NOT EXISTS school_days (school_id INTEGER NOT NULL REFERENCES schools(id), date TEXT NOT NULL, students INTEGER NOT NULL,
   present INTEGER NOT NULL, absent INTEGER NOT NULL, late INTEGER NOT NULL, uploaded_at TEXT, confirmed INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (school_id, date)) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS idx_tt_teacher ON timetable(teacher_id, day);
-CREATE INDEX IF NOT EXISTS idx_att_date ON attendance(date);
+CREATE INDEX IF NOT EXISTS idx_users_school ON users(school_id, role, subject_id);
+CREATE INDEX IF NOT EXISTS idx_students_section ON students(section_id);
+CREATE INDEX IF NOT EXISTS idx_students_guardian ON students(guardian_user_id);
+CREATE INDEX IF NOT EXISTS idx_sections_school ON sections(school_id);
+CREATE INDEX IF NOT EXISTS idx_att_date_status ON attendance(date, status, student_id);
+CREATE INDEX IF NOT EXISTS idx_absences_date ON absences(date);
+CREATE INDEX IF NOT EXISTS idx_subs_absence ON substitutions(absence_id, status);
 CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, read_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_dedupe ON notifications(dedupe_key);

@@ -118,12 +118,12 @@ describe('seed: the ten-school pilot', () => {
     expect(gov).toBeLessThanOrEqual(93)
     // the demo day has periods 1–2 (unconfirmed); the four school days before it keep the first period only, confirmed
     expect(one('SELECT MAX(period) AS p, MAX(confirmed) AS c FROM attendance WHERE date = ?', REPORT)).toEqual({ p: 2, c: 0 })
-    expect(all<{ date: string; p: number }>('SELECT date, MAX(period) AS p FROM attendance WHERE date < ? GROUP BY date', REPORT).map(r => r.p)).toEqual([1, 1, 1, 1])
+    expect(all<{ date: string; p: number }>('SELECT date, MAX(period) AS p FROM attendance WHERE date < ? GROUP BY date', REPORT).map(r => r.p)).toEqual([1, 1, 1, 1, 1, 1])
     expect(n('SELECT COUNT(*) AS n FROM attendance WHERE date < ? AND (confirmed <> 1)', REPORT)).toBe(0)
     expect(all<{ d: string }>('SELECT DISTINCT date AS d FROM attendance UNION SELECT DISTINCT date FROM school_days').every(r => weekday(r.d) <= 4)).toBe(true)
     expect(one(`SELECT MIN(created_at) AS t FROM attendance WHERE date = ?`, REPORT)).toEqual({ t: `${REPORT} 04:42:00` })   // 07:42 Damascus
     // the whole seed stays small enough for a daily reseed on the free tier
-    expect(n('SELECT COUNT(*) AS n FROM attendance')).toBeLessThan(6000)
+    expect(n('SELECT COUNT(*) AS n FROM attendance')).toBeLessThan(7000)
   })
 
   it('exactly one three-day absence streak: يزن عماد of الخامس (أ)', async () => {
