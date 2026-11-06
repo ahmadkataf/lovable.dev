@@ -33,13 +33,22 @@ CREATE TABLE IF NOT EXISTS devices (
   blocked       INTEGER NOT NULL DEFAULT 0, -- 1 = the seller blocked this device: activate/check/trial answer 'blocked'
   phone         TEXT NOT NULL DEFAULT '', -- the shop's phone (Settings → Store), for following up on trials; '' = not sent
   shop          TEXT NOT NULL DEFAULT '', -- the shop's name (Settings → Store)
-  contact_optout INTEGER NOT NULL DEFAULT 0 -- 1 = the shop asked not to be contacted: phone/shop cleared and never stored again
+  contact_optout INTEGER NOT NULL DEFAULT 0, -- 1 = the shop asked not to be contacted: phone/shop cleared and never stored again
+  optout_h      TEXT NOT NULL DEFAULT ''  -- the do-not-contact fingerprint that blanked this row (an opt-in from any such row lifts it)
 );
--- Databases made before `blocked` / `phone` / `shop` / `contact_optout` existed get the columns from the deploy workflow (ALTER TABLE … || true) and, as a
+-- Databases made before `blocked` / `phone` / `shop` / `contact_optout` / `optout_h` existed get the columns from the deploy workflow (ALTER TABLE … || true) and, as a
 -- fallback, from the worker itself at startup (src/index.ts ensureSchema): SQLite has no ADD COLUMN IF NOT EXISTS.
 CREATE INDEX IF NOT EXISTS devices_code ON devices(code);
 CREATE INDEX IF NOT EXISTS devices_last_seen ON devices(last_seen);
 CREATE INDEX IF NOT EXISTS devices_device_code ON devices(device_code);
+
+-- Numbers whose shop asked not to be contacted: a keyed fingerprint (HMAC-SHA256 under LICENSE_SECRET of the international
+-- digits), never the number itself, so that no device of that shop — today's or a later one — stores the number again.
+CREATE TABLE IF NOT EXISTS contact_optouts (
+  h      TEXT PRIMARY KEY,
+  device TEXT NOT NULL,                   -- the device the seller opted out from (an opt-in there lifts it)
+  at     INTEGER NOT NULL
+);
 
 -- What happened, for support, the dashboard and rate limiting.
 CREATE TABLE IF NOT EXISTS events (

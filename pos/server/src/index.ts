@@ -57,6 +57,7 @@ export type DeviceRow = {
   blocked?: number   // undefined on a database that predates the column (ensureSchema adds it)
   phone?: string; shop?: string   // the shop's phone and name, sent by the app since 1.0.3 (ensureSchema adds the columns)
   contact_optout?: number         // 1 = the shop asked not to be contacted (the seller set it in the panel)
+  optout_h?: string               // the do-not-contact fingerprint that blanked this row
 }
 type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string; cloud_price: string; cloud_days: number; cloud_keep: number; web_trial: number; apk_url: string; win_url: string }
 const DEFAULTS: Settings = { price: '35$', whatsapp: '963996489504', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3, web_trial: 0, apk_url: '', win_url: '' }
@@ -148,6 +149,8 @@ function ensureSchema(env: Env): Promise<void> {
     .then(step("ALTER TABLE devices ADD COLUMN phone TEXT NOT NULL DEFAULT ''"))
     .then(step("ALTER TABLE devices ADD COLUMN shop TEXT NOT NULL DEFAULT ''"))
     .then(step('ALTER TABLE devices ADD COLUMN contact_optout INTEGER NOT NULL DEFAULT 0'))
+    .then(step("ALTER TABLE devices ADD COLUMN optout_h TEXT NOT NULL DEFAULT ''"))
+    .then(step('CREATE TABLE IF NOT EXISTS contact_optouts (h TEXT PRIMARY KEY, device TEXT NOT NULL, at INTEGER NOT NULL)'))
   return schemaReady
 }
 
@@ -168,7 +171,7 @@ type Client = { device: string; name: string; platform: string; version: string;
 /** The shop's phone in the app's canonical form (src/lib/phone.ts cleanPhone): a local number with its 0, or "+" and
  *  the international digits; 9 to 15 digits, else '' (not stored). */
 function phoneOf(v: unknown): string {
-  const s = clip(v, 24).trim()
+  const s = clip(v, 24).trim().replace(/[٠-٩]/g, ch => String('٠١٢٣٤٥٦٧٨٩'.indexOf(ch))).replace(/[۰-۹]/g, ch => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(ch)))
   if (!/^(\+|00)?[\d\s()-]+$/.test(s)) return ''
   let plus = /^(\+|00)/.test(s)
   let d = s.replace(/\D/g, '')
@@ -189,17 +192,39 @@ function client(b: Record<string, unknown>, needNonce = true): Client | null {
   }
 }
 
+/** A phone (phoneOf form) as international digits: 0944… → 963944…, +963944… → 963944… — one key for every form. */
+const phoneKey = (p: string): string => (p.startsWith('+') ? p.slice(1) : p.startsWith('0') ? '963' + p.slice(1) : p)
+/** The stored forms the same number can have (phoneOf keeps a local Syrian number with its 0). */
+const phoneForms = (p: string): string[] => { const k = phoneKey(p); return k.startsWith('963') ? ['+' + k, '0' + k.slice(3), k] : ['+' + k, k] }
+/** The keyed fingerprint of a number on the do-not-contact list (the number itself is never kept there). */
+async function optoutHash(env: Env, phone: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.LICENSE_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('kaseb-optout:' + phoneKey(phone)))
+  return [...new Uint8Array(mac)].map(x => x.toString(16).padStart(2, '0')).join('')
+}
+/** The fingerprint of `phone` when that number is on the do-not-contact list, else ''. */
+async function optoutOf(env: Env, phone: string): Promise<string> {
+  if (!phone) return ''
+  const h = await optoutHash(env, phone)
+  return (await env.DB.prepare('SELECT 1 AS x FROM contact_optouts WHERE h = ?').bind(h).first()) ? h : ''
+}
+
 /** Keeps the devices row current (name, version, last seen…) without touching its code or trial. */
 async function touchDevice(env: Env, req: Request, c: Client, now: number): Promise<void> {
   // the phone and shop name are kept when a request carries none (an older app, or a shop that has not entered them),
-  // and never stored again for a shop that asked not to be contacted
-  await env.DB.prepare(`INSERT INTO devices (device, device_code, name, platform, version, build, sig, first_seen, last_seen, ip, phone, shop)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  // and never stored for a shop that asked not to be contacted: neither on this device nor on any other with that number
+  const h = await optoutOf(env, c.phone)
+  const off = h ? 1 : 0
+  const phone = off ? '' : c.phone, shop = off ? '' : c.shop
+  await env.DB.prepare(`INSERT INTO devices (device, device_code, name, platform, version, build, sig, first_seen, last_seen, ip, phone, shop, contact_optout, optout_h)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(device) DO UPDATE SET device_code = excluded.device_code, name = CASE WHEN excluded.name = '' THEN devices.name ELSE excluded.name END,
       platform = excluded.platform, version = excluded.version, build = excluded.build, sig = excluded.sig, last_seen = excluded.last_seen, ip = excluded.ip,
-      phone = CASE WHEN devices.contact_optout = 1 THEN '' WHEN excluded.phone = '' THEN devices.phone ELSE excluded.phone END,
-      shop = CASE WHEN devices.contact_optout = 1 THEN '' WHEN excluded.shop = '' THEN devices.shop ELSE excluded.shop END`)
-    .bind(c.device, deviceCodeOf(c.device), c.name, c.platform, c.version, c.build, c.sig, now, now, ip(req), c.phone, c.shop).run()
+      contact_optout = MAX(devices.contact_optout, excluded.contact_optout),
+      optout_h = CASE WHEN excluded.contact_optout = 1 THEN excluded.optout_h ELSE devices.optout_h END,
+      phone = CASE WHEN devices.contact_optout = 1 OR excluded.contact_optout = 1 THEN '' WHEN excluded.phone = '' THEN devices.phone ELSE excluded.phone END,
+      shop = CASE WHEN devices.contact_optout = 1 OR excluded.contact_optout = 1 THEN '' WHEN excluded.shop = '' THEN devices.shop ELSE excluded.shop END`)
+    .bind(c.device, deviceCodeOf(c.device), c.name, c.platform, c.version, c.build, c.sig, now, now, ip(req), phone, shop, off, h).run()
 }
 /** The first version that asks for the shop's phone before the trial: from it on the server refuses a trial without one. */
 const PHONE_SINCE = '1.0.3'
@@ -461,7 +486,7 @@ function isAdmin(req: Request, env: Env): boolean {
   return !!env.ADMIN_KEY && key.length === env.ADMIN_KEY.length && sameText(key, env.ADMIN_KEY)
 }
 const publicCode = <T extends CodeRow>(r: T) => ({ ...r, code: formatCode(r.code) })
-const publicDevice = <T extends DeviceRow>(d: T) => ({ ...d, ip: undefined, code: d.code ? formatCode(d.code) : null, blocked: d.blocked ? 1 : 0 })
+const publicDevice = <T extends DeviceRow>(d: T) => ({ ...d, ip: undefined, optout_h: undefined, code: d.code ? formatCode(d.code) : null, blocked: d.blocked ? 1 : 0 })
 const expiresArg = (v: unknown): number | null | undefined => {
   if (v === null || v === '' || v === undefined) return null
   const n = Number(v)
@@ -770,11 +795,29 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
         return json({ ok: true, code: formatCode(code) })
       }
       if (act === 'contact') {
-        // the shop asked not to be contacted (the privacy page promises it): its phone and name are cleared and the
-        // app's later checks never store them again; `optout: false` undoes it (the next check sends them again)
+        // the shop asked not to be contacted (the privacy page promises it): the number goes on the do-not-contact list
+        // (a keyed fingerprint), it is cleared from every device that has it, and no device stores it again;
+        // `optout: false` lifts it for that number on every device (their next check sends the number again)
         const optout = b.optout ? 1 : 0
-        if (optout) await env.DB.prepare("UPDATE devices SET contact_optout = 1, phone = '', shop = '' WHERE device = ?").bind(device).run()
-        else await env.DB.prepare('UPDATE devices SET contact_optout = 0 WHERE device = ?').bind(device).run()
+        if (optout) {
+          const ph = me.phone || ''
+          const h = ph ? await optoutHash(env, ph) : ''
+          const stmts = [env.DB.prepare("UPDATE devices SET contact_optout = 1, phone = '', shop = '', optout_h = ? WHERE device = ?").bind(h, device)]
+          if (ph) {
+            const forms = phoneForms(ph)
+            stmts.push(env.DB.prepare('INSERT OR IGNORE INTO contact_optouts (h, device, at) VALUES (?, ?, ?)').bind(h, device, now))
+            stmts.push(env.DB.prepare(`UPDATE devices SET contact_optout = 1, phone = '', shop = '', optout_h = ? WHERE phone IN (${forms.map(() => '?').join(', ')})`).bind(h, ...forms))
+          }
+          await env.DB.batch(stmts)
+        } else {
+          const h = me.optout_h || ''
+          const stmts = [env.DB.prepare("UPDATE devices SET contact_optout = 0, optout_h = '' WHERE device = ?").bind(device)]
+          if (h) {
+            stmts.push(env.DB.prepare('DELETE FROM contact_optouts WHERE h = ?').bind(h))
+            stmts.push(env.DB.prepare("UPDATE devices SET contact_optout = 0, optout_h = '' WHERE optout_h = ?").bind(h))
+          }
+          await env.DB.batch(stmts)
+        }
         await log(env, 'admin', req, me.code, device, optout ? 'optout' : 'optin')
         return json({ ok: true, optout })
       }
@@ -889,13 +932,13 @@ const PRIVACY = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="u
 section{background:#fff;border:1px solid #e3e8f0;border-radius:14px;padding:16px 18px;margin-bottom:14px}h1{font-size:22px}h2{font-size:17px;margin:0 0 6px}
 @media (prefers-color-scheme:dark){body{background:#0b1220;color:#e8eef8}section{background:#121b2d;border-color:#243149}}</style></head><body><main>
 <h1>سياسة الخصوصية — كاسب</h1>
-<section><h2>ما الذي يصل إلى الخادم</h2><p>كاسب يعمل بالكامل على جهازك: المنتجات والفواتير والعملاء والورديات تبقى على الجهاز ولا تُرسل إلى أي مكان.
+<section><h2>ما الذي يصل إلى الخادم</h2><p>كاسب يعمل بالكامل على جهازك: المنتجات والفواتير والعملاء والورديات تبقى على الجهاز ولا تُرسل إلى أي مكان، إلا إن اشتركت في النسخ السحابي (انظر أدناه).
 الاتصال بالإنترنت هو للتحقق من الترخيص، ويُرسل فيه: معرّف مشفّر للجهاز (لا يمكن الرجوع منه إلى المعرّف الأصلي)، واسم الجهاز ونوعه، وإصدار التطبيق، وكود التفعيل الذي أدخلته، واسم المحل ورقم هاتفه كما أدخلتهما في التطبيق، وعنوان IP ووقت الطلب.</p></section>
 <section><h2>لماذا</h2><p>لربط كود التفعيل بجهازك، والتحقق دورياً من أن الترخيص ما زال سارياً، ونقله إلى جهاز آخر عند الحاجة، ومنع التلاعب.
 ورقم هاتف المحل واسمه ليتواصل معك فريق كاسب: لمساعدتك أثناء التجربة المجانية، وبخصوص الاشتراك بعدها، ولدعمك بعد الشراء.</p></section>
 <section><h2>النسخ السحابي</h2><p>إذا اشتركت في النسخ الاحتياطي السحابي، تُرفع نسخة مضغوطة من بيانات المحل إلى خادمنا لتستعيدها عند الحاجة، ونحتفظ بآخر النسخ فقط. دون هذا الاشتراك لا تغادر بياناتك جهازك.</p></section>
 <section><h2>رقم الهاتف</h2><p>رقم هاتف المحل مطلوب لبدء التجربة المجانية. لا يُستخدم إلا للتواصل معك من فريق كاسب بخصوص البرنامج، ولا يُباع ولا يُشارك مع أي جهة.
-إن لم تعد ترغب في أن نتواصل معك، أو أردت حذف رقمك من سجلاتنا، راسلنا على واتساب <a href="{{WA_LINK}}" dir="ltr">{{WHATSAPP}}</a> فنحذفه ولا يُحفظ بعدها ولا نتواصل معك.</p></section>
+إن لم تعد ترغب في أن نتواصل معك، أو أردت حذف رقمك من سجلاتنا، راسلنا على واتساب <a href="{{WA_LINK}}" dir="ltr">{{WHATSAPP}}</a> فنحذفه من كل أجهزتك ولا يُحفظ بعدها ولا نتواصل معك؛ نحتفظ فقط ببصمة مشفّرة منه (لا يمكن قراءة الرقم منها) كي لا يُحفظ من جديد.</p></section>
 <section><h2>المشاركة</h2><p>لا نبيع البيانات ولا نشاركها مع أي جهة، ولا توجد إعلانات ولا أدوات تتبّع. الخادم مستضاف لدى Cloudflare، وتُحذف سجلات الأمان بعد سنة على الأكثر.</p></section>
 </main></body></html>`
 
