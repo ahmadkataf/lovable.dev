@@ -32,9 +32,10 @@ CREATE TABLE IF NOT EXISTS devices (
   ip            TEXT,
   blocked       INTEGER NOT NULL DEFAULT 0, -- 1 = the seller blocked this device: activate/check/trial answer 'blocked'
   phone         TEXT NOT NULL DEFAULT '', -- the shop's phone (Settings → Store), for following up on trials; '' = not sent
-  shop          TEXT NOT NULL DEFAULT ''  -- the shop's name (Settings → Store)
+  shop          TEXT NOT NULL DEFAULT '', -- the shop's name (Settings → Store)
+  contact_optout INTEGER NOT NULL DEFAULT 0 -- 1 = the shop asked not to be contacted: phone/shop cleared and never stored again
 );
--- Databases made before `blocked` / `phone` / `shop` existed get the columns from the deploy workflow (ALTER TABLE … || true) and, as a
+-- Databases made before `blocked` / `phone` / `shop` / `contact_optout` existed get the columns from the deploy workflow (ALTER TABLE … || true) and, as a
 -- fallback, from the worker itself at startup (src/index.ts ensureSchema): SQLite has no ADD COLUMN IF NOT EXISTS.
 CREATE INDEX IF NOT EXISTS devices_code ON devices(code);
 CREATE INDEX IF NOT EXISTS devices_last_seen ON devices(last_seen);

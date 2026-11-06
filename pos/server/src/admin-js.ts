@@ -175,7 +175,7 @@ function deviceState(d) {
   return ['', 'بلا ترخيص']
 }
 const WHY = { invalid_code: 'كود غير صحيح', revoked: 'الكود ملغى', expired: 'الترخيص منتهٍ', device_limit: 'الكود مستخدم على جهاز آخر', tampered: 'نسخة معدّلة (توقيع مختلف)', min_version: 'إصدار قديم', disabled: 'التجربة موقوفة', used: 'استُخدمت التجربة من قبل', phone: 'بدون رقم هاتف', web: 'تجربة من المتصفح (غير مسموحة)', device_mismatch: 'الكود مربوط بجهاز آخر الآن', no_trial: 'لا تجربة لهذا الجهاز', move_limit: 'استُنفدت مرات النقل الذاتي', inactive: 'السحابة غير مفعّلة', blocked: 'الجهاز موقوف من البائع' }
-const ACT = { revoke: 'إلغاء الكود', unrevoke: 'إعادة الكود', extend: 'تغيير تاريخ الانتهاء', note: 'تعديل بيانات الكود', devices: 'تغيير عدد الأجهزة', release: 'تحرير جهاز من الكود', settings: 'تعديل الإعدادات', grant: 'منح كود لجهاز', cloud: 'تعديل اشتراك السحابة', 'backups-delete': 'حذف النسخ السحابية', block: 'إيقاف جهاز', unblock: 'إعادة تشغيل جهاز' }
+const ACT = { revoke: 'إلغاء الكود', unrevoke: 'إعادة الكود', extend: 'تغيير تاريخ الانتهاء', note: 'تعديل بيانات الكود', devices: 'تغيير عدد الأجهزة', release: 'تحرير جهاز من الكود', settings: 'تعديل الإعدادات', grant: 'منح كود لجهاز', cloud: 'تعديل اشتراك السحابة', 'backups-delete': 'حذف النسخ السحابية', block: 'إيقاف جهاز', unblock: 'إعادة تشغيل جهاز', optout: 'حذف رقم وإيقاف التواصل', optin: 'السماح بالتواصل مجدداً' }
 function describe(e) {
   const d = String(e.detail || '')
   if (e.kind === 'activate') return ['good', 'check', d === 'refresh' ? 'إعادة تفعيل على الجهاز نفسه' : 'تفعيل جديد', '']

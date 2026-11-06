@@ -56,6 +56,7 @@ export type DeviceRow = {
   first_seen: number; last_seen: number; ip: string | null
   blocked?: number   // undefined on a database that predates the column (ensureSchema adds it)
   phone?: string; shop?: string   // the shop's phone and name, sent by the app since 1.0.3 (ensureSchema adds the columns)
+  contact_optout?: number         // 1 = the shop asked not to be contacted (the seller set it in the panel)
 }
 type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string; cloud_price: string; cloud_days: number; cloud_keep: number; web_trial: number; apk_url: string; win_url: string }
 const DEFAULTS: Settings = { price: '35$', whatsapp: '963996489504', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3, web_trial: 0, apk_url: '', win_url: '' }
@@ -93,6 +94,13 @@ const json = (data: unknown, status = 200): Response =>
 const WIN_KEY = 'Kaseb-Setup.exe'
 /** A WhatsApp chat link with a prefilled message. */
 const waLink = (whatsapp: string, text: string): string => `https://wa.me/${whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`
+/** The privacy page with the seller's WhatsApp filled in (HTML-escaped). */
+function renderPrivacy(s: Settings): string {
+  const esc = (v: string) => v.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] as string))
+  const wa = (s.whatsapp || DEFAULTS.whatsapp).replace(/\D/g, '')
+  const pretty = wa.startsWith('963') ? '0' + wa.slice(3) : '+' + wa
+  return PRIVACY.replace(/\{\{WHATSAPP\}\}/g, esc(pretty)).replace(/\{\{WA_LINK\}\}/g, esc(waLink(wa, 'مرحباً، أرجو حذف رقم هاتف محلي من سجلات كاسب وعدم التواصل معي.')))
+}
 /** The public page with the seller's price and contact filled in (HTML-escaped). */
 function renderLanding(s: Settings): string {
   const esc = (v: string) => v.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] as string))
@@ -139,6 +147,7 @@ function ensureSchema(env: Env): Promise<void> {
     .then(step('CREATE INDEX IF NOT EXISTS events_kind_at ON events(kind, at)'))
     .then(step("ALTER TABLE devices ADD COLUMN phone TEXT NOT NULL DEFAULT ''"))
     .then(step("ALTER TABLE devices ADD COLUMN shop TEXT NOT NULL DEFAULT ''"))
+    .then(step('ALTER TABLE devices ADD COLUMN contact_optout INTEGER NOT NULL DEFAULT 0'))
   return schemaReady
 }
 
@@ -156,12 +165,19 @@ const info = (s: Settings) => ({ price: s.price || DEFAULTS.price, whatsapp: s.w
 
 /** What the app said about itself with this request. */
 type Client = { device: string; name: string; platform: string; version: string; build: string; sig: string; nonce: string; phone: string; shop: string }
-/** The shop's phone as the app sends it: an optional "+" and 9 to 15 digits, else '' (not stored). */
+/** The shop's phone in the app's canonical form (src/lib/phone.ts cleanPhone): a local number with its 0, or "+" and
+ *  the international digits; 9 to 15 digits, else '' (not stored). */
 function phoneOf(v: unknown): string {
   const s = clip(v, 24).trim()
-  const digits = s.replace(/\D/g, '')
-  if (!/^\+?[\d\s()-]+$/.test(s) || digits.length < 9 || digits.length > 15) return ''
-  return (s.startsWith('+') ? '+' : '') + digits
+  if (!/^(\+|00)?[\d\s()-]+$/.test(s)) return ''
+  let plus = /^(\+|00)/.test(s)
+  let d = s.replace(/\D/g, '')
+  if (s.startsWith('00')) d = d.replace(/^00/, '')
+  if (!plus && /^963\d{9,10}$/.test(d)) plus = true
+  if (plus && d.startsWith('9630')) d = '963' + d.slice(4)
+  if (!plus && /^9\d{8}$/.test(d)) d = '0' + d
+  if (d.length < 9 || d.length > 15 || (plus && d.startsWith('0')) || (!plus && d.startsWith('0') && d.length !== 10)) return ''
+  return (plus ? '+' : '') + d
 }
 function client(b: Record<string, unknown>, needNonce = true): Client | null {
   if (!validDevice(b.device)) return null
@@ -175,12 +191,14 @@ function client(b: Record<string, unknown>, needNonce = true): Client | null {
 
 /** Keeps the devices row current (name, version, last seen…) without touching its code or trial. */
 async function touchDevice(env: Env, req: Request, c: Client, now: number): Promise<void> {
-  // the phone and shop name are kept when a request carries none (an older app, or a shop that has not entered them)
+  // the phone and shop name are kept when a request carries none (an older app, or a shop that has not entered them),
+  // and never stored again for a shop that asked not to be contacted
   await env.DB.prepare(`INSERT INTO devices (device, device_code, name, platform, version, build, sig, first_seen, last_seen, ip, phone, shop)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(device) DO UPDATE SET device_code = excluded.device_code, name = CASE WHEN excluded.name = '' THEN devices.name ELSE excluded.name END,
       platform = excluded.platform, version = excluded.version, build = excluded.build, sig = excluded.sig, last_seen = excluded.last_seen, ip = excluded.ip,
-      phone = CASE WHEN excluded.phone = '' THEN devices.phone ELSE excluded.phone END, shop = CASE WHEN excluded.shop = '' THEN devices.shop ELSE excluded.shop END`)
+      phone = CASE WHEN devices.contact_optout = 1 THEN '' WHEN excluded.phone = '' THEN devices.phone ELSE excluded.phone END,
+      shop = CASE WHEN devices.contact_optout = 1 THEN '' WHEN excluded.shop = '' THEN devices.shop ELSE excluded.shop END`)
     .bind(c.device, deviceCodeOf(c.device), c.name, c.platform, c.version, c.build, c.sig, now, now, ip(req), c.phone, c.shop).run()
 }
 /** The first version that asks for the shop's phone before the trial: from it on the server refuses a trial without one. */
@@ -693,10 +711,12 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     const where: string[] = [], args: unknown[] = []
     if (raw) {
       const q = `%${raw}%`, qCode = `%${raw.replace(/[-\s]/g, '').toUpperCase()}%`
-      const qPhone = raw.replace(/\D/g, '')
+      // the national part of a phone typed any way (0944…, +963 944…, 00963…, Arabic digits) finds every stored form
+      const digitsQ = raw.replace(/[٠-٩]/g, ch => String('٠١٢٣٤٥٦٧٨٩'.indexOf(ch))).replace(/[۰-۹]/g, ch => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(ch)))
+      let qPhone = digitsQ.replace(/\D/g, '').replace(/^00/, '')
+      if (/^\s*(\+|00)/.test(digitsQ) || qPhone.length >= 12) qPhone = qPhone.replace(/^963/, '')
       where.push(`(REPLACE(d.device_code, '-', '') LIKE ? OR d.name LIKE ? OR IFNULL(d.code, '') LIKE ? OR d.version LIKE ? OR d.shop LIKE ?${qPhone.length >= 3 ? ' OR d.phone LIKE ?' : ''})`)
       args.push(qCode, q, qCode, q, q)
-      // a local number typed as 09… also finds the international form stored as +9639…
       if (qPhone.length >= 3) args.push(`%${qPhone.replace(/^0/, '')}%`)
     }
     const state = qs('state')
@@ -705,7 +725,7 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     if (state === 'expired') { where.push('d.code IS NULL AND d.trial_started IS NOT NULL AND d.trial_ends <= ?'); args.push(now) }
     if (state === 'free') where.push('d.code IS NULL AND d.trial_started IS NULL')
     if (state === 'blocked') where.push('d.blocked = 1')
-    if (qs('phone') === '1') where.push("d.phone != ''")
+    if (qs('phone') === '1') where.push("d.phone != '' AND IFNULL(d.contact_optout, 0) = 0")
     const platform = qs('platform')
     if (validPlatform(platform)) { where.push('d.platform = ?'); args.push(platform) }
     const SORT: Record<string, string> = { last_seen: 'd.last_seen', first_seen: 'd.first_seen', name: 'd.name', trial_ends: 'd.trial_ends' }
@@ -748,6 +768,15 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
         await env.DB.prepare('UPDATE devices SET code = ?, bound_at = ? WHERE device = ?').bind(code, now, device).run()
         await log(env, 'admin', req, code, device, 'grant')
         return json({ ok: true, code: formatCode(code) })
+      }
+      if (act === 'contact') {
+        // the shop asked not to be contacted (the privacy page promises it): its phone and name are cleared and the
+        // app's later checks never store them again; `optout: false` undoes it (the next check sends them again)
+        const optout = b.optout ? 1 : 0
+        if (optout) await env.DB.prepare("UPDATE devices SET contact_optout = 1, phone = '', shop = '' WHERE device = ?").bind(device).run()
+        else await env.DB.prepare('UPDATE devices SET contact_optout = 0 WHERE device = ?').bind(device).run()
+        await log(env, 'admin', req, me.code, device, optout ? 'optout' : 'optin')
+        return json({ ok: true, optout })
       }
       if (act === 'block') {
         const blocked = b.blocked ? 1 : 0
@@ -861,11 +890,12 @@ section{background:#fff;border:1px solid #e3e8f0;border-radius:14px;padding:16px
 @media (prefers-color-scheme:dark){body{background:#0b1220;color:#e8eef8}section{background:#121b2d;border-color:#243149}}</style></head><body><main>
 <h1>سياسة الخصوصية — كاسب</h1>
 <section><h2>ما الذي يصل إلى الخادم</h2><p>كاسب يعمل بالكامل على جهازك: المنتجات والفواتير والعملاء والورديات تبقى على الجهاز ولا تُرسل إلى أي مكان.
-الاتصال الوحيد بالإنترنت هو التحقق من الترخيص، ويُرسل فيه: معرّف مشفّر للجهاز (لا يمكن الرجوع منه إلى المعرّف الأصلي)، واسم الجهاز ونوعه، وإصدار التطبيق، وكود التفعيل الذي أدخلته، واسم المحل ورقم هاتفه كما أدخلتهما في التطبيق، وعنوان IP ووقت الطلب.</p></section>
+الاتصال بالإنترنت هو للتحقق من الترخيص، ويُرسل فيه: معرّف مشفّر للجهاز (لا يمكن الرجوع منه إلى المعرّف الأصلي)، واسم الجهاز ونوعه، وإصدار التطبيق، وكود التفعيل الذي أدخلته، واسم المحل ورقم هاتفه كما أدخلتهما في التطبيق، وعنوان IP ووقت الطلب.</p></section>
 <section><h2>لماذا</h2><p>لربط كود التفعيل بجهازك، والتحقق دورياً من أن الترخيص ما زال سارياً، ونقله إلى جهاز آخر عند الحاجة، ومنع التلاعب.
 ورقم هاتف المحل واسمه ليتواصل معك فريق كاسب: لمساعدتك أثناء التجربة المجانية، وبخصوص الاشتراك بعدها، ولدعمك بعد الشراء.</p></section>
+<section><h2>النسخ السحابي</h2><p>إذا اشتركت في النسخ الاحتياطي السحابي، تُرفع نسخة مضغوطة من بيانات المحل إلى خادمنا لتستعيدها عند الحاجة، ونحتفظ بآخر النسخ فقط. دون هذا الاشتراك لا تغادر بياناتك جهازك.</p></section>
 <section><h2>رقم الهاتف</h2><p>رقم هاتف المحل مطلوب لبدء التجربة المجانية. لا يُستخدم إلا للتواصل معك من فريق كاسب بخصوص البرنامج، ولا يُباع ولا يُشارك مع أي جهة.
-إن لم تعد ترغب في أن نتواصل معك، أو أردت حذف رقمك من سجلاتنا، راسلنا على واتساب وسنحذفه.</p></section>
+إن لم تعد ترغب في أن نتواصل معك، أو أردت حذف رقمك من سجلاتنا، راسلنا على واتساب <a href="{{WA_LINK}}" dir="ltr">{{WHATSAPP}}</a> فنحذفه ولا يُحفظ بعدها ولا نتواصل معك.</p></section>
 <section><h2>المشاركة</h2><p>لا نبيع البيانات ولا نشاركها مع أي جهة، ولا توجد إعلانات ولا أدوات تتبّع. الخادم مستضاف لدى Cloudflare، وتُحذف سجلات الأمان بعد سنة على الأكثر.</p></section>
 </main></body></html>`
 
@@ -912,7 +942,7 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
     try {
       if (p === '/') return html(renderLanding(await settings(env)))
-      if (p === '/privacy') return html(PRIVACY)
+      if (p === '/privacy') return html(renderPrivacy(await settings(env)))
       if (p === '/learn' || p === '/tutorials' || p === '/help') return html(LEARN_PAGE)
       if (p === '/admin') return html(ADMIN_PAGE)
       if (p === '/panel' || p === '/login' || p === '/dashboard') return Response.redirect(new URL('/admin', url).toString(), 302)
