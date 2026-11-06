@@ -194,7 +194,7 @@ const IMG = {
   meetingTable: { src: '/img/room-a-table.webp', small: '/img/room-a-table-720.webp', w: 919, h: 1400, alt: 'طاولة الاجتماعات الخمرية عن قرب مع مقابس الكهرباء' },
   big: { src: '/img/room-b.webp', small: '/img/room-b-720.webp', w: 1105, h: 1400, alt: 'طاولة كبيرة ونوافذ بانورامية تطل على درعا ولوحة THINK OUTSIDE THE BOX' },
   hall: { src: '/img/hall-wide.webp', small: '/img/hall-wide-720.webp', w: 1080, h: 810, alt: 'القاعة التدريبية في فوكس بوينت: طاولات بيضاء وكراسي خمرية بصفوف، شاشة وتكييف وإضاءة هادئة' },
-  open: { src: '/img/open-space.webp', small: '/img/open-space-720.webp', w: 1050, h: 787, alt: 'المساحة المفتوحة في فوكس بوينت: طاولات مدوّرة وكراسي مريحة ونوافذ كبيرة مطلّة على المدينة' },
+  open: { src: '/img/open-space.webp', small: '/img/open-space-720.webp', w: 1086, h: 814, alt: 'المساحة المفتوحة في فوكس بوينت: طاولات مدوّرة وكراسي مريحة ونوافذ كبيرة مطلّة على المدينة' },
   bigWide: { src: '/img/room-b-wide.webp', small: '/img/room-b-wide-720.webp', w: 1400, h: 821, alt: 'المساحة من الداخل: طاولة كبيرة، كراسي مريحة، ونوافذ واسعة مليانة ضوء' },
 } satisfies Record<string, Photo>
 const photo = (p: Photo): Photo => ({ ...p })
