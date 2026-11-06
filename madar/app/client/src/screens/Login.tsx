@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 
 import { Icon, Logo } from '../components/Icon';
 import { ROLE_COLOR, ROLE_LABEL, ToastHost } from '../components/Shell';
 import { Btn, SupportLine } from '../components/Ui';
-import { ApiError } from '../api';
+import { ApiError, DEVICE_DEMO, setDeviceDemo } from '../api';
 import { reseedDemo, ReseedError, reseedHourLabel, reseedToast, useConfig } from '../config';
 import { DEMO_ACCOUNTS } from '../demo';
 import { arDigits, fmtDate, todayISO } from '../format';
@@ -113,6 +113,18 @@ export function Login() {
             <span className="hint" id="code-hint">رمز الدخول: المدير والمدارس من المديرية، والمعلّمون والطلاب وأولياء الأمور من إدارة المدرسة.</span>
           </label>
           {error && <div className="error" role="alert">{error}</div>}
+          {error && !DEVICE_DEMO && /الخادم|اتصال/.test(error) && (
+            <div className="notice" role="status">
+              يمكن متابعة العرض الآن ببيانات تجريبية تعمل داخل هذا المتصفّح من دون خادم.{' '}
+              <Btn type="button" variant="ghost" size="sm" onClick={() => setDeviceDemo(true)}>تشغيل العرض على هذا الجهاز</Btn>
+            </div>
+          )}
+          {DEVICE_DEMO && (
+            <div className="notice" role="status">
+              وضع العرض على هذا الجهاز: البيانات تجريبية ولا تُرسل إلى الخادم.{' '}
+              <Btn type="button" variant="ghost" size="sm" onClick={() => setDeviceDemo(false)}>العودة إلى الخادم</Btn>
+            </div>
+          )}
           <Btn type="submit" block loading={busy === code && !!busy} icon="forward">دخول</Btn>
         </form>
         <details>

@@ -7,13 +7,22 @@
      client-generated `client_id` the server dedupes on. An item the server
      rejects (4xx) stays in the outbox, marked with the error, until the user
      retries or discards it.
-   - Dev mock: when the build is made with VITE_MOCK=1 every request goes to
-     src/mock.ts instead of fetch. The mock is loaded behind that build-time
-     constant, so a production build does not contain it at all. */
+   - Dev mock: when the build is made with VITE_MOCK=1, or the person explicitly
+     chose «تشغيل العرض على هذا الجهاز» (DEVICE_DEMO), every request goes to
+     src/mock.ts (loaded lazily) instead of fetch. Never a silent fallback. */
 
 import type { DirectorateDashboard, DirectorateSchoolDay, DirectorateWeeklyReport, LoginResponse, User } from './types';
 
-export const MOCK_ENV = import.meta.env.VITE_MOCK === '1';
+/** Device demo: when the server is unreachable the login screen offers to run the demo entirely in this browser.
+ *  It is an explicit, visible choice (a banner says so) and is switched off from the same banner. */
+const DEVICE_DEMO_KEY = 'device-demo';
+export const DEVICE_DEMO = (() => { try { return localStorage.getItem(DEVICE_DEMO_KEY) === '1'; } catch { return false; } })();
+export const MOCK_ENV = import.meta.env.VITE_MOCK === '1' || DEVICE_DEMO;
+export function setDeviceDemo(on: boolean) {
+  try { if (on) localStorage.setItem(DEVICE_DEMO_KEY, '1'); else localStorage.removeItem(DEVICE_DEMO_KEY); } catch { /* private mode */ }
+  try { ['token', 'user', 'code', 'mock'].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+  location.replace('/');
+}
 
 const KEY = { token: 'token', user: 'user', code: 'code', mock: 'mock', outbox: 'outbox' } as const;
 const CACHE_PREFIX = 'cache:';

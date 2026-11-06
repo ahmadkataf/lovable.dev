@@ -7,7 +7,7 @@ import { Avatar, Btn, SupportLine } from './Ui';
 import { ar, complexLabel, count, NOUNS, unreadLabel } from '../format';
 import { useConfig } from '../config';
 import { Link, useRoute } from '../router';
-import { discardOutboxItem, replayOutbox, retryOutboxItem } from '../api';
+import { discardOutboxItem, replayOutbox, retryOutboxItem, DEVICE_DEMO, setDeviceDemo } from '../api';
 import { roleHome, signOut, useStore } from '../store';
 import { navigate } from '../router';
 import type { Role, SectionRef, StudentContext, TeacherContext } from '../types';
@@ -171,6 +171,12 @@ export function Shell({ children }: { children: ReactNode }) {
         )}
       </header>
 
+      {DEVICE_DEMO && (
+        <div className="banner offline" role="status">
+          <div className="banner-in"><Icon name="info" /><span className="grow">وضع العرض على هذا الجهاز — بيانات تجريبية لا تُرسل إلى الخادم</span>
+            <button type="button" className="tag" onClick={() => setDeviceDemo(false)}>العودة إلى الخادم</button></div>
+        </div>
+      )}
       {offline && (
         <div className="banner offline" role="status">
           <div className="banner-in"><Icon name="wifioff" /><span className="grow">لا اتصال — تُعرض النسخة المحفوظة</span></div>
