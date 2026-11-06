@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One theme: light system bars with dark icons, and the icon on the light background as the window background,
+     which is what the user sees between the tap on the launcher and the activity's first frame (the splash on
+     Android 7–11). values-v27 adds the light navigation bar, values-v31 the system splash screen. -->
+<resources>
+    <style name="Theme.Madar" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_window</item>
+        <item name="android:statusBarColor">@color/light</item>
+        <item name="android:navigationBarColor">@color/light</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:colorPrimary">@color/brand</item>
+        <item name="android:colorAccent">@color/brand</item>
+    </style>
+</resources>

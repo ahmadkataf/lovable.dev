@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Window background while the activity starts: the app icon centred on the page colour. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/light" />
+    <item
+        android:width="132dp"
+        android:height="132dp"
+        android:gravity="center"
+        android:drawable="@drawable/splash_icon" />
+</layer-list>

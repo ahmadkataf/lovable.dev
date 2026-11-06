@@ -1,0 +1,26 @@
+{
+  "name": "madar-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --port 8787 --var ADMIN_KEY:dev",
+    "dev:api": "wrangler dev --local --port 8787 --config wrangler.local.toml --var ADMIN_KEY:dev",
+    "db:apply": "ADMIN_KEY=dev node scripts/apply-sql.mjs http://127.0.0.1:8787 schema.sql seed.sql",
+    "db:reset": "ADMIN_KEY=dev node -e \"fetch('http://127.0.0.1:8787/api/admin/reseed',{method:'POST',headers:{'x-admin-key':'dev'}}).then(r=>r.text()).then(console.log)\"",
+    "seed:gen": "node scripts/gen-seed.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "smoke": "bash scripts/smoke.sh",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^4.13.16"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261104.1",
+    "@types/node": "^22.20.5",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.157.0"
+  }
+}

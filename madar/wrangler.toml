@@ -1,0 +1,10 @@
+# The Madar pitch site: static files served by a Cloudflare Worker (assets only, no code).
+# Deployed by .github/workflows/deploy-madar.yml to https://madar.<account>.workers.dev,
+# and attached to https://madar.raqeem.dev when the raqeem.dev zone is in the same account.
+name = "madar"
+compatibility_date = "2025-06-01"
+
+[assets]
+directory = "./site"
+html_handling = "auto-trailing-slash"
+not_found_handling = "none"

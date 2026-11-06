@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Everything the shell itself says; the platform's own texts live in the web app. -->
+<resources>
+    <string name="app_name">مَدار</string>
+    <string name="offline_title">لا يمكن الوصول إلى مَدار الآن</string>
+    <string name="retry">إعادة المحاولة</string>
+    <string name="downloading">جارٍ تنزيل %1$s…</string>
+    <string name="saved">حُفظ الملف %1$s في مجلد التنزيلات</string>
+    <string name="save_failed">تعذّر حفظ الملف على الهاتف</string>
+    <string name="no_app_for_link">لا يوجد على الهاتف تطبيق يفتح هذا الرابط</string>
+</resources>

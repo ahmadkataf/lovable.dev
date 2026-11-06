@@ -1,0 +1,3 @@
+# build-apk.sh works in build/; the APK itself goes to ../../site/app/madar.apk
+build/
+__pycache__/
