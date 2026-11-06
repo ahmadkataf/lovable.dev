@@ -341,7 +341,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     lead: 'غرف خاصة من {privateMin} لـ{privateMax} أشخاص، قاعة اجتماعات لـ{meetingCapacity} مع شاشة وسبورة، ومساحة مفتوحة مشتركة لـ{openCapacity}. الأسعار هون هي نفسها اللي بتشوفها وقت الحجز.',
     groups: {
       private: { title: 'غرف خاصة', blurb: 'غرفة إلك لحالك أو مع فريقك الصغير، بابها بيتسكّر وبتشتغل فيها على راحتك.', cap: '2–4 أشخاص', badge: '{privateCount} غرف', icon: 'door', photo: null, amenities: amenities('wifi', 'ac') },
-      meeting: { title: 'القاعة التدريبية', blurb: 'قاعة تدريبية لـ{meetingCapacity} أشخاص فيها شاشة وسبورة، للدورات وورش العمل والاجتماعات.', cap: 'حتى 10 أشخاص', badge: 'قاعة', icon: 'present', photo: photo(IMG.hall), amenities: amenities('wifi', 'ac', 'screen', 'whiteboard') },
+      meeting: { title: 'القاعة التدريبية', blurb: 'قاعة تدريبية فيها شاشة وسبورة وتكييف، للدورات وورش العمل والاجتماعات. السعة {meetingCapacity}.', cap: 'حتى 16 شخص', badge: 'قاعة', icon: 'present', photo: photo(IMG.hall), amenities: amenities('wifi', 'ac', 'screen', 'whiteboard') },
       open: { title: 'المساحة المفتوحة', blurb: 'مكان مشترك لـ{openCapacity} أشخاص، ضوء طبيعي وجو بيشجّع عالشغل.', cap: 'حتى 8 أشخاص', badge: 'مشتركة', icon: 'grid', photo: photo(IMG.bigWide), amenities: amenities('wifi', 'ac', 'coffee') },
     },
     price_from: 'تبدأ من',
