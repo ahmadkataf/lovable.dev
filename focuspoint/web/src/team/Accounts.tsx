@@ -64,6 +64,7 @@ export function Accounts() {
     const rows: (string | number | null)[][] = [['النوع', 'التصنيف', 'المبلغ', 'العملة', 'التاريخ', 'الجهة', 'ملاحظة', 'سُدّد']]
     for (const e of data.entries) rows.push([KIND_LABEL[e.kind], catLabel(e.category), e.amount, e.currency, e.date, e.party, e.note, e.settled_at ? e.settled_at.slice(0, 10) : ''])
     rows.push([], ['الدخل من الحجوزات', '', data.income.bookings.SYP, 'SYP'], ['', '', data.income.bookings.USD, 'USD'],
+      ['دخل آخر', '', data.income.other.SYP, 'SYP'], ['', '', data.income.other.USD, 'USD'],
       ['المصاريف', '', data.expenses.SYP, 'SYP'], ['', '', data.expenses.USD, 'USD'], ['الصافي', '', data.net.SYP, 'SYP'], ['', '', data.net.USD, 'USD'])
     downloadText(`focuspoint-accounts-${month}.csv`, toCSV(rows), 'text/csv;charset=utf-8')
   }

@@ -152,8 +152,10 @@ export const accountRoutes: Route[] = [
     const id = idParam(c)
     const body = await readJson(c.req)
     if (typeof body.paid !== 'boolean') throw new HttpError(400, 'invalid_paid')
+    // Undoing a recorded payment changes the books: admin only. Recording keeps the first payment date.
+    if (!body.paid && requireUser(c).role !== 'admin') throw new HttpError(403, 'forbidden')
     const iso = c.now.toISOString()
-    const res = await c.env.DB.prepare(`UPDATE bookings SET paid_at = ?, updated_at = ? WHERE id = ? AND status IN ${PAID_STATUSES}`)
+    const res = await c.env.DB.prepare(`UPDATE bookings SET paid_at = ${body.paid ? 'COALESCE(paid_at, ?)' : '?'}, updated_at = ? WHERE id = ? AND status IN ${PAID_STATUSES}`)
       .bind(body.paid ? iso : null, iso, id).run()
     if (res.meta.changes === 0) throw new HttpError(409, 'illegal_transition')
     const row = await c.env.DB.prepare(`${BOOKING_SELECT} WHERE b.id = ?`).bind(id).first<BookingRow>()

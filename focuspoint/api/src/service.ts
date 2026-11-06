@@ -271,12 +271,14 @@ export async function confirmBooking(d: Deps, id: number, verifiedBy: number | n
   // Atomic against a racing booking: the UPDATE applies only while the row is still in the status we read AND no live
   // booking overlaps it (another one may have been confirmed over an expired hold). 0 rows → why, from a fresh read.
   const iso = d.now.toISOString()
+  // Pay on arrival: confirming holds the place; the money is recorded when it is received («وصل المبلغ»), so until then
+  // the booking shows under «إلي» in the accounts instead of counting as income.
   // The open space shares the room by seats: check the seat count first (the guarded UPDATE below only checks status).
   const room = await getRoom(db, b.room_id)
   const seated = !!room && isSeats(room)
   if (seated && (await clashes(db, room, b.start, b.end, unitsOf(room, b.seats), d.now, b.id))) throw new HttpError(409, 'slot_taken')
   const res = await db.prepare(
-    `UPDATE bookings SET status = 'confirmed', updated_at = ?, verified_by = ?, paid_at = COALESCE(paid_at, ?)
+    `UPDATE bookings SET status = 'confirmed', updated_at = ?, verified_by = ?, paid_at = CASE WHEN method = 'cash' THEN paid_at ELSE COALESCE(paid_at, ?) END
      WHERE id = ? AND status = ?${seated ? '' : ` AND ${NO_CONFLICT_SQL}`}`)
     .bind(iso, verifiedBy, iso, b.id, b.status, ...(seated ? [] : [b.room_id, b.end, b.start, b.id, iso])).run()
   if (res.meta.changes === 0) throw new HttpError(409, zeroRowsError(await getBooking(db, b.id), b.status))
