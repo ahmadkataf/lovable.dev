@@ -81,8 +81,10 @@ export const adminRoutes: Route[] = [
     const hours_by_room: Record<string, number> = {}
     let revenue = 0, revenue_usd = 0
     for (const b of bookings) {
-      if (b.currency === 'USD') revenue_usd += b.price
-      else revenue += b.price
+      if (b.paid_at) {                            // «على الحساب» bookings count once paid (Accounts › إلي until then)
+        if (b.currency === 'USD') revenue_usd += b.price
+        else revenue += b.price
+      }
       if (b.kind !== 'hourly') continue           // a subscription's window is days, not hours of use
       const key = b.room_name ?? String(b.room_id)
       hours_by_room[key] = Math.round(((hours_by_room[key] ?? 0) + (Date.parse(b.end) - Date.parse(b.start)) / 3600000) * 10) / 10

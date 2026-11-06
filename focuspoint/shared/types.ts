@@ -235,7 +235,8 @@ export interface PushMessage { kind: NotificationKind; booking_id: number | null
 // One queued change made offline in the team app. client_id is a UUID made on the device; replaying the same op is a no-op.
 export type SyncOp =
   | { client_id: string; at: string; op: 'manual_booking'; data: ApiContract['POST /v1/team/bookings/manual']['req'] }
-  | { client_id: string; at: string; op: 'confirm' | 'cancel'; booking_id: number }
+  | { client_id: string; at: string; op: 'confirm'; booking_id: number }
+  | { client_id: string; at: string; op: 'cancel'; booking_id: number; refunded?: boolean }   // refunded: a paid booking's money was given back (→ a refund expense)
   | { client_id: string; at: string; op: 'reject'; booking_id: number; reason: string }
   | { client_id: string; at: string; op: 'edit_booking'; booking_id: number; data: ApiContract['PATCH /v1/team/bookings/:id']['req'] }
   | { client_id: string; at: string; op: 'room_upsert'; room: Partial<Room> & { id?: number; client_room_id?: string } }

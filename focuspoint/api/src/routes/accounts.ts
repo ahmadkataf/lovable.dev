@@ -102,7 +102,8 @@ export const accountRoutes: Route[] = [
     const to = localDayRange(`${nextMonth(month)}-01`, timezone).from.toISOString()
     const db = c.env.DB
     const [paid, entries, owed, open] = await Promise.all([
-      db.prepare(`${BOOKING_SELECT} WHERE b.status IN ${PAID_STATUSES} AND b.method != 'free' AND b.price > 0 AND b.paid_at >= ? AND b.paid_at < ? ORDER BY b.paid_at LIMIT 5000`)
+      // paid in the month: confirmed/finished, or confirmed and cancelled later (the money stays; a refund is an expense)
+      db.prepare(`${BOOKING_SELECT} WHERE (b.status IN ${PAID_STATUSES} OR (b.status = 'cancelled' AND b.verified_by IS NOT NULL)) AND b.method != 'free' AND b.price > 0 AND b.paid_at >= ? AND b.paid_at < ? ORDER BY b.paid_at LIMIT 5000`)
         .bind(from, to).all<BookingRow>(),
       db.prepare(`SELECT * FROM ledger WHERE (date >= ? AND date < ?) OR (settled_at >= ? AND settled_at < ?) ORDER BY date DESC, id DESC LIMIT 2000`)
         .bind(`${month}-01`, `${nextMonth(month)}-01`, from, to).all<LedgerEntry>(),

@@ -128,7 +128,8 @@ export const teamRoutes: Route[] = [
   route('POST', '/v1/team/bookings/:id/cancel', 'team', async (c) => {
     const b = await c.env.DB.prepare(`${BOOKING_SELECT} WHERE b.id = ?`).bind(idParam(c)).first<BookingRow>()
     if (!b) throw new HttpError(404, 'booking_not_found')
-    return json(await cancelBooking(deps(c), toBooking(b), 'team'))
+    const body = await readJson(c.req).catch(() => ({} as Record<string, unknown>))
+    return json(await cancelBooking(deps(c), toBooking(b), 'team', { refunded: body.refunded === true, userId: requireUser(c).id }))
   }),
 
   route('PATCH', '/v1/team/bookings/:id', 'team', async (c) => json(await editBooking(deps(c), idParam(c), await readJson(c.req)))),
@@ -149,7 +150,7 @@ export const teamRoutes: Route[] = [
       db.prepare(`${BOOKING_SELECT} WHERE b.status = 'awaiting_verification' AND b.end > ? ORDER BY b.paid_at, b.id`).bind(c.now.toISOString()).all<BookingRow>(),   // past ones are closed by the cron
       db.prepare(`SELECT COUNT(*) AS n FROM bookings b WHERE b.start >= ? AND b.start < ? AND b.status NOT IN ${DEAD}`).bind(day.from.toISOString(), weekEnd.toISOString()).first<{ n: number }>(),
       db.prepare(`SELECT COALESCE(SUM(CASE WHEN currency = 'USD' THEN 0 ELSE price END), 0) AS total, COALESCE(SUM(CASE WHEN currency = 'USD' THEN price ELSE 0 END), 0) AS usd
-        FROM bookings WHERE start >= ? AND start < ? AND status IN ('confirmed','completed')`).bind(monthStart.toISOString(), monthEnd.toISOString()).first<{ total: number; usd: number }>(),
+        FROM bookings WHERE start >= ? AND start < ? AND status IN ('confirmed','completed') AND paid_at IS NOT NULL`).bind(monthStart.toISOString(), monthEnd.toISOString()).first<{ total: number; usd: number }>(),
     ])
     return json({
       today: today.results.map(toBooking), pending: pending.results.map(toBooking),

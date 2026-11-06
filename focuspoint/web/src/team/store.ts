@@ -100,7 +100,7 @@ export function applyOp(view: View, op: SyncOp, at: string): View {
       return { ...view, bookings: [...view.bookings, b] }
     }
     case 'confirm':
-      return patchBooking(view, op.booking_id, (b) => ({ ...b, status: 'confirmed', paid_at: b.paid_at ?? at, updated_at: at }))
+      return patchBooking(view, op.booking_id, (b) => ({ ...b, status: 'confirmed', paid_at: b.method === 'cash' ? b.paid_at : (b.paid_at ?? at), updated_at: at }))
     case 'reject':
       return patchBooking(view, op.booking_id, (b) => ({ ...b, status: 'rejected', reject_reason: op.reason, updated_at: at }))
     case 'cancel':
@@ -273,7 +273,7 @@ class TeamStore {
   }
   confirm(booking: Booking) { return this.enqueue({ ...this.stamp(), op: 'confirm', booking_id: booking.id }, `تأكيد حجز ${booking.customer_name}`) }
   reject(booking: Booking, reason: string) { return this.enqueue({ ...this.stamp(), op: 'reject', booking_id: booking.id, reason }, `رفض حجز ${booking.customer_name}`) }
-  cancel(booking: Booking) { return this.enqueue({ ...this.stamp(), op: 'cancel', booking_id: booking.id }, `إلغاء حجز ${booking.customer_name}`) }
+  cancel(booking: Booking, refunded = false) { return this.enqueue({ ...this.stamp(), op: 'cancel', booking_id: booking.id, ...(refunded ? { refunded: true } : {}) }, `إلغاء حجز ${booking.customer_name}`) }
   editBooking(booking: Booking, data: EditBookingReq) { return this.enqueue({ ...this.stamp(), op: 'edit_booking', booking_id: booking.id, data }, `تعديل حجز ${booking.customer_name}`) }
   /** Create (no id) or update (id) a room. Returns the id the view uses (temporary when creating). */
   async upsertRoom(room: Partial<Room> & { id?: number }): Promise<number> {

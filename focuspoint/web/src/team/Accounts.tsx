@@ -1,7 +1,7 @@
 // /team/accounts — الحسابات (admin): the month's income (paid bookings + other income), expenses, net; what is owed to
 // the centre (إلي) and what it owes (عليّ). Booking income comes from the bookings themselves (paid_at); the rest is
 // typed here. Online only: the figures must be the server's.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AccountsMonth, Booking, Currency, LedgerEntry, LedgerKind, Money } from '@shared/types'
 import { fmtMoney } from '@shared/pricing'
 import { api } from '../api'
@@ -14,7 +14,7 @@ import { describeError, downloadText, parseInt10, toCSV } from './util'
 export const CATEGORIES: { id: string; label: string }[] = [
   { id: 'rent', label: 'إيجار' }, { id: 'salaries', label: 'رواتب' }, { id: 'electricity', label: 'كهرباء وأمبيرات' },
   { id: 'internet', label: 'إنترنت' }, { id: 'hospitality', label: 'ضيافة وقهوة' }, { id: 'maintenance', label: 'صيانة' },
-  { id: 'supplies', label: 'مستلزمات' }, { id: 'marketing', label: 'تسويق' }, { id: 'courses', label: 'كورسات' }, { id: 'other', label: 'أخرى' },
+  { id: 'supplies', label: 'مستلزمات' }, { id: 'marketing', label: 'تسويق' }, { id: 'courses', label: 'كورسات' }, { id: 'refund', label: 'استرجاع لزبون' }, { id: 'other', label: 'أخرى' },
 ]
 const catLabel = (id: string) => CATEGORIES.find((c) => c.id === id)?.label ?? id
 const KIND_LABEL: Record<LedgerKind, string> = { expense: 'مصروف', income: 'دخل آخر', payable: 'دين عليّ', receivable: 'دين إلي' }
@@ -38,16 +38,22 @@ export function money(m: Money): string {
 export function Accounts() {
   const toast = useToast()
   const [month, setMonth] = useState(() => todayLocal().slice(0, 7))
-  const [data, setData] = useState<AccountsMonth | null>(null)
+  const [raw, setData] = useState<AccountsMonth | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState<Partial<LedgerEntry> | null>(null)
 
+  const current = useRef(month)
+  current.current = month
   const load = useCallback(async () => {
-    setLoading(true)
-    try { setData(await api.get<AccountsMonth>(`/v1/admin/accounts?month=${month}`)); setError(null) }
-    catch (e) { setError(describeError(e)) } finally { setLoading(false) }
+    setLoading(true); setError(null)
+    try {
+      const r = await api.get<AccountsMonth>(`/v1/admin/accounts?month=${month}`)
+      if (current.current === month) setData(r)              // a slow answer for a month no longer shown is dropped
+    } catch (e) { if (current.current === month) setError(describeError(e)) } finally { if (current.current === month) setLoading(false) }
   }, [month])
+  // Never show another month's figures under this month's name.
+  const data = raw && raw.month === month ? raw : null
   useEffect(() => { void load() }, [load])
 
   async function settle(e: LedgerEntry, settled: boolean) {
@@ -82,7 +88,7 @@ export function Accounts() {
         {loading && <Spinner size="sm" />}
       </div>
 
-      {error && !data && <div className="alert alert-error">{error}</div>}
+      {error && <div className="alert alert-error">{error} <Button size="sm" variant="ghost" onClick={() => void load()}>إعادة المحاولة</Button></div>}
       {!data && !error && <div className="center center-pad"><Spinner /></div>}
 
       {data && (
@@ -202,6 +208,10 @@ function EntrySheet({ entry, onClose, onSaved }: { entry: Partial<LedgerEntry> |
       toast.show('تم الحفظ', 'ok'); onSaved()
     } catch (e) { setErr(describeError(e)) } finally { setBusy(false) }
   }
+  async function reopen() {
+    try { await api.patch(`/v1/admin/ledger/${entry!.id}`, { settled: false }); toast.show('رجع مفتوحاً', 'ok'); onSaved() }
+    catch (e) { toast.show(describeError(e), 'error') }
+  }
   async function del() {
     setBusy(true)
     try { await api.del(`/v1/admin/ledger/${entry!.id}`); toast.show('انحذف القيد', 'ok'); setConfirmDel(false); onSaved() }
@@ -237,7 +247,7 @@ function EntrySheet({ entry, onClose, onSaved }: { entry: Partial<LedgerEntry> |
           </Field>
           <Field label="ملاحظة (اختياري)"><Textarea rows={2} value={d.note ?? ''} onChange={(e) => set('note', e.target.value)} /></Field>
           {!isNew && (kind === 'payable' || kind === 'receivable') && (
-            <p className="muted small">{entry.settled_at ? `مسدَّد بتاريخ ${fmtDate(entry.settled_at)}` : 'لسا مفتوح — بتسدّده من قائمة «إلي» أو «عليّ».'}</p>
+            <p className="muted small">{entry.settled_at ? <>مسدَّد بتاريخ {fmtDate(entry.settled_at)} · <button type="button" className="link" onClick={() => void reopen()}>رجّعه مفتوح</button></> : 'لسا مفتوح — بتسدّده من قائمة «إلي» أو «عليّ».'}</p>
           )}
           <div className="sheet-foot">
             {!isNew && <Button variant="ghost" onClick={() => setConfirmDel(true)}><Icon name="trash" size={18} /> حذف</Button>}

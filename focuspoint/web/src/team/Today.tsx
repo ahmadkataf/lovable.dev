@@ -36,7 +36,7 @@ export function Today() {
   const todays = useMemo(() => view.bookings.filter((b) => localDate(b.start) === today).sort(sortByStart), [view.bookings, today])
   const liveToday = useMemo(() => todays.filter((b) => isBlocking(b, now) || b.status === 'completed'), [todays, now])
   // Pounds and dollars (the training hall for organisations) are totalled apart; a subscription counts on its first day.
-  const paidToday = useMemo(() => todays.filter((b) => (b.status === 'confirmed' || b.status === 'completed') && (!b.kind || b.kind === 'hourly' || toLocalParts(b.start).date === todayLocal())), [todays])
+  const paidToday = useMemo(() => todays.filter((b) => (b.status === 'confirmed' || b.status === 'completed') && !!b.paid_at && (!b.kind || b.kind === 'hourly' || toLocalParts(b.start).date === todayLocal())), [todays])
   const revenue = useMemo(() => paidToday.filter((b) => b.currency !== 'USD').reduce((s, b) => s + b.price, 0), [paidToday])
   const revenueUsd = useMemo(() => paidToday.filter((b) => b.currency === 'USD').reduce((s, b) => s + b.price, 0), [paidToday])
   // Keep the sheet's booking in sync with the store (status changes after confirm, etc.).

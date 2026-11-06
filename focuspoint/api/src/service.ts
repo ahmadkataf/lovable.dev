@@ -214,7 +214,7 @@ export async function createManualBooking(d: Deps, user: User, body: ApiContract
     code: await freshCode(db), phone, name, deviceId: null, clientId, roomId: room.id, start: w.start, end: w.end,
     status: confirmed ? 'confirmed' : 'pending_payment', price, method, note, people: isSeats(room) || room.type === 'private' ? w.seats : null,
     holdUntil: confirmed ? null : new Date(d.now.getTime() + settings.hold_minutes * 60000).toISOString(),
-    verifiedBy: confirmed ? user.id : null, paidAt: confirmed && !payLater ? d.now.toISOString() : null,
+    verifiedBy: confirmed ? user.id : null, paidAt: confirmed && !payLater ? (d.validateAt ?? d.now).toISOString() : null,   // offline: when it was taken
     currency: computed.currency, kind: w.kind, seats: w.seats, tier: w.tier,
   })
 }
@@ -308,13 +308,21 @@ export async function rejectBooking(d: Deps, id: number, reasonInput: unknown): 
  * Cancel. by = 'team' may cancel anything live and notifies the customer; by = 'customer' only before confirmation,
  * and only while settings.customer_can_cancel (403 cancel_not_allowed: the admin decided cancelling goes through the team).
  */
-export async function cancelBooking(d: Deps, b: Booking, by: 'team' | 'customer'): Promise<Booking> {
+export async function cancelBooking(d: Deps, b: Booking, by: 'team' | 'customer', opts: { refunded?: boolean; userId?: number } = {}): Promise<Booking> {
   const db = d.env.DB
   if (by === 'customer') {
     if (b.status !== 'pending_payment' && b.status !== 'awaiting_verification') throw new HttpError(409, 'illegal_transition')
     if (!(await loadSettings(db, d.env)).customer_can_cancel) throw new HttpError(403, 'cancel_not_allowed')
   }
-  const updated = await setStatus(db, b, 'cancelled', d.now)
+  // Accounts: money never verified (a reference not yet checked) is not income; a confirmed booking that was paid keeps
+  // its income in the month it was paid, and a refund is recorded as an expense today («استرجاع»).
+  const confirmedBefore = b.status === 'confirmed' || b.status === 'completed'
+  const updated = await setStatus(db, b, 'cancelled', d.now, confirmedBefore ? {} : { paid_at: null })
+  if (confirmedBefore && b.paid_at && opts.refunded && b.price > 0) {
+    const settings = await loadSettings(db, d.env)
+    await db.prepare(`INSERT INTO ledger (kind, category, amount, currency, date, party, note, created_by, created_at, updated_at) VALUES ('expense', 'refund', ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(b.price, b.currency, localParts(d.now, settings.timezone).date, b.customer_name, `استرجاع حجز ${b.code}`, opts.userId ?? null, d.now.toISOString(), d.now.toISOString()).run()
+  }
   if (by === 'team') {
     const settings = await loadSettings(db, d.env)
     await notifyDevice(d.env, d.exec, updated.device_id, texts.booking_cancelled(updated, await messageCtx(db, settings)))

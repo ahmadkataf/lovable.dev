@@ -58,7 +58,7 @@ async function applyOp(c: Ctx, op: SyncOp): Promise<SyncResult> {
     case 'cancel': {
       const b = await getBooking(c.env.DB, op.booking_id)
       if (!b) throw new HttpError(404, 'booking_not_found')
-      return { client_id: op.client_id, ok: true, booking: await cancelBooking(d, b, 'team') }
+      return { client_id: op.client_id, ok: true, booking: await cancelBooking(d, b, 'team', { refunded: (op as { refunded?: boolean }).refunded === true, userId: user.id }) }
     }
     case 'edit_booking':
       return { client_id: op.client_id, ok: true, booking: await editBooking(recorded, op.booking_id, (op.data ?? {}) as Record<string, unknown>) }

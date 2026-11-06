@@ -7,6 +7,7 @@ import { KIND_LABEL, TIER_LABEL } from '../lib/booking'
 import { Badge, Button, Field, Icon, Input, Select, Sheet, Stepper, Textarea, useToast } from '../ui'
 import { Confirm } from './common'
 import { api } from '../api'
+import { useTeam } from '../team'
 import { store, useRooms, useSettings } from './store'
 import { describeError, durationOptions, findConflict, isTemp, METHOD, minutesBetween, parseInt10, priceFor, startOptions, telHref, whatsappHref } from './util'
 
@@ -15,6 +16,7 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
   const [confirmCancel, setConfirmCancel] = useState(false)
   useEffect(() => { setMode('view'); setConfirmCancel(false) }, [booking?.id])
   const toast = useToast()
+  const { isAdmin } = useTeam()
   const b = booking
 
   async function run(label: string, fn: () => Promise<void>) {
@@ -29,6 +31,12 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
     catch (e) { toast.show(describeError(e), 'error') } finally { setPaying(false) }
   }
 
+  async function undoPaid() {
+    if (!b) return
+    try { await api.post(`/v1/team/bookings/${b.id}/paid`, { paid: false }); toast.show('رجع «على الحساب»', 'ok'); void store.refetch(); onClose() }
+    catch (e) { toast.show(describeError(e), 'error') }
+  }
+
   if (!b) return null
   const st = statusLabel(b.status, b.method)
   const canConfirm = b.status === 'awaiting_verification' || b.status === 'pending_payment'
@@ -36,6 +44,7 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
   const canCancel = canConfirm || b.status === 'confirmed'
   // Booked «على الحساب» (confirmed, not paid yet): record the payment when it comes (online; it feeds the accounts).
   const unpaid = (b.status === 'confirmed' || b.status === 'completed') && !b.paid_at && b.price > 0 && b.method !== 'free' && !isTemp(b.id)
+  const paidConfirmed = (b.status === 'confirmed' || b.status === 'completed') && !!b.paid_at && b.price > 0 && b.method !== 'free'
 
   const canEdit = canCancel
   const title = mode === 'edit' ? 'تعديل الحجز' : mode === 'reject' ? 'رفض الحجز' : `حجز ${b.customer_name}`
@@ -77,6 +86,9 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
             <Button variant="soft" onClick={() => { location.href = telHref(b.customer_phone) }}><Icon name="phone" size={18} /> اتصال</Button>
             <Button variant="soft" onClick={() => window.open(whatsappHref(b.customer_phone, `مرحباً ${b.customer_name}، بخصوص حجزك ${b.code} في فوكس بوينت`), '_blank', 'noopener')}><Icon name="whatsapp" size={18} /> واتساب</Button>
           </div>
+          {paidConfirmed && isAdmin && !isTemp(b.id) && (
+            <p className="muted tiny mt-sm">مدفوع {b.paid_at ? fmtDate(b.paid_at) : ''} · <button type="button" className="link" onClick={() => void undoPaid()}>تسجيل الدفع غلط؟ رجّعه «على الحساب»</button></p>
+          )}
           {unpaid && (
             <div className="alert alert-info mt-sm row between gap wrap">
               <span><b>لسا ما اندفع</b> — {fmtMoney(b.price, b.currency ?? 'SYP')} على الحساب</span>
@@ -97,8 +109,12 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
             </div>
           )}
           <Confirm
-            open={confirmCancel} title="إلغاء الحجز؟" danger confirmLabel="نعم، إلغاء"
-            body={<>سيُلغى حجز <b>{b.customer_name}</b> في {b.room_name} ({fmtRange(b.start, b.end)}) ويُعلَم الزبون.</>}
+            open={confirmCancel} title="إلغاء الحجز؟" danger confirmLabel={paidConfirmed ? 'إلغاء — المبلغ بيضل عنّا' : 'نعم، إلغاء'}
+            body={<>سيُلغى حجز <b>{b.customer_name}</b> في {b.room_name} ({fmtRange(b.start, b.end)}) ويُعلَم الزبون.
+              {paidConfirmed && <div className="mt-sm">
+                <p className="small">هالحجز مدفوع ({fmtMoney(b.price, b.currency ?? 'SYP')}). إذا رجّعت المبلغ للزبون بينسجّل «استرجاع» بمصاريف اليوم.</p>
+                <Button variant="soft" block className="mt-sm" onClick={() => { setConfirmCancel(false); void run('تم الإلغاء وتسجيل الاسترجاع', () => store.cancel(b, true)) }}>إلغاء ورجّعت المبلغ</Button>
+              </div>}</>}
             onClose={() => setConfirmCancel(false)}
             onConfirm={() => { setConfirmCancel(false); void run('تم إلغاء الحجز', () => store.cancel(b)) }}
           />
