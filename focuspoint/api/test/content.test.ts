@@ -315,7 +315,7 @@ describe('pictures', () => {
   })
 
   it('photoSmall falls back to src', () => {
-    expect(photoSmall(DEFAULT_CONTENT.home.hero.photo)).toBe('/img/room-a-720.webp')
+    expect(photoSmall(DEFAULT_CONTENT.home.hero.photo)).toBe('/img/open-space-720.webp')
     expect(photoSmall({ src: '/media/x.webp' })).toBe('/media/x.webp')
   })
 })

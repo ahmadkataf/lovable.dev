@@ -83,7 +83,7 @@ describe('index.html head after edits', () => {
     }
   })
   it('hero preload: home only, same srcset as the page, nothing for a hidden hero or an unsafe path', () => {
-    expect(heroPreload(DEFAULT_CONTENT, '/')).toBe('<link rel="preload" as="image" href="/img/room-a.webp" imagesrcset="/img/room-a-720.webp 720w, /img/room-a.webp 1105w" imagesizes="(min-width: 900px) 520px, 90vw" fetchpriority="high">')
+    expect(heroPreload(DEFAULT_CONTENT, '/')).toBe('<link rel="preload" as="image" href="/img/open-space.webp" imagesrcset="/img/open-space-720.webp 720w, /img/open-space.webp 1086w" imagesizes="(min-width: 900px) 520px, 90vw" fetchpriority="high">')
     expect(heroPreload(DEFAULT_CONTENT, '/spaces')).toBe('')
     expect(heroPreload(edit((x) => { x.home.sections.find((s) => s.id === 'hero')!.visible = false }), '/')).toBe('')
     expect(heroPreload(edit((x) => { x.home.hero.photo = { src: '/media/0123456789abcdef.webp', alt: 'x', w: 1600, h: 1200 } }), '/'))

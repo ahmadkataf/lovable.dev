@@ -241,10 +241,10 @@ export const DEFAULT_CONTENT: SiteContent = {
         // new wording: text_cash_only (Sham Cash switched off) has no counterpart on today's site
         { icon: 'wallet', text: 'الدفع بشام كاش أو عند الوصول', text_shamcash_only: 'الدفع بشام كاش', text_cash_only: 'الدفع عند الوصول' },
       ],
-      photo: photo(IMG.meeting),
-      badge_icon: 'present',
-      badge_title: 'غرفة الاجتماعات',            // the hero photo is the meeting room (the training hall is its own slide)
-      badge_text: 'طاولة كبيرة + شاشة',
+      photo: photo(IMG.open),                     // the carousel's first photo; then the training hall, meeting room, drinks corner
+      badge_icon: 'grid',
+      badge_title: 'المساحة المفتوحة',
+      badge_text: 'كرسي إلك بين ناس عم تشتغل',
     },
     facts: {
       label: '{name} بالأرقام',

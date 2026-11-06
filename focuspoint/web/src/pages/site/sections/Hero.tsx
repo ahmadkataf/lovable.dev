@@ -20,10 +20,13 @@ function useSlides(): Slide[] {
   return useMemo(() => {
     const g = c.spaces.groups
     const coffee = c.home.gallery.photos.find((p) => p.src.includes('coffee'))
+    const meetingRoom = c.home.gallery.photos.find((p) => p.src.includes('room-b-wide')) ?? DEFAULT_CONTENT.home.gallery.photos.find((p) => p.src.includes('room-b-wide'))
+    // order (owner's): open space → training hall → meeting room → drinks corner; the hero photo (content) leads
     const list: (Slide | null)[] = [
       { photo: h.photo, icon: h.badge_icon, title: h.badge_title, text: h.badge_text },
       g.open.photo ? { photo: g.open.photo, icon: 'grid', title: g.open.title, text: 'كرسي إلك بين ناس عم تشتغل' } : null,
       g.meeting.photo ? { photo: g.meeting.photo, icon: 'present', title: g.meeting.title, text: 'للدورات وورش العمل' } : null,
+      meetingRoom ? { photo: meetingRoom, icon: 'present', title: 'غرفة الاجتماعات', text: 'طاولة كبيرة + شاشة' } : null,
       coffee ? { photo: coffee, icon: 'coffee', title: 'ركن المشروبات', text: 'قهوة ومشروبات باردة', pos: '50% 22%' } : null,   // tall photo: keep the machine in frame
     ]
     const seen = new Set<string>()
