@@ -60,10 +60,10 @@ export const ADMIN_BODY = String.raw`
 
       <section class="view" id="v-devices">
         <div class="toolbar">
-          <div class="r1"><div class="search"><span class="ic" id="dqIcon"></span><input id="dq" class="in" placeholder="رمز الجهاز، الاسم، أو الكود" autocomplete="off"><button class="clr hidden" id="dqClr" type="button" aria-label="مسح"></button></div></div>
+          <div class="r1"><div class="search"><span class="ic" id="dqIcon"></span><input id="dq" class="in" placeholder="رمز الجهاز، اسم المحل، الهاتف، أو الكود" autocomplete="off"><button class="clr hidden" id="dqClr" type="button" aria-label="مسح"></button></div></div>
           <div class="r2"><div class="chips" id="dChips"></div><select class="in sm" id="dPlat" aria-label="المنصة"><option value="">كل المنصات</option><option value="android">أندرويد</option><option value="electron">ويندوز</option><option value="web">متصفح</option></select></div>
         </div>
-        <div class="meta"><span id="dMeta"></span></div>
+        <div class="meta"><span id="dMeta"></span><span class="row" style="gap:8px"><label class="chk"><input type="checkbox" id="dPhone"> بأرقام هواتف فقط</label><button class="btn soft sm" id="dCsv" type="button"></button></span></div>
         <div class="card pad-0" id="dList"></div>
         <div class="pager" id="dPager"></div>
       </section>

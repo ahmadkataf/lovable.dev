@@ -151,8 +151,38 @@ function renderCode(s, d) {
 }
 
 // ---- devices
-const DQ = { q: '', state: '', platform: '', sort: 'last_seen', dir: 'desc', page: 1, limit: 50 }
-const DEV_CHIPS = [['', 'الكل'], ['licensed', 'مرخّص'], ['trial', 'تجربة'], ['expired', 'تجربة منتهية'], ['free', 'بلا ترخيص'], ['blocked', 'موقوف']]
+const DQ = { q: '', state: '', platform: '', phone: '', sort: 'last_seen', dir: 'desc', page: 1, limit: 50 }
+const DEV_CHIPS = [['', 'الكل'], ['licensed', 'مرخّص'], ['trial', 'تجربة جارية'], ['expired', 'انتهت التجربة ولم يشترِ'], ['free', 'بلا ترخيص'], ['blocked', 'موقوف']]
+// the shop's phone as the app sent it (local 09… or +963…) → the digits a WhatsApp link needs (a local number is Syrian)
+const waNum = p => { p = String(p || ''); return p.charAt(0) === '+' ? p.slice(1) : p.charAt(0) === '0' ? '963' + p.slice(1) : p }
+// a ready message for following up, by where the shop is: on the trial, trial ended without buying, or licensed
+function followText(x) {
+  const hi = 'مرحباً' + (x.shop ? ' ' + x.shop : '') + '، معك فريق كاسب. '
+  if (x.code) return hi + 'شكراً لاستخدامك البرنامج. هل كل شيء يعمل كما يجب؟ نحن بالخدمة لأي سؤال.'
+  if (x.trial_started && (x.trial_ends || 0) <= Date.now()) return hi + 'انتهت تجربتك المجانية لبرنامج كاسب. إذا أعجبك نفعّله لك الآن بـ ' + (SET.price || '35$') + ' (ترخيص دائم) وتبقى كل بياناتك كما هي. هل تحب نساعدك؟'
+  if (x.trial_started) return hi + 'كيف تجربتك مع البرنامج حتى الآن؟ إذا احتجت مساعدة في إعداد المنتجات أو الطابعة نحن جاهزون.'
+  return hi + 'هل تحتاج مساعدة في تشغيل البرنامج؟'
+}
+const waHref = x => 'https://wa.me/' + waNum(x.phone) + '?text=' + encodeURIComponent(followText(x))
+$('dCsv').innerHTML = I('download') + '<span>تصدير الأرقام CSV</span>'
+$('dPhone').onchange = () => { DQ.phone = $('dPhone').checked ? '1' : ''; DQ.page = 1; loadDevices() }
+$('dCsv').onclick = async () => {
+  const b = $('dCsv'); b.disabled = true
+  try {
+    const all = []
+    for (let page = 1; page <= 100; page++) {
+      const d = await get('devices', Object.assign({}, DQ, { phone: '1', page: page, limit: 200 }))
+      all.push(...d.devices)
+      if (all.length >= d.total || !d.devices.length) break
+    }
+    if (!all.length) { toast('لا أرقام في هذه القائمة', 'bad'); return }
+    const cell = v => { v = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v }
+    const rows = [['shop', 'phone', 'whatsapp', 'state', 'trial_started', 'trial_ends', 'code', 'device_code', 'device_name', 'platform', 'version', 'last_seen', 'whatsapp_link']]
+      .concat(all.map(x => [x.shop, x.phone, waNum(x.phone), deviceState(x)[1], x.trial_started ? isoDate(x.trial_started) : '', x.trial_ends ? isoDate(x.trial_ends) : '', x.code || '', x.device_code, x.name, platName(x.platform), x.version, isoDate(x.last_seen), waHref(x)]))
+    download('kaseb-phones-' + (DQ.state || 'all') + '-' + isoDate(Date.now()) + '.csv', '\ufeff' + rows.map(r => r.map(cell).join(',')).join('\r\n'), 'text/csv')
+    toast('صُدّر ' + N(all.length) + ' رقم', 'ok')
+  } catch (e) { toast(e.message, 'bad') } finally { b.disabled = false }
+}
 $('dq').oninput = debounce(() => { DQ.q = $('dq').value.trim(); DQ.page = 1; $('dqClr').classList.toggle('hidden', !DQ.q); loadDevices() }, 300)
 $('dqClr').onclick = () => { $('dq').value = ''; DQ.q = ''; DQ.page = 1; $('dqClr').classList.add('hidden'); loadDevices() }
 $('dPlat').onchange = () => { DQ.platform = $('dPlat').value; DQ.page = 1; loadDevices() }
@@ -163,18 +193,20 @@ function devStateHtml(d) {
 async function loadDevices() {
   loaded.devices = true
   chips($('dChips'), DEV_CHIPS, DQ.state, v => { DQ.state = v; DQ.page = 1; loadDevices() })
-  $('dPlat').value = DQ.platform; $('dq').value = DQ.q
+  $('dPlat').value = DQ.platform; $('dq').value = DQ.q; $('dPhone').checked = DQ.phone === '1'
   $('dList').innerHTML = skel(6); $('dMeta').textContent = ''
   let d
   try { d = await get('devices', DQ) } catch (e) { $('dList').innerHTML = empty('alert', 'تعذّر التحميل', e.message); return }
   if (d.page !== DQ.page) return
   $('dMeta').textContent = d.total ? N(d.total) + ' جهاز' : ''
   if (!d.devices.length) { $('dList').innerHTML = DQ.q || DQ.state || DQ.platform ? empty('search', 'لا نتائج', 'جرّب رمز الجهاز كما يظهر عند العميل (XXXX-XXXX).') : empty('phone', 'لا أجهزة بعد', 'يظهر هنا كل جهاز يفتح شاشة التفعيل ويتصل بالخادم.'); $('dPager').innerHTML = ''; return }
-  $('dList').innerHTML = '<table class="tbl"><thead><tr><th>الجهاز</th><th>الحالة</th><th>الكود</th><th>الإصدار</th><th>آخر ظهور</th><th>أول ظهور</th></tr></thead><tbody>'
+  $('dList').innerHTML = '<table class="tbl"><thead><tr><th>الجهاز</th><th>الحالة</th><th>المحل / الهاتف</th><th>الكود</th><th>الإصدار</th><th>آخر ظهور</th><th>أول ظهور</th></tr></thead><tbody>'
     + d.devices.map(x => '<tr class="r' + (x.blocked ? ' hl' : '') + '" data-dev="' + esc(x.device) + '"><td class="p"><span class="row" style="gap:8px;flex-wrap:nowrap">' + platIcon(x.platform) + '<span class="truncate sb" dir="auto">' + (esc(x.name) || '<span class="faint">' + platName(x.platform) + '</span>') + '</span><span class="mono faint sub">' + esc(x.device_code) + '</span></span></td>'
-      + '<td class="st">' + badge(...deviceState(x)) + '</td><td class="m' + (x.code ? '' : ' x') + '" data-l="الكود">' + (x.code ? '<span class="mono faint">' + esc(x.code) + '</span>' : '<span class="faint">—</span>') + '</td><td class="m" data-l="الإصدار"><span class="num">' + esc(x.version || '—') + '</span>' + (x.build ? ' <span class="faint num">(' + esc(x.build) + ')</span>' : '') + ' <span class="faint">' + platName(x.platform) + '</span></td>'
+      + '<td class="st">' + badge(...deviceState(x)) + '</td>'
+      + '<td class="m" data-l="المحل / الهاتف">' + (x.shop ? '<span class="truncate" dir="auto">' + esc(x.shop) + '</span>' : '') + (x.phone ? '<span class="row" style="gap:6px;flex-wrap:nowrap"><span class="num" dir="ltr">' + esc(x.phone) + '</span><a class="btn ghost icon sm" href="' + esc(waHref(x)) + '" target="_blank" rel="noopener" data-stop aria-label="واتساب" title="مراسلة على واتساب">' + I('msg', 16) + '</a></span>' : (x.shop ? '' : '<span class="faint">—</span>')) + '</td>'
+      + '<td class="m' + (x.code ? '' : ' x') + '" data-l="الكود">' + (x.code ? '<span class="mono faint">' + esc(x.code) + '</span>' : '<span class="faint">—</span>') + '</td><td class="m" data-l="الإصدار"><span class="num">' + esc(x.version || '—') + '</span>' + (x.build ? ' <span class="faint num">(' + esc(x.build) + ')</span>' : '') + ' <span class="faint">' + platName(x.platform) + '</span></td>'
       + '<td class="m" data-l="آخر ظهور" title="' + esc(fmtT(x.last_seen)) + '">' + rel(x.last_seen) + '</td><td class="m x" data-l="أول ظهور">' + fmt(x.first_seen) + '</td></tr>').join('') + '</tbody></table>'
-  $('dList').querySelectorAll('tr.r').forEach(tr => tr.onclick = () => openDevice(tr.dataset.dev))
+  $('dList').querySelectorAll('tr.r').forEach(tr => tr.onclick = e => { if (e.target.closest('[data-stop]')) return; openDevice(tr.dataset.dev) })
   pager($('dPager'), d.total, d.page, d.limit, p => { DQ.page = p; loadDevices(); window.scrollTo({ top: 0, behavior: 'smooth' }) })
 }
 async function openDeviceByShort(short) {
@@ -201,6 +233,8 @@ function renderDevice(s, d) {
   s.querySelector('.sb').innerHTML = '<div class="split">'
     + '<dl class="kv"><dt>رمز الجهاز</dt><dd><span class="mono sb" style="font-size:16px">' + esc(x.device_code) + '</span> <button class="btn ghost icon sm" type="button" data-copy="' + esc(x.device_code) + '" aria-label="نسخ">' + I('copy', 16) + '</button></dd><dt>المنصة</dt><dd>' + platName(x.platform) + ' · الإصدار <span class="num">' + esc(x.version || '—') + '</span>' + (x.build ? ' (<span class="num">' + esc(x.build) + '</span>)' : '') + '</dd>'
     + '<dt>الكود</dt><dd>' + (c ? '<span class="lnk mono sb" data-code="' + esc(c.code) + '" style="cursor:pointer;color:var(--brand-ink)">' + esc(c.code) + '</span><div class="faint">' + (c.note ? esc(c.note) + ' · ' : '') + 'منذ ' + fmt(x.bound_at) + '</div>' : '<span class="faint">لا كود مرتبط</span>') + '</dd>'
+    + '<dt>المحل</dt><dd>' + (x.shop ? '<span dir="auto">' + esc(x.shop) + '</span>' : '<span class="faint">لم يُرسل</span>') + '</dd>'
+    + '<dt>الهاتف</dt><dd>' + (x.phone ? '<span class="num sb" dir="ltr">' + esc(x.phone) + '</span> <button class="btn ghost icon sm" type="button" data-copy="' + esc(x.phone) + '" aria-label="نسخ">' + I('copy', 16) + '</button> <a class="btn soft sm" href="' + esc(waHref(x)) + '" target="_blank" rel="noopener">' + I('msg', 16) + '<span>مراسلة على واتساب</span></a>' : '<span class="faint">لم يُرسل (إصدار أقدم من 1.0.3)</span>') + '</dd>'
     + '<dt>التجربة</dt><dd>' + trial + '</dd><dt>أول ظهور</dt><dd>' + fmtT(x.first_seen) + '</dd><dt>آخر ظهور</dt><dd>' + fmtT(x.last_seen) + ' <span class="faint">(' + rel(x.last_seen) + ')</span></dd>'
     + (x.platform === 'android' ? '<dt>بصمة التوقيع</dt><dd>' + (x.sig ? '<div class="copybox"><code>' + esc(x.sig) + '</code><button class="btn ghost icon sm" type="button" data-copy="' + esc(x.sig) + '" aria-label="نسخ">' + I('copy', 16) + '</button></div>' : '<span class="faint">لم تُرسل</span>') + '</dd>' : '')
     + (x.blocked ? '<dt>الحالة</dt><dd><span class="badge bad">موقوف: يُرفض التفعيل والتحقق من هذا الجهاز</span></dd>' : '') + '</dl>'

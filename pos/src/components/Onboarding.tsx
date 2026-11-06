@@ -15,6 +15,7 @@ import { cleanBarcode } from '../lib/barcode'
 import { CurrencyPicker } from '../screens/settings/CurrencyPicker'
 import { insertSampleProducts } from '../screens/settings/sampleData'
 import icon from '/icon.svg'
+import { validPhone } from '../lib/phone'
 
 const STEPS = 4
 
@@ -36,6 +37,7 @@ function Wizard({ settings }: { settings: Settings }) {
   const [currency, setCurrency] = useState<CurrencySettings>(settings.currency)
   const [product, setProduct] = useState<{ name: string; price: number | ''; barcode: string }>({ name: '', price: '', barcode: '' })
   const [err, setErr] = useState<string | null>(null)
+  const [phoneErr, setPhoneErr] = useState<string | null>(null)
   const [sampleAdded, setSampleAdded] = useState(0)
   const [busy, setBusy] = useState<'sample' | 'finish' | null>(null)
 
@@ -49,6 +51,8 @@ function Wizard({ settings }: { settings: Settings }) {
     const e = validate()
     if (e) { setErr(e); return }
     setErr(null)
+    if (step === 1 && !validPhone(store.phone)) { setPhoneErr(t('settings.store.phoneRequired')); return }
+    setPhoneErr(null)
     if (step < STEPS - 1) setStep(step + 1); else void finish()
   }
   const back = () => { setErr(null); setStep(Math.max(0, step - 1)) }
@@ -128,8 +132,8 @@ function Wizard({ settings }: { settings: Settings }) {
               <Field label={t('settings.store.name')} error={err ?? undefined}>
                 <Input value={store.name} onChange={e => { setStore({ ...store, name: e.target.value }); setErr(null) }} placeholder={t('settings.store.namePh')} maxLength={60} autoFocus invalid={!!err} />
               </Field>
-              <Field label={`${t('settings.store.phone')} (${t('common.optional')})`}>
-                <Input ltr inputMode="tel" value={store.phone} onChange={e => setStore({ ...store, phone: e.target.value })} maxLength={30} />
+              <Field label={t('settings.store.phone')} error={phoneErr ?? undefined} hint={phoneErr ? undefined : t('settings.store.phoneWhy')}>
+                <Input ltr inputMode="tel" value={store.phone} onChange={e => { setStore({ ...store, phone: e.target.value }); setPhoneErr(null) }} placeholder="09xx xxx xxx" maxLength={30} invalid={!!phoneErr} />
               </Field>
               <Field label={`${t('settings.store.address')} (${t('common.optional')})`}>
                 <Textarea value={store.address} onChange={e => setStore({ ...store, address: e.target.value })} rows={2} maxLength={160} style={{ minHeight: 56 }} />

@@ -158,6 +158,7 @@ export const useStore = create<AppState>((set, get) => ({
         if (u) user = u
       } catch { /* ignore */ }
       if (!licenseSubscribed) { licenseSubscribed = true; license.subscribe(s => set({ license: s })) }
+      license.setContact({ phone: settings.store.phone, shop: settings.store.name })   // before init: its first check carries them
       await license.init()
       return { settings, users: allUsers, shift, user }
     }
@@ -215,6 +216,12 @@ export const useStore = create<AppState>((set, get) => ({
     if (patch.lang || patch.theme) rememberUi(settings)
     if (patch.pos) configureFeedback({ sound: settings.pos.soundOn, vibrate: settings.pos.vibrate })
     set({ settings })
+    if (patch.store && (patch.store.phone !== undefined || patch.store.name !== undefined)) {
+      const before = license.get()
+      license.setContact({ phone: settings.store.phone, shop: settings.store.name })
+      // a new number reaches the seller now, not at the next check hours later (only with a license or trial to check)
+      if (before.state === 'trial' || before.state === 'active' || before.state === 'expired') void license.check()
+    }
   },
   async reloadUsers() {
     const users = (await db.users.toArray()).filter(u => u.active)

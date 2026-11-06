@@ -55,6 +55,7 @@ export type DeviceRow = {
   code: string | null; bound_at: number | null; trial_started: number | null; trial_ends: number | null
   first_seen: number; last_seen: number; ip: string | null
   blocked?: number   // undefined on a database that predates the column (ensureSchema adds it)
+  phone?: string; shop?: string   // the shop's phone and name, sent by the app since 1.0.3 (ensureSchema adds the columns)
 }
 type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string; cloud_price: string; cloud_days: number; cloud_keep: number; web_trial: number; apk_url: string; win_url: string }
 const DEFAULTS: Settings = { price: '35$', whatsapp: '963996489504', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3, web_trial: 0, apk_url: '', win_url: '' }
@@ -83,6 +84,7 @@ const MESSAGES: Record<string, string> = {
   backup_limit: 'وصلت إلى الحد اليومي للنسخ السحابي. حاول غداً.',
   not_found: 'غير موجود.',
   blocked: 'أوقف البائع هذا الجهاز. تواصل معه لمعرفة السبب.',
+  phone_required: 'أدخل رقم هاتف المحل لبدء التجربة المجانية.',
 }
 
 const json = (data: unknown, status = 200): Response =>
@@ -131,8 +133,12 @@ let schemaReady: Promise<void> | null = null
 /** Columns added after the first release. SQLite has no ADD COLUMN IF NOT EXISTS, so the error on a database that
  *  already has the column is the expected outcome; tried once per isolate. The deploy workflow runs the same statement. */
 function ensureSchema(env: Env): Promise<void> {
-  if (!schemaReady) schemaReady = env.DB.prepare('ALTER TABLE devices ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0').run().then(() => undefined, () => undefined)
-    .then(() => env.DB.prepare('CREATE INDEX IF NOT EXISTS events_kind_at ON events(kind, at)').run()).then(() => undefined, () => undefined)
+  const step = (sql: string) => () => env.DB.prepare(sql).run().then(() => undefined, () => undefined)
+  if (!schemaReady) schemaReady = Promise.resolve()
+    .then(step('ALTER TABLE devices ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0'))
+    .then(step('CREATE INDEX IF NOT EXISTS events_kind_at ON events(kind, at)'))
+    .then(step("ALTER TABLE devices ADD COLUMN phone TEXT NOT NULL DEFAULT ''"))
+    .then(step("ALTER TABLE devices ADD COLUMN shop TEXT NOT NULL DEFAULT ''"))
   return schemaReady
 }
 
@@ -149,24 +155,36 @@ async function settings(env: Env): Promise<Settings> {
 const info = (s: Settings) => ({ price: s.price || DEFAULTS.price, whatsapp: s.whatsapp.replace(/\D/g, ''), trialDays: s.trial_days, message: s.message, minVersion: s.min_version, graceDays: s.grace_days, cloudPrice: s.cloud_price || DEFAULTS.cloud_price })
 
 /** What the app said about itself with this request. */
-type Client = { device: string; name: string; platform: string; version: string; build: string; sig: string; nonce: string }
+type Client = { device: string; name: string; platform: string; version: string; build: string; sig: string; nonce: string; phone: string; shop: string }
+/** The shop's phone as the app sends it: an optional "+" and 9 to 15 digits, else '' (not stored). */
+function phoneOf(v: unknown): string {
+  const s = clip(v, 24).trim()
+  const digits = s.replace(/\D/g, '')
+  if (!/^\+?[\d\s()-]+$/.test(s) || digits.length < 9 || digits.length > 15) return ''
+  return (s.startsWith('+') ? '+' : '') + digits
+}
 function client(b: Record<string, unknown>, needNonce = true): Client | null {
   if (!validDevice(b.device)) return null
   if (needNonce && !validNonce(b.nonce)) return null
   return {
     device: b.device, name: clip(b.name, 60), platform: validPlatform(b.platform) ? b.platform : 'web',
     version: clip(b.version, 20), build: clip(b.build, 40), sig: clip(b.sig, 128), nonce: needNonce ? (b.nonce as string) : '',
+    phone: phoneOf(b.phone), shop: clip(b.shop, 60).trim(),
   }
 }
 
 /** Keeps the devices row current (name, version, last seen…) without touching its code or trial. */
 async function touchDevice(env: Env, req: Request, c: Client, now: number): Promise<void> {
-  await env.DB.prepare(`INSERT INTO devices (device, device_code, name, platform, version, build, sig, first_seen, last_seen, ip)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  // the phone and shop name are kept when a request carries none (an older app, or a shop that has not entered them)
+  await env.DB.prepare(`INSERT INTO devices (device, device_code, name, platform, version, build, sig, first_seen, last_seen, ip, phone, shop)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(device) DO UPDATE SET device_code = excluded.device_code, name = CASE WHEN excluded.name = '' THEN devices.name ELSE excluded.name END,
-      platform = excluded.platform, version = excluded.version, build = excluded.build, sig = excluded.sig, last_seen = excluded.last_seen, ip = excluded.ip`)
-    .bind(c.device, deviceCodeOf(c.device), c.name, c.platform, c.version, c.build, c.sig, now, now, ip(req)).run()
+      platform = excluded.platform, version = excluded.version, build = excluded.build, sig = excluded.sig, last_seen = excluded.last_seen, ip = excluded.ip,
+      phone = CASE WHEN excluded.phone = '' THEN devices.phone ELSE excluded.phone END, shop = CASE WHEN excluded.shop = '' THEN devices.shop ELSE excluded.shop END`)
+    .bind(c.device, deviceCodeOf(c.device), c.name, c.platform, c.version, c.build, c.sig, now, now, ip(req), c.phone, c.shop).run()
 }
+/** The first version that asks for the shop's phone before the trial: from it on the server refuses a trial without one. */
+const PHONE_SINCE = '1.0.3'
 
 /** min_version and the Android signature allow-list: the error key, or null when the build is welcome. */
 function refuseBuild(s: Settings, c: Client): 'min_version' | 'tampered' | null {
@@ -243,6 +261,8 @@ async function trial(req: Request, env: Env): Promise<Response> {
   if (s.trial_days <= 0) { await log(env, 'trial-fail', req, null, c.device, 'disabled'); return fail('no_trial', 403) }
   // a browser identity is whatever the page says (clear the site data → a new device): trials there are off unless the seller turns them on
   if (c.platform === 'web' && !s.web_trial) { await log(env, 'trial-fail', req, null, c.device, 'web'); return fail('no_trial_web', 403) }
+  // older apps never send it and still get their trial; this one always asks for it first
+  if (!c.phone && compareVersions(c.version || '0', PHONE_SINCE) >= 0) { await log(env, 'trial-fail', req, null, c.device, 'phone'); return fail('phone_required', 400) }
   await touchDevice(env, req, c, now)
   const me = await getDevice(env, c.device)
   if (me?.blocked) { await log(env, 'trial-fail', req, null, c.device, 'blocked'); return fail('blocked', 403) }
@@ -673,8 +693,11 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     const where: string[] = [], args: unknown[] = []
     if (raw) {
       const q = `%${raw}%`, qCode = `%${raw.replace(/[-\s]/g, '').toUpperCase()}%`
-      where.push(`(REPLACE(d.device_code, '-', '') LIKE ? OR d.name LIKE ? OR IFNULL(d.code, '') LIKE ? OR d.version LIKE ?)`)
-      args.push(qCode, q, qCode, q)
+      const qPhone = raw.replace(/\D/g, '')
+      where.push(`(REPLACE(d.device_code, '-', '') LIKE ? OR d.name LIKE ? OR IFNULL(d.code, '') LIKE ? OR d.version LIKE ? OR d.shop LIKE ?${qPhone.length >= 3 ? ' OR d.phone LIKE ?' : ''})`)
+      args.push(qCode, q, qCode, q, q)
+      // a local number typed as 09… also finds the international form stored as +9639…
+      if (qPhone.length >= 3) args.push(`%${qPhone.replace(/^0/, '')}%`)
     }
     const state = qs('state')
     if (state === 'licensed') where.push('d.code IS NOT NULL')
@@ -682,6 +705,7 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     if (state === 'expired') { where.push('d.code IS NULL AND d.trial_started IS NOT NULL AND d.trial_ends <= ?'); args.push(now) }
     if (state === 'free') where.push('d.code IS NULL AND d.trial_started IS NULL')
     if (state === 'blocked') where.push('d.blocked = 1')
+    if (qs('phone') === '1') where.push("d.phone != ''")
     const platform = qs('platform')
     if (validPlatform(platform)) { where.push('d.platform = ?'); args.push(platform) }
     const SORT: Record<string, string> = { last_seen: 'd.last_seen', first_seen: 'd.first_seen', name: 'd.name', trial_ends: 'd.trial_ends' }
@@ -837,8 +861,11 @@ section{background:#fff;border:1px solid #e3e8f0;border-radius:14px;padding:16px
 @media (prefers-color-scheme:dark){body{background:#0b1220;color:#e8eef8}section{background:#121b2d;border-color:#243149}}</style></head><body><main>
 <h1>سياسة الخصوصية — كاسب</h1>
 <section><h2>ما الذي يصل إلى الخادم</h2><p>كاسب يعمل بالكامل على جهازك: المنتجات والفواتير والعملاء والورديات تبقى على الجهاز ولا تُرسل إلى أي مكان.
-الاتصال الوحيد بالإنترنت هو التحقق من الترخيص، ويُرسل فيه: معرّف مشفّر للجهاز (لا يمكن الرجوع منه إلى المعرّف الأصلي)، واسم الجهاز ونوعه، وإصدار التطبيق، وكود التفعيل الذي أدخلته، وعنوان IP ووقت الطلب.</p></section>
-<section><h2>لماذا</h2><p>لربط كود التفعيل بجهازك، والتحقق دورياً من أن الترخيص ما زال سارياً، ونقله إلى جهاز آخر عند الحاجة، ومنع التلاعب.</p></section>
+الاتصال الوحيد بالإنترنت هو التحقق من الترخيص، ويُرسل فيه: معرّف مشفّر للجهاز (لا يمكن الرجوع منه إلى المعرّف الأصلي)، واسم الجهاز ونوعه، وإصدار التطبيق، وكود التفعيل الذي أدخلته، واسم المحل ورقم هاتفه كما أدخلتهما في التطبيق، وعنوان IP ووقت الطلب.</p></section>
+<section><h2>لماذا</h2><p>لربط كود التفعيل بجهازك، والتحقق دورياً من أن الترخيص ما زال سارياً، ونقله إلى جهاز آخر عند الحاجة، ومنع التلاعب.
+ورقم هاتف المحل واسمه ليتواصل معك فريق كاسب: لمساعدتك أثناء التجربة المجانية، وبخصوص الاشتراك بعدها، ولدعمك بعد الشراء.</p></section>
+<section><h2>رقم الهاتف</h2><p>رقم هاتف المحل مطلوب لبدء التجربة المجانية. لا يُستخدم إلا للتواصل معك من فريق كاسب بخصوص البرنامج، ولا يُباع ولا يُشارك مع أي جهة.
+إن لم تعد ترغب في أن نتواصل معك، أو أردت حذف رقمك من سجلاتنا، راسلنا على واتساب وسنحذفه.</p></section>
 <section><h2>المشاركة</h2><p>لا نبيع البيانات ولا نشاركها مع أي جهة، ولا توجد إعلانات ولا أدوات تتبّع. الخادم مستضاف لدى Cloudflare، وتُحذف سجلات الأمان بعد سنة على الأكثر.</p></section>
 </main></body></html>`
 

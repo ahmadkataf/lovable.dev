@@ -102,6 +102,7 @@ input[type=date].in{min-width:0}.ferr{color:var(--danger);font-size:12px;margin-
 .toolbar .r2 .chips{flex:1}.toolbar select.in{width:auto;min-width:140px}
 @media (min-width:1024px){.toolbar{flex-direction:row;flex-wrap:wrap;align-items:center}.toolbar .r1{flex:1;min-width:320px}.toolbar .r2{flex:2}}
 .meta{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--text-2);padding:4px 2px}
+.chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}.chk input{width:16px;height:16px;accent-color:var(--brand)}
 .pager{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 0}.pager .pg{font-variant-numeric:tabular-nums;color:var(--text-2);font-size:13px;min-width:90px;text-align:center}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.grid2>*,.grid3>*,.split>*,.kpis>*{min-width:0}
 @media (min-width:720px){.grid3{grid-template-columns:repeat(3,1fr)}}@media (max-width:419px){#v-settings .grid2{grid-template-columns:1fr}}

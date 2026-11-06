@@ -7,6 +7,7 @@ import { ToastHost, ConfirmHost } from './components/ui'
 import { LockScreen } from './components/LockScreen'
 import { BootScreen } from './components/BootScreen'
 import Onboarding from './components/Onboarding'
+import { PhonePrompt } from './components/PhonePrompt'
 import SalesScreen from './screens/sales'
 import ProductsScreen from './screens/products'
 import CustomersScreen from './screens/customers'
@@ -65,6 +66,7 @@ export default function App() {
       <ToastHost />
       <ConfirmHost />
       <Onboarding />
+      <PhonePrompt />
     </HashRouter>
   )
 }

@@ -6,6 +6,7 @@ import { Button, Field, Input, Textarea } from '../../../components/ui'
 import type { Settings } from '../../../db/types'
 import { useDraft, SaveBar, SectionCard, Note } from '../shared'
 import { resizeImageFile } from '../logo'
+import { validPhone } from '../../../lib/phone'
 
 type StoreInfo = Settings['store']
 
@@ -16,8 +17,10 @@ export default function StoreSection() {
   const d = useDraft<StoreInfo>(
     store,
     async draft => updateSettings({ store: { name: draft.name.trim(), phone: draft.phone.trim(), address: draft.address.trim(), taxNumber: (draft.taxNumber ?? '').trim(), logo: draft.logo ?? '' } }),
-    draft => (draft.name.trim() ? null : t('settings.store.nameRequired')),
+    draft => (!draft.name.trim() ? t('settings.store.nameRequired') : !validPhone(draft.phone) ? t('settings.store.phoneRequired') : null),
   )
+  const nameErr = d.error && d.error === t('settings.store.nameRequired') ? d.error : undefined
+  const phoneErr = d.error && d.error === t('settings.store.phoneRequired') ? d.error : undefined
   const fileRef = useRef<HTMLInputElement>(null)
   const [reading, setReading] = useState(false)
 
@@ -33,11 +36,11 @@ export default function StoreSection() {
     <>
       <SectionCard title={t('settings.sec.store')} icon={<Store size={16} />}>
         <div className="form-grid">
-          <Field label={t('settings.store.name')} error={d.error ?? undefined} span2>
-            <Input value={d.draft.name} onChange={e => d.patch({ name: e.target.value })} placeholder={t('settings.store.namePh')} invalid={!!d.error} maxLength={60} autoFocus />
+          <Field label={t('settings.store.name')} error={nameErr} span2>
+            <Input value={d.draft.name} onChange={e => d.patch({ name: e.target.value })} placeholder={t('settings.store.namePh')} invalid={!!nameErr} maxLength={60} autoFocus />
           </Field>
-          <Field label={t('settings.store.phone')}>
-            <Input ltr inputMode="tel" value={d.draft.phone} onChange={e => d.patch({ phone: e.target.value })} maxLength={30} />
+          <Field label={t('settings.store.phone')} error={phoneErr} hint={phoneErr ? undefined : t('settings.store.phoneWhy')}>
+            <Input ltr inputMode="tel" value={d.draft.phone} onChange={e => d.patch({ phone: e.target.value })} placeholder="09xx xxx xxx" invalid={!!phoneErr} maxLength={30} />
           </Field>
           <Field label={t('settings.store.taxNumber')} hint={t('settings.store.taxNumberHint')}>
             <Input ltr value={d.draft.taxNumber ?? ''} onChange={e => d.patch({ taxNumber: e.target.value })} maxLength={30} />

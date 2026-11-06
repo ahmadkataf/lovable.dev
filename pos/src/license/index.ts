@@ -12,6 +12,7 @@
 import './i18n'
 import { platform } from '../lib/platform'
 import { sha256Hex } from '../lib/hash'
+import { cleanPhone } from '../lib/phone'
 import { DEFAULT_INFO, type LicenseState, type LicenseStatus, type SellerInfo } from './types'
 import {
   type TokenPayload, cleanCode, formatCode, deviceCodeOf, verifyToken, clockRolledBack, deriveState, errorMessageKey, stateForCheckError, newNonce,
@@ -123,7 +124,10 @@ async function call<T>(path: string, body?: Record<string, unknown>): Promise<Re
     return { ok: false, error: 'network', network: true }
   } finally { clearTimeout(timer) }
 }
-const clientInfo = (nonce: string) => ({ device, deviceCode: status.deviceCode, name: deviceName, platform: platform.kind, version: VERSION || platform.appVersion(), build: BUILD, sig, nonce })
+// The shop's name and phone (Settings → Store): the seller follows up with shops on the free trial by phone
+// (the privacy page says so). Set by the store whenever the settings load or change.
+let contact = { phone: '', shop: '' }
+const clientInfo = (nonce: string) => ({ device, deviceCode: status.deviceCode, name: deviceName, platform: platform.kind, version: VERSION || platform.appVersion(), build: BUILD, sig, nonce, phone: contact.phone, shop: contact.shop })
 
 /** Runs network actions one after the other, with `checking` on while they run. Each one is given at most
  *  TASK_TIMEOUT: a step that never answers (a storage bridge call) must not keep "checking" — and the activation
@@ -242,6 +246,11 @@ export const license = {
         if (r.error === 'tampered') { await save({ denied: { state: 'tampered', at: Date.now() } }); publish({ state: derive() }) }
       }
     })
+  },
+
+  /** The shop's phone and name sent with every request from now on (the store calls this). */
+  setContact(c: { phone: string; shop: string }): void {
+    contact = { phone: cleanPhone(c.phone).slice(0, 20), shop: String(c.shop ?? '').trim().slice(0, 60) }
   },
 
   /** One free trial per device. */

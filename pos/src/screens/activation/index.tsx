@@ -9,7 +9,8 @@ import { useT } from '../../i18n'
 import { toast, confirmDialog, useStore, useUser, isAdmin } from '../../state/store'
 import { platform } from '../../lib/platform'
 import { formatDate, formatDateTime, daysBetween } from '../../lib/format'
-import { Button, Input, Modal, useIsMobile } from '../../components/ui'
+import { Button, Field, Input, Modal, useIsMobile } from '../../components/ui'
+import { validPhone } from '../../lib/phone'
 import { license } from '../../license'
 import { PolicyBanner } from '../../components/PolicyBanner'
 import { DEFAULT_INFO, type LicenseStatus } from '../../license/types'
@@ -57,6 +58,13 @@ export default function ActivationScreen({ embedded }: { embedded?: boolean }) {
   const [busy, setBusy] = useState<Busy>(null)
   const [showError, setShowError] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
+  // the shop's name and phone, asked before the free trial starts (the seller follows up with trial shops)
+  const store = useStore(s => s.settings.store)
+  const updateSettings = useStore(s => s.updateSettings)
+  const [askPhone, setAskPhone] = useState(false)
+  const [shopName, setShopName] = useState(store.name)
+  const [phone, setPhone] = useState(store.phone)
+  const [phoneErr, setPhoneErr] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const info = lic.info ?? DEFAULT_INFO
   const demo = lic.state === 'demo'
@@ -87,6 +95,18 @@ export default function ActivationScreen({ embedded }: { embedded?: boolean }) {
   }
   const trial = async () => {
     if (busy) return
+    if (!validPhone(store.phone)) { setShopName(store.name); setPhone(store.phone); setPhoneErr(null); setAskPhone(true); return }
+    await startTrial()
+  }
+  const confirmPhone = async (e?: FormEvent) => {
+    e?.preventDefault()
+    if (!validPhone(phone)) { setPhoneErr(t('settings.store.phoneRequired')); return }
+    try { await updateSettings({ store: { name: shopName.trim() || store.name, phone: phone.trim() } }) }
+    catch { toast(t('common.error'), 'error'); return }
+    setAskPhone(false)
+    await startTrial()
+  }
+  const startTrial = async () => {
     setBusy('trial'); setLocalError(null); setShowError(true)
     try {
       const s = await license.startTrial()
@@ -153,6 +173,23 @@ export default function ActivationScreen({ embedded }: { embedded?: boolean }) {
           <Button variant="ghost" size="sm" icon={<ScrollText size={14} />} onClick={() => setTerms(true)}>{t('activation.terms')}</Button>
         </div>
       )}
+      <Modal open={askPhone} onClose={() => setAskPhone(false)} title={t('activation.trialPhone.title')} size="narrow" footer={
+        <>
+          <Button onClick={() => setAskPhone(false)}>{t('common.cancel')}</Button>
+          <Button variant="primary" icon={<Sparkles size={16} />} onClick={() => void confirmPhone()}>{t('activation.trialPhone.start')}</Button>
+        </>
+      }>
+        <form className="col" style={{ gap: 12 }} onSubmit={e => void confirmPhone(e)}>
+          <p className="muted" style={{ margin: 0 }}>{t('activation.trialPhone.text')}</p>
+          <Field label={t('settings.store.name')}>
+            <Input value={shopName} onChange={e => setShopName(e.target.value)} placeholder={t('settings.store.namePh')} maxLength={60} />
+          </Field>
+          <Field label={t('settings.store.phone')} error={phoneErr ?? undefined}>
+            <Input ltr inputMode="tel" autoFocus value={phone} onChange={e => { setPhone(e.target.value); setPhoneErr(null) }} placeholder="09xx xxx xxx" maxLength={30} invalid={!!phoneErr} />
+          </Field>
+          <button type="submit" hidden />
+        </form>
+      </Modal>
       <Modal open={terms} onClose={() => setTerms(false)} title={t('activation.terms')} size="narrow" footer={<Button variant="primary" onClick={() => setTerms(false)}>{t('common.ok')}</Button>}>
         <PolicyBanner terms />
       </Modal>
