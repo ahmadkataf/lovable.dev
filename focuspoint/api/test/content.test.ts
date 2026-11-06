@@ -370,7 +370,7 @@ describe('live values', () => {
     expect(f(d.home.features.items[5]!.text)).toBe('شاشة وسبورة لـ10 أشخاص، للاجتماعات والعروض والدورات.')
     expect(f(d.home.faq.items[4]!.a)).toBe('أكيد. قاعة الاجتماعات بتساع لـ10 أشخاص وفيها شاشة وسبورة، وفي كمان غرف خاصة من 2 لـ4 أشخاص. [شوف المساحات](/spaces).')
     expect(f(d.spaces.lead)).toBe('غرف خاصة من 2 لـ4 أشخاص، قاعة اجتماعات لـ10 مع شاشة وسبورة، ومساحة مفتوحة مشتركة لـ8. الأسعار هون هي نفسها اللي بتشوفها وقت الحجز.')
-    expect(f(d.spaces.groups.meeting.blurb)).toBe('قاعة لـ10 أشخاص فيها شاشة وسبورة، للاجتماعات والدورات والعروض.')
+    expect(f(d.spaces.groups.meeting.blurb)).toBe('قاعة تدريبية لـ10 أشخاص فيها شاشة وسبورة، للدورات وورش العمل والاجتماعات.')
     expect(f(d.spaces.groups.open.blurb)).toBe('مكان مشترك لـ8 أشخاص، ضوء طبيعي وجو بيشجّع عالشغل.')
     expect(f(d.spaces.groups.private.badge)).toBe('4 غرف')
     expect(f(d.about.audience.items[2]!.text)).toBe('غرف خاصة من 2 لـ4 أشخاص، وقاعة اجتماعات لعشرة لما يكبر الاجتماع.')

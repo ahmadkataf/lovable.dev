@@ -193,6 +193,7 @@ const IMG = {
   meeting: { src: '/img/room-a.webp', small: '/img/room-a-720.webp', w: 1105, h: 1400, alt: 'قاعة الاجتماعات في فوكس بوينت: طاولة خمرية طويلة وكراسي مريحة وشاشة وضوء طبيعي من الشباك' },
   meetingTable: { src: '/img/room-a-table.webp', small: '/img/room-a-table-720.webp', w: 919, h: 1400, alt: 'طاولة الاجتماعات الخمرية عن قرب مع مقابس الكهرباء' },
   big: { src: '/img/room-b.webp', small: '/img/room-b-720.webp', w: 1105, h: 1400, alt: 'طاولة كبيرة ونوافذ بانورامية تطل على درعا ولوحة THINK OUTSIDE THE BOX' },
+  hall: { src: '/img/hall-wide.webp', small: '/img/hall-wide-720.webp', w: 1080, h: 810, alt: 'القاعة التدريبية في فوكس بوينت: طاولات بيضاء وكراسي خمرية بصفوف، شاشة وتكييف وإضاءة هادئة' },
   bigWide: { src: '/img/room-b-wide.webp', small: '/img/room-b-wide-720.webp', w: 1400, h: 821, alt: 'المساحة من الداخل: طاولة كبيرة، كراسي مريحة، ونوافذ واسعة مليانة ضوء' },
 } satisfies Record<string, Photo>
 const photo = (p: Photo): Photo => ({ ...p })
@@ -340,7 +341,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     lead: 'غرف خاصة من {privateMin} لـ{privateMax} أشخاص، قاعة اجتماعات لـ{meetingCapacity} مع شاشة وسبورة، ومساحة مفتوحة مشتركة لـ{openCapacity}. الأسعار هون هي نفسها اللي بتشوفها وقت الحجز.',
     groups: {
       private: { title: 'غرف خاصة', blurb: 'غرفة إلك لحالك أو مع فريقك الصغير، بابها بيتسكّر وبتشتغل فيها على راحتك.', cap: '2–4 أشخاص', badge: '{privateCount} غرف', icon: 'door', photo: null, amenities: amenities('wifi', 'ac') },
-      meeting: { title: 'قاعة الاجتماعات', blurb: 'قاعة لـ{meetingCapacity} أشخاص فيها شاشة وسبورة، للاجتماعات والدورات والعروض.', cap: 'حتى 10 أشخاص', badge: 'قاعة', icon: 'present', photo: photo(IMG.meeting), amenities: amenities('wifi', 'ac', 'screen', 'whiteboard') },
+      meeting: { title: 'القاعة التدريبية', blurb: 'قاعة تدريبية لـ{meetingCapacity} أشخاص فيها شاشة وسبورة، للدورات وورش العمل والاجتماعات.', cap: 'حتى 10 أشخاص', badge: 'قاعة', icon: 'present', photo: photo(IMG.hall), amenities: amenities('wifi', 'ac', 'screen', 'whiteboard') },
       open: { title: 'المساحة المفتوحة', blurb: 'مكان مشترك لـ{openCapacity} أشخاص، ضوء طبيعي وجو بيشجّع عالشغل.', cap: 'حتى 8 أشخاص', badge: 'مشتركة', icon: 'grid', photo: photo(IMG.bigWide), amenities: amenities('wifi', 'ac', 'coffee') },
     },
     price_from: 'تبدأ من',
