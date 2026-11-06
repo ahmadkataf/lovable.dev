@@ -4,6 +4,7 @@ import { capacityUnits, peakUnits, quote, unitsOf } from '@shared/pricing'
 import { isSafeImageSrc } from '@shared/content'
 import type { IconName } from '../ui'
 import { addDays, fmtDate, fmtRange, todayLocal, toLocalParts } from '../format'
+import { countAr } from '@shared/content'
 
 export type Availability = ApiContract['GET /v1/availability?date=YYYY-MM-DD']['res'][number]
 export type BookingFull = ApiContract['GET /v1/bookings/:id']['res']
@@ -32,8 +33,8 @@ export function isCashAwaiting(b: { status: BookingStatus; method: Booking['meth
 
 export function contentsList(c: RoomContents): { icon: IconName; label: string }[] {
   const out: { icon: IconName; label: string }[] = []
-  if (c.chairs) out.push({ icon: 'chair', label: c.chairs === 1 ? 'كرسي' : c.chairs === 2 ? 'كرسيان' : `${c.chairs} كراسي` })
-  if (c.tables) out.push({ icon: 'table', label: c.tables === 1 ? 'طاولة' : c.tables === 2 ? 'طاولتان' : `${c.tables} طاولات` })
+  if (c.chairs) out.push({ icon: 'chair', label: countAr(c.chairs, 'كرسي', 'كرسيين', 'كراسي', 'كرسي') })
+  if (c.tables) out.push({ icon: 'table', label: countAr(c.tables, 'طاولة', 'طاولتين', 'طاولات', 'طاولة') })
   if (c.screen) out.push({ icon: 'screen', label: 'شاشة' })
   if (c.projector) out.push({ icon: 'projector', label: 'بروجكتر' })
   if (c.whiteboard) out.push({ icon: 'whiteboard', label: 'سبورة' })
