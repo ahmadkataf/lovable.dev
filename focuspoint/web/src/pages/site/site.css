@@ -506,3 +506,15 @@
 .fp-nowrap { white-space: nowrap; }
 /* In big headings an English phrase may wrap on a phone rather than be cut off (the <bdi> keeps its word order). */
 .fp-display .fp-nowrap, .fp-h1 .fp-nowrap, .fp-h2 .fp-nowrap, .fp-h3 .fp-nowrap, .fp-cta-title .fp-nowrap { white-space: normal; }
+
+/* hero carousel: slides stacked in the frame, a soft cross-fade; the badge follows the slide */
+.fp-hero-frame .fp-hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.9s ease; }
+.fp-hero-frame .fp-hero-slide.is-on { opacity: 1; }
+.fp-hero-badge { animation: fp-badge-in 0.5s ease; }
+@keyframes fp-badge-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.fp-hero-dots { position: absolute; z-index: 3; top: 12px; inset-inline-start: 34px; display: flex; gap: 6px; }
+.fp-hero-dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 999px; background: rgba(255,255,255,0.7); box-shadow: 0 0 0 1px rgba(0,0,0,0.15); cursor: pointer; transition: width 0.3s; }
+.fp-hero-dots button.is-on { width: 22px; background: #fff; }
+.fp-hero-dots button::before { content: ''; position: absolute; inset: -10px -4px; }   /* bigger tap target */
+.fp-hero-dots button { position: relative; }
+@media (prefers-reduced-motion: reduce) { .fp-hero-frame .fp-hero-slide { transition: none; } .fp-hero-badge { animation: none; } }

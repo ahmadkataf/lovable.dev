@@ -243,8 +243,8 @@ export const DEFAULT_CONTENT: SiteContent = {
       ],
       photo: photo(IMG.meeting),
       badge_icon: 'present',
-      badge_title: 'قاعة تدريبية للدورات',
-      badge_text: 'شاشة + سبورة',
+      badge_title: 'غرفة الاجتماعات',            // the hero photo is the meeting room (the training hall is its own slide)
+      badge_text: 'طاولة كبيرة + شاشة',
     },
     facts: {
       label: '{name} بالأرقام',
