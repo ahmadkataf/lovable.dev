@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1118" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="لوحة الرضوان"><meta name="robots" content="noindex">
+<title>لوحة التحكم — كراج الرضوان</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f5f7;--card:#fff;--text:#121826;--muted:#677084;--line:#e6e8ee;--soft:#f6f7f9;
+  --brand:#d4520c;--brand-2:#f59e0b;--brand-soft:#fff1e8;--green:#16a34a;--green-soft:#e6f6ec;--red:#dc2626;--red-soft:#fdeaea;--amber:#b45309;--amber-soft:#fff4dc;--blue:#2563eb;--blue-soft:#e8effe;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 10px 30px -16px rgba(16,24,40,.22);
+  --nav:66px;--sat:env(safe-area-inset-top);--sab:env(safe-area-inset-bottom)
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0e1118;--card:#171b25;--text:#edf0f6;--muted:#98a1b5;--line:#272c3a;--soft:#1e2330;
+  --brand-soft:#3a2214;--green-soft:#11301f;--red-soft:#3a1717;--amber-soft:#3a2a0f;--blue-soft:#172848;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -16px rgba(0,0,0,.7)}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+body{margin:0;min-height:100%;overflow-x:hidden;background:var(--bg);color:var(--text);font:15px/1.55 Alexandria,system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3{margin:0;font-weight:800}h1{font-size:22px}h2{font-size:17px}
+h3{font-size:13px;color:var(--muted);font-weight:700}
+svg.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
+.hidden{display:none!important}.muted{color:var(--muted);font-size:13px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;direction:ltr;unicode-bidi:isolate;letter-spacing:.5px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.spread{justify-content:space-between}.grow{flex:1;min-width:0}
+.stack>*+*{margin-top:12px}
+
+/* ---------- login ---------- */
+#login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 18px calc(24px + var(--sab));
+  background:radial-gradient(800px 480px at 85% -10%,rgba(245,158,11,.55) 0,transparent 60%),radial-gradient(700px 420px at -10% 110%,rgba(212,82,12,.6) 0,transparent 55%),#121826}
+.login-card{width:100%;max-width:400px;background:var(--card);border-radius:26px;padding:26px 22px;box-shadow:0 30px 80px -30px rgba(0,0,0,.65)}
+.logo{width:54px;height:54px;border-radius:17px;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;display:grid;place-items:center;box-shadow:0 10px 22px -10px var(--brand);flex:none}
+.logo svg.i{width:28px;height:28px}
+.field{position:relative}
+.field input{width:100%;padding:14px 16px;padding-left:50px;border:1.5px solid var(--line);border-radius:15px;background:var(--soft);font-size:16px;outline:0;transition:border-color .15s,box-shadow .15s}
+.field input:focus{border-color:var(--brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 16%,transparent)}
+.field .eye{position:absolute;left:6px;top:50%;transform:translateY(-50%);background:none;border:0;padding:9px;color:var(--muted);border-radius:10px}
+.err{color:var(--red);font-size:13px;min-height:20px;margin-top:8px;font-weight:600}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:minmax(0,1fr);min-height:100vh}
+.shell>div{min-width:0}
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);padding:calc(10px + var(--sat)) 16px 10px;display:flex;align-items:center;gap:10px}
+.top .logo{width:38px;height:38px;border-radius:12px}.top .logo svg.i{width:20px;height:20px}
+.top h1{font-size:19px}
+.iconbtn{width:42px;height:42px;border-radius:13px;border:1.5px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--text);flex:none}
+.iconbtn:active{transform:scale(.96)}
+.content{padding:6px 16px 16px;padding-bottom:calc(var(--nav) + 28px + var(--sab));max-width:1120px;width:100%;margin:0 auto}
+.nav{position:fixed;bottom:0;right:0;left:0;z-index:25;display:grid;grid-template-columns:repeat(5,1fr);align-items:end;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line);padding-bottom:var(--sab);height:calc(var(--nav) + var(--sab))}
+.nav button{background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:var(--nav);color:var(--muted);font-size:11.5px;font-weight:700;position:relative}
+.nav button.on{color:var(--brand)}
+.nav button.on::before{content:"";position:absolute;top:0;width:28px;height:3px;border-radius:0 0 3px 3px;background:var(--brand)}
+.nav button .dot{position:absolute;top:8px;margin-right:22px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10.5px;line-height:17px}
+.nav .fab{height:calc(var(--nav) + 4px)}
+.nav .fab span.b{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;display:grid;place-items:center;margin-top:-22px;box-shadow:0 10px 20px -8px var(--brand),0 0 0 5px var(--bg)}
+.nav .fab span.b svg.i{width:26px;height:26px}
+.nav .fab.on::before{display:none}
+.side{display:none}
+@media (min-width:900px){
+  .shell{grid-template-columns:256px minmax(0,1fr)}
+  .side{display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;padding:22px 14px;border-left:1px solid var(--line);background:var(--card)}
+  .side .brand{display:flex;align-items:center;gap:12px;margin:0 6px 22px}
+  .side button{display:flex;align-items:center;gap:12px;width:100%;text-align:right;background:none;border:0;padding:11px 12px;border-radius:13px;font-weight:700;color:var(--muted)}
+  .side button:hover{background:var(--soft);color:var(--text)}
+  .side button.on{background:var(--brand-soft);color:var(--brand)}
+  .side button .dot{margin-right:auto;min-width:20px;height:20px;border-radius:10px;background:var(--red);color:#fff;font-size:11px;display:grid;place-items:center;padding:0 5px}
+  .side .foot{margin-top:auto}
+  .nav{display:none}.top{padding:22px 32px 8px;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+  .top .logo{display:none}.content{padding:8px 32px 40px}
+}
+
+/* ---------- controls ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow)}
+label.l{display:block;font-size:13px;font-weight:700;margin:0 0 7px;color:var(--muted)}
+.in{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:14px;background:var(--soft);font-size:16px;outline:0;transition:border-color .15s,box-shadow .15s;appearance:none;-webkit-appearance:none;min-height:50px}
+.in:focus{border-color:var(--brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 14%,transparent)}
+textarea.in{min-height:84px;resize:vertical}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 18px;min-height:48px;border:0;border-radius:15px;background:var(--brand);color:#fff;font-weight:800;font-size:15px;transition:transform .08s,filter .15s;white-space:nowrap}
+.btn:active{transform:scale(.98)}.btn:hover{filter:brightness(1.06)}.btn:disabled{opacity:.55}
+.btn.ghost{background:var(--card);color:var(--text);border:1.5px solid var(--line)}
+.btn.soft{background:var(--brand-soft);color:var(--brand)}
+.btn.wa{background:#1fa855}.btn.red{background:var(--red)}
+.btn.sm{padding:8px 13px;min-height:40px;font-size:13.5px;border-radius:12px}.btn.block{width:100%}
+.btn.big{min-height:56px;font-size:16.5px;border-radius:17px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--soft);border:1.5px solid var(--line);border-radius:15px;padding:4px;gap:4px}
+.seg button{border:0;background:none;padding:10px 4px;min-height:42px;border-radius:11px;font-weight:700;font-size:13.5px;white-space:nowrap;color:var(--muted)}
+.seg button.on{background:var(--card);color:var(--brand);box-shadow:var(--shadow)}
+.stepper{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:15px;background:var(--soft);overflow:hidden}
+.stepper button{width:54px;height:52px;border:0;background:none;font-size:24px;font-weight:800;color:var(--brand)}
+.stepper input{flex:1;border:0;background:none;text-align:center;font-size:20px;font-weight:800;width:60px;outline:0;-moz-appearance:textfield}
+.stepper input::-webkit-inner-spin-button{-webkit-appearance:none}
+.chips{display:flex;gap:7px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none;margin:0 -16px;padding-inline:16px}.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:8px 15px;border-radius:999px;border:1.5px solid var(--line);background:var(--card);font-size:13.5px;font-weight:700;color:var(--muted)}
+.chip.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.search{position:relative}.search svg.i{position:absolute;right:15px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.search .in{padding-right:46px;background:var(--card)}
+.search .clear{position:absolute;left:6px;top:50%;transform:translateY(-50%);background:none;border:0;padding:9px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (min-width:700px){.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.grid4>*+*{margin-top:0}}
+
+/* ---------- dashboard ---------- */
+.hero{position:relative;overflow:hidden;border-radius:24px;padding:20px;color:#fff;background:linear-gradient(135deg,#c2410c,#ea580c 55%,#f59e0b);box-shadow:0 18px 40px -20px #c2410c}
+.hero::after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;left:-60px;top:-90px;background:rgba(255,255,255,.12)}
+.hero .v{font-size:44px;font-weight:900;line-height:1;letter-spacing:-1px}
+.hero .k{font-size:14px;font-weight:700;opacity:.92;margin-top:6px}
+.hero .pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.2);padding:5px 11px;border-radius:999px;font-size:12.5px;font-weight:800}
+.hero .track{height:8px;border-radius:999px;background:rgba(255,255,255,.25);overflow:hidden;margin-top:16px}.hero .track i{display:block;height:100%;background:#fff;border-radius:999px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (min-width:700px){.kpis{grid-template-columns:repeat(4,1fr);gap:12px}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--shadow);text-align:right;width:100%}
+.kpi .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;margin-bottom:10px}
+.kpi .v{font-size:26px;font-weight:900;line-height:1.1}.kpi .k{font-size:12.5px;color:var(--muted);font-weight:700;margin-top:3px}
+button.kpi{border:1px solid var(--line);font:inherit;color:inherit}
+.t-or{background:var(--brand-soft);color:var(--brand)}.t-gr{background:var(--green-soft);color:var(--green)}.t-bl{background:var(--blue-soft);color:var(--blue)}.t-am{background:var(--amber-soft);color:var(--amber)}.t-rd{background:var(--red-soft);color:var(--red)}
+.chart{display:flex;align-items:flex-end;gap:5px;height:110px;margin-top:26px}
+.chart div{flex:1;background:linear-gradient(180deg,var(--brand-2),var(--brand));border-radius:6px 6px 3px 3px;min-height:4px;position:relative;opacity:.9}
+.chart div.z{background:var(--line);opacity:1}
+.chart div span{position:absolute;top:-19px;left:-4px;right:-4px;text-align:center;font-size:11px;font-weight:800;color:var(--muted)}
+.axis{display:flex;gap:5px;margin-top:6px}.axis span{flex:1;text-align:center;font-size:10.5px;color:var(--muted)}
+.bar{height:7px;border-radius:999px;background:var(--soft);overflow:hidden}.bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--brand),var(--brand-2))}
+.sel{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:11px 0;border-bottom:1px solid var(--line)}.sel:last-child{border-bottom:0}
+.sel .bar{grid-column:1/-1}
+
+/* ---------- lists ---------- */
+.list{display:grid;gap:10px}.list>*{min-width:0}
+@media (min-width:900px){.list.wide{grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}}
+.code{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px 15px;box-shadow:var(--shadow);cursor:pointer;text-align:right;width:100%;display:block;font:inherit;color:inherit;transition:transform .08s,border-color .15s}
+.code:active{transform:scale(.99)}.code:hover{border-color:color-mix(in srgb,var(--brand) 40%,var(--line))}
+.code .c{font-size:19px;font-weight:800}
+.code .shop{font-weight:700;font-size:14.5px;margin-top:4px;display:flex;align-items:center;gap:6px;min-width:0}
+.code .shop span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.code .meta{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:9px}
+.code .meta span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}.code .meta svg.i{width:15px;height:15px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.b-new{background:var(--blue-soft);color:var(--blue)}.b-used{background:var(--green-soft);color:var(--green)}.b-rev{background:var(--red-soft);color:var(--red)}.b-exp{background:var(--amber-soft);color:var(--amber)}
+.empty{text-align:center;padding:40px 16px;color:var(--muted)}
+.empty .ic{width:64px;height:64px;border-radius:20px;background:var(--soft);display:grid;place-items:center;margin:0 auto 12px;color:var(--muted)}
+.empty .ic svg.i{width:30px;height:30px}
+.ev{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}.ev:last-child{border-bottom:0}
+.ev .ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:none}.ev .ic svg.i{width:18px;height:18px}
+.ev .t{font-size:14px;font-weight:700}.ev .s{font-size:12.5px;color:var(--muted)}
+.ren{display:flex;gap:12px;align-items:center}
+.ren .days{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;text-align:center;flex:none;line-height:1.05}
+.ren .days b{font-size:20px;display:block}.ren .days small{font-size:10.5px;font-weight:700}
+.ren .acts{display:grid;grid-template-columns:1fr 1fr 40px;gap:6px;margin-top:9px}.ren .acts .btn{padding:8px 6px}
+.ren .acts .more{width:40px;min-height:40px;padding:0;border-radius:12px}
+.skeleton{background:linear-gradient(90deg,var(--soft),var(--line),var(--soft));background-size:200% 100%;animation:sk 1.2s infinite;border-radius:10px;height:18px}
+@keyframes sk{to{background-position:-200% 0}}
+
+/* ---------- sheets & toast ---------- */
+.sheet-bg{position:fixed;inset:0;background:rgba(9,12,20,.5);z-index:40;display:flex;align-items:flex-end;justify-content:center;animation:fade .16s}
+.sheet{width:100%;max-width:540px;background:var(--card);border-radius:26px 26px 0 0;padding:10px 18px calc(18px + var(--sab));animation:up .22s cubic-bezier(.2,.9,.3,1);max-height:92vh;max-height:92dvh;overflow:auto;overscroll-behavior:contain}
+@media (min-width:700px){.sheet-bg{align-items:center;padding:20px}.sheet{border-radius:26px;padding-bottom:20px}}
+.sheet .grab{width:42px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 14px}
+.sheet .head{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.sheet .bigcode{font-size:24px;font-weight:900}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 14px}
+.info div{background:var(--soft);border-radius:14px;padding:10px 12px}.info small{display:block;color:var(--muted);font-size:11.5px;font-weight:700}.info b{font-size:14px;font-weight:800}
+.info .full{grid-column:1/-1}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.quick button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:16px;border:1.5px solid var(--line);background:var(--card);font-size:12.5px;font-weight:700}
+.quick button .q{width:40px;height:40px;border-radius:13px;display:grid;place-items:center}
+.act{display:flex;align-items:center;gap:13px;width:100%;text-align:right;background:none;border:0;padding:13px 6px;border-radius:14px;font-weight:700;font-size:15px}
+.act:hover{background:var(--soft)}.act .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--soft)}
+.act .sub{display:block;font-size:12.5px;color:var(--muted);font-weight:500}
+.act.danger{color:var(--red)}.act.danger .ic{background:var(--red-soft)}
+.dev{display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--line);border-radius:16px}
+.dev+.dev{margin-top:8px}.dev .ic{width:40px;height:40px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center;flex:none}
+.toast{position:fixed;bottom:calc(var(--nav) + 18px + var(--sab));left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;z-index:70;box-shadow:0 12px 30px -10px rgba(0,0,0,.5);animation:tin .2s;max-width:calc(100vw - 32px);text-align:center}
+@media (min-width:900px){.toast{bottom:28px}}
+@keyframes up{from{transform:translateY(24px);opacity:0}}@keyframes fade{from{opacity:0}}
+@keyframes tin{from{opacity:0;transform:translate(-50%,16px)}}
+
+/* ---------- printable code cards ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.codecard{border:2px dashed var(--line);border-radius:16px;padding:14px 12px;text-align:center;background:var(--soft)}
+.codecard .brandline{font-size:12px;font-weight:800;color:var(--brand)}
+.codecard b{display:block;font-size:21px;margin:6px 0}.codecard .muted{font-size:11.5px}
+@media print{body{background:#fff;color:#000}.top,.nav,.side,.noprint,#sheetHost{display:none!important}.content{padding:0}.card{border:0;box-shadow:none;padding:0}
+  .codecard{break-inside:avoid;border-color:#888;background:#fff}.codecard .brandline{color:#000}}
+</style></head><body>
+
+<div id="login">
+  <div class="login-card">
+    <div class="row" style="gap:14px;margin-bottom:20px;flex-wrap:nowrap">
+      <div class="logo"><i data-i="wrench"></i></div>
+      <div><h1>كراج الرضوان</h1><div class="muted">لوحة تحكم أكواد التفعيل</div></div>
+    </div>
+    <label class="l" for="key">مفتاح الإدارة</label>
+    <div class="field"><input id="key" type="password" class="mono" placeholder="••••••••••••" autocomplete="current-password" autocapitalize="off" spellcheck="false"><button class="eye" id="eye" type="button" aria-label="إظهار المفتاح"><i data-i="eye"></i></button></div>
+    <div class="err" id="loginErr" role="alert"></div>
+    <button class="btn big block" id="enter">دخول</button>
+    <p class="muted" style="margin:14px 0 0;text-align:center">يُحفظ المفتاح في هذا المتصفح فقط.</p>
+  </div>
+</div>
+
+<div id="app" class="shell hidden">
+  <aside class="side">
+    <div class="brand"><div class="logo" style="width:44px;height:44px;border-radius:14px"><i data-i="wrench"></i></div><div><b>كراج الرضوان</b><div class="muted">لوحة التحكم</div></div></div>
+    <button data-t="home"><i data-i="home"></i>الرئيسية</button>
+    <button data-t="codes"><i data-i="ticket"></i>الأكواد</button>
+    <button data-t="make"><i data-i="plus"></i>إنشاء أكواد</button>
+    <button data-t="renew"><i data-i="clock"></i>التجديدات<span class="dot hidden" data-dot></span></button>
+    <button data-t="log"><i data-i="zap"></i>النشاط</button>
+    <div class="foot"><button id="logout2"><i data-i="logout"></i>خروج</button></div>
+  </aside>
+  <div>
+    <header class="top">
+      <div class="logo"><i data-i="wrench"></i></div>
+      <h1 class="grow" id="title">الرئيسية</h1>
+      <button class="iconbtn" id="refresh" aria-label="تحديث"><i data-i="refresh"></i></button>
+      <button class="iconbtn" id="logout" aria-label="خروج"><i data-i="logout"></i></button>
+    </header>
+    <main class="content">
+
+      <section id="t-home" class="stack">
+        <div class="hero" id="hero"><div class="skeleton" style="background:rgba(255,255,255,.25);height:44px;width:40%"></div><div class="skeleton" style="background:rgba(255,255,255,.18);margin-top:12px;width:60%"></div></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="card"><div class="row spread"><h3>التفعيلات في آخر 14 يوماً</h3><span class="muted" id="chartSum"></span></div><div id="chart"></div></div>
+        <div class="card" id="soonCard"><div class="row spread"><h3>تنتهي قريباً</h3><button class="btn soft sm" data-go="renew">عرض الكل</button></div><div id="soonMini" style="margin-top:6px"></div></div>
+        <div class="card"><h3>البائعون</h3><div id="sellers" style="margin-top:4px"></div></div>
+      </section>
+
+      <section id="t-codes" class="stack hidden">
+        <div class="search"><i data-i="search"></i><input id="q" class="in" type="search" placeholder="ابحث بالكود أو اسم المحل أو رقم الجهاز…" autocomplete="off"><button class="clear hidden" id="qClear" aria-label="مسح"><i data-i="x"></i></button></div>
+        <div class="chips" id="statusChips"></div>
+        <div class="row spread"><div class="muted" id="count"></div><button class="btn ghost sm" id="exportCsv"><i data-i="download"></i>تصدير</button></div>
+        <div class="list wide" id="rows"></div>
+      </section>
+
+      <section id="t-make" class="stack hidden">
+        <div class="card stack noprint">
+          <div><label class="l">مدة الاشتراك</label><div class="seg" id="plan"><button data-v="year" class="on">سنة</button><button data-v="month">شهر</button><button data-v="life">دائم</button><button data-v="date">تاريخ…</button></div><input id="date" type="date" class="in hidden" style="margin-top:8px"></div>
+          <div><label class="l">عدد الأجهزة لكل كود</label><div class="seg" id="devs"><button data-v="1">1</button><button data-v="2" class="on">2</button><button data-v="3">3</button><button data-v="5">5</button></div><div class="muted" style="margin-top:6px">جهازان = حاسوب المحل + هاتف صاحبه.</div></div>
+          <div><label class="l">عدد الأكواد</label><div class="stepper"><button id="plus" type="button" aria-label="زيادة">+</button><input id="cnt" type="number" inputmode="numeric" min="1" max="200" value="1"><button id="minus" type="button" aria-label="إنقاص">−</button></div></div>
+          <div><label class="l" for="shop">اسم المحل (اختياري)</label><input id="shop" class="in" placeholder="مثال: كراج الأمل — حمص"></div>
+          <div class="grid2"><div><label class="l" for="seller">البائع</label><input id="seller" class="in" placeholder="مباشر" list="sellerList"><datalist id="sellerList"></datalist></div><div><label class="l" for="note">ملاحظة</label><input id="note" class="in" placeholder="رقم الزبون، المبلغ…"></div></div>
+          <div class="muted" id="summary" style="text-align:center"></div>
+          <button class="btn big block" id="make"><i data-i="plus"></i>إنشاء الأكواد</button>
+        </div>
+        <div id="made" class="card stack hidden">
+          <div class="row spread noprint"><h2 id="madeTitle"></h2><button class="iconbtn" id="madeClose" aria-label="إخفاء"><i data-i="x"></i></button></div>
+          <div class="grid2 noprint" id="oneActs"><button class="btn wa" id="waMsg"><i data-i="msg"></i>واتساب للزبون</button><button class="btn soft" id="copyMsg"><i data-i="copy"></i>نسخ الرسالة</button></div>
+          <div class="row noprint"><button class="btn ghost sm" id="copyAll"><i data-i="copy"></i>نسخ الأكواد</button><button class="btn ghost sm" id="shareMsg"><i data-i="share"></i>مشاركة</button><button class="btn ghost sm" onclick="print()"><i data-i="printer"></i>طباعة بطاقات</button></div>
+          <div id="cards" class="cards"></div>
+        </div>
+      </section>
+
+      <section id="t-renew" class="stack hidden">
+        <div class="muted">أرسل للزبون تذكيراً بالتجديد قبل انتهاء اشتراكه، ثم مدّد الكود نفسه بعد الدفع: لا يحتاج الزبون إلى إعادة التفعيل.</div>
+        <h3>تنتهي خلال 30 يوماً</h3>
+        <div class="list wide" id="renSoon"></div>
+        <h3>منتهية</h3>
+        <div class="list wide" id="renGone"></div>
+      </section>
+
+      <section id="t-log" class="stack hidden">
+        <div class="card"><div id="events"></div></div>
+      </section>
+
+    </main>
+    <nav class="nav" aria-label="التنقل">
+      <button data-t="home"><i data-i="home"></i>الرئيسية</button>
+      <button data-t="codes"><i data-i="ticket"></i>الأكواد</button>
+      <button data-t="make" class="fab" aria-label="إنشاء أكواد"><span class="b"><i data-i="plus"></i></span>إنشاء</button>
+      <button data-t="renew"><i data-i="clock"></i>التجديدات<span class="dot hidden" data-dot></span></button>
+      <button data-t="log"><i data-i="zap"></i>النشاط</button>
+    </nav>
+  </div>
+</div>
+<div id="sheetHost"></div>
+
+<script>
+// ---------------------------------------------------------------- helpers
+const $ = id => document.getElementById(id)
+const ICONS = {
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  home: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  ticket: '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  msg: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  share: '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/>',
+  printer: '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/>',
+  store: '<path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/>',
+  phone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
+  devices: '<path d="M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8"/><path d="M10 19v-3.96 3.15"/><path d="M7 19h5"/><rect width="6" height="10" x="16" y="12" rx="2"/>',
+  calendar: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+  tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5"/>',
+  pencil: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>',
+  ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+  undo: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  key: '<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  unlink: '<path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71"/><path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71"/><line x1="8" x2="8" y1="2" y2="5"/><line x1="2" x2="5" y1="8" y2="8"/><line x1="16" x2="16" y1="19" y2="22"/><line x1="19" x2="22" y1="16" y2="16"/>',
+  more: '<circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>',
+  hash: '<line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/>',
+}
+const I = n => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[n] || '') + '</svg>'
+const paintIcons = root => root.querySelectorAll('i[data-i]').forEach(el => { el.outerHTML = I(el.dataset.i) })
+paintIcons(document)
+
+const PRICE = '35$'
+const DAY = 86400000
+const LOC = 'ar-SY-u-nu-latn'
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+const num = n => Number(n || 0).toLocaleString('en-US')
+const fmt = ms => ms ? new Date(ms).toLocaleDateString(LOC, { year: 'numeric', month: 'long', day: 'numeric' }) : 'دائم'
+const fmtShort = ms => ms ? new Date(ms).toLocaleDateString(LOC, { year: 'numeric', month: 'short', day: 'numeric' }) : 'دائم'
+const when = ms => ms ? new Date(ms).toLocaleString(LOC, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'
+const isoDay = ms => { const d = new Date(ms); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+const plural = (n, one, two, few, many) => n === 1 ? one : n === 2 ? two : n >= 3 && n <= 10 ? n + ' ' + few : n + ' ' + many
+const devWord = n => plural(n, 'جهاز واحد', 'جهازان', 'أجهزة', 'جهازاً')
+const devGen = n => plural(n, 'جهاز واحد', 'جهازين', 'أجهزة', 'جهازاً')
+const daysWord = n => plural(n, 'يوم واحد', 'يومين', 'أيام', 'يوماً')
+const ago = ms => {
+  if (!ms) return 'لم يُستخدم'
+  const m = Math.round((Date.now() - ms) / 60000)
+  if (m < 1) return 'الآن'
+  if (m < 60) return 'قبل ' + plural(m, 'دقيقة', 'دقيقتين', 'دقائق', 'دقيقة')
+  const h = Math.round(m / 60)
+  if (h < 48) return 'قبل ' + plural(h, 'ساعة', 'ساعتين', 'ساعات', 'ساعة')
+  return 'قبل ' + plural(Math.round(h / 24), 'يوم', 'يومين', 'أيام', 'يوماً')
+}
+const daysLeft = ms => Math.ceil((ms - Date.now()) / DAY)
+
+function toast(t) {
+  document.querySelectorAll('.toast').forEach(x => x.remove())
+  const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = t
+  document.body.appendChild(d); setTimeout(() => d.remove(), 2400)
+}
+async function copy(t, label) {
+  try { await navigator.clipboard.writeText(t); toast(label || 'نُسخ ✓') }
+  catch { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast(label || 'نُسخ ✓') } catch { toast('تعذّر النسخ') } ta.remove() }
+}
+const wa = text => { window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener') }
+async function share(text) { if (navigator.share) { try { await navigator.share({ text }) } catch {} } else copy(text) }
+
+const customerMsg = (code, maxDevices, exp) =>
+  'شكراً لاشتراكك في برنامج كراج الرضوان 🌟\n\n' +
+  'كود التفعيل: ' + code + '\n\n' +
+  'طريقة التفعيل: افتح البرنامج وأنت متصل بالإنترنت، ستظهر شاشة التفعيل، اكتب الكود واضغط «تفعيل».\n' +
+  'الكود يعمل على ' + devGen(maxDevices) + (maxDevices === 2 ? ' (حاسوب المحل + هاتفك)' : '') + (exp ? '، وصالح حتى ' + fmt(exp) : '، واشتراكه دائم') + '.'
+const renewMsg = (code, exp, shop) =>
+  'مرحباً' + (shop ? ' ' + shop : '') + ' 👋\n' +
+  (exp < Date.now() ? 'انتهى اشتراك برنامج كراج الرضوان في ' : 'اشتراك برنامج كراج الرضوان ينتهي في ') + fmt(exp) + ' (الكود ' + code + ').\n\n' +
+  'للتجديد سنة كاملة: ' + PRICE + ' عبر شام كاش، ثم أرسل لنا صورة الإشعار هنا، فنمدد الاشتراك على الكود نفسه دون أي إعادة تفعيل. بياناتك كلها محفوظة.'
+
+// ---------------------------------------------------------------- api
+let KEY = ''
+try { KEY = localStorage.getItem('alradwan.admin') || '' } catch {}
+async function api(path, opts = {}) {
+  const r = await fetch('/api/admin/' + path, { ...opts, headers: { 'content-type': 'application/json', authorization: 'Bearer ' + KEY } })
+  const j = await r.json().catch(() => ({}))
+  if (r.status === 401) { signOut('انتهت الجلسة أو تغيّر المفتاح: سجّل الدخول من جديد.'); throw new Error('admin') }
+  if (!r.ok) throw new Error(j.error || String(r.status))
+  return j
+}
+const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) })
+const ERR = { 'not-configured': 'لم يُضبط مفتاح الإدارة على الخادم بعد.', wait: 'محاولات كثيرة: انتظر ربع ساعة ثم أعد المحاولة.', expiry: 'التاريخ غير صحيح.', invalid: 'الكود غير موجود.', admin: 'المفتاح غير صحيح.' }
+const errText = e => ERR[e.message] || (/fetch|network|load failed/i.test(e.message) ? 'تعذّر الوصول إلى الخادم: تحقق من الإنترنت.' : 'خطأ: ' + e.message)
+
+// ---------------------------------------------------------------- sign in
+$('eye').onclick = () => { const i = $('key'); i.type = i.type === 'password' ? 'text' : 'password' }
+function signOut(msg) {
+  try { localStorage.removeItem('alradwan.admin') } catch {}
+  KEY = ''; closeSheet(true)
+  $('app').classList.add('hidden'); $('login').classList.remove('hidden')
+  $('loginErr').textContent = msg || ''
+}
+async function enter() {
+  const typed = $('key').value.trim()
+  if (typed) KEY = typed
+  if (!KEY) { $('loginErr').textContent = 'اكتب مفتاح الإدارة.'; return }
+  $('loginErr').textContent = ''; $('enter').disabled = true; $('enter').textContent = 'جارٍ التحقق…'
+  try {
+    const r = await fetch('/api/admin/stats', { headers: { authorization: 'Bearer ' + KEY } })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(j.error || String(r.status))
+    try { localStorage.setItem('alradwan.admin', KEY) } catch {}
+    $('login').classList.add('hidden'); $('app').classList.remove('hidden')
+    STATS = j; go(location.hash.replace('#', '') in TITLES ? location.hash.replace('#', '') : 'home', true)
+  } catch (e) {
+    $('loginErr').textContent = errText(e)
+    if (e.message === 'admin') { KEY = ''; try { localStorage.removeItem('alradwan.admin') } catch {} }
+  }
+  $('enter').disabled = false; $('enter').textContent = 'دخول'
+}
+$('enter').onclick = enter
+$('key').onkeydown = e => { if (e.key === 'Enter') enter() }
+$('logout').onclick = $('logout2').onclick = async () => { if (await confirmSheet({ title: 'تسجيل الخروج؟', text: 'سيُحذف المفتاح من هذا المتصفح، وستحتاج إلى إدخاله من جديد.', ok: 'خروج', danger: true })) signOut() }
+
+// ---------------------------------------------------------------- navigation
+const TITLES = { home: 'الرئيسية', codes: 'الأكواد', make: 'إنشاء أكواد', renew: 'التجديدات', log: 'النشاط' }
+let TAB = 'home'
+function go(t, fresh) {
+  closeSheet(true)
+  TAB = t
+  document.querySelectorAll('[data-t]').forEach(x => x.classList.toggle('on', x.dataset.t === t))
+  Object.keys(TITLES).forEach(x => $('t-' + x).classList.toggle('hidden', x !== t))
+  $('title').textContent = TITLES[t]; document.title = TITLES[t] + ' — لوحة كراج الرضوان'
+  history.replaceState(null, '', '#' + t)
+  window.scrollTo(0, 0)
+  if (t === 'home') fresh ? drawHome() : loadStats()
+  if (t === 'codes') find()
+  if (t === 'renew') renewals()
+  if (t === 'log') fresh ? drawLog() : loadStats()
+  if (t === 'make') summary()
+}
+document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => go(b.dataset.t))
+document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) go(g.dataset.go) })
+$('refresh').onclick = () => { go(TAB); toast('يُحدَّث…') }
+
+// ---------------------------------------------------------------- sheets (instead of prompt / confirm / alert)
+let sheetOpen = false
+function closeSheet(silent) {
+  if (!sheetOpen) return
+  sheetOpen = false; $('sheetHost').innerHTML = ''
+  document.body.style.overflow = ''
+  if (!silent && history.state && history.state.sheet) history.back()
+}
+window.addEventListener('popstate', () => { if (sheetOpen) closeSheet(true) })
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheetOpen) closeSheet() })
+function openSheet(html) {
+  if (sheetOpen) closeSheet(true)
+  else history.pushState({ sheet: 1 }, '')
+  sheetOpen = true
+  $('sheetHost').innerHTML = '<div class="sheet-bg"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>' + html + '</div></div>'
+  const host = $('sheetHost')
+  paintIcons(host)
+  host.querySelector('.sheet-bg').addEventListener('click', e => { if (e.target.classList.contains('sheet-bg')) closeSheet() })
+  host.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeSheet())
+  document.body.style.overflow = 'hidden'
+  return host.querySelector('.sheet')
+}
+function confirmSheet({ title, text, ok, danger }) {
+  return new Promise(res => {
+    const el = openSheet('<h2>' + esc(title) + '</h2>' + (text ? '<p class="muted" style="font-size:14.5px">' + esc(text) + '</p>' : '') +
+      '<div class="grid2" style="margin-top:14px"><button class="btn ghost" data-no>تراجع</button><button class="btn ' + (danger ? 'red' : '') + '" data-yes>' + esc(ok || 'متابعة') + '</button></div>')
+    let done = false
+    const finish = v => { if (done) return; done = true; res(v) }
+    el.querySelector('[data-yes]').onclick = () => { finish(true); closeSheet() }
+    el.querySelector('[data-no]').onclick = () => { finish(false); closeSheet() }
+    const obs = new MutationObserver(() => { if (!document.body.contains(el)) { finish(false); obs.disconnect() } })
+    obs.observe($('sheetHost'), { childList: true })
+  })
+}
+
+// ---------------------------------------------------------------- dashboard
+let STATS = null
+async function loadStats() {
+  try { STATS = await api('stats'); if (TAB === 'home') drawHome(); if (TAB === 'log') drawLog(); setDots() }
+  catch (e) { if (e.message !== 'admin') toast(errText(e)) }
+}
+function setDots() {
+  const n = (STATS && STATS.soon || []).length
+  document.querySelectorAll('[data-dot]').forEach(d => { d.textContent = n; d.classList.toggle('hidden', !n) })
+}
+function drawHome() {
+  if (!STATS) return loadStats()
+  setDots()
+  const t = STATS.stats || {}, total = t.total || 0, act = t.activated || 0
+  const dayMap = new Map((STATS.days || []).map(d => [d.d, d.n]))
+  const today = Math.floor(Date.now() / DAY)
+  const days = Array.from({ length: 14 }, (_, i) => { const d = today - 13 + i; return { d, n: dayMap.get(d) || 0 } })
+  const todayN = days[13].n, sum14 = days.reduce((a, b) => a + b.n, 0)
+  const pct = total ? Math.round(act / total * 100) : 0
+  $('hero').innerHTML = '<div class="row spread" style="align-items:flex-start;position:relative;z-index:1"><div><div class="v">' + num(act) + '</div><div class="k">كود مفعّل من أصل ' + num(total) + '</div></div>' +
+    (todayN ? '<span class="pill">' + I('check') + '<bdi dir="ltr">+' + todayN + '</bdi> اليوم</span>' : '<span class="pill">' + I('key') + ' ' + pct + '%</span>') + '</div>' +
+    '<div class="track"><i style="width:' + pct + '%"></i></div>'
+  const unused = Math.max(0, total - act - (t.revoked || 0))
+  const k = [
+    ['devices', 't-bl', num(t.devices), 'جهاز مفعّل', 'codes:used'],
+    ['zap', 't-gr', num(t.active7), 'استُخدم هذا الأسبوع', 'codes:used'],
+    ['ticket', 't-or', num(unused), 'كود لم يُستخدم بعد', 'codes:new'],
+    ['clock', 't-am', num((STATS.soon || []).length), 'ينتهي خلال 30 يوماً', 'renew'],
+  ]
+  $('kpis').innerHTML = k.map(([ic, tone, v, l, to]) => '<button class="kpi" data-to="' + to + '"><div class="ic ' + tone + '">' + I(ic) + '</div><div class="v">' + v + '</div><div class="k">' + l + '</div></button>').join('')
+  $('kpis').querySelectorAll('[data-to]').forEach(b => b.onclick = () => { const [tab, st] = b.dataset.to.split(':'); if (st) fStatus = st; go(tab) })
+  const max = Math.max(1, ...days.map(d => d.n))
+  $('chartSum').textContent = sum14 ? num(sum14) + ' تفعيلاً' : ''
+  $('chart').innerHTML = '<div class="chart">' + days.map(d => '<div class="' + (d.n ? '' : 'z') + '" style="height:' + Math.max(4, d.n / max * 100) + '%" title="' + d.n + '">' + (d.n ? '<span>' + d.n + '</span>' : '') + '</div>').join('') + '</div>' +
+    '<div class="axis">' + days.map((d, i) => '<span>' + (i % 2 ? '' : new Date(d.d * DAY).toLocaleDateString(LOC, { day: 'numeric' })) + '</span>').join('') + '</div>'
+  const soon = STATS.soon || []
+  $('soonCard').classList.toggle('hidden', !soon.length)
+  $('soonMini').innerHTML = soon.slice(0, 3).map(r => '<div class="ev"><div class="ic t-am">' + I('clock') + '</div><div class="grow"><div class="t"><span class="mono">' + esc(r.code) + '</span>' + (r.shop_name ? ' · ' + esc(r.shop_name) : '') + '</div><div class="s">ينتهي ' + fmt(r.expires_at) + ' · بعد ' + daysWord(daysLeft(r.expires_at)) + '</div></div></div>').join('')
+  const sellers = STATS.sellers || []
+  $('sellerList').innerHTML = sellers.filter(s => s.seller).map(s => '<option value="' + esc(s.seller) + '">').join('')
+  $('sellers').innerHTML = sellers.length ? sellers.map(s => { const p = s.total ? Math.round((s.activated || 0) / s.total * 100) : 0
+    return '<div class="sel"><b>' + esc(s.seller || 'مباشر') + '</b><span class="muted">' + num(s.activated) + ' / ' + num(s.total) + ' مفعّل</span><div class="bar"><i style="width:' + p + '%"></i></div></div>' }).join('')
+    : '<div class="empty" style="padding:18px"><div class="ic">' + I('ticket') + '</div>لا أكواد بعد.<div style="margin-top:12px"><button class="btn sm" data-go="make">' + I('plus') + 'إنشاء أول كود</button></div></div>'
+}
+
+// ---------------------------------------------------------------- activity
+const WHY = { invalid: 'كود غير موجود', used: 'امتلأت أجهزة الكود', revoked: 'الكود ملغى', expired: 'الكود منتهي', moved: 'الكود نُقل', wait: 'محاولات كثيرة', 'bad-request': 'طلب ناقص' }
+const ACT = { revoke: ['ban', 't-rd', 'إلغاء كود'], restore: ['undo', 't-gr', 'استعادة كود'], unbind: ['unlink', 't-bl', 'فك جهاز عن كود'], note: ['pencil', 't-bl', 'تعديل بيانات كود'], expiry: ['calendar', 't-or', 'تغيير تاريخ الانتهاء'], devices: ['devices', 't-bl', 'تغيير عدد الأجهزة'] }
+const PLAN = { year: 'سنة', month: 'شهر', life: 'دائم', date: 'حتى تاريخ' }
+function describe(e) {
+  const d = String(e.detail || '')
+  if (e.kind === 'activate') return ['check', 't-gr', 'تفعيل جهاز', d ? esc(d) : '']
+  if (e.kind === 'activate-fail') return ['alert', 't-am', 'محاولة تفعيل مرفوضة', WHY[d] || esc(d)]
+  if (e.kind === 'admin-fail') return ['key', 't-rd', 'دخول خاطئ إلى اللوحة', 'مفتاح غير صحيح']
+  if (e.kind === 'admin') {
+    const m = d.match(/^created (\d+) \((\w+)\)$/)
+    if (m) return ['plus', 't-or', 'إنشاء ' + plural(+m[1], 'كود واحد', 'كودين', 'أكواد', 'كوداً'), PLAN[m[2]] || esc(m[2])]
+    if (ACT[d]) return [ACT[d][0], ACT[d][1], ACT[d][2], '']
+    return ['wrench', 't-bl', 'إجراء إداري', esc(d)]
+  }
+  return ['zap', 't-bl', esc(e.kind), esc(d)]
+}
+function drawLog() {
+  if (!STATS) return loadStats()
+  const ev = STATS.recent || []
+  $('events').innerHTML = ev.map(e => { const [ic, tone, t, d] = describe(e)
+    return '<div class="ev"><div class="ic ' + tone + '">' + I(ic) + '</div><div class="grow"><div class="t">' + t + (e.code ? ' <span class="mono muted">' + esc(e.code) + '</span>' : '') + '</div><div class="s">' + when(e.at) + (d ? ' · ' + d : '') + '</div></div></div>' }).join('')
+    || '<div class="empty"><div class="ic">' + I('zap') + '</div>لا نشاط بعد.</div>'
+}
+
+// ---------------------------------------------------------------- codes
+let fStatus = '', rows = [], timer
+const STATUS = [['', 'الكل'], ['used', 'مفعّل'], ['new', 'غير مستخدم'], ['expired', 'منتهي'], ['revoked', 'ملغى']]
+function drawChips() {
+  $('statusChips').innerHTML = STATUS.map(([v, l]) => '<button class="chip' + (v === fStatus ? ' on' : '') + '" data-v="' + v + '">' + l + '</button>').join('')
+  $('statusChips').querySelectorAll('.chip').forEach(c => c.onclick = () => { fStatus = c.dataset.v; find() })
+}
+$('q').oninput = () => { $('qClear').classList.toggle('hidden', !$('q').value); clearTimeout(timer); timer = setTimeout(find, 280) }
+$('qClear').onclick = () => { $('q').value = ''; $('qClear').classList.add('hidden'); find(); $('q').focus() }
+const status = r => r.revoked ? 'rev' : r.expires_at && r.expires_at < Date.now() ? 'exp' : r.devices ? 'used' : 'new'
+const BADGE = { rev: '<span class="badge b-rev">ملغى</span>', exp: '<span class="badge b-exp">منتهي</span>', used: '<span class="badge b-used">مفعّل</span>', new: '<span class="badge b-new">غير مستخدم</span>' }
+const badge = r => BADGE[status(r)]
+const codeCard = (r, i, list) => '<div class="code" role="button" tabindex="0" data-list="' + list + '" data-i="' + i + '">' +
+  '<div class="row spread" style="flex-wrap:nowrap"><span class="c mono">' + esc(r.code) + '</span>' + badge(r) + '</div>' +
+  '<div class="shop">' + I('store') + '<span>' + (r.shop_name ? esc(r.shop_name) : '<span class="muted">بلا اسم محل</span>') + '</span></div>' +
+  '<div class="meta"><span>' + I('devices') + r.devices + ' / ' + r.max_devices + '</span><span>' + I('calendar') + fmtShort(r.expires_at) + '</span>' +
+  (r.devices ? '<span>' + I('clock') + ago(r.last_seen) + '</span>' : '') + (r.seller ? '<span>' + I('tag') + esc(r.seller) + '</span>' : '') + '</div></div>'
+async function find() {
+  drawChips()
+  if (!rows.length) $('rows').innerHTML = '<div class="card"><div class="skeleton"></div><div class="skeleton" style="margin-top:10px;width:60%"></div></div>'
+  try {
+    rows = (await api('codes?' + new URLSearchParams({ q: $('q').value, status: fStatus }))).codes
+    $('count').textContent = rows.length ? num(rows.length) + ' كود' + (rows.length >= 300 ? ' (أحدث 300)' : '') : ''
+    $('rows').innerHTML = rows.map((r, i) => codeCard(r, i, 'rows')).join('') ||
+      '<div class="empty"><div class="ic">' + I('search') + '</div>' + ($('q').value || fStatus ? 'لا نتائج مطابقة.' : 'لا أكواد بعد.') + '</div>'
+  } catch (e) { if (e.message !== 'admin') toast(errText(e)) }
+}
+const LISTS = { rows: () => rows, soon: () => renSoon, gone: () => renGone }
+document.addEventListener('click', e => { const c = e.target.closest('.code[data-list]'); if (c) codeSheet(LISTS[c.dataset.list]()[+c.dataset.i]) })
+document.addEventListener('keydown', e => { const c = e.target.closest && e.target.closest('.code[data-list]'); if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); codeSheet(LISTS[c.dataset.list]()[+c.dataset.i]) } })
+$('exportCsv').onclick = () => {
+  if (!rows.length) return toast('لا شيء للتصدير')
+  const cell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"'
+  const head = ['الكود', 'اسم المحل', 'الحالة', 'الأجهزة', 'الحد', 'ينتهي', 'البائع', 'ملاحظة', 'أُنشئ', 'آخر استخدام']
+  const st = { rev: 'ملغى', exp: 'منتهي', used: 'مفعّل', new: 'غير مستخدم' }
+  const lines = rows.map(r => [r.code, r.shop_name, st[status(r)], r.devices, r.max_devices, r.expires_at ? isoDay(r.expires_at) : 'دائم', r.seller, r.note, isoDay(r.created_at), r.last_seen ? isoDay(r.last_seen) : ''].map(cell).join(','))
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob(['﻿' + [head.map(cell).join(',')].concat(lines).join('\r\n')], { type: 'text/csv;charset=utf-8' }))
+  a.download = 'alradwan-codes-' + isoDay(Date.now()) + '.csv'; a.click()
+}
+
+// ---------------------------------------------------------------- one code: details and actions
+async function refreshAfter(msg) { toast(msg || 'تم ✓'); loadStats(); if (TAB === 'codes') find(); if (TAB === 'renew') renewals() }
+function codeSheet(r) {
+  const s = status(r)
+  const el = openSheet(
+    '<div class="head"><div class="grow"><div class="bigcode mono">' + esc(r.code) + '</div><div class="muted">' + (r.shop_name ? esc(r.shop_name) : 'بلا اسم محل') + '</div></div>' + badge(r) + '</div>' +
+    '<div class="info">' +
+      '<div><small>الاشتراك</small><b>' + (r.expires_at ? (s === 'exp' ? 'انتهى ' : 'حتى ') + fmtShort(r.expires_at) : 'دائم') + '</b></div>' +
+      '<div><small>الأجهزة</small><b>' + r.devices + ' من ' + r.max_devices + '</b></div>' +
+      '<div><small>آخر استخدام</small><b>' + ago(r.last_seen) + '</b></div>' +
+      '<div><small>البائع</small><b>' + esc(r.seller || 'مباشر') + '</b></div>' +
+      (r.note ? '<div class="full"><small>ملاحظة</small><b>' + esc(r.note) + '</b></div>' : '') +
+      '<div class="full"><small>أُنشئ</small><b>' + fmt(r.created_at) + (r.moves ? ' · نُقل ' + r.moves + ' مرة' : '') + '</b></div>' +
+    '</div>' +
+    '<div class="quick">' +
+      '<button data-a="copy"><span class="q t-or">' + I('copy') + '</span>نسخ الكود</button>' +
+      '<button data-a="wa"><span class="q t-gr">' + I('msg') + '</span>واتساب</button>' +
+      '<button data-a="share"><span class="q t-bl">' + I('share') + '</span>مشاركة</button>' +
+    '</div>' +
+    '<button class="act" data-a="devices"><span class="ic">' + I('devices') + '</span><span class="grow">الأجهزة المفعّلة<span class="sub">' + (r.devices ? 'عرضها وفك جهاز قديم' : 'لا أجهزة بعد') + '</span></span></button>' +
+    '<button class="act" data-a="expiry"><span class="ic">' + I('calendar') + '</span><span class="grow">تمديد الاشتراك<span class="sub">شهر، سنة، دائم أو تاريخ محدد</span></span></button>' +
+    (r.expires_at ? '<button class="act" data-a="renew"><span class="ic">' + I('clock') + '</span><span class="grow">رسالة تذكير بالتجديد<span class="sub">عبر واتساب</span></span></button>' : '') +
+    '<button class="act" data-a="max"><span class="ic">' + I('hash') + '</span><span class="grow">عدد الأجهزة المسموح<span class="sub">الحد الآن ' + devWord(r.max_devices) + '</span></span></button>' +
+    '<button class="act" data-a="note"><span class="ic">' + I('pencil') + '</span><span class="grow">تعديل اسم المحل والملاحظة</span></button>' +
+    (r.revoked ? '<button class="act" data-a="restore"><span class="ic">' + I('undo') + '</span><span class="grow">استعادة الكود<span class="sub">يعود البرنامج للعمل عند صاحبه</span></span></button>'
+               : '<button class="act danger" data-a="revoke"><span class="ic">' + I('ban') + '</span><span class="grow">إلغاء الكود<span class="sub">يتوقف البرنامج عند صاحبه عند أول اتصال</span></span></button>') +
+    '<button class="btn ghost block" style="margin-top:10px" data-close>إغلاق</button>')
+  el.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
+    const a = b.dataset.a
+    try {
+      if (a === 'copy') { copy(r.code, 'نُسخ الكود ✓'); return }
+      if (a === 'wa') { wa(customerMsg(r.code, r.max_devices, r.expires_at)); return }
+      if (a === 'share') { share(customerMsg(r.code, r.max_devices, r.expires_at)); return }
+      if (a === 'renew') { wa(renewMsg(r.code, r.expires_at, r.shop_name)); return }
+      if (a === 'devices') return devicesSheet(r)
+      if (a === 'expiry') return expirySheet(r)
+      if (a === 'max') return maxSheet(r)
+      if (a === 'note') return noteSheet(r)
+      if (a === 'revoke') { if (!(await confirmSheet({ title: 'إلغاء الكود ' + r.code + '؟', text: 'سيتوقف البرنامج عند صاحب هذا الكود عند أول اتصال بالإنترنت. يمكنك استعادته لاحقاً.', ok: 'إلغاء الكود', danger: true }))) return; await post('code', { code: r.code, action: 'revoke' }); return refreshAfter('أُلغي الكود') }
+      if (a === 'restore') { await post('code', { code: r.code, action: 'restore' }); closeSheet(); return refreshAfter('استُعيد الكود') }
+    } catch (e) { if (e.message !== 'admin') toast(errText(e)) }
+  })
+}
+async function devicesSheet(r) {
+  let devices = []
+  try { devices = (await api('devices?code=' + encodeURIComponent(r.code))).devices } catch (e) { if (e.message !== 'admin') toast(errText(e)); return }
+  const el = openSheet('<div class="head"><div class="grow"><h2>الأجهزة المفعّلة</h2><div class="muted"><span class="mono">' + esc(r.code) + '</span> · ' + devices.length + ' من ' + r.max_devices + '</div></div></div>' +
+    (devices.length ? devices.map((d, i) => '<div class="dev"><div class="ic">' + I('phone') + '</div><div class="grow"><b>' + esc(d.name || 'جهاز') + '</b><div class="muted"><span class="mono">' + esc(d.device.slice(0, 8).toUpperCase()) + '</span> · فُعّل ' + fmtShort(d.bound_at) + ' · ' + ago(d.last_seen) + '</div></div><button class="btn ghost sm" data-un="' + i + '">' + I('unlink') + 'فك</button></div>').join('')
+      : '<div class="empty" style="padding:20px"><div class="ic">' + I('devices') + '</div>لم يُفعَّل الكود على أي جهاز بعد.</div>') +
+    '<p class="muted" style="margin:14px 0 0">فك جهاز يحرّر مقعده: يستطيع الزبون عندها تفعيل الكود على جهاز جديد (مثلاً بعد تبديل الحاسوب).</p>' +
+    '<div class="grid2" style="margin-top:12px">' + (devices.length > 1 ? '<button class="btn ghost" data-all>فك الكل</button>' : '<span></span>') + '<button class="btn ghost" data-close>رجوع</button></div>')
+  el.querySelectorAll('[data-un]').forEach(b => b.onclick = async () => {
+    const d = devices[+b.dataset.un]
+    if (!(await confirmSheet({ title: 'فك ' + (d.name || 'هذا الجهاز') + '؟', text: 'سيتوقف البرنامج على هذا الجهاز ويحتاج إلى إدخال الكود من جديد.', ok: 'فك الجهاز', danger: true }))) return
+    try { await post('code', { code: r.code, action: 'unbind', device: d.device }); refreshAfter('فُكّ الجهاز') } catch (e) { if (e.message !== 'admin') toast(errText(e)) }
+  })
+  const all = el.querySelector('[data-all]')
+  if (all) all.onclick = async () => {
+    if (!(await confirmSheet({ title: 'فك كل الأجهزة؟', text: 'سيحتاج الزبون إلى إدخال الكود من جديد على كل أجهزته.', ok: 'فك الكل', danger: true }))) return
+    try { await post('code', { code: r.code, action: 'unbind' }); refreshAfter('فُكّت كل الأجهزة') } catch (e) { if (e.message !== 'admin') toast(errText(e)) }
+  }
+}
+function expirySheet(r) {
+  const base = Math.max(Date.now(), r.expires_at || 0)
+  const opts = [['m', 'شهر', base + 31 * DAY], ['y', 'سنة', base + 366 * DAY], ['l', 'دائم', null], ['d', 'تاريخ…', undefined]]
+  let pick = 'y'
+  const el = openSheet('<h2>تمديد الاشتراك</h2><div class="muted" style="margin:4px 0 14px"><span class="mono">' + esc(r.code) + '</span> · الآن ' + (r.expires_at ? (r.expires_at < Date.now() ? 'انتهى ' : 'حتى ') + fmt(r.expires_at) : 'دائم') + '</div>' +
+    '<div class="seg" id="xSeg">' + opts.map(([k, l]) => '<button data-k="' + k + '" class="' + (k === pick ? 'on' : '') + '">' + (k === 'm' || k === 'y' ? '+ ' : '') + l + '</button>').join('') + '</div>' +
+    '<input type="date" id="xDate" class="in hidden" style="margin-top:10px">' +
+    '<div class="card" style="margin-top:12px;background:var(--soft);box-shadow:none;text-align:center"><div class="muted">التاريخ الجديد</div><b id="xOut" style="font-size:18px"></b></div>' +
+    '<div class="grid2" style="margin-top:14px"><button class="btn ghost" data-close>تراجع</button><button class="btn" id="xOk">حفظ</button></div>')
+  const target = () => { if (pick === 'd') { const v = el.querySelector('#xDate').value; return v ? new Date(v + 'T23:59:00').getTime() : NaN } return opts.find(o => o[0] === pick)[2] }
+  const show = () => { const t = target(); el.querySelector('#xOut').textContent = t === null ? 'اشتراك دائم' : Number.isFinite(t) ? fmt(t) : 'اختر التاريخ' }
+  el.querySelectorAll('#xSeg button').forEach(b => b.onclick = () => { pick = b.dataset.k; el.querySelectorAll('#xSeg button').forEach(x => x.classList.toggle('on', x === b)); el.querySelector('#xDate').classList.toggle('hidden', pick !== 'd'); show() })
+  el.querySelector('#xDate').oninput = show
+  el.querySelector('#xDate').value = isoDay(base + 366 * DAY)
+  show()
+  el.querySelector('#xOk').onclick = async () => {
+    const t = target()
+    if (t !== null && !Number.isFinite(t)) return toast('اختر التاريخ')
+    try { await post('code', { code: r.code, action: 'expiry', expiresAt: t }); closeSheet(); refreshAfter(t === null ? 'صار الاشتراك دائماً ✓' : 'مُدّد حتى ' + fmtShort(t) + ' ✓') } catch (e) { if (e.message !== 'admin') toast(errText(e)) }
+  }
+}
+function maxSheet(r) {
+  const el = openSheet('<h2>عدد الأجهزة المسموح</h2><div class="muted" style="margin:4px 0 14px"><span class="mono">' + esc(r.code) + '</span> · مفعّل الآن على ' + devGen(r.devices) + '</div>' +
+    '<div class="stepper"><button data-s="1" type="button">+</button><input id="mxIn" type="number" inputmode="numeric" min="1" max="10" value="' + r.max_devices + '"><button data-s="-1" type="button">−</button></div>' +
+    '<div class="grid2" style="margin-top:14px"><button class="btn ghost" data-close>تراجع</button><button class="btn" id="mxOk">حفظ</button></div>')
+  const inp = el.querySelector('#mxIn')
+  el.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { inp.value = Math.max(1, Math.min(10, (+inp.value || 1) + +b.dataset.s)) })
+  el.querySelector('#mxOk').onclick = async () => {
+    const m = Math.max(1, Math.min(10, +inp.value || 1))
+    try { await post('code', { code: r.code, action: 'devices', maxDevices: m }); closeSheet(); refreshAfter('صار الحد ' + devGen(m) + ' ✓') } catch (e) { if (e.message !== 'admin') toast(errText(e)) }
+  }
+}
+function noteSheet(r) {
+  const el = openSheet('<h2>بيانات الكود</h2><div class="muted mono" style="margin:4px 0 14px">' + esc(r.code) + '</div>' +
+    '<label class="l" for="nShop">اسم المحل</label><input id="nShop" class="in" value="' + esc(r.shop_name || '') + '" placeholder="مثال: كراج الأمل — حمص">' +
+    '<label class="l" for="nNote" style="margin-top:12px">ملاحظة</label><textarea id="nNote" class="in" placeholder="رقم الزبون، المبلغ، طريقة الدفع…">' + esc(r.note || '') + '</textarea>' +
+    '<div class="grid2" style="margin-top:14px"><button class="btn ghost" data-close>تراجع</button><button class="btn" id="nOk">حفظ</button></div>')
+  el.querySelector('#nOk').onclick = async () => {
+    try { await post('code', { code: r.code, action: 'note', shopName: el.querySelector('#nShop').value.trim(), note: el.querySelector('#nNote').value.trim() }); closeSheet(); refreshAfter('حُفظت البيانات ✓') } catch (e) { if (e.message !== 'admin') toast(errText(e)) }
+  }
+}
+
+// ---------------------------------------------------------------- renewals
+let renSoon = [], renGone = []
+async function renewals() {
+  try {
+    const [all, gone] = await Promise.all([api('codes?' + new URLSearchParams({ q: '', status: 'soon' })), api('codes?' + new URLSearchParams({ q: '', status: 'expired' }))])
+    const now = Date.now()
+    renSoon = all.codes.filter(r => !r.revoked && r.expires_at && r.expires_at >= now && r.expires_at <= now + 30 * DAY).sort((a, b) => a.expires_at - b.expires_at)
+    renGone = gone.codes.filter(r => !r.revoked && r.devices).sort((a, b) => b.expires_at - a.expires_at)
+    const card = (r, i, list) => { const d = daysLeft(r.expires_at), late = d <= 0
+      return '<div class="card ren"><div class="days ' + (late ? 't-rd' : d <= 7 ? 't-am' : 't-or') + '"><div><b>' + Math.abs(d) + '</b><small>' + (late ? 'يوماً مضت' : 'يوماً') + '</small></div></div>' +
+        '<div class="grow"><div class="mono" style="font-weight:800">' + esc(r.code) + '</div><div class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (r.shop_name ? esc(r.shop_name) + ' · ' : '') + (late ? 'انتهى ' : 'ينتهي ') + fmtShort(r.expires_at) + '</div>' +
+        '<div class="acts"><button class="btn wa sm" data-rw="' + list + ':' + i + '">' + I('msg') + 'تذكير</button><button class="btn soft sm" data-ry="' + list + ':' + i + '">' + I('calendar') + 'تمديد سنة</button><button class="btn ghost sm more" aria-label="المزيد" data-ro="' + list + ':' + i + '">' + I('more') + '</button></div></div></div>' }
+    $('renSoon').innerHTML = renSoon.map((r, i) => card(r, i, 'soon')).join('') || '<div class="empty" style="padding:20px"><div class="ic">' + I('check') + '</div>لا اشتراكات تنتهي خلال الشهر القادم.</div>'
+    $('renGone').innerHTML = renGone.map((r, i) => card(r, i, 'gone')).join('') || '<div class="empty" style="padding:20px"><div class="ic">' + I('check') + '</div>لا اشتراكات منتهية.</div>'
+  } catch (e) { if (e.message !== 'admin') toast(errText(e)) }
+}
+$('t-renew').addEventListener('click', async e => {
+  const b = e.target.closest('[data-rw],[data-ry],[data-ro]'); if (!b) return
+  const [list, i] = (b.dataset.rw || b.dataset.ry || b.dataset.ro).split(':'); const r = LISTS[list]()[+i]
+  if (b.dataset.rw) return wa(renewMsg(r.code, r.expires_at, r.shop_name))
+  if (b.dataset.ro) return codeSheet(r)
+  const t = Math.max(Date.now(), r.expires_at || 0) + 366 * DAY
+  if (!(await confirmSheet({ title: 'تمديد ' + r.code + ' سنة؟', text: 'يصبح الاشتراك صالحاً حتى ' + fmt(t) + '. يصل التمديد إلى برنامج الزبون عند أول فتح مع الإنترنت.', ok: 'تمديد' }))) return
+  try { await post('code', { code: r.code, action: 'expiry', expiresAt: t }); refreshAfter('مُدّد حتى ' + fmtShort(t) + ' ✓') } catch (err) { if (err.message !== 'admin') toast(errText(err)) }
+})
+
+// ---------------------------------------------------------------- make codes
+let plan = 'year', devs = 2
+const segPick = (id, set) => $(id).querySelectorAll('button').forEach(b => b.onclick = () => { $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); set(b.dataset.v); summary() })
+segPick('plan', v => { plan = v; $('date').classList.toggle('hidden', v !== 'date') })
+segPick('devs', v => { devs = +v })
+const clampCnt = () => { $('cnt').value = Math.max(1, Math.min(200, Math.round(+$('cnt').value || 1))); summary() }
+$('plus').onclick = () => { $('cnt').value = (+$('cnt').value || 0) + 1; clampCnt() }
+$('minus').onclick = () => { $('cnt').value = (+$('cnt').value || 2) - 1; clampCnt() }
+$('cnt').onchange = clampCnt; $('cnt').oninput = summary; $('date').oninput = summary
+function expiry() {
+  if (plan === 'life') return null
+  if (plan === 'month') return Date.now() + 31 * DAY
+  if (plan === 'date') { const t = new Date($('date').value + 'T23:59:00').getTime(); return Number.isFinite(t) ? t : NaN }
+  return Date.now() + 366 * DAY
+}
+function summary() {
+  const n = Math.max(1, Math.min(200, Math.round(+$('cnt').value || 1))), e = expiry()
+  $('summary').textContent = 'سيُنشأ ' + plural(n, 'كود واحد', 'كودان', 'أكواد', 'كوداً') + ' · ' + (e === null ? 'اشتراك دائم' : Number.isFinite(e) ? 'حتى ' + fmt(e) : 'اختر التاريخ') + ' · ' + devWord(devs) + ' لكل كود'
+}
+let last = null
+$('make').onclick = async () => {
+  const count = Math.max(1, Math.min(200, Math.round(+$('cnt').value || 1))), expiresAt = expiry()
+  if (expiresAt !== null && !Number.isFinite(expiresAt)) return toast('اختر تاريخ الانتهاء')
+  if (expiresAt !== null && expiresAt < Date.now()) return toast('التاريخ في الماضي')
+  $('make').disabled = true
+  try {
+    last = await post('codes', { plan, count, expiresAt, maxDevices: devs, seller: $('seller').value.trim(), note: $('note').value.trim(), shopName: $('shop').value.trim() })
+    $('made').classList.remove('hidden')
+    $('madeTitle').textContent = 'أُنشئ ' + plural(last.codes.length, 'كود واحد', 'كودان', 'أكواد', 'كوداً')
+    $('cards').innerHTML = last.codes.map(c => '<div class="codecard"><div class="brandline">كراج الرضوان — نظام إدارة قطع الغيار</div><b class="mono">' + esc(c) + '</b><div class="muted">افتح البرنامج مع الإنترنت ← أدخل الكود ← تفعيل<br>' + (last.expiresAt ? 'صالح حتى ' + fmtShort(last.expiresAt) : 'اشتراك دائم') + ' · ' + devWord(last.maxDevices) + '</div></div>').join('')
+    $('oneActs').classList.toggle('hidden', last.codes.length !== 1)
+    $('made').scrollIntoView({ behavior: 'smooth', block: 'start' })
+    toast($('madeTitle').textContent + ' ✓')
+    STATS = null
+  } catch (e) { if (e.message !== 'admin') toast('تعذّر الإنشاء: ' + errText(e)) }
+  $('make').disabled = false
+}
+$('madeClose').onclick = () => $('made').classList.add('hidden')
+$('copyAll').onclick = () => last && copy(last.codes.join('\n'), 'نُسخت الأكواد ✓')
+$('copyMsg').onclick = () => last && copy(customerMsg(last.codes[0], last.maxDevices, last.expiresAt), 'نُسخت الرسالة ✓')
+$('waMsg').onclick = () => last && wa(customerMsg(last.codes[0], last.maxDevices, last.expiresAt))
+$('shareMsg').onclick = () => last && share(last.codes.length === 1 ? customerMsg(last.codes[0], last.maxDevices, last.expiresAt) : last.codes.join('\n'))
+summary()
+
+// ---------------------------------------------------------------- start
+// a link of the form /admin#k=THE-KEY signs in without typing (the part after # never reaches the server)
+const fromLink = (location.hash.match(/[#&]k=([^&]+)/) || [])[1]
+if (fromLink) { KEY = decodeURIComponent(fromLink).trim(); history.replaceState(null, '', location.pathname) }
+if (KEY) enter()
+else setTimeout(() => $('key').focus(), 50)
+</script></body></html>

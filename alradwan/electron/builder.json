@@ -1,0 +1,26 @@
+{
+  "appId": "com.alradwan.garage",
+  "productName": "كراج الرضوان",
+  "executableName": "AlRadwanGarage",
+  "artifactName": "AlRadwan-Garage-${version}-${arch}.${ext}",
+  "directories": { "output": "release", "buildResources": "electron" },
+  "files": ["dist/**/*", "electron/main.cjs", "electron/preload.cjs", "electron/sqlImport.cjs", "electron/icon.png", "package.json"],
+  "asar": true,
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }],
+    "icon": "electron/icon.png",
+    "artifactName": "AlRadwan-Garage-${version}-${arch}.${ext}"
+  },
+  "portable": { "artifactName": "AlRadwan-Garage-${version}-portable.exe" },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "كراج الرضوان",
+    "artifactName": "AlRadwan-Garage-${version}-setup.exe",
+    "installerLanguages": ["ar_SA", "en_US"],
+    "language": "1025"
+  }
+}

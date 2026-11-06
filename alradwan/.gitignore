@@ -1,0 +1,9 @@
+node_modules
+dist
+release
+android/build
+android/release.keystore
+server/node_modules
+server/.wrangler
+server/.dev.vars
+*.log
