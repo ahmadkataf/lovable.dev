@@ -1,0 +1,20 @@
+// Maven Central is listed through both of its hosts on purpose: on some networks one of them answers 404/429
+// intermittently, and Gradle moves on to the next repository when an artifact is missing from one.
+// On a network where even that fails, run a retrying mirror and pass -PmavenMirror=http://127.0.0.1:8081/central
+pluginManagement {
+    def mirror = settings.startParameter.projectProperties['mavenMirror']
+    repositories {
+        google()
+        if (mirror) { maven { url = mirror; allowInsecureProtocol = true } } else { mavenCentral(); maven { url 'https://repo1.maven.org/maven2' } }
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    def mirror = settings.startParameter.projectProperties['mavenMirror']
+    repositories {
+        google()
+        if (mirror) { maven { url = mirror; allowInsecureProtocol = true } } else { mavenCentral(); maven { url 'https://repo1.maven.org/maven2' } }
+    }
+}
+rootProject.name = "FocusPoint"
+include ':app'

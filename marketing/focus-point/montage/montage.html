@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Focus Point — montage</title>
+<style>
+@font-face { font-family: 'Alexandria'; src: url('../assets/alexandria-arabic-wght-normal.woff2') format('woff2'); font-weight: 100 900; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F; }
+@font-face { font-family: 'Alexandria'; src: url('../assets/alexandria-latin-wght-normal.woff2') format('woff2'); font-weight: 100 900; unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: 'Poppins'; src: url('../assets/poppins-600.woff2') format('woff2'); font-weight: 600; }
+@font-face { font-family: 'Poppins'; src: url('../assets/poppins-700.woff2') format('woff2'); font-weight: 700; }
+:root { --wine: #7b1e2e; --wine-d: #5e1522; --ink: #1b1b1f; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #fff; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; font-family: 'Alexandria', sans-serif; background: #fff; }
+
+/* shots: full-bleed photos that drift sideways (no zoom) */
+.shot { position: absolute; inset: 0; overflow: hidden; opacity: 0; }
+.shot img { position: absolute; top: 0; height: 1920px; width: auto; left: 0; will-change: transform; }
+.shade { position: absolute; left: 0; right: 0; bottom: 0; height: 760px; z-index: 5;
+  background: linear-gradient(to top, rgba(20, 10, 14, 0.55), rgba(20, 10, 14, 0)); }
+
+/* brand wipe between scenes */
+#wipe { position: absolute; top: 0; bottom: 0; width: 1300px; z-index: 50; background: var(--wine); }
+#wipe::after { content: ''; position: absolute; top: 0; bottom: 0; left: -60px; width: 60px; background: #fff; }
+
+/* corner logo */
+#bug { position: absolute; top: 90px; left: 70px; z-index: 40; display: flex; align-items: center; gap: 14px; direction: ltr;
+  background: rgba(255,255,255,0.94); padding: 14px 24px 14px 18px; border-radius: 18px; box-shadow: 0 8px 26px rgba(0,0,0,0.16); }
+#bug svg { width: 26px; height: 56px; }
+#bug span { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 26px; line-height: 1; color: var(--wine); letter-spacing: 1px; }
+
+/* captions: one at a time, white card with a wine bar (or wine card) */
+.cap { position: absolute; right: 70px; z-index: 30; max-width: 940px; opacity: 0; }
+.cap .card { display: inline-block; background: #fff; color: var(--wine); font-weight: 800; font-size: 74px; line-height: 1.32;
+  padding: 18px 40px 30px 40px; border-radius: 20px; border-right: 14px solid var(--wine); box-shadow: 0 14px 40px rgba(0,0,0,0.22); }
+.cap.wine .card { background: var(--wine); color: #fff; border-right-color: #fff; }
+.cap .sub { display: block; margin-top: 16px; width: fit-content; background: var(--ink); color: #fff; font-weight: 600; font-size: 40px;
+  padding: 10px 26px 16px; border-radius: 14px; }
+
+/* phone with the real booking screen */
+#phone { position: absolute; left: 50%; top: 250px; width: 560px; height: 1140px; margin-left: -280px; z-index: 20; background: #1c1c20;
+  border-radius: 74px; padding: 24px; box-shadow: 0 40px 80px rgba(0,0,0,0.35); opacity: 0; }
+#phone .scr { width: 100%; height: 100%; border-radius: 54px; overflow: hidden; background: #fff; }
+#phone img { width: 100%; display: block; }
+#phone i { position: absolute; top: 40px; left: 50%; width: 140px; height: 34px; margin-left: -70px; background: #1c1c20; border-radius: 20px; }
+
+/* end card */
+#end { position: absolute; inset: 0; z-index: 60; background: #fff; opacity: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+#end .row { display: flex; align-items: center; gap: 40px; direction: ltr; }
+#end svg { width: 150px; height: 320px; }
+#end .words { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 140px; line-height: 0.98; color: var(--wine); letter-spacing: 2px; }
+#end .words span { display: block; }
+#end .tag { margin-top: 70px; font-weight: 800; font-size: 76px; color: var(--ink); }
+#end .line { width: 160px; height: 10px; border-radius: 5px; background: var(--wine); margin: 54px 0 0; }
+#end .info { margin-top: 54px; display: flex; flex-direction: column; align-items: center; gap: 18px; font-size: 42px; font-weight: 600; color: #444; }
+#end .info .ltr { direction: ltr; unicode-bidi: isolate; font-family: 'Poppins', sans-serif; font-weight: 600; }
+#end .info .web { color: var(--wine); }
+#end .el { opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="shade"></div>
+  <div id="wipe"></div>
+  <div id="bug"><svg viewBox="36 20 28 60"><path d="M52.7,32.6 L62,32.6 L62,58.5 C62,69.5 52.5,78.2 40.5,78.2 L38.4,78.2 L38.4,68.9 L40.5,68.9 C47,68.9 52.4,64.5 52.4,58.5 L52.4,56.9 L38.4,56.9 L52.7,45.6 Z" fill="#7b1e2e"/><path d="M52.6,22 L38.3,33.2 L38.3,56.4 L52.6,45.3 Z" fill="#a8485a"/></svg><span>FOCUS<br>POINT</span></div>
+  <div id="phone"><div class="scr"><img src="../stopmotion/assets/app-book.png"></div><i></i></div>
+  <div id="end">
+    <div class="row el" id="e1"><svg viewBox="36 20 28 60"><path d="M52.7,32.6 L62,32.6 L62,58.5 C62,69.5 52.5,78.2 40.5,78.2 L38.4,78.2 L38.4,68.9 L40.5,68.9 C47,68.9 52.4,64.5 52.4,58.5 L52.4,56.9 L38.4,56.9 L52.7,45.6 Z" fill="#7b1e2e"/><path d="M52.6,22 L38.3,33.2 L38.3,56.4 L52.6,45.3 Z" fill="#a8485a"/></svg>
+      <div class="words"><span>FOCUS</span><span>POINT</span></div></div>
+    <div class="tag el" id="e2">حيث يبدأ التركيز</div>
+    <div class="line el" id="e3"></div>
+    <div class="info el" id="e4">
+      <span>شارع المجمع الحكومي · بناء العايش · درعا</span>
+      <span class="ltr">0985258963 · @its_focus_point</span>
+      <span class="ltr web">focuspoint.raqeem.dev</span>
+    </div>
+  </div>
+</div>
+<script src="voice/timings.js"></script>
+<script src="montage.js"></script>
+</body>
+</html>

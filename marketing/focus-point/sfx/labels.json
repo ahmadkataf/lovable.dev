@@ -1,0 +1,188 @@
+{
+ "166": {
+  "label": "surprised female vocal oh",
+  "character": "other",
+  "tonal": true,
+  "length_feel": "short"
+ },
+ "168": {
+  "label": "large audience crowd applause",
+  "character": "other",
+  "tonal": false,
+  "length_feel": "long"
+ },
+ "506": {
+  "label": "rapid air whip whooshes",
+  "character": "whoosh",
+  "tonal": false,
+  "length_feel": "medium"
+ },
+ "524": {
+  "label": "cartoon vocal descending scream",
+  "character": "other",
+  "tonal": true,
+  "length_feel": "medium"
+ },
+ "530": {
+  "label": "quick surprised vocal gasp",
+  "character": "whoosh",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "772": {
+  "label": "children crowd cheering yay",
+  "character": "other",
+  "tonal": true,
+  "length_feel": "medium"
+ },
+ "975": {
+  "label": "wooden ratchet spinning clicker",
+  "character": "click",
+  "tonal": false,
+  "length_feel": "medium"
+ },
+ "1053": {
+  "label": "soft digital interface click",
+  "character": "click",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "1063": {
+  "label": "rhythmic acoustic hand clapping",
+  "character": "other",
+  "tonal": false,
+  "length_feel": "long"
+ },
+ "1143": {
+  "label": "dramatic sci fi synth riser",
+  "character": "riser",
+  "tonal": true,
+  "length_feel": "long"
+ },
+ "1492": {
+  "label": "fast smooth air whoosh",
+  "character": "whoosh",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "2003": {
+  "label": "sparkling high sci fi chime",
+  "character": "chime",
+  "tonal": true,
+  "length_feel": "medium"
+ },
+ "2073": {
+  "label": "quick mechanical latch click",
+  "character": "click",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "2299": {
+  "label": "crisp paper rustle handling",
+  "character": "paper",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "2350": {
+  "label": "rapid sci fi telemetry beeps",
+  "character": "notification",
+  "tonal": true,
+  "length_feel": "medium"
+ },
+ "2354": {
+  "label": "deep cinematic bass impact",
+  "character": "impact",
+  "tonal": true,
+  "length_feel": "medium"
+ },
+ "2356": {
+  "label": "high squeaky mouse click",
+  "character": "click",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "2357": {
+  "label": "sharp plastic UI click",
+  "character": "click",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "2358": {
+  "label": "short mechanical switch click",
+  "character": "click",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "2364": {
+  "label": "snappy plastic button click",
+  "character": "click",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "2535": {
+  "label": "gentle ascending interface chime",
+  "character": "chime",
+  "tonal": true,
+  "length_feel": "medium"
+ },
+ "2568": {
+  "label": "hollow quick interface pop",
+  "character": "pop",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "2608": {
+  "label": "heavy sci-fi cinematic impact",
+  "character": "impact",
+  "tonal": false,
+  "length_feel": "medium"
+ },
+ "2655": {
+  "label": "fast digital interface notification",
+  "character": "notification",
+  "tonal": true,
+  "length_feel": "short"
+ },
+ "2870": {
+  "label": "futuristic digital whoosh sweep",
+  "character": "whoosh",
+  "tonal": true,
+  "length_feel": "medium"
+ },
+ "2903": {
+  "label": "dark cinematic whoosh passby",
+  "character": "whoosh",
+  "tonal": false,
+  "length_feel": "medium"
+ },
+ "2925": {
+  "label": "suspenseful cinematic synth riser",
+  "character": "riser",
+  "tonal": true,
+  "length_feel": "long"
+ },
+ "3005": {
+  "label": "modern digital notification chime",
+  "character": "notification",
+  "tonal": true,
+  "length_feel": "medium"
+ },
+ "3060": {
+  "label": "fast whip air swoosh",
+  "character": "whoosh",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "3115": {
+  "label": "quick paper page turn",
+  "character": "paper",
+  "tonal": false,
+  "length_feel": "short"
+ },
+ "3120": {
+  "label": "mechanical shotgun cock slide",
+  "character": "click",
+  "tonal": false,
+  "length_feel": "medium"
+ }
+}

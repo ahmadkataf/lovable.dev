@@ -1,0 +1,254 @@
+// /team/bookings — الحجوزات: a day grid (rooms × hours) and a filterable list; tap anything for the booking sheet.
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import type { Booking, BookingStatus } from '@shared/types'
+import { fmtMoney } from '@shared/pricing'
+import { KIND_LABEL } from '../lib/booking'
+import { addDays, dayLabel, fmtRange, fmtTime, normalisePhone, statusLabel, todayLocal, toLocalParts } from '../format'
+import { Badge, Button, Card, Empty, Icon, Input, Segmented, Select, Spinner } from '../ui'
+import { BookingSheet } from './BookingSheet'
+import { ManualBookingSheet, type ManualPreset } from './ManualBookingSheet'
+import { PageHead, roomColor } from './common'
+import { useRooms, useStore } from './store'
+import { dayWindow, isBlocking, isLive, localDate, onDay, sortByStart, STATUSES, toHHMM, toMin } from './util'
+
+type ViewMode = 'day' | 'list'
+
+export function Bookings() {
+  const { ready, view } = useStore()
+  const rooms = useRooms()
+  const [mode, setMode] = useState<ViewMode>('day')
+  const [date, setDate] = useState(todayLocal())
+  const [selected, setSelected] = useState<Booking | null>(null)
+  const [manual, setManual] = useState<ManualPreset | null>(null)
+  const current = selected ? view.bookings.find((b) => b.id === selected.id) ?? null : null
+
+  // Opened from a push notification (/team/bookings?booking=ID): show that booking's day and sheet.
+  const [params, setParams] = useSearchParams()
+  const wanted = Number(params.get('booking') || 0)
+  useEffect(() => {
+    if (!ready || !wanted) return
+    const b = view.bookings.find((x) => x.id === wanted)
+    if (!b) return
+    setDate(localDate(b.start))
+    setSelected(b)
+    setParams({}, { replace: true })
+  }, [ready, wanted, view.bookings, setParams])
+
+  if (!ready) return <div className="center center-pad"><Spinner /></div>
+
+  return (
+    <>
+      <PageHead title="الحجوزات">
+        <Segmented<ViewMode> options={[{ value: 'day', label: 'اليوم' }, { value: 'list', label: 'قائمة' }]} value={mode} onChange={setMode} />
+        <Button onClick={() => setManual({ date })}><Icon name="plus" size={18} /> حجز</Button>
+      </PageHead>
+
+      {mode === 'day' ? (
+        <>
+          <DateNav date={date} onChange={setDate} />
+          {rooms.length === 0 ? <Empty title="لا توجد قاعات" hint="أضف القاعات من قسم القاعات." /> : (
+            <DayGrid date={date} onPick={setSelected} onEmpty={(room_id, time) => setManual({ room_id, date, time })} />
+          )}
+        </>
+      ) : (
+        <ListView onPick={setSelected} />
+      )}
+
+      <BookingSheet booking={current} onClose={() => setSelected(null)} />
+      <ManualBookingSheet open={!!manual} onClose={() => setManual(null)} preset={manual ?? undefined} />
+    </>
+  )
+}
+
+function DateNav({ date, onChange }: { date: string; onChange: (d: string) => void }) {
+  return (
+    <div className="row between gap mb wrap">
+      <div className="datenav">
+        <button type="button" className="icon-btn" onClick={() => onChange(addDays(date, -1))} aria-label="اليوم السابق"><Icon name="back" style={{ transform: 'scaleX(-1)' }} /></button>
+        <Input type="date" dir="ltr" value={date} onChange={(e) => e.target.value && onChange(e.target.value)} aria-label="التاريخ" />
+        <button type="button" className="icon-btn" onClick={() => onChange(addDays(date, 1))} aria-label="اليوم التالي"><Icon name="back" /></button>
+      </div>
+      <div className="row gap">
+        <span className="datenav label">{dayLabel(date)}</span>
+        {date !== todayLocal() && <Button size="sm" variant="ghost" onClick={() => onChange(todayLocal())}>اليوم</Button>}
+      </div>
+    </div>
+  )
+}
+
+/** Height of one lane when bookings overlap in a room (open space / reception table seats, subscribers). */
+const LANE_H = 40
+
+/** Rooms × hours grid for one day. Blocks are positioned by minutes from opening; empty cells open a prefilled walk-in. */
+function DayGrid({ date, onPick, onEmpty }: { date: string; onPick: (b: Booking) => void; onEmpty: (roomId: number, time: string) => void }) {
+  const { view } = useStore()
+  const rooms = useRooms()
+  const s = view.settings
+  const open = toMin(s?.open ?? '09:00'), close = toMin(s?.close ?? '23:00')
+  const hours = Math.max(1, Math.ceil((close - open) / 60))
+  // Hour columns fill the available width on desktop (min 64px each → horizontal scroll on phones).
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [HOUR_W, setHourW] = useState(72)
+  useLayoutEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const measure = () => {
+      const roomW = window.innerWidth < 640 ? 92 : 128
+      setHourW(Math.max(64, Math.min(120, Math.floor((el.clientWidth - roomW - 2) / hours))))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [hours])
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(t) }, [])
+  // The grid shows what blocks a slot (the server's rule) plus finished bookings; a run-out hold is not a block.
+  // Anything in the room during this day's hours — a subscriber shows on every day of the subscription, not just the first.
+  const day = useMemo(() => dayWindow(date, s), [date, s])
+  const dayBookings = useMemo(() => view.bookings.filter((b) => onDay(b, day) && (isBlocking(b, now) || b.status === 'completed')), [view.bookings, day, now])
+  const nowParts = toLocalParts(new Date(now).toISOString())
+  const nowX = nowParts.date === date ? ((toMin(nowParts.time) - open) / 60) * HOUR_W : null
+  // x from the day's opening, clamped to the day (a multi-day booking would otherwise land at its first day's times).
+  const clampMs = (iso: string) => Math.min(day.to, Math.max(day.from, Date.parse(iso)))
+  const pos = (iso: string) => ((clampMs(iso) - day.from) / 3600000) * HOUR_W
+  // Overlapping bookings in one room (seats) get their own lane each, so every one stays visible and tappable.
+  const lanesByRoom = useMemo(() => {
+    const out = new Map<number, { lanes: number; lane: Map<number, number> }>()
+    for (const room of rooms) {
+      const ends: number[] = [], lane = new Map<number, number>()
+      for (const b of dayBookings.filter((x) => x.room_id === room.id).sort(sortByStart)) {
+        const a = Math.max(day.from, Date.parse(b.start)), z = Math.min(day.to, Date.parse(b.end))
+        let i = ends.findIndex((e) => e <= a)
+        if (i < 0) { i = ends.length; ends.push(z) } else ends[i] = z
+        lane.set(b.id, i)
+      }
+      out.set(room.id, { lanes: Math.max(1, ends.length), lane })
+    }
+    return out
+  }, [rooms, dayBookings, day])
+
+  // Open today's grid around now (about an hour back), once per date, so the afternoon is not a scroll away.
+  // RTL: scrollLeft runs from 0 towards negative values.
+  const scrolledFor = useRef('')
+  useLayoutEffect(() => {
+    const el = wrapRef.current
+    const key = `${date}|${HOUR_W}`   // not on the minute tick (staff may be scrolling); again once the width is measured
+    if (!el || nowX === null || scrolledFor.current === key) return
+    scrolledFor.current = key
+    el.scrollLeft = -Math.max(0, nowX - HOUR_W)
+  }, [date, nowX, HOUR_W])
+
+  return (
+    <div className="grid-wrap" ref={wrapRef}>
+      <div className="grid" style={{ gridTemplateColumns: `var(--room-w) ${hours * HOUR_W}px`, ['--hour-w' as string]: `${HOUR_W}px` }}>
+        <div className="grid-corner" />
+        <div className="grid-hours" style={{ gridTemplateColumns: `repeat(${hours}, ${HOUR_W}px)` }}>
+          {Array.from({ length: hours }, (_, i) => <div key={i} className="grid-hour">{toHHMM(open + i * 60)}</div>)}
+        </div>
+        {rooms.map((room) => (
+          <RoomRow key={room.id} name={room.name} color={roomColor(room.color)} hours={hours} hourW={HOUR_W} nowX={nowX}
+            lanes={lanesByRoom.get(room.id)?.lanes ?? 1} onEmpty={(i) => onEmpty(room.id, toHHMM(open + i * 60))}>
+            {dayBookings.filter((b) => b.room_id === room.id).map((b) => {
+              const left = pos(b.start), width = Math.max(HOUR_W / 4, pos(b.end) - left)
+              const hold = b.status !== 'confirmed' && b.status !== 'completed'
+              const info = lanesByRoom.get(room.id)
+              // One lane keeps the CSS look (top/bottom 6px); several stack the blocks.
+              const laneStyle = info && info.lanes > 1 ? { top: 6 + (info.lane.get(b.id) ?? 0) * LANE_H, height: LANE_H - 4, bottom: 'auto' } : {}
+              const sub = !!b.kind && b.kind !== 'hourly'
+              return (
+                <button key={b.id} type="button" className={`grid-block${hold ? ' is-hold' : ''}${b.status === 'completed' ? ' is-dim' : ''}`}
+                  style={{ insetInlineStart: left, width, background: roomColor(room.color), ...laneStyle }} onClick={() => onPick(b)}
+                  title={`${b.customer_name} · ${sub ? KIND_LABEL[b.kind] : fmtRange(b.start, b.end)}`}>
+                  <b>{b.customer_name}</b>
+                  <small className="time">{sub ? KIND_LABEL[b.kind] : <>{fmtTime(b.start)}{width >= HOUR_W ? ` – ${fmtTime(b.end)}` : ''}</>}</small>
+                </button>
+              )
+            })}
+          </RoomRow>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function RoomRow({ name, color, hours, hourW, nowX, lanes, onEmpty, children }: { name: string; color: string; hours: number; hourW: number; nowX: number | null; lanes: number; onEmpty: (hourIndex: number) => void; children: React.ReactNode }) {
+  return (
+    <>
+      <div className="grid-roomhead"><span className="dot" style={{ background: color }} /><span>{name}</span></div>
+      <div className="grid-row" style={{ width: hours * hourW, ...(lanes > 1 ? { minHeight: 12 + lanes * LANE_H } : {}) }}>
+        {Array.from({ length: hours }, (_, i) => <button key={i} type="button" className="cell" style={{ insetInlineStart: i * hourW }} onClick={() => onEmpty(i)} aria-label={`حجز جديد ${toHHMM(i * 60)}`} />)}
+        {children}
+        {nowX !== null && nowX >= 0 && nowX <= hours * hourW && <div className="grid-now" style={{ insetInlineStart: nowX }} />}
+      </div>
+    </>
+  )
+}
+
+/** Filterable list over the cached bookings (last 90 days + everything upcoming). */
+function ListView({ onPick }: { onPick: (b: Booking) => void }) {
+  const { view } = useStore()
+  const rooms = useRooms(false)
+  const [q, setQ] = useState('')
+  const [date, setDate] = useState('')
+  const [roomId, setRoomId] = useState<number>(0)
+  const [status, setStatus] = useState<BookingStatus | 'live' | ''>('live')
+
+  const list = useMemo(() => {
+    const phone = normalisePhone(q)
+    const text = q.trim().toLowerCase()
+    return view.bookings.filter((b) => {
+      if (date && localDate(b.start) !== date) return false
+      if (roomId && b.room_id !== roomId) return false
+      if (status === 'live' ? !isLive(b.status) : status && b.status !== status) return false
+      if (text) {
+        const hit = b.customer_name.toLowerCase().includes(text) || b.code.toLowerCase() === text || (b.payment_ref ?? '').includes(text)
+          || b.customer_phone.includes(phone ?? text)
+        if (!hit) return false
+      }
+      return true
+    }).sort(status === 'live' || date ? sortByStart : (a, b) => -sortByStart(a, b)).slice(0, 300)
+  }, [view.bookings, q, date, roomId, status])
+
+  return (
+    <>
+      <div className="filters">
+        <div className="wide" style={{ position: 'relative' }}>
+          <Input placeholder="بحث بالاسم أو الهاتف أو الرمز" value={q} onChange={(e) => setQ(e.target.value)} aria-label="بحث" />
+        </div>
+        <Input type="date" dir="ltr" value={date} onChange={(e) => setDate(e.target.value)} aria-label="التاريخ" />
+        <Select value={roomId} onChange={(e) => setRoomId(Number(e.target.value))} aria-label="القاعة">
+          <option value={0}>كل القاعات</option>
+          {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </Select>
+        <Select value={status} onChange={(e) => setStatus(e.target.value as BookingStatus | 'live' | '')} aria-label="الحالة">
+          <option value="live">الحجوزات الفعّالة</option>
+          <option value="">كل الحالات</option>
+          {STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s).text}</option>)}
+        </Select>
+      </div>
+      {list.length === 0 ? (
+        <Empty title="لا نتائج" hint="غيّر الفلاتر أو ابحث بكلمة أخرى." />
+      ) : (
+        <div className="list">
+          {list.map((b) => {
+            const st = statusLabel(b.status, b.method)
+            return (
+              <button key={b.id} type="button" className="brow" onClick={() => onPick(b)}>
+                <span className="bar" style={{ background: roomColor(view.rooms.find((r) => r.id === b.room_id)?.color) }} />
+                <span>
+                  <span className="t">{b.customer_name} <span className="muted small num">· {b.customer_phone}</span></span>
+                  <span className="s" style={{ display: 'block' }}>{b.room_name} · {b.kind && b.kind !== 'hourly' ? `${KIND_LABEL[b.kind]} حتى ${dayLabel(localDate(b.end))}` : <>{dayLabel(localDate(b.start))} · <span className="time">{fmtRange(b.start, b.end)}</span></>}</span>
+                </span>
+                <span className="e"><b>{fmtMoney(b.price, b.currency ?? 'SYP')}</b><Badge tone={st.tone}>{st.text}</Badge></span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+      {list.length >= 300 && <p className="muted small text-center mt">تظهر أول 300 نتيجة — ضيّق البحث.</p>}
+      <Card className="mt"><div className="inline-note"><Icon name="cloud" size={16} />القائمة تعرض حجوزات آخر 90 يوماً وكل الحجوزات القادمة، وتعمل دون اتصال.</div></Card>
+    </>
+  )
+}

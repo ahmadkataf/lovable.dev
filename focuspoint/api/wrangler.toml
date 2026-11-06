@@ -1,0 +1,46 @@
+# Focus Point — Cloudflare Worker (API + the built web app) backed by D1.
+name = "focuspoint-api"
+main = "src/index.ts"
+account_id = "c79a8e91efac74d2e119e7e406c4db43"
+compatibility_date = "2025-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true                      # keep the *.workers.dev preview URL alongside the custom domain
+routes = [{ pattern = "focuspoint.raqeem.dev", custom_domain = true }]
+
+# Plain (non-secret) configuration. Moving to another domain: change PUBLIC_URL and the route above, redeploy,
+# rebuild the Android app with the new URL (see docs/HANDOVER.md).
+[vars]
+PUBLIC_URL = "https://focuspoint.raqeem.dev"
+ASSETLINKS_FINGERPRINTS = "25:82:9F:6A:05:E3:39:97:36:30:8B:F5:44:53:C9:42:B7:9B:DB:E4:31:FD:8F:90:C7:D5:10:B4:66:24:78:65,44:25:35:BE:B8:2A:72:28:0A:93:C0:47:40:4B:84:D3:68:A2:D3:21:FB:D8:88:72:29:99:9D:A4:D4:94:64:F0"   # our upload/release key, then Google Play App Signing
+
+# D1 database. Create it with `wrangler d1 create focuspoint` and paste the id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "focuspoint"
+database_id = "b981c36a-ba36-4e5c-8f0e-cc987d962e54"
+
+# Cron: every 5 minutes → expire payment holds, send reminders, complete finished bookings (src/cron.ts).
+[triggers]
+crons = ["*/5 * * * *"]
+
+# The Worker serves the built web app (web/dist): /v1/* is the API, /media/* the uploaded images, and pages fall back
+# to index.html (SPA) with the edited title / content filled in.
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+# The Worker runs for the API, uploaded images, app links, the manifest and every page (it fills in the edited title /
+# description / content). Built files with hashed names and static images skip it: Cloudflare serves those free and
+# they do not count as Worker requests (free plan: 100,000 a day).
+run_worker_first = ["/*", "!/assets/*", "!/img/*", "!/icons/*", "!/sw.js", "!/workbox-*"]
+not_found_handling = "single-page-application"
+
+[observability]
+enabled = true
+
+# Secrets (never in this file; set with `wrangler secret put <NAME>`, locally in .dev.vars):
+#   TOKEN_SECRET        long random string, signs team bearer tokens (HS256)
+#   VAPID_PUBLIC_KEY    Web Push VAPID public key (base64url)  → `npm run vapid`
+#   VAPID_PRIVATE_KEY   Web Push VAPID private key (base64url) → `npm run vapid`
+#   VAPID_SUBJECT       "mailto:owner@example.com"
+#   WEBHOOK_SECRET      shared secret for POST /v1/payments/shamcash/webhook (X-Webhook-Secret)
+#   ADMIN_SETUP_KEY     one-time key for POST /v1/admin/bootstrap (creating the first admin)

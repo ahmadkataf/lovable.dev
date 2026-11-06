@@ -1,0 +1,17 @@
+{
+  "brand": "Focus Point — فوكس بوينت",
+  "language": "Modern Standard Arabic (فصحى)",
+  "voice": { "model": "gemini-3.8-flash-tts", "voice": "Charon", "style": "warm, confident, modern Arabic ad narrator, clear Modern Standard Arabic, brisk but unhurried" },
+  "lines": [
+    { "id": "L1", "vo": "تَرْكِيزُكَ مُطْفَأٌ؟ حَانَ وَقْتُ تَشْغِيلِهِ.", "screen": "تركيزك مطفأ؟", "visual": "paper FOCUS switch slides in, OFF" },
+    { "id": "L2", "vo": "هَذَا فُوكَسْ بُويْنْت، الْمَشْرُوعُ الْأَوَّلُ مِنْ نَوْعِهِ فِي دَرْعَا.", "screen": "المشروع الأول من نوعه في درعا", "visual": "logo wall print (p2) drops on the desk" },
+    { "id": "L3", "vo": "هُنَا تُفَكِّرُ خَارِجَ الصُّنْدُوقِ، فِي مَكَانٍ صُمِّمَ لِلتَّرْكِيزِ.", "screen": "فكر خارج الصندوق", "visual": "THINK OUTSIDE THE BOX print (p1); a wooden frame tilts over it; shelf detail (p12)" },
+    { "id": "L4", "vo": "غُرَفٌ خَاصَّةٌ هَادِئَةٌ، لَكَ وَحْدَكَ أَوْ لِفَرِيقِكَ الصَّغِيرِ.", "screen": "غرف خاصة هادئة", "visual": "corridor (p7) then the private room (p6)" },
+    { "id": "L5", "vo": "وَقَاعَةٌ مُجَهَّزَةٌ بِشَاشَةٍ، لِلِاجْتِمَاعَاتِ وَوِرَشِ الْعَمَلِ وَالتَّدْرِيبِ.", "screen": "قاعة للاجتماعات والتدريب", "visual": "training hall (p10) with the FOCUS ON/OFF decal; second angle (p5)" },
+    { "id": "L6", "vo": "وَمَسَاحَةٌ مَفْتُوحَةٌ، بِنَوَافِذَ كَبِيرَةٍ تُطِلُّ عَلَى الْمَدِينَةِ، وَضَوْءٍ طَبِيعِيٍّ.", "screen": "إطلالة وضوء طبيعي", "visual": "open space with the tall windows (p9)" },
+    { "id": "L7", "vo": "إِنْتَرْنِتٌ سَرِيعٌ، وَتَكْيِيفٌ، وَرُكْنٌ لِلْمَشْرُوبَاتِ... وَقَهْوَتُكَ تَصِلُ إِلَى طَاوِلَتِكَ.", "screen": "إنترنت سريع وقهوة لطاولتك", "visual": "coffee machine (p11) then the cup on the table (p3)" },
+    { "id": "L8", "vo": "اِحْجِزْ مِنَ التَّطْبِيقِ أَوِ الْمَوْقِعِ بِخُطُوَاتٍ قَلِيلَةٍ، دُونَ إِنْشَاءِ حِسَابٍ، وَادْفَعْ عَبْرَ شَامْ كَاشْ أَوْ عِنْدَ وُصُولِكَ.", "screen": "احجز بخطوات بلا حساب", "visual": "reception (p8) + paper phone with the real booking screen" },
+    { "id": "L9", "vo": "نَنْتَظِرُكَ كُلَّ يَوْمٍ مِنَ التَّاسِعَةِ صَبَاحًا حَتَّى الْحَادِيَةَ عَشْرَةَ لَيْلًا، فِي شَارِعِ الْمُجَمَّعِ الْحُكُومِيِّ.", "screen": "يوميا من 9 صباحا حتى 11 ليلا", "visual": "paper clock 9 → 11, then the paper map with a pin" },
+    { "id": "L10", "vo": "فُوكَسْ بُويْنْت... شَغِّلْ وَضْعَ التَّرْكِيزِ.", "screen": "شغل وضع التركيز", "visual": "the switch flips ON, then the logo card and contacts" }
+  ]
+}
