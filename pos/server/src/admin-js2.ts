@@ -238,7 +238,7 @@ function renderDevice(s, d) {
     + '<dt>التجربة</dt><dd>' + trial + '</dd><dt>أول ظهور</dt><dd>' + fmtT(x.first_seen) + '</dd><dt>آخر ظهور</dt><dd>' + fmtT(x.last_seen) + ' <span class="faint">(' + rel(x.last_seen) + ')</span></dd>'
     + (x.platform === 'android' ? '<dt>بصمة التوقيع</dt><dd>' + (x.sig ? '<div class="copybox"><code>' + esc(x.sig) + '</code><button class="btn ghost icon sm" type="button" data-copy="' + esc(x.sig) + '" aria-label="نسخ">' + I('copy', 16) + '</button></div>' : '<span class="faint">لم تُرسل</span>') + '</dd>' : '')
     + (x.blocked ? '<dt>الحالة</dt><dd><span class="badge bad">موقوف: يُرفض التفعيل والتحقق من هذا الجهاز</span></dd>' : '') + '</dl>'
-    + '<div><h3>إجراءات</h3><div class="acts mt-s">' + (c ? act('move', 'تحرير من الكود', 'release') : '') + act('gift', c ? 'ربط بكود آخر' : 'منح كود', 'grant', 'brand') + act('plus', 'كود جديد لهذا الجهاز', 'newcode') + (x.contact_optout ? act('refresh', 'السماح بالتواصل مجدداً', 'optin') : x.phone || x.shop ? act('x', 'حذف الرقم وإيقاف التواصل', 'optout') : '') + (x.blocked ? act('refresh', 'إعادة تشغيل الجهاز', 'unblock', 'brand') : act('ban', 'إيقاف الجهاز', 'block', 'danger')) + '</div>'
+    + '<div><h3>إجراءات</h3><div class="acts mt-s">' + (c ? act('move', 'تحرير من الكود', 'release') : '') + act('gift', c ? 'ربط بكود آخر' : 'منح كود', 'grant', 'brand') + act('plus', 'كود جديد لهذا الجهاز', 'newcode') + act('key', 'رمز استعادة الدخول', 'pincode') + (x.contact_optout ? act('refresh', 'السماح بالتواصل مجدداً', 'optin') : x.phone || x.shop ? act('x', 'حذف الرقم وإيقاف التواصل', 'optout') : '') + (x.blocked ? act('refresh', 'إعادة تشغيل الجهاز', 'unblock', 'brand') : act('ban', 'إيقاف الجهاز', 'block', 'danger')) + '</div>'
     + '<div class="hint">«منح كود» يربط كوداً غير مستخدم بهذا الجهاز فيتحول التطبيق من التجربة إلى الترخيص عند أول تحقق؛ أرسل الكود للعميل ليحتفظ به.</div></div></div>'
     + '<h3 class="mt">السجل</h3><div class="mt-s">' + (d.events.length ? d.events.map(e => eventHtml(e, { noDevice: true })).join('') : '<div class="faint">لا أحداث بعد.</div>') + '</div>'
   wireLinks(s)
@@ -254,6 +254,16 @@ function renderDevice(s, d) {
   })
   on('block', async () => { if (await ask('إيقاف هذا الجهاز؟', 'يُرفض التفعيل والتجربة والتحقق منه ويرى العميل رسالة بأن البائع أوقفه. يبقى الكود مرتبطاً به حتى تحرّره.', { ok: 'إيقاف', danger: true })) run(async () => { await post('devices/' + x.device + '/block', { blocked: true }); toast('أُوقف الجهاز', 'ok') }) })
   on('unblock', () => run(async () => { await post('devices/' + x.device + '/block', { blocked: false }); toast('أُعيد تشغيل الجهاز', 'ok') }))
+  on('pincode', async () => {
+    const f = await dialog('رمز استعادة الدخول', '<div class="muted">عندما ينسى العميل رمز الدخول، تظهر له في «نسيت الرمز؟» خانة «رقم الطلب» (6 خانات). اكتبها هنا لتحصل على رمز من 6 أرقام يُدخله العميل فيختار رمزاً جديداً. تحقّق أولاً أن من يراسلك هو صاحب المحل.</div><div><label class="l">رقم الطلب</label><input class="in mono" name="ch" maxlength="8" autocomplete="off" dir="ltr" placeholder="ABC234"></div>', { ok: 'إنشاء الرمز', validate: fm => /^[A-HJ-NP-Z2-9]{6}$/.test(fm.ch.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')) ? '' : 'رقم الطلب من 6 خانات (حروف إنجليزية وأرقام) كما يظهر على شاشة العميل.' })
+    if (!f) return
+    try {
+      const r = await post('devices/' + x.device + '/pin-code', { challenge: f.ch.value })
+      const msg = 'رمز استعادة الدخول إلى كاسب: ' + r.code + ' (لرقم الطلب ' + r.challenge + '). صالح حتى ' + fmt(r.validUntil) + '.'
+      const s2 = openSheet('رمز استعادة الدخول', '<div class="center" style="text-align:center"><div class="mono sb" style="font-size:34px;letter-spacing:6px;margin:10px 0" dir="ltr">' + esc(r.code) + '</div><div class="muted">لرقم الطلب <span class="mono">' + esc(r.challenge) + '</span> · صالح حتى ' + fmt(r.validUntil) + '</div></div><div class="acts mt">' + act('copy', 'نسخ الرمز', 'cp') + (x.phone ? '<a class="act brand" href="' + esc('https://wa.me/' + waNum(x.phone) + '?text=' + encodeURIComponent(msg)) + '" target="_blank" rel="noopener">' + I('msg') + '<span>إرسال على واتساب</span></a>' : '') + '</div>')
+      s2.querySelector('[data-a=cp]').onclick = () => copy(r.code)
+    } catch (e) { toast(e.message, 'bad') }
+  })
   on('optout', async () => { if (await ask('حذف الرقم وإيقاف التواصل؟', 'يُحذف رقم هاتف المحل واسمه من هذا الجهاز ومن كل جهاز آخر يحمل الرقم نفسه، ولا يُحفظ الرقم مجدداً على أي جهاز، ولا يظهر في قائمة الأرقام ولا في ملف التصدير. استخدمه عندما يطلب صاحب المحل ذلك.', { ok: 'حذف وإيقاف', danger: true })) run(async () => { await post('devices/' + x.device + '/contact', { optout: true }); toast('حُذف الرقم وأُوقف التواصل', 'ok') }) })
   on('optin', async () => { if (await ask('السماح بالتواصل مجدداً؟', 'يُرفع المنع عن هذا الرقم على كل الأجهزة، فيُحفظ رقم المحل واسمه من جديد عند التحقق التالي للتطبيق. افعل هذا فقط إن طلب صاحب المحل ذلك.', { ok: 'السماح' })) run(async () => { await post('devices/' + x.device + '/contact', { optout: false }); toast('سُمح بالتواصل', 'ok') }) })
 }

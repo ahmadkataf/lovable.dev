@@ -8,6 +8,14 @@ export const PIN_MAX = 6
 /** After a wrong try of a PIN of unknown length, how long to wait for more digits before saying "wrong". */
 export const PIN_WAIT_MS = 1500
 
+/** The request number the lock screen's "forgot the PIN" shows: 6 characters the seller types in the panel (no I, O, 0, 1). */
+export function newResetChallenge(): string {
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const r = new Uint8Array(6)
+  crypto.getRandomValues(r)
+  return Array.from(r, x => A[x % A.length]).join('')
+}
+
 /** The user's PIN length when it is known. */
 export function knownPinLength(u: { pinLen?: unknown } | null | undefined): number | undefined {
   const n = u?.pinLen

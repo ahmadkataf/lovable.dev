@@ -253,6 +253,14 @@ export const license = {
     contact = { phone: cleanPhone(c.phone).slice(0, 20), shop: String(c.shop ?? '').trim().slice(0, 60) }
   },
 
+  /** "Forgot the PIN": checks the one-time code the seller made for this device and request number (online). */
+  async verifyPinReset(challenge: string, code: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!API || !device) return { ok: false, error: 'license.err.unknown' }
+    const r = await call<{ ok?: boolean }>('/api/pin-reset', { device, challenge, code })
+    if (r.ok && r.data.ok) return { ok: true }
+    return { ok: false, error: r.ok ? 'license.err.unknown' : r.network ? 'license.err.network' : errorMessageKey(r.error) }
+  },
+
   /** One free trial per device. */
   async startTrial(): Promise<LicenseStatus> {
     if (!API) return status

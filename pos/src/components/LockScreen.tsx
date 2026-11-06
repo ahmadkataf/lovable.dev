@@ -6,6 +6,7 @@ import { checkPin } from '../lib/hash'
 import { knownPinLength, pinStep, pinDots, PIN_MAX, PIN_WAIT_MS } from '../lib/pin'
 import { db } from '../db'
 import { normalizePin } from '../screens/settings/users'
+import { ForgotPin } from './ForgotPin'
 import { Avatar } from './ui'
 import { beep } from '../lib/audio'
 import icon from '/icon.svg'
@@ -28,6 +29,7 @@ export function LockScreen() {
   const [picked, setPicked] = useState(users.length === 1 ? users[0] : null)
   const [pin, setPin] = useState('')
   const [wrong, setWrongState] = useState(false)
+  const [forgot, setForgot] = useState(false)
   // read by the digit handlers, which must know whether "wrong" is showing at the moment of the tap
   const wrongNow = useRef(false)
   const setWrong = useCallback((v: boolean) => { wrongNow.current = v; setWrongState(v) }, [])
@@ -70,7 +72,8 @@ export function LockScreen() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!picked) return
+      // typing in the "forgot the PIN" window (or any field) is not the PIN
+      if (!picked || forgot || (e.target as HTMLElement | null)?.closest?.('input, textarea, select')) return
       // Arabic-Indic digits too (an Arabic keyboard layout), as the PIN form accepts them
       const d = e.key.length === 1 ? normalizePin(e.key) : ''
       if (d) addDigit(d)
@@ -79,7 +82,7 @@ export function LockScreen() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [picked, addDigit, backspace, pick])
+  }, [picked, forgot, addDigit, backspace, pick])
 
   return (
     <div className="lock-screen">
@@ -111,6 +114,8 @@ export function LockScreen() {
               <button type="button" onClick={() => addDigit('0')}>0</button>
               <button type="button" onClick={backspace} aria-label="backspace"><Delete size={22} /></button>
             </div>
+            {picked.pinHash && <button type="button" className="lock-forgot" onClick={() => setForgot(true)}>{t('forgot.link')}</button>}
+            {forgot && <ForgotPin picked={picked} onClose={() => { setForgot(false); setPin('') }} />}
           </>
         )}
       </div>

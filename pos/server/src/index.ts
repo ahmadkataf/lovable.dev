@@ -35,9 +35,10 @@ const CORS = {
   'access-control-max-age': '86400',
 }
 const RATE_WINDOW = 10 * 60000   // per address, per 10 minutes: 30 activate/trial requests, 120 token calls (check/release/backup)
-const RATE: Record<'activate' | 'token', { kinds: string[]; limit: number }> = {
+const RATE: Record<'activate' | 'token' | 'pinreset', { kinds: string[]; limit: number }> = {
   activate: { kinds: ['activate', 'activate-fail', 'trial', 'trial-fail'], limit: 30 },
   token: { kinds: ['check', 'check-fail', 'release', 'backup', 'backup-fail', 'restore'], limit: 120 },
+  pinreset: { kinds: ['pin-reset', 'pin-reset-fail'], limit: 10 },   // a 6-digit code: 10 tries per 10 minutes per address
 }
 const EVENTS_KEEP = 365 * 86400000   // the privacy page promises security logs are deleted after a year
 const MAX_BODY = 8 * 1024
@@ -87,6 +88,7 @@ const MESSAGES: Record<string, string> = {
   not_found: 'غير موجود.',
   blocked: 'أوقف البائع هذا الجهاز. تواصل معه لمعرفة السبب.',
   phone_required: 'أدخل رقم هاتف المحل لبدء التجربة المجانية.',
+  invalid_reset_code: 'رمز الاستعادة غير صحيح أو انتهت صلاحيته. اطلب رمزاً جديداً من البائع.',
 }
 
 const json = (data: unknown, status = 200): Response =>
@@ -226,6 +228,27 @@ async function touchDevice(env: Env, req: Request, c: Client, now: number): Prom
       shop = CASE WHEN devices.contact_optout = 1 OR excluded.contact_optout = 1 THEN '' WHEN excluded.shop = '' THEN devices.shop ELSE excluded.shop END`)
     .bind(c.device, deviceCodeOf(c.device), c.name, c.platform, c.version, c.build, c.sig, now, now, ip(req), phone, shop, off, h).run()
 }
+// ---------- "forgot the PIN" ----------
+// The lock screen shows the device code and a one-time request number (6 characters); the seller, in the panel, turns
+// them into a 6-digit code for that device, valid the day it is issued and the next (UTC); the app checks it here.
+const RESET_CHALLENGE = /^[A-HJ-NP-Z2-9]{6}$/
+async function pinResetCode(env: Env, device: string, challenge: string, day: number): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.LICENSE_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`kaseb-pinreset:${device}:${challenge}:${day}`)))
+  const n = (((mac[0] << 24) | (mac[1] << 16) | (mac[2] << 8) | mac[3]) >>> 0) % 1000000
+  return String(n).padStart(6, '0')
+}
+async function pinReset(req: Request, env: Env): Promise<Response> {
+  const b = await body(req)
+  if (!b || !validDevice(b.device) || typeof b.challenge !== 'string' || !RESET_CHALLENGE.test(b.challenge) || typeof b.code !== 'string' || !/^\d{6}$/.test(b.code)) return fail('bad_request')
+  if (await rateLimited(env, req, 'pinreset')) return fail('rate_limited', 429)
+  const me = await getDevice(env, b.device)
+  const day = Math.floor(Date.now() / DAY)
+  const ok = !!me && !me.blocked && (sameText(b.code, await pinResetCode(env, b.device, b.challenge, day)) || sameText(b.code, await pinResetCode(env, b.device, b.challenge, day - 1)))
+  await log(env, ok ? 'pin-reset' : 'pin-reset-fail', req, me?.code ?? null, b.device, ok ? '' : me?.blocked ? 'blocked' : 'code')
+  return ok ? json({ ok: true }) : fail(me?.blocked ? 'blocked' : 'invalid_reset_code', 403)
+}
+
 /** The first version that asks for the shop's phone before the trial: from it on the server refuses a trial without one. */
 const PHONE_SINCE = '1.0.3'
 
@@ -794,6 +817,15 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
         await log(env, 'admin', req, code, device, 'grant')
         return json({ ok: true, code: formatCode(code) })
       }
+      if (act === 'pin-code') {
+        // the code the customer types on the lock screen's "forgot the PIN" (see pinReset)
+        const challenge = String(b.challenge ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+        if (!RESET_CHALLENGE.test(challenge)) return fail('bad_request', 400, 'رقم الطلب من 6 خانات كما يظهر على شاشة العميل.')
+        const day = Math.floor(now / DAY)
+        const code = await pinResetCode(env, device, challenge, day)
+        await log(env, 'admin', req, me.code, device, 'pincode')
+        return json({ ok: true, code, challenge, validUntil: (day + 2) * DAY })
+      }
       if (act === 'contact') {
         // the shop asked not to be contacted (the privacy page promises it): the number goes on the do-not-contact list
         // (a keyed fingerprint), it is cleared from every device that has it, and no device stores it again;
@@ -1030,6 +1062,7 @@ export default {
         if (p === '/api/trial') return await trial(req, env)
         if (p === '/api/check') return await check(req, env)
         if (p === '/api/release') return await release(req, env)
+        if (p === '/api/pin-reset') return await pinReset(req, env)
       }
       return fail('not_found', 404, 'لا يوجد.')
     } catch (e) {

@@ -175,7 +175,7 @@ function deviceState(d) {
   return ['', 'بلا ترخيص']
 }
 const WHY = { invalid_code: 'كود غير صحيح', revoked: 'الكود ملغى', expired: 'الترخيص منتهٍ', device_limit: 'الكود مستخدم على جهاز آخر', tampered: 'نسخة معدّلة (توقيع مختلف)', min_version: 'إصدار قديم', disabled: 'التجربة موقوفة', used: 'استُخدمت التجربة من قبل', phone: 'بدون رقم هاتف', web: 'تجربة من المتصفح (غير مسموحة)', device_mismatch: 'الكود مربوط بجهاز آخر الآن', no_trial: 'لا تجربة لهذا الجهاز', move_limit: 'استُنفدت مرات النقل الذاتي', inactive: 'السحابة غير مفعّلة', blocked: 'الجهاز موقوف من البائع' }
-const ACT = { revoke: 'إلغاء الكود', unrevoke: 'إعادة الكود', extend: 'تغيير تاريخ الانتهاء', note: 'تعديل بيانات الكود', devices: 'تغيير عدد الأجهزة', release: 'تحرير جهاز من الكود', settings: 'تعديل الإعدادات', grant: 'منح كود لجهاز', cloud: 'تعديل اشتراك السحابة', 'backups-delete': 'حذف النسخ السحابية', block: 'إيقاف جهاز', unblock: 'إعادة تشغيل جهاز', optout: 'حذف رقم وإيقاف التواصل', optin: 'السماح بالتواصل مجدداً' }
+const ACT = { revoke: 'إلغاء الكود', unrevoke: 'إعادة الكود', extend: 'تغيير تاريخ الانتهاء', note: 'تعديل بيانات الكود', devices: 'تغيير عدد الأجهزة', release: 'تحرير جهاز من الكود', settings: 'تعديل الإعدادات', grant: 'منح كود لجهاز', cloud: 'تعديل اشتراك السحابة', 'backups-delete': 'حذف النسخ السحابية', block: 'إيقاف جهاز', unblock: 'إعادة تشغيل جهاز', optout: 'حذف رقم وإيقاف التواصل', optin: 'السماح بالتواصل مجدداً', pincode: 'رمز استعادة الدخول' }
 function describe(e) {
   const d = String(e.detail || '')
   if (e.kind === 'activate') return ['good', 'check', d === 'refresh' ? 'إعادة تفعيل على الجهاز نفسه' : 'تفعيل جديد', '']
@@ -184,6 +184,8 @@ function describe(e) {
   if (e.kind === 'trial-fail') return ['bad', 'x', 'طلب تجربة مرفوض', WHY[d] || d]
   if (e.kind === 'check') return ['', 'dot', d === 'upgrade' ? 'ترقية من التجربة إلى ترخيص' : d === 'trial' ? 'تحقق دوري (تجربة)' : 'تحقق دوري', '']
   if (e.kind === 'check-fail') return ['bad', 'alert', 'تحقق مرفوض', WHY[d] || d]
+  if (e.kind === 'pin-reset') return ['warn', 'key', 'استعاد العميل الدخول برمز من البائع', '']
+  if (e.kind === 'pin-reset-fail') return ['bad', 'alert', 'رمز استعادة الدخول مرفوض', d === 'blocked' ? 'الجهاز موقوف' : 'رمز غير صحيح أو منتهٍ']
   if (e.kind === 'release') return ['warn', 'move', d === 'move_limit' ? 'طلب نقل مرفوض' : 'العميل حرّر جهازه لنقل الترخيص', d === 'move_limit' ? WHY.move_limit : '']
   if (e.kind === 'backup') return ['info', 'cloud', 'نسخة سحابية مرفوعة', d ? kb(+d) : '']
   if (e.kind === 'backup-fail') return ['bad', 'cloud', 'رفع نسخة مرفوض', WHY[d] || d]

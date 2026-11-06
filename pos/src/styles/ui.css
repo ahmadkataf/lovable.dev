@@ -173,6 +173,10 @@ button.list-row:hover, a.list-row:hover { background: var(--surface-2); }
 
 /* ---------- Numpad ---------- */
 .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lock-forgot { align-self: center; background: none; border: 0; padding: 6px 10px; color: var(--primary); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.forgot-ids { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.forgot-ids > div { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--surface-3); text-align: center; }
+.forgot-ids b { font-size: 18px; letter-spacing: 2px; }
 .numpad button { min-height: 54px; border-radius: var(--radius-sm); background: var(--surface-3); font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; transition: background var(--t-fast), transform var(--t-fast); }
 .numpad button:hover { background: var(--line); }
 .numpad button:active { transform: scale(.97); }

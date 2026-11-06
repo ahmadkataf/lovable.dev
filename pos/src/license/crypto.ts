@@ -110,7 +110,7 @@ export function deriveState(p: TokenPayload, now: number, clockBad = false): Ext
   return p.p === 'trial' ? 'trial' : 'active'
 }
 
-export const ERROR_KEYS = ['invalid_code', 'revoked', 'expired', 'device_limit', 'tampered', 'rate_limited', 'min_version', 'no_trial', 'invalid_token', 'device_mismatch', 'move_limit', 'blocked', 'no_trial_web', 'cloud_unavailable', 'network', 'unknown', 'cloud_inactive', 'too_large', 'backup_limit', 'not_found', 'phone_required'] as const
+export const ERROR_KEYS = ['invalid_code', 'revoked', 'expired', 'device_limit', 'tampered', 'rate_limited', 'min_version', 'no_trial', 'invalid_token', 'device_mismatch', 'move_limit', 'blocked', 'no_trial_web', 'cloud_unavailable', 'network', 'unknown', 'cloud_inactive', 'too_large', 'backup_limit', 'not_found', 'phone_required', 'invalid_reset_code'] as const
 export type ErrorKey = (typeof ERROR_KEYS)[number]
 /** 'license.err.<key>' for a server error key, 'license.err.unknown' for anything else. */
 export const errorMessageKey = (error: string): string => `license.err.${(ERROR_KEYS as readonly string[]).includes(error) ? error : 'unknown'}`

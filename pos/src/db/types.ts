@@ -279,6 +279,7 @@ export interface KV { key: string; value: unknown }
 export type AuditKind =
   | 'sale.discount' | 'sale.priceOverride' | 'refund' | 'product.delete' | 'product.price' | 'stock.adjust'
   | 'user.add' | 'user.change' | 'user.remove' | 'backup.restore' | 'data.reset' | 'shift.close' | 'customer.adjust'
+  | 'user.pinReset'    // "forgot the PIN": detail "<user> · <how>" (activation code / seller's code)
   | 'rate.change'      // detail "USD: 13,000 → 13,500 (+3.8%) · 120", amount = the new rate
 export interface AuditEntry {
   id: ID

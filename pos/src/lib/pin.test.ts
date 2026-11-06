@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { knownPinLength, pinStep, pinDots } from './pin'
+import { knownPinLength, pinStep, pinDots, newResetChallenge } from './pin'
 import { hashPin, checkPin } from './hash'
 
 describe('PIN lengths on the lock screen', () => {
@@ -41,5 +41,10 @@ describe('PIN lengths on the lock screen', () => {
     expect(await checkPin('1234', h)).toBe(false)
     expect(await checkPin('12345', h)).toBe(false)
     expect(await checkPin('123456', h)).toBe(true)
+  })
+
+  it('makes a 6-character request number for "forgot the PIN" the server accepts', () => {
+    for (let i = 0; i < 200; i++) expect(newResetChallenge()).toMatch(/^[A-HJ-NP-Z2-9]{6}$/)
+    expect(new Set(Array.from({ length: 50 }, () => newResetChallenge())).size).toBeGreaterThan(45)
   })
 })
