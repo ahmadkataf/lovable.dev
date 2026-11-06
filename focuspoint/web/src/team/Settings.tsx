@@ -5,6 +5,7 @@ import { useLiveForm } from './useLiveForm'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Booking, Role, Settings as SettingsT, User } from '@shared/types'
 import { api, ApiError } from '../api'
+import { fmtMoney } from '@shared/pricing'
 import { fmtClock, fmtDate, fmtSYP, fmtTime, normalisePhone, statusLabel, todayLocal, toLocalParts } from '../format'
 import { cachedGet } from '../offline'
 import { useTeam } from '../team'
@@ -14,9 +15,9 @@ import { store, useStore } from './store'
 import { describeError, downloadText, METHOD, parseInt10, toCSV, toMin } from './util'
 import { playChime, setSoundMuted, soundMuted } from './sound'
 
-type TabId = 'centre' | 'payment' | 'team' | 'announce' | 'reports'
+type TabId = 'centre' | 'prices' | 'payment' | 'team' | 'announce' | 'reports'
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'centre', label: 'المركز' }, { id: 'payment', label: 'الدفع' }, { id: 'team', label: 'الفريق' }, { id: 'announce', label: 'إعلان' }, { id: 'reports', label: 'التقارير' },
+  { id: 'centre', label: 'المركز' }, { id: 'prices', label: 'الأسعار' }, { id: 'payment', label: 'الدفع' }, { id: 'team', label: 'الفريق' }, { id: 'announce', label: 'إعلان' }, { id: 'reports', label: 'التقارير' },
 ]
 
 export function Settings() {
@@ -36,11 +37,91 @@ export function Settings() {
       </div>
       <div className="mb"><Tabs tabs={TABS} value={tab} onChange={(id) => navigate(`/team/settings/${id === 'centre' ? '' : id}`)} /></div>
       {tab === 'centre' && <CentreTab settings={view.settings} />}
+      {tab === 'prices' && <PricesTab settings={view.settings} />}
       {tab === 'payment' && <PaymentTab settings={view.settings} />}
       {tab === 'team' && <TeamTab />}
       {tab === 'announce' && <AnnounceTab />}
       {tab === 'reports' && <ReportsTab />}
     </>
+  )
+}
+
+// ---------- الأسعار ----------
+const PRICE_KEYS = ['sub_week_price', 'sub_month_price', 'hall_org_usd_hour', 'hall_gov_hour', 'course_share_percent'] as const
+type PriceKey = typeof PRICE_KEYS[number]
+const priceDraft = (s: SettingsT) => ({
+  subscriptions_enabled: s.subscriptions_enabled ?? true,
+  sub_week_price: String(s.sub_week_price ?? 2500), sub_month_price: String(s.sub_month_price ?? 5000),
+  hall_org_usd_hour: String(s.hall_org_usd_hour ?? 10), hall_gov_hour: String(s.hall_gov_hour ?? 1000),
+  course_share_percent: String(s.course_share_percent ?? 40),
+})
+
+/** The price list (shared/pricing.ts). Room prices (private rooms; the open space per seat) stay on each room in «القاعات». */
+function PricesTab({ settings }: { settings: SettingsT }) {
+  const toast = useToast()
+  const { sync, view } = useStore()
+  const [d, setD] = useState(() => priceDraft(settings))
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  useLiveForm(priceDraft(settings), 'prices', () => d, setD)
+  const set = <K extends keyof typeof d>(k: K, v: (typeof d)[K]) => setD((x) => ({ ...x, [k]: v }))
+  const desk = view.rooms.find((r) => r.type === 'desk' && r.active)
+  const privates = view.rooms.filter((r) => r.type === 'private' && r.active)
+
+  async function save() {
+    const e: Record<string, string> = {}
+    const nums: Partial<Record<PriceKey, number>> = {}
+    for (const k of PRICE_KEYS) {
+      const n = parseInt10(d[k])
+      if (n === null || n < 0 || (k === 'course_share_percent' && n > 100)) e[k] = k === 'course_share_percent' ? 'بين 0 و100' : 'رقم صحيح'
+      else nums[k] = n
+    }
+    setErrors(e)
+    if (Object.keys(e).length) return
+    const patch: Partial<SettingsT> = {}
+    if (d.subscriptions_enabled !== (settings.subscriptions_enabled ?? true)) patch.subscriptions_enabled = d.subscriptions_enabled
+    for (const k of PRICE_KEYS) if (nums[k] !== settings[k]) (patch as Record<string, unknown>)[k] = nums[k]
+    if (Object.keys(patch).length === 0) { toast.show('لا تغييرات', 'info'); return }
+    try {
+      await store.patchSettings(patch, 'تعديل الأسعار')
+      toast.show(sync.online ? 'تم الحفظ' : 'حُفظ على الجهاز — سيُرسَل عند الاتصال', 'ok')
+    } catch (err) { toast.show(describeError(err), 'error') }
+  }
+
+  const num = (k: PriceKey, label: string, hint?: string) => (
+    <Field label={label} hint={hint} error={errors[k]}><Input dir="ltr" inputMode="numeric" value={d[k]} onChange={(ev) => set(k, ev.target.value)} /></Field>
+  )
+  return (
+    <div className="settings-grid">
+      <Card>
+        <div className="card-title">الاشتراكات (المساحة المفتوحة)</div>
+        <div className="opt-row"><div>
+          <Toggle label="الاشتراك الأسبوعي والشهري متاح أونلاين" checked={d.subscriptions_enabled} onChange={(v) => set('subscriptions_enabled', v)} />
+          <p className="opt-help">مقعد للشخص بالمساحة المفتوحة كل يوم طول الدوام. الأسعار بالليرة السورية الجديدة.</p>
+        </div></div>
+        <div className="two">
+          {num('sub_week_price', 'الأسبوعي (7 أيام)')}
+          {num('sub_month_price', 'الشهري (30 يوم)')}
+        </div>
+      </Card>
+      <Card>
+        <div className="card-title">القاعة التدريبية (بالساعة)</div>
+        <div className="two">
+          {num('hall_org_usd_hour', 'الجهات الخاصة والمنظمات ($)', 'بالدولار')}
+          {num('hall_gov_hour', 'الجهات الحكومية (ل.س)', 'بالليرة الجديدة')}
+        </div>
+        {num('course_share_percent', 'الكورسات الشخصية (% من قيمة الكورس)', 'بالاتفاق مع المركز — ما بتنحجز أونلاين، الزبون بيراسلكم')}
+      </Card>
+      <Card>
+        <div className="card-title">أسعار الغرف والمقاعد</div>
+        <p className="muted small">من قسم «القاعات» لكل غرفة:</p>
+        <ul className="muted small" style={{ margin: '8px 0 0', paddingInlineStart: 18 }}>
+          {desk && <li>{desk.name}: <b>{fmtMoney(desk.price_hour)}</b> للشخص بالساعة ({desk.capacity} مقاعد)</li>}
+          {privates.map((r) => <li key={r.id}>{r.name}: <b>{fmtMoney(r.price_hour)}</b> للغرفة بالساعة</li>)}
+        </ul>
+        <Link to="/team/rooms" className="btn btn-soft mt">تعديل أسعار الغرف</Link>
+      </Card>
+      <Button block size="lg" onClick={save}>حفظ الأسعار</Button>
+    </div>
   )
 }
 
@@ -474,7 +555,7 @@ function AnnounceTab() {
 }
 
 // ---------- التقارير ----------
-interface Report { bookings: Booking[]; revenue: number; hours_by_room: Record<string, number> }
+interface Report { bookings: Booking[]; revenue: number; revenue_usd?: number; hours_by_room: Record<string, number> }
 
 function ReportsTab() {
   const today = todayLocal()
@@ -527,7 +608,7 @@ function ReportsTab() {
       {report && (
         <>
           <div className="report-kpis">
-            <div className="stat"><b className="money" style={{ fontSize: '1.1rem' }}>{fmtSYP(report.revenue)}</b><span>الإيراد (المؤكد والمنتهي)</span></div>
+            <div className="stat"><b className="money" style={{ fontSize: '1.1rem' }}>{fmtSYP(report.revenue)}{report.revenue_usd ? ` + ${fmtMoney(report.revenue_usd, 'USD')}` : ''}</b><span>الإيراد (المؤكد والمنتهي)</span></div>
             <div className="stat"><b>{paid}</b><span>حجوزات مدفوعة من {report.bookings.length}</span></div>
           </div>
           <div className="row between mb-sm"><span className="strong">الساعات حسب القاعة</span><span className="muted small">{Math.round(totalHours)} ساعة</span></div>

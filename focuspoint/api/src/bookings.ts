@@ -1,7 +1,8 @@
 // Pure booking rules — no I/O, unit-tested in test/bookings.test.ts.
 // Slot validation against the centre's hours, pricing, overlap detection, booking codes and the status machine.
 import type { Booking, BookingStatus, Settings } from '../../shared/types'
-import { addDays, localParts, timeToMinutes } from './tz'
+import { SUB_DAYS } from '../../shared/pricing'
+import { addDays, localParts, localToUtc, timeToMinutes } from './tz'
 
 export type SlotSettings = Pick<Settings, 'timezone' | 'open' | 'close' | 'slot_minutes' | 'min_minutes' | 'max_minutes'>
 
@@ -60,7 +61,18 @@ export function reminderWindow(now: Date, reminderMinutes: number): { from: stri
   return { from: at(reminderMinutes - REMINDER_WINDOW_MINUTES), to: at(reminderMinutes + REMINDER_WINDOW_MINUTES) }
 }
 
-/** Price in Syrian pounds: hours × price_hour (half hours allowed); a full day (≥ 8h) takes the cheaper of price_day and hourly. */
+/**
+ * A subscription's window: from the first day's opening to the last day's closing (7 or 30 local days).
+ * The seat counts as taken across the whole window (shared/pricing.ts peakUnits).
+ */
+export function subscriptionWindow(date: string, kind: 'week' | 'month', s: Pick<Settings, 'timezone' | 'open' | 'close'>): { start: string; end: string } {
+  return {
+    start: localToUtc(date, s.open, s.timezone).toISOString(),
+    end: localToUtc(addDays(date, SUB_DAYS[kind] - 1), s.close, s.timezone).toISOString(),
+  }
+}
+
+/** Legacy hourly price of a whole room (kept for tests; shared/pricing.ts quote() is the rule): hours × price_hour (half hours allowed); a full day (≥ 8h) takes the cheaper of price_day and hourly. */
 export function price(minutes: number, room: { price_hour: number; price_day: number | null }): number {
   const hourly = Math.round((minutes / 60) * room.price_hour)
   if (room.price_day !== null && room.price_day !== undefined && minutes >= 8 * 60) return Math.min(room.price_day, hourly)

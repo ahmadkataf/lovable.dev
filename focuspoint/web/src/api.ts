@@ -66,7 +66,7 @@ export const api = {
 
 /** Arabic text for the server's error codes the customer app can hit. */
 const CODES: Record<string, string> = {
-  slot_taken: 'هذا الوقت صار محجوزاً، اختر وقتاً آخر',
+  slot_taken: 'هذا الوقت صار محجوزاً (أو المقاعد امتلأت)، اختر وقتاً آخر',
   hold_expired: 'انتهت مهلة الحجز — احجز من جديد',
   ref_used: 'رقم العملية هذا مسجّل على حجز آخر — تأكد من الرقم كما يظهر في شام كاش',
   invalid_ref: 'رقم العملية غير صحيح — أدخله كما يظهر في تطبيق شام كاش',
@@ -89,6 +89,12 @@ const CODES: Record<string, string> = {
   account_disabled: 'هذا الحساب معطّل — راجع المدير',
   too_many_pending: 'عندك حجوزات بانتظار الدفع — أكملها أو ألغِ واحداً منها أولاً',
   too_many_people: 'عدد الأشخاص أكبر من سعة الغرفة',
+  tier_required: 'اختر نوع الجهة (خاصة/منظمة أو حكومية)',
+  invalid_tier: 'نوع الجهة غير صحيح',
+  subscriptions_closed: 'الاشتراكات متوقفة حالياً — احجز بالساعة أو تواصل معنا',
+  not_subscribable: 'الاشتراك متاح للمساحة المفتوحة فقط',
+  invalid_seats: 'عدد المقاعد غير صحيح',
+  invalid_date: 'التاريخ غير صحيح',
   booking_closed: 'الحجز أونلاين متوقف حالياً — تواصل مع المركز عبر واتساب أو الهاتف',
   shamcash_disabled: 'الدفع عبر شام كاش غير متاح حالياً — اختر الدفع عند الوصول',
   too_far_ahead: 'لا يمكن الحجز لهذا اليوم بعد — اختر يوماً أقرب',

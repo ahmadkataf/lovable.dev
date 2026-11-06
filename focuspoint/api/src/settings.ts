@@ -48,6 +48,13 @@ export const DEFAULT_SETTINGS: StoredSettings = {
   reminder_minutes: 60,              // the cron reminded 55–65 minutes before the start
   max_open_holds_per_phone: 3,
   customer_can_cancel: true,
+  // the centre's price list (new Syrian pounds; the hall for organisations in US dollars) — shared/pricing.ts
+  subscriptions_enabled: true,
+  sub_week_price: 2500,
+  sub_month_price: 5000,
+  hall_org_usd_hour: 10,
+  hall_gov_hour: 1000,
+  course_share_percent: 40,
   plan: DEFAULT_PLAN,
 }
 
@@ -76,10 +83,12 @@ export async function loadSettings(db: D1Database, env: Env): Promise<Settings> 
 
 export function publicSettings(s: Settings): PublicSettings {
   const { centre_name, phone, address, instagram, timezone, open, close, slot_minutes, min_minutes, max_minutes, hold_minutes, allow_pay_on_arrival, plan, vapid_public_key,
-    booking_enabled, booking_closed_message, shamcash_enabled, booking_horizon_days, reminder_minutes, max_open_holds_per_phone, customer_can_cancel } = s
+    booking_enabled, booking_closed_message, shamcash_enabled, booking_horizon_days, reminder_minutes, max_open_holds_per_phone, customer_can_cancel,
+    subscriptions_enabled, sub_week_price, sub_month_price, hall_org_usd_hour, hall_gov_hour, course_share_percent } = s
   return {
     centre_name, phone, address, instagram, timezone, open, close, slot_minutes, min_minutes, max_minutes, hold_minutes, allow_pay_on_arrival, plan, vapid_public_key,
     booking_enabled, booking_closed_message, shamcash_enabled, booking_horizon_days, reminder_minutes, max_open_holds_per_phone, customer_can_cancel,
+    subscriptions_enabled, sub_week_price, sub_month_price, hall_org_usd_hour, hall_gov_hour, course_share_percent,
   }
 }
 
@@ -141,7 +150,7 @@ export function validateSettingsPatch(body: Record<string, unknown>, current: St
   }
   if ('plan' in body) p.plan = validatePlan(body.plan)
   // booking & payment capabilities
-  const bool = (k: 'booking_enabled' | 'shamcash_enabled' | 'customer_can_cancel', code: string) => {
+  const bool = (k: 'booking_enabled' | 'shamcash_enabled' | 'customer_can_cancel' | 'subscriptions_enabled', code: string) => {
     if (!(k in body)) return
     if (typeof body[k] !== 'boolean') throw new HttpError(400, code)
     p[k] = body[k] as boolean
@@ -149,6 +158,13 @@ export function validateSettingsPatch(body: Record<string, unknown>, current: St
   bool('booking_enabled', 'invalid_booking_enabled')
   bool('shamcash_enabled', 'invalid_shamcash_enabled')
   bool('customer_can_cancel', 'invalid_customer_can_cancel')
+  bool('subscriptions_enabled', 'invalid_subscriptions_enabled')
+  // prices
+  if ('sub_week_price' in body) p.sub_week_price = requireInt(body.sub_week_price, 'invalid_price', 0, 100_000_000)
+  if ('sub_month_price' in body) p.sub_month_price = requireInt(body.sub_month_price, 'invalid_price', 0, 100_000_000)
+  if ('hall_org_usd_hour' in body) p.hall_org_usd_hour = requireInt(body.hall_org_usd_hour, 'invalid_price', 0, 100_000)
+  if ('hall_gov_hour' in body) p.hall_gov_hour = requireInt(body.hall_gov_hour, 'invalid_price', 0, 100_000_000)
+  if ('course_share_percent' in body) p.course_share_percent = requireInt(body.course_share_percent, 'invalid_percent', 0, 100)
   if ('booking_closed_message' in body) p.booking_closed_message = requireString(body.booking_closed_message, 'invalid_closed_message', 0, LIMITS.booking_closed_message)
   if ('booking_horizon_days' in body) p.booking_horizon_days = requireInt(body.booking_horizon_days, 'invalid_horizon', LIMITS.booking_horizon_days.min, LIMITS.booking_horizon_days.max)
   if ('reminder_minutes' in body) {

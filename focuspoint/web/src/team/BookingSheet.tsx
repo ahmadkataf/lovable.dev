@@ -1,8 +1,10 @@
 // One booking: details, contact links, and every team action (confirm / reject / cancel / edit) — all through the store.
 import { useEffect, useMemo, useState } from 'react'
 import type { Booking } from '@shared/types'
-import { addMinutes, durationLabel, fmtDate, fmtRange, fmtSYP, fromLocal, statusLabel, toLocalParts } from '../format'
-import { Badge, Button, Field, Icon, Input, Select, Sheet, Textarea, useToast } from '../ui'
+import { addMinutes, durationLabel, fmtDate, fmtRange, fromLocal, statusLabel, toLocalParts } from '../format'
+import { fmtMoney, isSeats } from '@shared/pricing'
+import { KIND_LABEL, TIER_LABEL } from '../lib/booking'
+import { Badge, Button, Field, Icon, Input, Select, Sheet, Stepper, Textarea, useToast } from '../ui'
 import { Confirm } from './common'
 import { store, useRooms, useSettings } from './store'
 import { describeError, durationOptions, findConflict, isTemp, METHOD, minutesBetween, parseInt10, priceFor, startOptions, telHref, whatsappHref } from './util'
@@ -40,9 +42,17 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
           </div>
           <dl className="detail-grid">
             <div><dt>القاعة</dt><dd>{b.room_name ?? '—'}</dd></div>
-            <div><dt>الوقت</dt><dd><span className="num">{fmtRange(b.start, b.end)}</span></dd></div>
-            <div><dt>المدة</dt><dd>{durationLabel(minutesBetween(b.start, b.end))}</dd></div>
-            <div><dt>المبلغ</dt><dd>{fmtSYP(b.price)} <span className="muted tiny">· {METHOD[b.method]}</span></dd></div>
+            {b.kind && b.kind !== 'hourly' ? (
+              <div className="span2"><dt>{KIND_LABEL[b.kind]}</dt><dd>من {fmtDate(b.start)} إلى {fmtDate(b.end)} · كل يوم طول الدوام</dd></div>
+            ) : (
+              <>
+                <div><dt>الوقت</dt><dd><span className="num">{fmtRange(b.start, b.end)}</span></dd></div>
+                <div><dt>المدة</dt><dd>{durationLabel(minutesBetween(b.start, b.end))}</dd></div>
+              </>
+            )}
+            <div><dt>المبلغ</dt><dd>{fmtMoney(b.price, b.currency ?? 'SYP')} <span className="muted tiny">· {METHOD[b.method]}</span></dd></div>
+            {b.tier && <div><dt>الجهة</dt><dd>{TIER_LABEL[b.tier]}</dd></div>}
+            {(b.seats ?? 1) > 1 && <div><dt>المقاعد</dt><dd>{b.seats}</dd></div>}
             <div><dt>رمز الحجز</dt><dd><span className="num" style={{ letterSpacing: '0.12em', color: 'var(--wine)' }}>{b.code}</span></dd></div>
             <div><dt>الهاتف</dt><dd><span className="num">{b.customer_phone}</span></dd></div>
             {b.payment_ref && <div className="span2"><dt>رقم عملية شام كاش</dt><dd><span className="num">{b.payment_ref}</span></dd></div>}
@@ -122,22 +132,28 @@ function EditForm({ booking, onCancel, onDone }: { booking: Booking; onCancel: (
   const [note, setNote] = useState(booking.note ?? '')
   const [err, setErr] = useState<string | null>(null)
 
+  const [seats, setSeats] = useState(Math.max(1, booking.seats ?? 1))
+  const sub = !!booking.kind && booking.kind !== 'hourly'
   const room = rooms.find((r) => r.id === roomId)
+  const desk = !!room && isSeats(room)
   const starts = settings ? startOptions(settings) : []
   const durations = settings ? durationOptions(settings, time) : []
-  const auto = room ? priceFor(room, minutes) : booking.price
-  useEffect(() => { if (!priceTouched) setPrice(String(auto)) }, [auto, priceTouched])
-  const start = fromLocal(date, time), end = addMinutes(start, minutes)
-  const conflict = useMemo(() => findConflict(bookings, roomId, start, end, booking.id), [bookings, booking.id, roomId, start, end])
+  const currency = booking.currency ?? 'SYP'
+  const auto = room ? priceFor(room, minutes, settings ?? undefined, { seats: desk ? seats : 1, tier: booking.tier, kind: booking.kind }).price : booking.price
+  useEffect(() => { if (!priceTouched && !sub) setPrice(String(auto)) }, [auto, priceTouched, sub])
+  const start = sub ? booking.start : fromLocal(date, time), end = sub ? booking.end : addMinutes(start, minutes)
+  const conflict = useMemo(() => findConflict(bookings, roomId, start, end, booking.id, Date.now(), room ? { room, seats: desk ? seats : 1 } : undefined),
+    [bookings, booking.id, roomId, start, end, room, desk, seats])
 
   async function submit() {
     const p = parseInt10(price)
     if (p === null) { setErr('أدخل السعر'); return }
     if (!room) { setErr('اختر القاعة'); return }
-    if (conflict) { setErr(`يتداخل مع حجز ${conflict.customer_name} (${fmtRange(conflict.start, conflict.end)})`); return }
+    if (conflict) { setErr(desk ? 'المقاعد ممتلئة بهذا الوقت' : `يتداخل مع حجز ${conflict.customer_name} (${fmtRange(conflict.start, conflict.end)})`); return }
     setErr(null)
     try {
-      await store.editBooking(booking, { start, end, room_id: roomId, price: p, note: note.trim() || undefined })
+      await store.editBooking(booking, sub ? { price: p, note: note.trim() || undefined, ...(desk ? { seats: 1 } : {}) }
+        : { start, end, room_id: roomId, price: p, note: note.trim() || undefined, ...(desk ? { seats } : {}) })
       toast.show('تم تعديل الحجز', 'ok')
       onDone()
     } catch (e) { toast.show(describeError(e), 'error') }
@@ -145,12 +161,19 @@ function EditForm({ booking, onCancel, onDone }: { booking: Booking; onCancel: (
 
   return (
     <>
-      <Field label="القاعة">
+      {sub && <div className="alert alert-info">{KIND_LABEL[booking.kind]}: من {fmtDate(booking.start)} إلى {fmtDate(booking.end)}. أيام الاشتراك ما بتتغير — بتقدر تعدّل السعر والملاحظة.</div>}
+      {!sub && <Field label="القاعة">
         <Select value={roomId} onChange={(e) => setRoomId(Number(e.target.value))}>
           {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
         </Select>
-      </Field>
-      <div className="two">
+      </Field>}
+      {!sub && desk && (
+        <div className="field">
+          <span className="field-label">عدد المقاعد</span>
+          <Stepper value={seats} onChange={(n) => { setSeats(n); setPriceTouched(false) }} min={1} max={Math.max(1, room!.capacity)} />
+        </div>
+      )}
+      {!sub && <div className="two">
         <Field label="التاريخ"><Input type="date" dir="ltr" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         <Field label="البداية">
           <Select value={time} onChange={(e) => setTime(e.target.value)}>
@@ -158,22 +181,22 @@ function EditForm({ booking, onCancel, onDone }: { booking: Booking; onCancel: (
             {starts.map((t) => <option key={t} value={t}>{t}</option>)}
           </Select>
         </Field>
-      </div>
+      </div>}
       <div className="two">
-        <Field label="المدة">
+        {!sub && <Field label="المدة">
           <Select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
             {!durations.includes(minutes) && <option value={minutes}>{durationLabel(minutes)}</option>}
             {durations.map((m) => <option key={m} value={m}>{durationLabel(m)}</option>)}
           </Select>
-        </Field>
-        <Field label="السعر (ل.س)" hint={priceTouched && p(price) !== auto ? `المحسوب: ${fmtSYP(auto)}` : undefined}>
+        </Field>}
+        <Field label={currency === 'USD' ? 'السعر (دولار)' : 'السعر (ل.س)'} hint={priceTouched && p(price) !== auto ? `المحسوب: ${fmtMoney(auto, currency)}` : undefined}>
           <Input dir="ltr" inputMode="numeric" value={price} onChange={(e) => { setPrice(e.target.value); setPriceTouched(true) }} />
         </Field>
       </div>
       <Field label="ملاحظة" error={err ?? undefined}>
         <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      {conflict && !err && <div className="alert alert-error mt-sm">يتداخل مع حجز {conflict.customer_name} ({fmtRange(conflict.start, conflict.end)})</div>}
+      {conflict && !err && <div className="alert alert-error mt-sm">{desk ? 'المقاعد ممتلئة بهذا الوقت' : <>يتداخل مع حجز {conflict.customer_name} ({fmtRange(conflict.start, conflict.end)})</>}</div>}
       <div className="sheet-foot">
         <Button variant="ghost" onClick={onCancel}>رجوع</Button>
         <Button onClick={submit}>حفظ التعديل</Button>

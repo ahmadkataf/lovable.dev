@@ -8,7 +8,7 @@ import type { Booking, PublicSettings, Room } from '@shared/types'
 import { api, ApiError, errorCode, errorMessage } from '../api'
 import { cache, useOnline } from '../offline'
 import { useCached, dropMemo } from '../lib/data'
-import { fmtDate, fmtRange, statusLabel } from '../format'
+import { statusLabel } from '../format'
 import { Badge, Button, Card, Icon, Sheet, Spinner, useToast } from '../ui'
 import { BookingSummary } from '../components/BookingSummary'
 import { PaymentPanel } from '../components/PaymentPanel'
@@ -17,7 +17,7 @@ import { downloadIcs } from '../lib/ics'
 import { flag } from '../lib/store'
 import { onPushMessage } from '../lib/push'
 import { setTimeZone } from '../format'
-import { customerCanCancel, isCashAwaiting, isOpen, type BookingFull } from '../lib/booking'
+import { customerCanCancel, isCashAwaiting, isOpen, whenLabel, type BookingFull } from '../lib/booking'
 import { ContentText, hasText, useBookingCopy } from '../components/ContentText'
 
 const POLL_MS = 15_000
@@ -162,7 +162,7 @@ export function BookingPage() {
           <div className="status-hero">
             <span className="status-mark ok"><Icon name="check" size={34} /></span>
             <h2 className="h2"><ContentText text={t('confirmed_title')} vars={vars} /></h2>
-            <p className="muted small mt-sm">{fmtDate(b.start)} · {fmtRange(b.start, b.end)}</p>
+            <p className="muted small mt-sm">{whenLabel(b)}</p>
           </div>
         </Card>
       )}
@@ -196,7 +196,7 @@ export function BookingPage() {
       {showNotify && (isOpen(b) || b.status === 'confirmed') && <NotifyPrompt />}
 
       <Card>
-        <BookingSummary room={room} roomName={b.room_name} start={b.start} end={b.end} minutes={Math.round((new Date(b.end).getTime() - new Date(b.start).getTime()) / 60000)} people={b.people} price={b.price} code={b.code} thumb />
+        <BookingSummary room={room} roomName={b.room_name} start={b.start} end={b.end} minutes={Math.round((new Date(b.end).getTime() - new Date(b.start).getTime()) / 60000)} people={b.people} seats={b.kind === 'hourly' && room?.type === 'desk' ? b.seats : undefined} kind={b.kind ?? 'hourly'} price={b.price} currency={b.currency ?? 'SYP'} code={b.code} thumb />
       </Card>
 
       {b.status === 'confirmed' && (

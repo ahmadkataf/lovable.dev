@@ -1,4 +1,5 @@
 // Notifications: stored in the `notifications` inbox AND pushed (best effort, in ctx.waitUntil).
+import { fmtMoney } from '../../shared/pricing'
 // Team accounts get booking_created / payment_submitted; the customer's device gets the outcome of its booking.
 // Links are absolute, built from env.PUBLIC_URL (no domain is hard-coded anywhere): team → /team/bookings?id=, customer → /b/:id.
 import { DEFAULT_CONTENT, fillTemplate, reminderLabel, type SiteContent } from '../../shared/content'
@@ -68,7 +69,7 @@ export async function announce(env: Env, ctx: ExecutionContext, to: 'customers' 
 // With the default content every title and body is exactly what the hard-coded texts said before the site editor
 // (test/notify.test.ts compares them for every kind). Any content problem falls back to the defaults: a broken
 // template must never stop a booking from being created or confirmed.
-type B = Pick<Booking, 'id' | 'code' | 'customer_name' | 'customer_phone' | 'room_name' | 'start' | 'end' | 'price' | 'method' | 'payment_ref' | 'reject_reason' | 'device_id'>
+type B = Pick<Booking, 'id' | 'code' | 'customer_name' | 'customer_phone' | 'room_name' | 'start' | 'end' | 'price' | 'currency' | 'method' | 'payment_ref' | 'reject_reason' | 'device_id'>
 type Messages = SiteContent['messages']
 
 /** What every message needs besides the booking: the centre's zone and facts, and the templates. */
@@ -89,7 +90,6 @@ export async function messageCtx(db: D1Database, s: Pick<Settings, 'timezone' | 
 export const defaultMessageCtx = (tz: string, phone = '', name = '', reminderMinutes = 60): MessageCtx =>
   ({ tz, phone, name, reminder: reminderLabel(reminderMinutes), messages: DEFAULT_CONTENT.messages })
 
-const syp = (n: number) => `${n.toLocaleString('en-US')} ل.س`
 const room = (b: B) => b.room_name ?? 'الغرفة'
 
 /**
@@ -107,7 +107,7 @@ function dropEmpty(t: string, vars: Record<string, string>): string {
 
 function build(kind: NotificationKind, b: B, ctx: MessageCtx, tpl: { title: string; body: string }): Message {
   const vars: Record<string, string> = {
-    customer_name: b.customer_name, room: room(b), when: formatWhen(b.start, b.end, ctx.tz), price: syp(b.price), code: b.code,
+    customer_name: b.customer_name, room: room(b), when: formatWhen(b.start, b.end, ctx.tz), price: fmtMoney(b.price, b.currency), code: b.code,
     ref: b.payment_ref ?? '', reason: b.reject_reason ?? '', phone: ctx.phone, name: ctx.name, reminder: ctx.reminder,
   }
   const fill = (t: string) => fillTemplate(dropEmpty(t, vars), vars)

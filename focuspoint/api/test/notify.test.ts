@@ -7,7 +7,7 @@ import { defaultMessageCtx, messageCtx, texts, type MessageCtx } from '../src/no
 import { formatWhen } from '../src/tz'
 
 // ---- the texts before the site editor (api/src/notify.ts at a2f5158), unchanged ----
-type B = Pick<Booking, 'id' | 'code' | 'customer_name' | 'customer_phone' | 'room_name' | 'start' | 'end' | 'price' | 'method' | 'payment_ref' | 'reject_reason' | 'device_id'>
+type B = Pick<Booking, 'id' | 'code' | 'customer_name' | 'customer_phone' | 'room_name' | 'start' | 'end' | 'price' | 'currency' | 'method' | 'payment_ref' | 'reject_reason' | 'device_id'>
 const PAY_ON_ARRIVAL = 'دفع عند الوصول'
 const syp = (n: number) => `${n.toLocaleString('en-US')} ل.س`
 const room = (b: B) => b.room_name ?? 'الغرفة'
@@ -45,7 +45,7 @@ const legacy = {
 const TZ = 'Asia/Damascus'
 const base: B = {
   id: 42, code: 'A7K2QZ', customer_name: 'أحمد', customer_phone: '0944123456', room_name: 'قاعة الاجتماعات',
-  start: '2026-10-30T07:00:00.000Z', end: '2026-10-30T09:30:00.000Z', price: 100000, method: 'shamcash',
+  start: '2026-10-30T07:00:00.000Z', end: '2026-10-30T09:30:00.000Z', price: 100000, currency: 'SYP', method: 'shamcash',
   payment_ref: '123456789', reject_reason: 'لم يصل المبلغ', device_id: null,
 }
 // Every branch the old code had: cash / shamcash, a missing reference, no reason, no room name, small and large prices.

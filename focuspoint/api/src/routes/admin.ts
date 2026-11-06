@@ -79,13 +79,15 @@ export const adminRoutes: Route[] = [
       .bind(range.from.toISOString(), range.to.toISOString()).all<BookingRow>()).results
     const bookings = rows.map(toBooking)
     const hours_by_room: Record<string, number> = {}
-    let revenue = 0
+    let revenue = 0, revenue_usd = 0
     for (const b of bookings) {
-      revenue += b.price
+      if (b.currency === 'USD') revenue_usd += b.price
+      else revenue += b.price
+      if (b.kind !== 'hourly') continue           // a subscription's window is days, not hours of use
       const key = b.room_name ?? String(b.room_id)
       hours_by_room[key] = Math.round(((hours_by_room[key] ?? 0) + (Date.parse(b.end) - Date.parse(b.start)) / 3600000) * 10) / 10
     }
-    return json({ bookings, revenue, hours_by_room })
+    return json({ bookings, revenue, revenue_usd, hours_by_room })
   }),
 
   // First admin, once: needs ADMIN_SETUP_KEY and an empty admin table.

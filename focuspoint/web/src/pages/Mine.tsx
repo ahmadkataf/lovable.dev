@@ -5,9 +5,9 @@ import { useNavigate } from 'react-router-dom'
 import type { Booking } from '@shared/types'
 import { api, errorMessage } from '../api'
 import { useCached, dropMemo } from '../lib/data'
-import { fmtDate, fmtRange, normalisePhone, statusLabel } from '../format'
+import { normalisePhone, statusLabel } from '../format'
 import { Badge, Button, Card, Empty, Field, Input, Spinner, Tabs } from '../ui'
-import { isUpcoming } from '../lib/booking'
+import { isUpcoming, whenLabel } from '../lib/booking'
 import { NotifyPrompt } from '../components/NotifyPrompt'
 import { ContentEmpty, useBookingCopy } from '../components/ContentText'
 import { Link } from 'react-router-dom'
@@ -47,7 +47,7 @@ export function Mine() {
             <button key={b.id} type="button" className="booking-row" onClick={() => navigate(`/b/${b.id}`)}>
               <span>
                 <span className="b-room">{b.room_name || 'غرفة'}</span>
-                <div className="b-when">{fmtDate(b.start)} · {fmtRange(b.start, b.end)}</div>
+                <div className="b-when">{whenLabel(b)}</div>
               </span>
               <Badge tone={st.tone}>{st.text}</Badge>
             </button>

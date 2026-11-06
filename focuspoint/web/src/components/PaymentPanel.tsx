@@ -7,7 +7,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { Booking, PaymentInfo } from '@shared/types'
 import { api, errorCode, errorMessage } from '../api'
-import { fmtSYP, fmtTime } from '../format'
+import { fmtTime } from '../format'
+import { fmtMoney } from '@shared/pricing'
 import { Button, Card, Field, Icon, Input, useToast } from '../ui'
 import { ContentText, hasText, useBookingCopy } from './ContentText'
 
@@ -99,7 +100,7 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
           <div className="copy-box">
             <div className="grow">
               <div className="tiny muted">المبلغ</div>
-              <div className="copy-value rtl">{fmtSYP(payment.amount)}</div>
+              <div className="copy-value rtl">{fmtMoney(payment.amount, payment.currency ?? 'SYP')}</div>
             </div>
             <button type="button" className="icon-btn" onClick={() => copyValue(String(payment.amount), 'المبلغ')} aria-label="نسخ المبلغ"><Icon name="copy" /></button>
           </div>

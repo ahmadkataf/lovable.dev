@@ -33,7 +33,7 @@ async function ownedBooking(c: Ctx): Promise<Booking> {
 function paymentInfo(b: Booking, s: Awaited<ReturnType<typeof loadSettings>>): PaymentInfo | null {
   if (b.method !== 'shamcash') return null
   return {
-    method: b.method, amount: b.price, code: b.code, shamcash_number: s.shamcash_number, shamcash_name: s.shamcash_name,
+    method: b.method, amount: b.price, currency: b.currency, code: b.code, shamcash_number: s.shamcash_number, shamcash_name: s.shamcash_name,
     shamcash_qr: s.shamcash_qr, instructions: s.payment_instructions, hold_until: b.hold_until, ref: b.payment_ref,
   }
 }
@@ -61,8 +61,8 @@ export const publicRoutes: Route[] = [
     const { timezone } = await loadSettings(c.env.DB, c.env)
     const { from, to } = localDayRange(date, timezone)
     const rows = (await c.env.DB.prepare(
-      `SELECT b.room_id, b.start, b.end, b.status FROM bookings b WHERE b.start < ? AND b.end > ? AND ${ACTIVE_SQL} ORDER BY b.start`)
-      .bind(to.toISOString(), from.toISOString(), c.now.toISOString()).all<Pick<Booking, 'room_id' | 'start' | 'end' | 'status'>>()).results
+      `SELECT b.room_id, b.start, b.end, b.status, b.seats FROM bookings b WHERE b.start < ? AND b.end > ? AND ${ACTIVE_SQL} ORDER BY b.start`)
+      .bind(to.toISOString(), from.toISOString(), c.now.toISOString()).all<Pick<Booking, 'room_id' | 'start' | 'end' | 'status' | 'seats'>>()).results
     return json(rows)
   }),
 

@@ -160,6 +160,15 @@ async function main() {
   let r = wr(['d1', 'execute', 'focuspoint', '--remote', '--file=./schema.sql', '--yes'])
   if (r.code) die('فشل تطبيق مخطط قاعدة البيانات', r.all)
   ok('المخطط مطبّق')
+  // A database made before the price list (2026-11-06) lacks bookings.seats: add the columns and move to new pounds, once.
+  r = wr(['d1', 'execute', 'focuspoint', '--remote', '--command', "SELECT COUNT(*) AS n FROM pragma_table_info('bookings') WHERE name = 'seats'", '--json', '--yes'])
+  const hasSeats = Number(parseJsonOut(r.out)?.[0]?.results?.[0]?.n ?? NaN)
+  if (r.code || Number.isNaN(hasSeats)) die('تعذّر فحص أعمدة الحجوزات', r.all)
+  if (hasSeats === 0) {
+    r = wr(['d1', 'execute', 'focuspoint', '--remote', '--file=./migrations/0003_pricing.sql', '--yes'])
+    if (r.code) die('فشل تحديث قاعدة البيانات للأسعار الجديدة', r.all)
+    ok('حُدّثت قاعدة البيانات: الأسعار بالليرة الجديدة، المقاعد، الاشتراكات، فئات القاعة')
+  }
   r = wr(['d1', 'execute', 'focuspoint', '--remote', '--command', 'SELECT COUNT(*) AS n FROM rooms', '--json', '--yes'])
   const rooms = Number(parseJsonOut(r.out)?.[0]?.results?.[0]?.n ?? NaN)
   if (r.code || Number.isNaN(rooms)) die('تعذّر فحص جدول القاعات', r.all)

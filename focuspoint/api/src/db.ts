@@ -1,5 +1,5 @@
 // Row ↔ domain mapping for D1 results. JSON columns are parsed here and internal columns are stripped.
-import type { Booking, Photo, Room, RoomContents, PlanRect, User, Role, BookingStatus, PaymentMethod } from '../../shared/types'
+import type { Booking, BookingKind, BookingStatus, Currency, HallTier, PaymentMethod, Photo, PlanRect, Role, Room, RoomContents, User } from '../../shared/types'
 
 export interface UserRow { id: number; phone: string; name: string; role: Role; pass_hash: string; disabled: 0 | 1; created_at: string }
 export interface RoomRow {
@@ -10,7 +10,8 @@ export interface BookingRow {
   id: number; code: string; customer_phone: string; customer_name: string; device_id: string | null; client_id: string | null
   room_id: number; start: string; end: string; status: BookingStatus; price: number; method: PaymentMethod
   payment_ref: string | null; paid_at: string | null; verified_by: number | null; note: string | null; reject_reason: string | null
-  people: number | null; hold_until: string | null; reminded: 0 | 1; created_at: string; updated_at: string; room_name?: string
+  people: number | null; currency: Currency; kind: BookingKind; seats: number; tier: HallTier | null
+  hold_until: string | null; reminded: 0 | 1; created_at: string; updated_at: string; room_name?: string
 }
 
 export const toUser = (r: UserRow): User => ({ id: r.id, phone: r.phone, name: r.name, role: r.role, created_at: r.created_at, disabled: r.disabled })

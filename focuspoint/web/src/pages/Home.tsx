@@ -8,14 +8,16 @@ import { intlPhone, whatsappLink } from '@shared/content'
 import type { PublicSettings, Room } from '@shared/types'
 import { useCached } from '../lib/data'
 import { useOnline } from '../offline'
-import { addDays, addMinutes, fmtClock, fmtSYP, fromLocal, todayLocal } from '../format'
-import { Badge, Card, Icon, Select, Spinner } from '../ui'
+import { addDays, addMinutes, fmtClock, fromLocal, todayLocal } from '../format'
+import { Badge, Card, Icon, Segmented, Select, Spinner } from '../ui'
+import { PriceList } from '../components/PriceList'
+import { fmtMoney } from '@shared/pricing'
 import { PlanView } from '../plan/PlanView'
 import { RoomSheet } from '../components/RoomSheet'
 import { RoomSwatch } from '../components/RoomPhotos'
 import { InstallHint } from '../components/InstallHint'
 import { ContentText, hasText, useBookTitle, useBookingCopy, type Vars } from '../components/ContentText'
-import { blocks, bookingOpen, contentsIcons, defaultPick, durationsFor, firstBookableDate, horizonDays, overlaps, peopleLabel, pickFor, ROOM_TYPE, slotsFor, type Availability, type Pick } from '../lib/booking'
+import { blocks, bookingOpen, contentsIcons, defaultPick, durationsFor, firstBookableDate, horizonDays, KIND_LABEL, overlaps, peopleLabel, pickFor, pricing, ROOM_TYPE, seatsLeft, slotsFor, type Availability, type Pick } from '../lib/booking'
 import { durationLabel } from '../format'
 
 const WD_SHORT = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
@@ -35,6 +37,10 @@ export function BookHome() {
 
   const availQ = useCached<Availability[]>(pick && !closed ? `/v1/availability?date=${pick.date}` : null, { pollMs: 60_000 })
   const [selected, setSelected] = useState<Room | null>(null)
+  // «بالساعة» books a time window; «اشتراك» books an open-space seat for a week or a month from the chosen day.
+  const [mode, setMode] = useState<'hourly' | 'week' | 'month'>('hourly')
+  const subsOn = pricing(settings).subscriptions_enabled && rooms.some((r) => r.type === 'desk')
+  const shown = useMemo(() => (mode === 'hourly' ? rooms : rooms.filter((r) => r.type === 'desk')), [rooms, mode])
 
   // Preselect the room named by ?room=<id> once, then drop the param so closing the sheet does not reopen it.
   const [params, setParams] = useSearchParams()
@@ -54,12 +60,23 @@ export function BookHome() {
     return { start, end: addMinutes(start, pick.minutes) }
   }, [pick])
 
+  // A whole room is busy when any live booking overlaps; the open space only when every seat is taken.
+  const seatsFree = useMemo(() => {
+    const m = new Map<number, number>()
+    if (!range) return m
+    for (const r of rooms) if (r.type === 'desk') m.set(r.id, seatsLeft(r, availQ.data, range.start, range.end))
+    return m
+  }, [rooms, availQ.data, range])
   const busyIds = useMemo(() => {
     const set = new Set<number>()
-    if (!range || !availQ.data) return set
-    for (const a of availQ.data) if (blocks(a) && overlaps(a.start, a.end, range.start, range.end)) set.add(a.room_id)
+    if (mode !== 'hourly' || !range || !availQ.data) return set
+    for (const a of availQ.data) {
+      if (seatsFree.has(a.room_id)) continue
+      if (blocks(a) && overlaps(a.start, a.end, range.start, range.end)) set.add(a.room_id)
+    }
+    for (const [id, n] of seatsFree) if (n <= 0) set.add(id)
     return set
-  }, [availQ.data, range])
+  }, [availQ.data, range, seatsFree, mode])
 
   // "Today" moves at midnight and the next free slot moves every half hour: re-evaluate once a minute.
   const [tick, setTick] = useState(0)
@@ -110,6 +127,22 @@ export function BookHome() {
       {settings && pick && !closed && (
         <>
           <Card>
+            <PriceList settings={settings} rooms={rooms} whatsapp={copy.content.brand.whatsapp || settings.phone} steps
+              onSubscribe={subsOn ? (k) => { setMode(k); setTimeout(() => document.querySelector('.seg-kind')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) } : undefined} />
+          </Card>
+          <Card>
+            {subsOn && (
+              <div className="seg-kind">
+                <Segmented<'hourly' | 'week' | 'month'> value={mode} onChange={setMode}
+                  options={[{ value: 'hourly', label: 'بالساعة' }, { value: 'week', label: 'أسبوعي' }, { value: 'month', label: 'شهري' }]} />
+              </div>
+            )}
+            {mode !== 'hourly' && (
+              <p className="muted small" style={{ marginBottom: 10 }}>
+                {KIND_LABEL[mode]} بـ <b className="money">{fmtMoney(mode === 'week' ? pricing(settings).sub_week_price : pricing(settings).sub_month_price)}</b>:
+                مقعدك بالمساحة المفتوحة كل يوم طول الدوام لمدة {mode === 'week' ? '7 أيام' : '30 يوم'}. اختر يوم البداية:
+              </p>
+            )}
             <div className="chips date-strip" role="radiogroup" aria-label="اليوم">
               {days.map((d, i) => {
                 const [y, m, dd] = d.split('-').map(Number)
@@ -123,7 +156,7 @@ export function BookHome() {
                 )
               })}
             </div>
-            <div className="row gap mt-sm">
+            {mode === 'hourly' && <div className="row gap mt-sm">
               <label className="grow">
                 <span className="sr-only">الوقت</span>
                 <Select value={pick.time} onChange={(e) => setPick({ ...pick, time: e.target.value })} disabled={!slots.length}>
@@ -137,10 +170,10 @@ export function BookHome() {
                   {durations.map((m) => <option key={m} value={m}>{durationLabel(m)}</option>)}
                 </Select>
               </label>
-            </div>
+            </div>}
           </Card>
 
-          {rooms.some((r) => r.plan) && (
+          {mode === 'hourly' && rooms.some((r) => r.plan) && (
             <Card>
               <div className="plan-wrap">
                 <PlanView
@@ -161,8 +194,9 @@ export function BookHome() {
           )}
 
           <div className="room-list">
-            {rooms.map((r) => {
+            {shown.map((r) => {
               const busy = busyIds.has(r.id)
+              const free = seatsFree.get(r.id)
               return (
                 <button key={r.id} type="button" className={`room-card${busy ? ' is-busy' : ''}${selected?.id === r.id ? ' is-selected' : ''}`} onClick={() => setSelected(r)}>
                   <RoomSwatch room={r} />
@@ -175,7 +209,7 @@ export function BookHome() {
                     </span>
                   </span>
                   <span className="room-price">
-                    {busy ? <Badge tone="grey">محجوزة</Badge> : <><b>{fmtSYP(r.price_hour)}</b><span>بالساعة</span></>}
+                    {busy ? <Badge tone="grey">{free !== undefined ? 'ممتلئة' : 'محجوزة'}</Badge> : <RoomPrice room={r} settings={settings} mode={mode} free={free} />}
                   </span>
                 </button>
               )
@@ -187,9 +221,19 @@ export function BookHome() {
         </>
       )}
 
-      <RoomSheet room={closed ? null : selected} pick={pick} busy={!!selected && busyIds.has(selected.id)} offline={offlineData} settings={settings} onClose={() => setSelected(null)} />
+      <RoomSheet room={closed ? null : selected} pick={pick} mode={mode} seatsFree={selected ? seatsFree.get(selected.id) : undefined}
+        busy={!!selected && busyIds.has(selected.id)} offline={offlineData} settings={settings} onClose={() => setSelected(null)} />
     </div>
   )
+}
+
+/** The price under a room card: per seat (open space), per room, by group (training hall), or the subscription. */
+function RoomPrice({ room, settings, mode, free }: { room: Room; settings: PublicSettings; mode: 'hourly' | 'week' | 'month'; free?: number }) {
+  const p = pricing(settings)
+  if (mode !== 'hourly') return <><b>{fmtMoney(mode === 'week' ? p.sub_week_price : p.sub_month_price)}</b><span>{KIND_LABEL[mode]}</span></>
+  if (room.type === 'meeting' || room.type === 'hall') return <><b>{fmtMoney(p.hall_gov_hour)}</b><span>أو {fmtMoney(p.hall_org_usd_hour, 'USD')} بالساعة</span></>
+  if (room.type === 'desk') return <><b>{fmtMoney(room.price_hour)}</b><span>للشخص بالساعة</span>{free !== undefined && <span className="seats-left">باقي {free} {free === 1 ? 'مقعد' : 'مقاعد'}</span>}</>
+  return <><b>{fmtMoney(room.price_hour)}</b><span>للغرفة بالساعة</span></>
 }
 
 /**

@@ -2,14 +2,16 @@
 // Page texts and the group names/blurbs/photos from content.spaces; a room's own photos win over its group photo.
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import type { Room } from '@shared/types'
-import { contentsList, ROOM_TYPE } from '../../lib/booking'
-import { fmtSYP } from '../../format'
+import type { PublicSettings, Room } from '@shared/types'
+import { fmtMoney } from '@shared/pricing'
+import { contentsList, pricing, ROOM_TYPE } from '../../lib/booking'
+import { PriceList } from '../../components/PriceList'
 import { ContentText, hasText, usePhotoChain, useSite } from '../../components/site/siteContent'
 import { capacityLabel, CtaBand, groupRooms, PageHeader, roomPhotos, Section, TileIcon, usePageTitle, useSiteData, type SpaceGroup } from './site'
 import { SiteIcon } from './SiteIcon'
 
-function RoomCard({ room, group }: { room: Room; group: SpaceGroup }) {
+function RoomCard({ room, group, settings }: { room: Room; group: SpaceGroup; settings: PublicSettings | undefined }) {
+  const pr = pricing(settings)
   const items = contentsList(room.contents)
   const { photo, src, onError } = usePhotoChain([roomPhotos(room)[0], group.photo, group.defaultPhoto], true)
   return (
@@ -37,8 +39,22 @@ function RoomCard({ room, group }: { room: Room; group: SpaceGroup }) {
         {room.contents.notes && <p className="fp-muted fp-small">{room.contents.notes}</p>}
         <div className="fp-room-foot">
           <dl className="fp-prices">
-            <div><dt>بالساعة</dt><dd className="money">{fmtSYP(room.price_hour)}</dd></div>
-            {room.price_day != null && room.price_day > 0 && <div><dt>باليوم</dt><dd className="money">{fmtSYP(room.price_day)}</dd></div>}
+            {room.type === 'meeting' || room.type === 'hall' ? (
+              <>
+                <div><dt>جهات خاصة ومنظمات</dt><dd className="money">{fmtMoney(pr.hall_org_usd_hour, 'USD')} / ساعة</dd></div>
+                <div><dt>جهات حكومية</dt><dd className="money">{fmtMoney(pr.hall_gov_hour)} / ساعة</dd></div>
+              </>
+            ) : room.type === 'desk' ? (
+              <>
+                <div><dt>للشخص بالساعة</dt><dd className="money">{fmtMoney(room.price_hour)}</dd></div>
+                {pr.subscriptions_enabled && <div><dt>أسبوعي / شهري</dt><dd className="money">{fmtMoney(pr.sub_week_price)} / {fmtMoney(pr.sub_month_price)}</dd></div>}
+              </>
+            ) : (
+              <>
+                <div><dt>بالساعة</dt><dd className="money">{fmtMoney(room.price_hour)}</dd></div>
+                {room.price_day != null && room.price_day > 0 && <div><dt>باليوم</dt><dd className="money">{fmtMoney(room.price_day)}</dd></div>}
+              </>
+            )}
           </dl>
           <Link to={`/book?room=${room.id}`} className="btn btn-primary fp-btn">احجز هالمساحة <SiteIcon name="arrow" size={18} /></Link>
         </div>
@@ -86,6 +102,12 @@ export function Spaces() {
 
       {data.roomsLoading && <Section><Skeleton /></Section>}
 
+      {!data.roomsLoading && groups.length > 0 && (
+        <Section labelledBy="sp-prices">
+          <div className="fp-card" id="sp-prices"><PriceList settings={data.settings} rooms={data.rooms} whatsapp={c.brand.whatsapp || data.settings?.phone} /></div>
+        </Section>
+      )}
+
       {!data.roomsLoading && groups.length === 0 && (
         <Section>
           <div className="fp-card fp-empty">
@@ -111,7 +133,7 @@ export function Spaces() {
             </div>
           </header>
           <div className={`fp-grid ${gridFor(g.rooms.length)}`}>
-            {g.rooms.map((r) => <RoomCard key={r.id} room={r} group={g} />)}
+            {g.rooms.map((r) => <RoomCard key={r.id} room={r} group={g} settings={data.settings} />)}
           </div>
         </Section>
       ))}

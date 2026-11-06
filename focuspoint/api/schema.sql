@@ -41,6 +41,10 @@ CREATE TABLE IF NOT EXISTS bookings (
   note TEXT,
   reject_reason TEXT,
   people INTEGER,
+  currency TEXT NOT NULL DEFAULT 'SYP' CHECK (currency IN ('SYP','USD')),   -- of price (migration 0003)
+  kind TEXT NOT NULL DEFAULT 'hourly' CHECK (kind IN ('hourly','week','month')),
+  seats INTEGER NOT NULL DEFAULT 1,      -- open-space seats taken (1 for other rooms)
+  tier TEXT CHECK (tier IN ('org','gov')),   -- training hall price group
   hold_until TEXT,
   reminded INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),

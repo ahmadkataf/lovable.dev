@@ -91,8 +91,9 @@ export function applyOp(view: View, op: SyncOp, at: string): View {
       const room = view.rooms.find((r) => r.id === d.room_id)
       const b: Booking = {
         id, code: '· · ·', customer_phone: d.phone, customer_name: d.name, device_id: null,
-        room_id: d.room_id, start: d.start, end: d.end, status: confirmed ? 'confirmed' : 'pending_payment',
-        price: d.price ?? 0, method: d.method, payment_ref: null, paid_at: confirmed ? at : null, verified_by: null,
+        room_id: d.room_id, start: d.start ?? at, end: d.end ?? at, status: confirmed ? 'confirmed' : 'pending_payment',
+        price: d.price ?? 0, method: d.method, currency: d.tier === 'org' ? 'USD' : 'SYP', kind: d.kind ?? 'hourly',
+        seats: d.seats ?? 1, tier: d.tier ?? null, payment_ref: null, paid_at: confirmed ? at : null, verified_by: null,
         note: d.note ?? null, reject_reason: null, people: null, created_at: at, updated_at: at, hold_until: null,
         room_name: room?.name,
       }

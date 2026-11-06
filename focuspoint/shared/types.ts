@@ -15,6 +15,12 @@ export type BookingStatus =
   | 'cancelled'              // by the customer (before confirmation) or by staff
   | 'completed'              // end time passed while confirmed
 export type PaymentMethod = 'shamcash' | 'cash' | 'free'
+/** SYP = new Syrian pounds (all prices except the training hall for private organisations, which is in US dollars). */
+export type Currency = 'SYP' | 'USD'
+/** hourly: a time window on one day. week / month: an open-space seat every day for 7 / 30 days (shared/pricing.ts). */
+export type BookingKind = 'hourly' | 'week' | 'month'
+/** Training hall price group: private organisations & NGOs (USD/hour) or government bodies (SYP/hour). */
+export type HallTier = 'org' | 'gov'
 export type NotificationKind =
   | 'booking_created' | 'payment_submitted' | 'booking_confirmed' | 'booking_rejected'
   | 'booking_cancelled' | 'booking_expired' | 'booking_reminder' | 'announcement'
@@ -42,6 +48,10 @@ export interface Booking {
   device_id: string | null                      // the browser/app that made it (random id kept in the app; it sees "my bookings" and gets push)
   room_id: number; start: string; end: string; status: BookingStatus
   price: number; method: PaymentMethod
+  currency: Currency                            // of price
+  kind: BookingKind                             // week/month: start = first day's opening, end = last day's closing
+  seats: number                                 // open-space seats taken (1 for other rooms)
+  tier: HallTier | null                         // training hall price group
   payment_ref: string | null; paid_at: string | null; verified_by: number | null
   note: string | null; reject_reason: string | null; people: number | null
   created_at: string; updated_at: string; hold_until: string | null
@@ -86,6 +96,14 @@ export interface Settings {
   /** Customers may cancel their own booking while it is not yet confirmed (default true, today's rule). false → the
    *  cancel button is hidden and POST /v1/bookings/:id/cancel from a customer is refused (409 `cancel_not_allowed`). */
   customer_can_cancel: boolean
+  // ---- prices (admin › الإعدادات › الأسعار), new Syrian pounds unless noted. Rooms keep their own price_hour (the open
+  //      space's price_hour is per seat). shared/pricing.ts applies them. ----
+  subscriptions_enabled: boolean                       // weekly/monthly open-space subscriptions can be booked online (default true)
+  sub_week_price: number                               // default 2500
+  sub_month_price: number                              // default 5000
+  hall_org_usd_hour: number                            // training hall, private organisations & NGOs, US dollars per hour (default 10)
+  hall_gov_hour: number                                // training hall, government bodies, per hour (default 1000)
+  course_share_percent: number                         // personal courses: share of the course value, by agreement (default 40)
   plan: Plan
   vapid_public_key: string                             // for push subscriptions
 }
@@ -98,8 +116,9 @@ export interface ApiContract {
   // public (customers; X-Device header)
   'GET /v1/settings': { res: PublicSettings }
   'GET /v1/rooms': { res: Room[] }                                 // active rooms
-  'GET /v1/availability?date=YYYY-MM-DD': { res: { room_id: number; start: string; end: string; status: BookingStatus }[] }  // all rooms, one call
-  'POST /v1/bookings': { req: { room_id: number; start: string; end: string; name: string; phone: string; people?: number; note?: string; method?: 'shamcash' | 'cash' }; res: Booking }  // shamcash (default) → pending_payment + hold; cash (only when settings.allow_pay_on_arrival) → awaiting_verification at once, no hold
+  'GET /v1/availability?date=YYYY-MM-DD': { res: { room_id: number; start: string; end: string; status: BookingStatus; seats: number }[] }  // all rooms, one call
+  'POST /v1/bookings': { req: { room_id: number; start?: string; end?: string; name: string; phone: string; people?: number; note?: string; method?: 'shamcash' | 'cash'
+    seats?: number; tier?: HallTier; kind?: BookingKind; date?: string }; res: Booking }   // kind week/month: send date (YYYY-MM-DD, first day) instead of start/end  // shamcash (default) → pending_payment + hold; cash (only when settings.allow_pay_on_arrival) → awaiting_verification at once, no hold
   'GET /v1/bookings/mine': { res: Booking[] }                      // by X-Device
   'GET /v1/bookings/lookup?code=&phone=': { res: Booking }         // adopt: the server adds the device to this booking
   'GET /v1/bookings/:id': { res: Booking & { payment: PaymentInfo | null } }   // device must own it (or team)
@@ -116,9 +135,10 @@ export interface ApiContract {
   'GET /v1/team/bookings?from=&to=&status=&room_id=&q=': { res: Booking[] }
   'POST /v1/team/bookings/:id/confirm': { res: Booking }           // verifies payment → confirmed (push to the customer device)
   'POST /v1/team/bookings/:id/reject': { req: { reason: string }; res: Booking }
-  'POST /v1/team/bookings/manual': { req: { room_id: number; start: string; end: string; phone: string; name: string; method: PaymentMethod; price?: number; note?: string; client_id?: string }; res: Booking }  // walk-in → confirmed; client_id makes it idempotent (offline queue)
-  'PATCH /v1/team/bookings/:id': { req: { start?: string; end?: string; room_id?: number; note?: string; price?: number }; res: Booking }   // move/edit (checks overlap)
-  'GET /v1/team/dashboard?date=': { res: { today: Booking[]; pending: Booking[]; counts: { today: number; week: number; pending: number }; revenue_month: number } }
+  'POST /v1/team/bookings/manual': { req: { room_id: number; start?: string; end?: string; phone: string; name: string; method: PaymentMethod; price?: number; note?: string; client_id?: string
+    seats?: number; tier?: HallTier; kind?: BookingKind; date?: string }; res: Booking }  // walk-in → confirmed; client_id makes it idempotent (offline queue)
+  'PATCH /v1/team/bookings/:id': { req: { start?: string; end?: string; room_id?: number; note?: string; price?: number; seats?: number }; res: Booking }   // move/edit (checks overlap)
+  'GET /v1/team/dashboard?date=': { res: { today: Booking[]; pending: Booking[]; counts: { today: number; week: number; pending: number }; revenue_month: number; revenue_month_usd: number } }
   'GET /v1/team/customers?q=': { res: Customer[] }
   'POST /v1/team/customers/:phone/block': { req: { blocked: 0 | 1 }; res: Customer }
   // offline sync (team app): everything changed since a cursor, so the panel works offline and catches up
@@ -135,7 +155,7 @@ export interface ApiContract {
   'POST /v1/admin/team': { req: { phone: string; name: string; password: string; role: Role }; res: User }
   'PATCH /v1/admin/team/:id': { req: { role?: Role; disabled?: 0 | 1; name?: string; password?: string }; res: User }
   'POST /v1/admin/announce': { req: { title: string; body: string; to: 'customers' | 'team' }; res: { sent: number } }
-  'GET /v1/admin/report?from=&to=': { res: { bookings: Booking[]; revenue: number; hours_by_room: Record<string, number> } }
+  'GET /v1/admin/report?from=&to=': { res: { bookings: Booking[]; revenue: number; revenue_usd: number; hours_by_room: Record<string, number> } }
   'POST /v1/admin/bootstrap': { req: { setup_key: string; phone: string; name: string; password: string }; res: { token: string; user: User } }  // first admin only
   // site content (see ./content): defaults ⊕ the sections the admin saved
   'GET /v1/content': { res: ContentResponse }                       // public; Cache-Control: no-cache + ETag (304 on If-None-Match)
@@ -154,7 +174,8 @@ export interface ApiContract {
   'POST /v1/payments/shamcash/webhook': { req: { ref: string; amount: number; sender?: string; note?: string }; res: { matched: boolean } }  // X-Webhook-Secret header
 }
 export type PublicSettings = Pick<Settings, 'centre_name' | 'phone' | 'address' | 'instagram' | 'timezone' | 'open' | 'close' | 'slot_minutes' | 'min_minutes' | 'max_minutes' | 'hold_minutes' | 'allow_pay_on_arrival' | 'plan' | 'vapid_public_key'
-  | 'booking_enabled' | 'booking_closed_message' | 'shamcash_enabled' | 'booking_horizon_days' | 'reminder_minutes' | 'max_open_holds_per_phone' | 'customer_can_cancel'>
+  | 'booking_enabled' | 'booking_closed_message' | 'shamcash_enabled' | 'booking_horizon_days' | 'reminder_minutes' | 'max_open_holds_per_phone' | 'customer_can_cancel'
+  | 'subscriptions_enabled' | 'sub_week_price' | 'sub_month_price' | 'hall_org_usd_hour' | 'hall_gov_hour' | 'course_share_percent'>
 export interface ContentResponse { content: SiteContent; updated_at: string | null }   // updated_at null = nothing saved yet
 export interface AdminContentResponse extends ContentResponse { overridden: SectionId[] }   // the sections the admin saved
 export interface ContentSectionResponse {
@@ -192,6 +213,6 @@ export type SyncOp =
   | { client_id: string; at: string; op: 'settings_patch'; data: Partial<Settings> }
 export interface SyncResult { client_id: string; ok: boolean; error?: string; booking?: Booking; room?: Room }
 export interface PaymentInfo {
-  method: PaymentMethod; amount: number; code: string; shamcash_number: string; shamcash_name: string
+  method: PaymentMethod; amount: number; currency: Currency; code: string; shamcash_number: string; shamcash_name: string
   shamcash_qr: string | null; instructions: string; hold_until: string | null; ref: string | null
 }

@@ -148,12 +148,13 @@ export const teamRoutes: Route[] = [
       db.prepare(`${BOOKING_SELECT} WHERE b.start < ? AND b.end > ? AND b.status NOT IN ${DEAD} ORDER BY b.start`).bind(day.to.toISOString(), day.from.toISOString()).all<BookingRow>(),
       db.prepare(`${BOOKING_SELECT} WHERE b.status = 'awaiting_verification' AND b.end > ? ORDER BY b.paid_at, b.id`).bind(c.now.toISOString()).all<BookingRow>(),   // past ones are closed by the cron
       db.prepare(`SELECT COUNT(*) AS n FROM bookings b WHERE b.start >= ? AND b.start < ? AND b.status NOT IN ${DEAD}`).bind(day.from.toISOString(), weekEnd.toISOString()).first<{ n: number }>(),
-      db.prepare(`SELECT COALESCE(SUM(price), 0) AS total FROM bookings WHERE start >= ? AND start < ? AND status IN ('confirmed','completed')`).bind(monthStart.toISOString(), monthEnd.toISOString()).first<{ total: number }>(),
+      db.prepare(`SELECT COALESCE(SUM(CASE WHEN currency = 'USD' THEN 0 ELSE price END), 0) AS total, COALESCE(SUM(CASE WHEN currency = 'USD' THEN price ELSE 0 END), 0) AS usd
+        FROM bookings WHERE start >= ? AND start < ? AND status IN ('confirmed','completed')`).bind(monthStart.toISOString(), monthEnd.toISOString()).first<{ total: number; usd: number }>(),
     ])
     return json({
       today: today.results.map(toBooking), pending: pending.results.map(toBooking),
       counts: { today: today.results.length, week: week?.n ?? 0, pending: pending.results.length },
-      revenue_month: revenue?.total ?? 0,
+      revenue_month: revenue?.total ?? 0, revenue_month_usd: revenue?.usd ?? 0,
     })
   }),
 

@@ -55,8 +55,8 @@ export function Rooms() {
                   </div>
                 </div>
                 <div className="rcard-meta">
-                  <span className="rcard-price">{fmtSYP(room.price_hour)} / ساعة</span>
-                  {room.price_day !== null && <span>{fmtSYP(room.price_day)} / يوم</span>}
+                  <span className="rcard-price">{room.type === 'meeting' || room.type === 'hall' ? 'حسب الجهة (الإعدادات › الأسعار)' : `${fmtSYP(room.price_hour)} / ${room.type === 'desk' ? 'للشخص بالساعة' : 'ساعة'}`}</span>
+                  {room.price_day !== null && room.type === 'private' && <span>{fmtSYP(room.price_day)} / يوم</span>}
                   {room.photos?.length > 0 && <span className="row gap-sm"><Icon name="image" size={16} /> {room.photos.length === 1 ? 'صورة' : `${room.photos.length} صور`}</span>}
                 </div>
                 <div className="rcard-icons" aria-label="المحتويات">
@@ -161,7 +161,7 @@ function RoomSheet({ room, onClose }: { room: Room | 'new' | null; onClose: () =
         <Field label="السعة (أشخاص)"><Stepper value={d.capacity} min={1} max={500} onChange={(v) => set('capacity', v)} /></Field>
       </div>
       <div className="two">
-        <Field label="سعر الساعة (ل.س)" error={errors.price_hour}><Input dir="ltr" inputMode="numeric" value={d.price_hour} onChange={(e) => set('price_hour', e.target.value)} /></Field>
+        <Field label={d.type === 'desk' ? 'سعر الساعة للشخص (ل.س)' : d.type === 'meeting' || d.type === 'hall' ? 'سعر الساعة (للفريق فقط — الزبائن حسب الجهة من الإعدادات)' : 'سعر الساعة للغرفة (ل.س)'} error={errors.price_hour}><Input dir="ltr" inputMode="numeric" value={d.price_hour} onChange={(e) => set('price_hour', e.target.value)} /></Field>
         <Field label="سعر اليوم (اختياري)" error={errors.price_day} hint="يُطبّق من 8 ساعات"><Input dir="ltr" inputMode="numeric" value={d.price_day} onChange={(e) => set('price_day', e.target.value)} /></Field>
       </div>
       <Card className="mt" padded>

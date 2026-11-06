@@ -1,7 +1,9 @@
 // /team — اليوم: pending payment verifications first, three small counters, then today's timeline per room.
 import { useEffect, useMemo, useState } from 'react'
 import type { Booking } from '@shared/types'
-import { fmtDate, fmtRange, fmtSYP, fmtTime, todayLocal } from '../format'
+import { fmtMoney } from '@shared/pricing'
+import { fmtDate, fmtRange, fmtSYP, fmtTime, todayLocal, toLocalParts } from '../format'
+import { KIND_LABEL } from '../lib/booking'
 import { Badge, Button, Card, Empty, Icon, Sheet, Spinner, useToast } from '../ui'
 import { BookingSheet } from './BookingSheet'
 import { ManualBookingSheet } from './ManualBookingSheet'
@@ -33,7 +35,10 @@ export function Today() {
   const pending = useMemo(() => view.bookings.filter((b) => isPendingVerification(b, now)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)), [view.bookings, now])
   const todays = useMemo(() => view.bookings.filter((b) => localDate(b.start) === today).sort(sortByStart), [view.bookings, today])
   const liveToday = useMemo(() => todays.filter((b) => isBlocking(b, now) || b.status === 'completed'), [todays, now])
-  const revenue = useMemo(() => todays.filter((b) => b.status === 'confirmed' || b.status === 'completed').reduce((s, b) => s + b.price, 0), [todays])
+  // Pounds and dollars (the training hall for organisations) are totalled apart; a subscription counts on its first day.
+  const paidToday = useMemo(() => todays.filter((b) => (b.status === 'confirmed' || b.status === 'completed') && (!b.kind || b.kind === 'hourly' || toLocalParts(b.start).date === todayLocal())), [todays])
+  const revenue = useMemo(() => paidToday.filter((b) => b.currency !== 'USD').reduce((s, b) => s + b.price, 0), [paidToday])
+  const revenueUsd = useMemo(() => paidToday.filter((b) => b.currency === 'USD').reduce((s, b) => s + b.price, 0), [paidToday])
   // Keep the sheet's booking in sync with the store (status changes after confirm, etc.).
   const current = selected ? view.bookings.find((b) => b.id === selected.id) ?? null : null
 
@@ -67,8 +72,8 @@ export function Today() {
                     <span className="muted small">{fmtTime(b.updated_at)}</span>
                   </div>
                   <dl className="verify-grid">
-                    <div><dt>القاعة والوقت</dt><dd>{b.room_name} · {fmtDate(b.start)} · <span className="num">{fmtRange(b.start, b.end)}</span></dd></div>
-                    <div><dt>المبلغ</dt><dd>{fmtSYP(b.price)}{cash && <span className="muted tiny"> · عند الوصول</span>}</dd></div>
+                    <div><dt>القاعة والوقت</dt><dd>{b.room_name} · {b.kind && b.kind !== 'hourly' ? `${KIND_LABEL[b.kind]} من ${fmtDate(b.start)} إلى ${fmtDate(b.end)}` : <>{fmtDate(b.start)} · <span className="num">{fmtRange(b.start, b.end)}</span></>}</dd></div>
+                    <div><dt>المبلغ</dt><dd>{fmtMoney(b.price, b.currency ?? 'SYP')}{cash && <span className="muted tiny"> · عند الوصول</span>}</dd></div>
                     <div><dt>{cash ? 'رمز الحجز' : 'رمز الحجز (في ملاحظة التحويل)'}</dt><dd><span className="code num">{b.code}</span></dd></div>
                     {cash
                       ? <div><dt>طريقة الدفع</dt><dd>الدفع عند الوصول — يؤكد الفريق الحجز</dd></div>
@@ -88,7 +93,7 @@ export function Today() {
       <div className="stats mt">
         <div className="stat"><b>{liveToday.length}</b><span>حجوزات اليوم</span></div>
         <div className="stat"><b>{pending.length}</b><span>بانتظار التحقق</span></div>
-        <div className="stat"><b className="money" style={{ fontSize: '1.05rem' }}>{fmtSYP(revenue)}</b><span>إيراد اليوم</span></div>
+        <div className="stat"><b className="money" style={{ fontSize: '1.05rem' }}>{fmtSYP(revenue)}{revenueUsd ? ` + ${fmtMoney(revenueUsd, 'USD')}` : ''}</b><span>إيراد اليوم</span></div>
       </div>
 
       <PushCard />

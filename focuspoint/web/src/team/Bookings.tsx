@@ -2,7 +2,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Booking, BookingStatus } from '@shared/types'
-import { addDays, dayLabel, fmtRange, fmtSYP, fmtTime, normalisePhone, statusLabel, todayLocal, toLocalParts } from '../format'
+import { fmtMoney } from '@shared/pricing'
+import { KIND_LABEL } from '../lib/booking'
+import { addDays, dayLabel, fmtRange, fmtTime, normalisePhone, statusLabel, todayLocal, toLocalParts } from '../format'
 import { Badge, Button, Card, Empty, Icon, Input, Segmented, Select, Spinner } from '../ui'
 import { BookingSheet } from './BookingSheet'
 import { ManualBookingSheet, type ManualPreset } from './ManualBookingSheet'
@@ -200,9 +202,9 @@ function ListView({ onPick }: { onPick: (b: Booking) => void }) {
                 <span className="bar" style={{ background: roomColor(view.rooms.find((r) => r.id === b.room_id)?.color) }} />
                 <span>
                   <span className="t">{b.customer_name} <span className="muted small num">· {b.customer_phone}</span></span>
-                  <span className="s" style={{ display: 'block' }}>{b.room_name} · {dayLabel(localDate(b.start))} · <span className="num">{fmtRange(b.start, b.end)}</span></span>
+                  <span className="s" style={{ display: 'block' }}>{b.room_name} · {b.kind && b.kind !== 'hourly' ? `${KIND_LABEL[b.kind]} حتى ${dayLabel(localDate(b.end))}` : <>{dayLabel(localDate(b.start))} · <span className="num">{fmtRange(b.start, b.end)}</span></>}</span>
                 </span>
-                <span className="e"><b>{fmtSYP(b.price)}</b><Badge tone={st.tone}>{st.text}</Badge></span>
+                <span className="e"><b>{fmtMoney(b.price, b.currency ?? 'SYP')}</b><Badge tone={st.tone}>{st.text}</Badge></span>
               </button>
             )
           })}

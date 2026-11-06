@@ -16,5 +16,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts", "../shared/types.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts", "../shared/types.ts", "../shared/pricing.ts"]
 }

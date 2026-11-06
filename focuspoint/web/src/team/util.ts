@@ -1,5 +1,6 @@
 // Small helpers for the team panel: ids, Arabic error text, prices, labels, links, CSV.
-import type { Booking, BookingStatus, PaymentMethod, Room, RoomContents, RoomType, Settings } from '@shared/types'
+import type { Booking, BookingKind, BookingStatus, Currency, HallTier, PaymentMethod, Room, RoomContents, RoomType, Settings } from '@shared/types'
+import { capacityUnits, isSeats, peakUnits, quote, unitsOf } from '@shared/pricing'
 import { ApiError } from '../api'
 import { normalisePhone, toLocalParts } from '../format'
 import type { IconName } from '../ui'
@@ -88,6 +89,14 @@ const ERRORS: Record<string, string> = {
   invalid_shamcash_name: 'اسم صاحب المحفظة حتى 60 حرفاً',
   booking_closed: 'الحجز أونلاين متوقف حالياً',
   shamcash_disabled: 'الدفع بشام كاش متوقف حالياً',
+  tier_required: 'اختر نوع الجهة للقاعة التدريبية',
+  invalid_tier: 'نوع الجهة غير صحيح',
+  not_subscribable: 'الاشتراك للمساحة المفتوحة فقط، وأيامه ما بتتغير',
+  subscriptions_closed: 'الاشتراكات متوقفة حالياً',
+  invalid_seats: 'عدد المقاعد غير صحيح',
+  invalid_kind: 'نوع الحجز غير صحيح',
+  too_many_people: 'العدد أكبر من سعة المكان',
+  invalid_percent: 'النسبة بين 0 و100',
 }
 
 /** Arabic text for any error (ApiError, server code string, or unknown). */
@@ -125,9 +134,19 @@ export function isBlocking(b: Pick<Booking, 'status' | 'hold_until'>, now = Date
   if (b.status === 'pending_payment') return b.hold_until !== null && Date.parse(b.hold_until) > now
   return false
 }
-/** Conflicting live booking of the same room over [start, end), excluding `selfId`. */
-export function findConflict(bookings: Booking[], roomId: number, start: string, end: string, selfId: number | null = null, now = Date.now()): Booking | undefined {
-  return bookings.find((o) => o.id !== selfId && o.room_id === roomId && isBlocking(o, now) && overlaps(start, end, o.start, o.end))
+/**
+ * Conflicting live booking of the same room over [start, end), excluding `selfId`. For the open space (pass `room`
+ * and `seats`) only when the seats would run out — then the first overlapping booking is returned (for the message).
+ */
+export function findConflict(bookings: Booking[], roomId: number, start: string, end: string, selfId: number | null = null, now = Date.now(),
+  seatsOf?: { room: Pick<Room, 'type' | 'capacity'>; seats: number }): Booking | undefined {
+  const live = bookings.filter((o) => o.id !== selfId && o.room_id === roomId && isBlocking(o, now) && overlaps(start, end, o.start, o.end))
+  if (!live.length) return undefined
+  if (seatsOf && isSeats(seatsOf.room)) {
+    const peak = peakUnits(start, end, live.map((o) => ({ start: o.start, end: o.end, units: unitsOf(seatsOf.room, o.seats ?? 1) })), seatsOf.seats)
+    return peak > capacityUnits(seatsOf.room) ? live[0] : undefined
+  }
+  return live[0]
 }
 /** A verification that is still worth the team's attention: not more than 30 minutes past its end. */
 export function isPendingVerification(b: Booking, now = Date.now()): boolean {
@@ -174,11 +193,11 @@ export function durationOptions(s: Pick<Settings, 'close' | 'slot_minutes' | 'mi
   for (let m = s.min_minutes; m <= max; m += step) out.push(m)
   return out
 }
-/** Same formula as the server: hourly price, capped by the day price from 8 hours. */
-export function priceFor(room: Pick<Room, 'price_hour' | 'price_day'>, minutes: number): number {
-  const hourly = Math.round((minutes / 60) * room.price_hour)
-  if (room.price_day !== null && room.price_day !== undefined && minutes >= 8 * 60) return Math.min(room.price_day, hourly)
-  return hourly
+/** Same rule as the server (shared/pricing.ts quote): seats × hours in the open space, the hall by group, a whole room by the hour. */
+export function priceFor(room: Pick<Room, 'type' | 'price_hour' | 'price_day'>, minutes: number, s?: Partial<Settings>, opts: { seats?: number; tier?: HallTier | null; kind?: BookingKind } = {}): { price: number; currency: Currency } {
+  const q = quote({ room, minutes, kind: opts.kind ?? 'hourly', seats: opts.seats ?? 1, tier: opts.tier ?? 'gov' },
+    { sub_week_price: s?.sub_week_price ?? 2500, sub_month_price: s?.sub_month_price ?? 5000, hall_org_usd_hour: s?.hall_org_usd_hour ?? 10, hall_gov_hour: s?.hall_gov_hour ?? 1000 })
+  return q.ok ? { price: q.price, currency: q.currency } : { price: 0, currency: 'SYP' }
 }
 export const localDate = (iso: string): string => toLocalParts(iso).date
 export function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {

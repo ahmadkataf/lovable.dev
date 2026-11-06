@@ -1,14 +1,15 @@
 // Booking logic shared by the customer screens: slots, durations, prices, labels.
-import type { ApiContract, Booking, BookingStatus, Photo, PublicSettings, Room, RoomContents, RoomType } from '@shared/types'
+import type { ApiContract, Booking, BookingKind, BookingStatus, HallTier, Photo, PublicSettings, Room, RoomContents, RoomType } from '@shared/types'
+import { capacityUnits, peakUnits, quote, unitsOf } from '@shared/pricing'
 import { isSafeImageSrc } from '@shared/content'
 import type { IconName } from '../ui'
-import { addDays, todayLocal, toLocalParts } from '../format'
+import { addDays, fmtDate, fmtRange, todayLocal, toLocalParts } from '../format'
 
 export type Availability = ApiContract['GET /v1/availability?date=YYYY-MM-DD']['res'][number]
 export type BookingFull = ApiContract['GET /v1/bookings/:id']['res']
 export interface Pick { date: string; time: string; minutes: number }
 
-export const ROOM_TYPE: Record<RoomType, string> = { private: 'غرفة خاصة', meeting: 'قاعة اجتماعات', desk: 'مساحة مفتوحة', hall: 'قاعة' }
+export const ROOM_TYPE: Record<RoomType, string> = { private: 'غرفة خاصة', meeting: 'قاعة تدريبية', desk: 'مساحة مفتوحة', hall: 'قاعة' }
 export const ROOM_ICON: Record<RoomType, IconName> = { private: 'door', meeting: 'people', desk: 'chair', hall: 'grid' }
 
 const BLOCKING: BookingStatus[] = ['pending_payment', 'awaiting_verification', 'confirmed']
@@ -145,13 +146,40 @@ export function isValidPick(s: PublicSettings, p: Pick): boolean {
   return p.date <= lastBookableDate(s) && slotsFor(s, p.date).includes(p.time) && durationsFor(s, p.time).includes(p.minutes)
 }
 
-/** Same formula as the server (api/src/bookings.ts price): hourly = round(minutes/60 × price_hour); from 8 hours the
- *  cheaper of price_day and hourly. */
-export function priceFor(room: { price_hour: number; price_day: number | null }, minutes: number): number {
-  const hourly = Math.round((minutes / 60) * room.price_hour)
-  if (room.price_day !== null && room.price_day !== undefined && minutes >= 8 * 60) return Math.min(room.price_day, hourly)
-  return hourly
+/** Whole-room hourly price (private rooms): the shared rule (shared/pricing.ts quote) for kind hourly, no seats/tier. */
+export function priceFor(room: { type?: RoomType; price_hour: number; price_day: number | null }, minutes: number): number {
+  const q = quote({ room: { type: room.type ?? 'private', price_hour: room.price_hour, price_day: room.price_day }, kind: 'hourly', minutes, seats: 1, tier: null },
+    { sub_week_price: 0, sub_month_price: 0, hall_org_usd_hour: 0, hall_gov_hour: 0 })
+  return q.ok ? q.price : 0
 }
+
+/** Pricing settings with the centre's defaults (an older server or cached settings may not carry them yet). */
+export type PriceSettings = { [K in 'subscriptions_enabled' | 'sub_week_price' | 'sub_month_price' | 'hall_org_usd_hour' | 'hall_gov_hour' | 'course_share_percent']: PublicSettings[K] }
+export function pricing(s: Partial<PublicSettings> | undefined): PriceSettings {
+  return {
+    subscriptions_enabled: s?.subscriptions_enabled ?? true,
+    sub_week_price: s?.sub_week_price ?? 2500, sub_month_price: s?.sub_month_price ?? 5000,
+    hall_org_usd_hour: s?.hall_org_usd_hour ?? 10, hall_gov_hour: s?.hall_gov_hour ?? 1000,
+    course_share_percent: s?.course_share_percent ?? 40,
+  }
+}
+
+/** Seats still free in an open-space room over [start, end), from the day's availability. */
+export function seatsLeft(room: { id: number; type: RoomType; capacity: number }, avail: Availability[] | undefined, start: string, end: string): number {
+  const cap = capacityUnits(room)
+  if (!avail) return cap
+  const others = avail.filter((a) => a.room_id === room.id && blocks(a)).map((a) => ({ start: a.start, end: a.end, units: unitsOf(room, a.seats ?? 1) }))
+  return Math.max(0, cap - peakUnits(start, end, others))
+}
+
+/** "الثلاثاء 10 تشرين الثاني · 10:00 – 12:00", or for a subscription "اشتراك أسبوعي · من 10/11 إلى 16/11". */
+export function whenLabel(b: { start: string; end: string; kind?: BookingKind }): string {
+  if (b.kind && b.kind !== 'hourly') return `${KIND_LABEL[b.kind]} · من ${fmtDate(b.start)} إلى ${fmtDate(b.end)}`
+  return `${fmtDate(b.start)} · ${fmtRange(b.start, b.end)}`
+}
+
+export const TIER_LABEL: Record<HallTier, string> = { org: 'جهة خاصة أو منظمة', gov: 'جهة حكومية' }
+export const KIND_LABEL: Record<BookingKind, string> = { hourly: 'بالساعة', week: 'اشتراك أسبوعي', month: 'اشتراك شهري' }
 
 export function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
   return aStart < bEnd && bStart < aEnd
