@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<title>عموميات عن المتتاليات</title>
+<link rel="stylesheet" href="vendor/katex.min.css">
+<style>
+@font-face{font-family:A;src:url(vendor/alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669,U+200C-200F}
+@font-face{font-family:A;src:url(vendor/alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+:root{
+  --bg:#0b1020;--bg2:#121a33;--panel:#141d38;--line:#25305a;
+  --ink:#eef2ff;--mut:#9aa8c9;--dim:#5d6a8f;
+  --yel:#ffd23f;--pur:#a78bfa;--pur2:#7c3aed;--grn:#6ee05a;--red:#ff5c8a;--blu:#38bdf8;--org:#ff9f43;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg)}
+body{font-family:A,'Noto Color Emoji',sans-serif;color:var(--ink);position:relative;-webkit-font-smoothing:antialiased}
+.katex{font-size:1em;color:inherit;font-family:KaTeX_Main,A,"Times New Roman",serif}
+.katex-display{margin:0}
+bdi.m{direction:ltr;unicode-bidi:isolate;display:inline-block;white-space:nowrap}
+#bg,#fx,#stage,#chrome{position:absolute;inset:0}
+#bg{background:radial-gradient(1400px 900px at 70% 20%,#16204a 0%,rgba(11,16,32,0) 70%),var(--bg)}
+#grid{position:absolute;inset:-80px;background-image:linear-gradient(rgba(120,140,200,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(120,140,200,.07) 1px,transparent 1px);background-size:80px 80px}
+.glow{position:absolute;border-radius:50%;filter:blur(10px);opacity:.55}
+.scene{position:absolute;inset:0;display:none;will-change:opacity,transform}
+.abs{position:absolute}
+.ar{direction:rtl;text-align:right}
+.ctr{text-align:center}
+/* text styles */
+.h1{font-size:96px;font-weight:900;line-height:1.15}
+.h2{font-size:64px;font-weight:800;line-height:1.2}
+.h3{font-size:46px;font-weight:700;line-height:1.3}
+.p{font-size:40px;font-weight:500;line-height:1.6;color:var(--ink)}
+.s{font-size:32px;font-weight:500;line-height:1.5;color:var(--mut)}
+.mute{color:var(--mut)}.yel{color:var(--yel)}.pur{color:var(--pur)}.grn{color:var(--grn)}.red{color:var(--red)}.blu{color:var(--blu)}.org{color:var(--org)}
+.b{font-weight:800}
+/* math sizes */
+.mx{font-size:64px}.ml{font-size:80px}.mxl{font-size:110px}.mm{font-size:48px}.ms{font-size:38px}
+/* cards */
+.card{position:absolute;background:linear-gradient(180deg,rgba(28,38,74,.92),rgba(20,29,56,.92));border:2px solid var(--line);border-radius:28px;padding:34px 44px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.card .tag{position:absolute;top:-26px;right:36px;padding:8px 22px;border-radius:999px;font-size:28px;font-weight:800;color:#0b1020;display:flex;align-items:center;gap:10px}
+.card.def{border-color:rgba(167,139,250,.65)} .card.def .tag{background:var(--pur)}
+.card.tip{border-color:rgba(255,210,63,.6)} .card.tip .tag{background:var(--yel)}
+.card.think{border-color:rgba(56,189,248,.6)} .card.think .tag{background:var(--blu)}
+.card.ex{border-color:rgba(255,92,138,.6)} .card.ex .tag{background:var(--red)}
+.card.warn{border-color:rgba(255,159,67,.7)} .card.warn .tag{background:var(--org)}
+.card.exam{border-color:rgba(110,224,90,.65)} .card.exam .tag{background:var(--grn)}
+.chip{display:inline-flex;align-items:center;gap:12px;padding:10px 26px;border-radius:999px;font-weight:700;font-size:28px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12)}
+.hlbox{position:absolute;border:4px solid var(--yel);border-radius:16px;pointer-events:none;box-shadow:0 0 30px rgba(255,210,63,.35)}
+.hlbg{position:absolute;background:rgba(255,210,63,.18);border-radius:12px;pointer-events:none}
+.uline{position:absolute;height:6px;border-radius:3px;background:var(--yel);transform-origin:100% 50%}
+table.tb{border-collapse:separate;border-spacing:0;font-size:44px}
+table.tb td{padding:18px 34px;border:1.5px solid var(--line);text-align:center;min-width:140px}
+table.tb td.hd{background:rgba(167,139,250,.14);color:var(--pur);font-weight:800}
+/* chrome */
+#top{position:absolute;top:34px;right:56px;left:56px;height:60px;display:flex;align-items:center;justify-content:space-between}
+#crumb{display:flex;align-items:center;gap:18px;font-size:27px;font-weight:600;color:var(--mut)}
+#crumb .unit{color:var(--ink);font-weight:800}
+#crumb .sep{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+#sec{color:var(--yel);font-weight:800;display:inline-block}
+#pg{font-size:26px;font-weight:700;color:var(--mut);display:flex;align-items:center;gap:12px;direction:rtl}
+#pg .box{padding:8px 18px;border-radius:12px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);color:var(--ink)}
+#bar{position:absolute;left:56px;right:56px;bottom:30px;height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;direction:ltr}
+#barfill{position:absolute;top:0;right:0;bottom:0;background:linear-gradient(270deg,var(--pur2),var(--pur));border-radius:4px}
+.tick{position:absolute;top:0;bottom:0;width:3px;background:var(--bg)}
+#brand{position:absolute;left:56px;bottom:54px;font-size:26px;font-weight:800;color:var(--dim);letter-spacing:.5px}
+#sub{position:absolute;left:200px;right:200px;bottom:64px;text-align:center;font-size:34px;font-weight:600;line-height:1.5;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.8);display:none}
+</style></head><body>
+<div id="bg"><div id="grid"></div>
+  <div class="glow" id="gl1" style="width:900px;height:900px;background:radial-gradient(closest-side,rgba(124,58,237,.35),rgba(124,58,237,0))"></div>
+  <div class="glow" id="gl2" style="width:800px;height:800px;background:radial-gradient(closest-side,rgba(56,189,248,.18),rgba(56,189,248,0))"></div>
+</div>
+<div id="stage"></div>
+<div id="chrome">
+  <div id="top">
+    <div id="crumb"><span class="unit">الوحدة الأولى · الدرس الأول</span><span class="sep"></span><span id="sec"></span></div>
+    <div id="pg"></div>
+  </div>
+  <div id="bar"><div id="barfill"></div></div>
+  <div id="brand"></div>
+  <div id="sub"></div>
+</div>
+<script src="vendor/katex.min.js"></script>
+<script src="lib.js"></script>
+<script src="main.js"></script>
+</body></html>
