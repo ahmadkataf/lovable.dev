@@ -2,12 +2,13 @@ import './style.css'
 import { TEMPLATES, templateById, ParamDef, CATEGORIES, NEW_IDS } from './templates'
 import { generate, Design, Settings, DEFAULT_SETTINGS } from './generate'
 import { toSVG, toDXF, toAI } from './export'
-import { sheetLayout, usedShare } from './layout'
+import { sheetLayout, usedShare, Layout } from './layout'
 import { loopToPath } from './geom'
 import { makeZip } from './zip'
 import { MATERIAL_INFO } from './materials'
 import { scaleDesign, repair, roleOf, Change } from './scale'
 import { designCost, projectTotal, sheetsFor, money, fmtUsd, fmtSyp, matches, defaultPricing, DEFAULT_SHEET, MAIN, Pricing, Currency, materialLabel, DesignCost } from './cost'
+import { fillSheet, fillLayout, FillResult, FillPart } from './fillsheet'
 
 // Inside the claude.ai viewer the page cannot start downloads itself and the link hash carries no state.
 type ClaudeUse = (name: string) => Promise<{ save(r: { filename: string; data: string | Blob }): Promise<unknown> } | null>
@@ -166,7 +167,8 @@ const notesBox = el('div', { class: 'notes' })
 const costBox = el('section', { class: 'cost', 'aria-label': 'التكلفة' })
 const priceDlg = el('dialog', { class: 'chooser pricing', 'aria-label': 'الأسعار والعملة' }) as HTMLDialogElement
 const actions = el('div', { class: 'actions' })
-previewWrap.append(stats, alerts, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions)
+const fillBox = el('section', { class: 'fill', 'aria-label': 'لوح كامل' })
+previewWrap.append(stats, alerts, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions, fillBox)
 document.body.append(chooser, priceDlg)
 app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), costBox, notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص. · الإصدار 3.2'))
 
@@ -444,6 +446,7 @@ function update(refit = false) {
     alerts.innerHTML = ''
     alerts.append(el('div', { class: 'error' }, 'تعذّر توليد الشكل بهذه القيم: ' + (err as Error).message))
     actions.querySelectorAll('button.primary').forEach(b => ((b as HTMLButtonElement).disabled = true))
+    fillBox.innerHTML = ''
     return
   }
   render()
@@ -543,6 +546,81 @@ function render() {
   actions.append(dl('svg', blocked ? 'أصلح الأخطاء' : '⬇ SVG', 'primary'), dl('dxf', '⬇ DXF', 'primary alt'), dl('ai', '⬇ AI 8 (RDWorks)', 'primary ai'))
   if (!inViewer) actions.append(el('button', { type: 'button', class: 'ghost', onclick: () => share() }, '🔗 نسخ الرابط'))
   else actions.append(el('button', { type: 'button', class: 'ghost', onclick: () => saveApk() }, '📱 تطبيق أندرويد'))
+  renderFill(blocked)
+}
+
+// ------------------------------------------------------------------ a whole sheet filled with the design
+
+/** the last fill, for the design and sheets it was made for */
+let lastFill: { key: string; r: FillResult } | null = null
+const fillKey = () => JSON.stringify([state.tpl, params(), genSettings(state.settings)])
+
+/** The button, its hint, and after a fill: per material the count, the share of the sheet used, and a small drawing. */
+function renderFill(blocked: boolean) {
+  fillBox.innerHTML = ''
+  if (lastFill && lastFill.key !== fillKey()) lastFill = null
+  const b = el('button', { type: 'button', class: 'fill-btn', onclick: () => fillWholeSheet() }, '▦ املأ لوحاً كاملاً') as HTMLButtonElement
+  if (blocked) { b.disabled = true; b.title = 'أصلح الأخطاء الحمراء أولاً' }
+  fillBox.append(b, el('span', { class: 'hint' }, 'أكبر عدد من القطع الكاملة يتّسع له لوح واحد، مرصوصة بلا هدر'))
+  if (!lastFill) return
+  const list = el('ul', { class: 'fill-list' })
+  for (const p of lastFill.r.parts) {
+    const size = `${fmt(p.sheet.w / 10)} × ${fmt(p.sheet.h / 10)} سم`
+    const text = p.sets > 0
+      ? el('div', {}, el('b', {}, p.label), el('div', {}, `${pieces(p.sets)} على لوح ${size}`),
+        el('small', {}, `تغطّي القطع ${Math.round(100 * p.use)}٪ من اللوح${p.sets > p.estimate ? ` · أكثر بـ${p.sets - p.estimate} من جدول التكلفة` : ''}`))
+      : el('div', {}, el('b', {}, p.label), el('div', { class: 'bad' }, p.tooBig.length ? `«${p.tooBig[0]}» أكبر من اللوح ${size}` : `لا تتّسع على لوح ${size}`))
+    list.append(el('li', {}, ...(p.layout ? [sheetThumb(p.layout)] : []), text))
+  }
+  fillBox.append(list)
+}
+
+/** a small drawing of a filled sheet: every piece's outline filled in its material's colour */
+function sheetThumb(lay: Layout): SVGSVGElement {
+  const sh = lay.sheets?.[0] ?? { x: 0, y: 0, w: lay.w, h: lay.h }
+  const t = document.createElementNS(svgNS, 'svg')
+  const k = Math.min(150 / sh.h, 240 / sh.w)
+  t.setAttribute('viewBox', `${sh.x} ${sh.y} ${sh.w} ${sh.h}`); t.setAttribute('class', 'fill-thumb'); t.setAttribute('aria-hidden', 'true')
+  t.style.width = `${Math.round(sh.w * k)}px`; t.style.height = `${Math.round(sh.h * k)}px`
+  const bg = document.createElementNS(svgNS, 'rect')
+  bg.setAttribute('x', String(sh.x)); bg.setAttribute('y', String(sh.y)); bg.setAttribute('width', String(sh.w)); bg.setAttribute('height', String(sh.h)); bg.setAttribute('class', 'sheet-bg')
+  const path = document.createElementNS(svgNS, 'path')
+  path.setAttribute('d', lay.placed.map(pl => pl.panel.loops.filter(l => l.closed && l.layer !== 'engrave').map(l => loopToPath(l, pl.x, pl.y)).join(' ')).join(' '))
+  path.setAttribute('class', 'pcs')
+  const mat = lay.placed[0]?.panel.material ? MATERIAL_INFO[lay.placed[0].panel.material!] : undefined
+  if (mat) path.style.fill = mat.fill
+  t.append(bg, path)
+  return t
+}
+
+function fillWholeSheet() {
+  if (!design || design.errors.length) return
+  const d = design, key = fillKey(), s = genSettings(state.settings)
+  busy('جارٍ ملء اللوح بأكبر عدد من القطع…', () => {
+    const r = fillSheet(d.panels, s)
+    lastFill = { key, r }
+    renderFill(false)
+    fillBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    void saveFill(r)
+  })
+}
+
+/** One DXF and one SVG per material, each named with the material and the count, in one .zip (one DXF on the phone). */
+async function saveFill(r: FillResult) {
+  const ok = r.parts.filter((p): p is FillPart & { layout: Layout } => !!p.layout && p.sets > 0)
+  if (!ok.length) { toast('القطع لا تتّسع على اللوح: كبّر اللوح من 💲 أو صغّر التصميم', 6000); return }
+  const name = (p: FillPart, ext: string) => fileName(`${p.material}-${p.sets}pcs.${ext}`)
+  if (android) {
+    // the phone saves one text file at a time: every material's sheet side by side in one DXF, each in its own colour
+    const one = ok.length === 1, fname = one ? name(ok[0], 'dxf') : fileName('fullsheet.dxf')
+    android.save(fname, 'application/octet-stream', toDXF(one ? ok[0].layout : fillLayout({ ...r, parts: ok })))
+    toast(one ? `اختر مكان حفظ «${fname}»` : `اختر مكان حفظ «${fname}»: فيه لوح لكلّ خامة بلونها؛ اقصّ كلّ لون وحده`, 6000)
+    return
+  }
+  const entries = ok.flatMap(p => [{ name: name(p, 'dxf'), data: toDXF(p.layout) }, { name: name(p, 'svg'), data: toSVG(p.layout) }])
+  const zipName = fileName('fullsheet.zip')
+  if (!(await saveBlob(zipName, new Blob([makeZip(entries)], { type: 'application/zip' })))) return
+  toast(`حُفظ «${zipName}»: ملف DXF وملف SVG لكلّ خامة (${ok.map(p => `${p.label}: ${pieces(p.sets)}`).join('، ')}).`, 9000)
 }
 
 /**
@@ -848,16 +926,7 @@ async function download(kind: Kind) {
     const entries = [...Array(n).keys()].map(i => { const name = fileName(`sheet${i + 1}.${kind}`); return { name, data: fileText(kind, sheetLayout(design!.layout, i), name) } })
     entries.push({ name: fileName(kind), data: text })
     const zipName = fileName(`${kind}.zip`), blob = new Blob([makeZip(entries)], { type: 'application/zip' })
-    if (claudeUse) {
-      const dl = await claudeUse('downloads').catch(() => null)
-      if (!dl) { toast('التنزيل غير متاح في هذه النافذة'); return }
-      try { await dl.save({ filename: zipName, data: blob }) } catch (e) { const code = (e as { code?: string })?.code; if (code !== 'declined') toast('تعذّر الحفظ: ' + (code ?? 'خطأ')); return }
-    } else {
-      const url = URL.createObjectURL(blob)
-      const a = el('a', { href: url, download: zipName })
-      document.body.append(a); a.click(); a.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 5000)
-    }
+    if (!(await saveBlob(zipName, blob))) return
     toast(`التصميم على ${n} ألواح: حُفظ ملف مضغوط «${zipName}» فيه ملف ${KIND_NAME[kind]} لكلّ لوح (اقصّ كلّاً وحده) وملف يجمعها كلّها.`, 9000)
     return
   }
@@ -889,6 +958,21 @@ async function download(kind: Kind) {
   document.body.append(a); a.click(); a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 5000)
   toast(`نُزّل ملف ${KIND_NAME[kind]}`)
+}
+
+/** a binary file (a .zip) saved through the viewer or as a browser download; false when it was not saved */
+async function saveBlob(filename: string, blob: Blob): Promise<boolean> {
+  if (claudeUse) {
+    const dl = await claudeUse('downloads').catch(() => null)
+    if (!dl) { toast('التنزيل غير متاح في هذه النافذة'); return false }
+    try { await dl.save({ filename, data: blob }) } catch (e) { const code = (e as { code?: string })?.code; if (code !== 'declined') toast('تعذّر الحفظ: ' + (code ?? 'خطأ')); return false }
+    return true
+  }
+  const url = URL.createObjectURL(blob)
+  const a = el('a', { href: url, download: filename })
+  document.body.append(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
+  return true
 }
 
 async function share() {

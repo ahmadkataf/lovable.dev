@@ -201,6 +201,19 @@ legend { font-weight: 600; color: var(--accent); font-size: 13px; padding: 0; ma
 .alerts .info { color: var(--muted); font-size: 12px; padding: 0 4px; }
 .primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
+/* a whole sheet filled with the design: the button under the downloads, then per material the count and a small drawing */
+.fill { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
+.fill-btn { border: 1.5px solid var(--accent); background: var(--accent-soft); color: var(--accent-2); border-radius: 11px; padding: 11px 14px; font-weight: 600; font-size: 15px; }
+.fill-btn:active { transform: translateY(1px); }
+.fill-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.fill-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.fill-list li { flex: 1 1 240px; display: flex; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 13.5px; }
+.fill-list small { display: block; color: var(--muted); font-size: 12px; }
+.fill-list .bad { color: var(--error-text); font-weight: 600; }
+.fill-thumb { flex: 0 0 auto; }
+.fill-thumb .sheet-bg { fill: var(--surface-2); stroke: var(--line); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.fill-thumb .pcs { fill: var(--wood); stroke: var(--wood-line); stroke-opacity: .55; stroke-width: .5px; vector-effect: non-scaling-stroke; fill-rule: evenodd; }
+
 /* notes */
 .notes { margin-top: 16px; padding: 14px 16px; }
 .notes h3 { font-size: 14px; color: var(--accent); margin: 8px 0 4px; }

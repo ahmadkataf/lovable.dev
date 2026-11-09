@@ -37,6 +37,9 @@ export interface Design {
 /** finger = 0 means automatic: between two and three thicknesses, and never more than a fifth of the smallest dimension */
 export const DEFAULT_SETTINGS: Settings = { t: 3, kerf: 0.15, finger: 0, inner: false, spacing: 3, sheetW: 1220, sheetH: 2440, margin: 5, rotate: true }
 
+/** the sheet a material is cut from, mm (undefined: the design's main sheet; a material with no sheet of its own: the main one) */
+export const sheetFor = (s: Settings, material?: string): { w: number; h: number } => (material && s.matSheets?.[material]) || { w: s.sheetW || 1220, h: s.sheetH || 2440 }
+
 export function autoFinger(t: number, dims: number[]): number {
   const smallest = Math.min(...dims.filter(v => Number.isFinite(v) && v > 0), Infinity)
   const byDim = Number.isFinite(smallest) ? smallest / 5 : 3 * t
@@ -85,6 +88,6 @@ export function generate(tpl: Template, params: Record<string, number>, s: Setti
   const fitNote = slotted ? [`الشقوق والأصابع مقاسة على سماكة ${s.t} مم بالضبط مع خلوص صغير: قِس لوحك (وفي أكثر من مكان) وأدخل سماكته الحقيقية قبل القصّ، أو اقصّ «اختبار التعشيق» من قسم المعايرة أولاً.`] : []
   // the nesting takes a while: done when the layout is first asked for (many callers only want the pieces or the errors)
   let lay: Layout | undefined
-  const sheet = (m?: string) => (m && s.matSheets?.[m]) || { w: s.sheetW || 1220, h: s.sheetH || 2440 }
+  const sheet = (m?: string) => sheetFor(s, m)
   return { panels, get layout() { return (lay ??= nestLayout(panels, { spacing: s.spacing, margin: s.margin ?? 5, sheet, rotate: s.rotate !== false, budgetMs: NEST.ms })) }, notes: [...notes, ...fitNote].map(tidy), warnings: warnings.map(tidy), errors: errors.map(tidy), cutLength, pieceCount, finger }
 }

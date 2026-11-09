@@ -68,7 +68,7 @@ export function setsPerSheet(panels: Panel[], spacing: number, sheetIn: { w: num
   const r = shelfSets(types, spacing, sheetIn, margin, rotate)
   if (r.sets > 0) {
     const fits = (k: number) => {
-      const res = nest(types.map(p => ({ ...p, count: p.count * k })), { spacing, margin, sheet: () => sheetIn, rotate, budgetMs: 40 })
+      const res = nest(types.map(p => ({ ...p, count: p.count * k })), { spacing, margin, sheet: () => sheetIn, rotate, budgetMs: CHECK_MS })
       return res.sheets.length === 1 && !res.tooBig.length
     }
     if (!fits(r.sets)) {
@@ -82,6 +82,8 @@ export function setsPerSheet(panels: Panel[], spacing: number, sheetIn: { w: num
   return { ...r, tooBig: [...r.tooBig] }
 }
 const NEST_CACHE = new Map<string, Nesting>()
+/** the nesting time setsPerSheet confirms its count with, ms (fillsheet.ts starts from the same check) */
+export const CHECK_MS = 40
 
 function shelfSets(types: Panel[], spacing: number, sheetIn: { w: number; h: number }, margin: number, rotate: boolean): Nesting {
   // the margin all round is not cut into
