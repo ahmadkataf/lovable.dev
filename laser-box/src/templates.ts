@@ -12,7 +12,11 @@ import { EASELS } from './easel'
 import { KILIM_BOXES } from './kilimbox'
 import { BOTTLE_BOXES } from './bottlebox'
 import { CEILING_FRAMES } from './ceilingframe'
+import { hexHinge, HEX_HINGE } from './hexhinge'
 import { DOOR_VASE } from './doorvase'
+import { ENGAGE_STANDS } from './engagestand'
+import { FAVOR_CARRIERS } from './favorcarrier'
+import { WOOD_COMBS } from './woodcomb'
 
 export interface ParamDef {
   key: string
@@ -1602,8 +1606,8 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'hinged90', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
   { id: 'trophy', name: 'دروع وجوائز', ids: ['trophyswoosh', 'trophyflame', 'trophystar', 'trophycup', 'trophyplaque', 'trophycrescent'] },
   { id: 'shop', name: 'ستاندات عرض للمحلات', ids: ['bottlebox', 'bottlestand', 'displaystand', 'displaystandpro'] },
-  { id: 'wedding', name: 'أعراس وخطوبة', ids: ['fabricset', 'engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'easel', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'] },
-  { id: 'gift', name: 'هدايا وديكور', ids: ['rosesign', 'giftbag', 'archbox', 'kilimbox', 'chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
+  { id: 'wedding', name: 'أعراس وخطوبة', ids: ['fabricset', 'engagement', 'engagestand', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'easel', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'favorcarrier'] },
+  { id: 'gift', name: 'هدايا وديكور', ids: ['woodcomb', 'rosesign', 'giftbag', 'archbox', 'kilimbox', 'chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['mihrabbox', 'cubeset', 'coasterset', 'coastersetfast', 'carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
   { id: 'doorsmodern', name: 'أبواب مودرن', ids: ['doorpanel', 'doormodern', 'doorwaves', 'doorframes', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron'] },
@@ -1616,7 +1620,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['ceilingset', 'doorvase', 'ceilingframe2', 'ceilingframe', 'bottlestand', 'bottlebox', 'easel', 'rosesign', 'giftbag', 'archbox', 'mihrabbox', 'cubeset', 'kilimbox', 'trophyswoosh', 'trophyflame', 'trophystar', 'trophycup', 'trophyplaque', 'trophycrescent', 'coasterset', 'coastersetfast', 'displaystandpro', 'displaystand', 'fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['engagestand', 'favorcarrier', 'woodcomb', 'ceilingset', 'doorvase', 'ceilingframe2', 'ceilingframe', 'bottlestand', 'bottlebox', 'easel', 'rosesign', 'giftbag', 'archbox', 'mihrabbox', 'cubeset', 'kilimbox', 'trophyswoosh', 'trophyflame', 'trophystar', 'trophycup', 'trophyplaque', 'trophycrescent', 'coasterset', 'coastersetfast', 'displaystandpro', 'displaystand', 'fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -2593,20 +2597,22 @@ const hexPts = (cx: number, cy: number, af: number) => { const rc = af / Math.sq
 MORE.push({
   id: 'hexringbox',
   name: 'علبة محبس سداسية بإطارات',
-  desc: 'علبة سداسية من أكريليك شفّاف: ستّ جدران بين قاعدة وطوق علوي بارزين، غطاء يُرفع بشفة داخلية، حشوة بشقّ للمحبس، وإطارات أوفست ذهبية أو فضية على كل جهة وعلى الغطاء.',
+  desc: 'علبة سداسية من أكريليك شفّاف: ستّ جدران بين قاعدة وطوق علوي بارزين، غطاء يُرفع بشفة داخلية أو يُفتح على مفصل ويقف مائلاً على سندة خلف العلبة، حشوة بشقّ للمحبس، وإطارات أوفست ذهبية أو فضية على كل جهة وعلى الغطاء.',
   icon: `<path d="M20 14h24l10 9-10 9H20l-10-9z"/><path d="M10 23v22l10 9h24l10-9V23"/><path d="M20 32v22M44 32v22" stroke-width="1.5"/><path d="M23 37h18v13H23z" stroke-width="1.3"/><path d="M24 18h16l6 5-6 5H24l-6-5z" stroke-width="1.3"/>`,
   params: [
     mm('S', 'عرض السداسي بين ضلعين متقابلين', 40, 160, 'قياس الجدران من الخارج؛ علبة المحبس العادية 55–65 مم'),
     mm('H', 'ارتفاع الجدران', 25, 120),
     mm('ov', 'بروز القاعدة والطوق والغطاء', 2, 10, 'تبرز عن الجدران بهذا القدر، فيقع الإطار بينها'),
     mm('b', 'عرض الإطار', 2, 15), mm('tf', 'سماكة لوح الإطار', 0.5, 4, 'أكريليك مرآة ذهبي أو فضي، عادةً 1–2 مم'),
+    { key: 'lidType', label: 'نوع الغطاء', min: 1, max: 2, step: 1, int: true, options: ['يُرفع بشفة', 'بمفصل يقف مفتوحاً'], hint: '1 = غطاء يُرفع وتدخل شفته في الطوق، 2 = غطاء يُفتح إلى الأعلى على مفصل بلا مسمار ويقف مائلاً للخلف على سندة خلف العلبة' },
+    { key: 'stop', label: 'زاوية توقّف الغطاء المفصلي', min: HEX_HINGE.stopMin, max: HEX_HINGE.stopMax, step: 1, unit: '°', hint: 'للغطاء المفصلي: 100° يميل قليلاً للخلف فيبقى مفتوحاً ثابتاً' },
     { key: 'lipL', label: 'طبقات شفة الغطاء', min: 1, max: 2, step: 1, int: true, hint: 'حلقة سداسية تُلصق تحت الغطاء وتدخل بين الجدران' },
     mm('gap', 'خلوص الشفة', 0.2, 1),
     { key: 'insert', label: 'حشوة المحبس', min: 0, max: 1, step: 1, int: true }, mm('slitW', 'عرض شقّ المحبس', 1.5, 4),
     mm('slitL', 'طول شقّ المحبس', 8, 30, 'أقصر قليلاً من قطر المحبس الخارجي (17–22 مم) فيجلس فيه واقفاً'),
     mm('fit', 'خلوص الشقوق', 0, 0.5),
   ],
-  defaults: { S: 62, H: 40, ov: 3, b: 5, tf: 2, lipL: 1, gap: 0.3, insert: 1, slitW: 2.5, slitL: 14, fit: 0.1 },
+  defaults: { S: 62, H: 40, ov: 3, b: 5, tf: 2, lidType: 1, stop: 100, lipL: 1, gap: 0.3, insert: 1, slitW: 2.5, slitL: 14, fit: 0.1 },
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build(p, c) {
     const warnings: string[] = [], errors: string[] = []
@@ -2645,14 +2651,19 @@ MORE.push({
     // the collar: the base's outline with the same slots and an opening 3 mm inside the walls; the lid sits on it and
     // its lip, a hexagonal ring, drops into the opening
     const AFin = S - 2 * t, AFc = round3(AFin - 6), lo = round3(AFc - 2 * gap), lw = Math.max(3, 1.2 * t), li = round3(lo - 2 * lw)
-    if (li < 10) errors.push('السداسي صغير على شفة الغطاء.')
+    // lid type 2: the lid opens upward on a pin-less hinge behind the box (see hexhinge.ts) and has no lip
+    const hinged = Math.round(p.lidType) === 2
+    if (!hinged && li < 10) errors.push('السداسي صغير على شفة الغطاء.')
     const lipL = Math.round(p.lipL)
+    const hg = hinged ? hexHinge({ AFb, hex: hexPts(AFb / r3, AFb / 2, AFb), S, H, ov, b, tf, fit, stop: p.stop, t }) : undefined
+    if (hg) errors.push(...hg.errors)
     const panels: PanelSpec[] = [
-      hexPanel('base', 'القاعدة', AFb, slots, 'تبرز عن الجدران من كل جهة؛ الشقوق لألسنة الجدران'),
+      hg ? { id: 'base', name: 'القاعدة مع ذيل المفصل', w: round3(2 * AFb / r3), h: round3(AFb - hg.geom.ext), count: 1, shape: [hg.base], holes: [...slots, ...hg.baseSlots], note: 'تبرز عن الجدران من كل جهة؛ الشقوق لألسنة الجدران، وفي ذيلها الخلفي شقّا خدّي المفصل وشقّ السندة' }
+        : hexPanel('base', 'القاعدة', AFb, slots, 'تبرز عن الجدران من كل جهة؛ الشقوق لألسنة الجدران'),
       { id: 'wall', name: 'الجدار', w: sIn, h: round3(H + 2 * t), count: 6, cuts: strip, note: 'ستّة متماثلة، بألسنة في الأعلى والأسفل؛ زواياها الداخلية تلتقي' },
       { ...hexPanel('collar', 'الطوق العلوي', AFb, [...slots.map(l => ({ ...l, pts: l.pts.map(v => ({ ...v })) })), ring(AFb, AFc)], 'تدخل فيه ألسنة الجدران العلوية فتثبت أطرافها؛ يجلس عليه الغطاء') },
-      hexPanel('lid', 'الغطاء', AFb, [], 'بقياس القاعدة نفسه'),
-      hexPanel('lip', 'شفة الغطاء', lo, [ring(lo, li)], 'تُلصق تحت الغطاء في وسطه وتدخل في فتحة الطوق', lipL),
+      ...(hg ? [{ id: 'lid', name: 'الغطاء مع لساني المفصل', w: round3(2 * AFb / r3), h: round3(AFb + HEX_HINGE.e + HEX_HINGE.tabW / 2), count: 1, shape: [hg.lid], note: 'بقياس القاعدة، وخلفه ذيل بلسانين يدوران في خدّي المفصل' }, hg.cheek, hg.support]
+        : [hexPanel('lid', 'الغطاء', AFb, [], 'بقياس القاعدة نفسه'), hexPanel('lip', 'شفة الغطاء', lo, [ring(lo, li)], 'تُلصق تحت الغطاء في وسطه وتدخل في فتحة الطوق', lipL)]),
       { id: 'frame', name: 'إطار الجهة (ذهبي/فضي)', w: fw, h: fh, count: 6, material: 'mirror', holes: [roundedRectHole(b, b, fw - 2 * b, fh - 2 * b, 0)], note: 'يُلصق على الجدار من الخارج' },
       { ...hexPanel('lid-frame', 'إطار الغطاء (ذهبي/فضي)', round3(AFb - 2), [ring(round3(AFb - 2), round3(AFb - 2 - 2 * b))], 'يُلصق على الغطاء من الأعلى'), material: 'mirror' },
     ]
@@ -2663,7 +2674,7 @@ MORE.push({
       // is clear of the ring as long as its opening is wider than the ring
       const room = ringRoom(p.slitL, t)
       const ai = round3(AFin - 1), hs = round3(H + t - t - room.above - 1), sl = round3(sIn - 1.2 * t - 1), slitL = p.slitL
-      if (li < 16) errors.push('فتحة شفة الغطاء أضيق من رأس المحبس؛ كبّر السداسي أو قلّل السماكة.')
+      if (!hinged && li < 16) errors.push('فتحة شفة الغطاء أضيق من رأس المحبس؛ كبّر السداسي أو قلّل السماكة.')
       if (slitL > ai / r3 - 6) errors.push(`شقّ المحبس أطول من الحشوة: أقصاه ${Math.floor(ai / r3 - 6)} مم.`)
       if (hs < room.minSpacer) errors.push(`الجدران قصيرة على المحبس والحشوة: ارتفاع ${Math.ceil(room.minSpacer + room.above + 1)} مم على الأقل، أو ألغِ الحشوة.`)
       panels.push(
@@ -2671,13 +2682,15 @@ MORE.push({
         { id: 'spacer', name: 'حامل الحشوة', w: sl, h: Math.max(1, hs), count: 2, note: 'اثنان واقفان على حافّتيهما عند جدارين متقابلين' },
       )
     }
+    const paper = 'ورق الحماية: اتركه أثناء القصّ، ثم انزعه قبل اللصق عن كل وجه سيُلصق أو سيُختم داخل العلبة: وجه القاعدة العلوي، وجهَي الطوق، أطراف الجدران ووجهيها، وجهَي الغطاء، الشفة، الحشوة وحامليها، وظهر الإطارات. اترك ورق الوجه الأمامي للإطارات حتى النهاية، وامسك القطع الشفّافة بقفّازات.'
+    const clear = 'الجدران والقاعدة والطوق والغطاء والشفة والحشوة من أكريليك شفّاف (kerf نحو 0.1 مم)، والإطارات من أكريليك مرآة ذهبي أو فضي.'
     const notes = [
       `العلبة ${S} مم بين ضلعين متقابلين (${(2 * S / r3).toFixed(1)} مم بين زاويتين)، والجدران ${H} مم بين القاعدة والطوق؛ القاعدة والطوق والغطاء ${AFb} مم. الارتفاع الكلّي مع الغطاء ${(H + 3 * t).toFixed(1)} مم.`,
-      'ورق الحماية: اتركه أثناء القصّ، ثم انزعه قبل اللصق عن كل وجه سيُلصق أو سيُختم داخل العلبة: وجه القاعدة العلوي، وجهَي الطوق، أطراف الجدران ووجهيها، وجهَي الغطاء، الشفة، الحشوة وحامليها، وظهر الإطارات. اترك ورق الوجه الأمامي للإطارات حتى النهاية، وامسك القطع الشفّافة بقفّازات.',
+      hg ? paper.replace('الشفة، ', 'خدّي المفصل والسندة، ') : paper,
       'التجميع: أدخل ألسنة الجدران الستّة في شقوق القاعدة وضع الطوق على ألسنتها العلوية بلا غراء ليستقيم كل شيء، ثم ألصق ألسنة القاعدة والزوايا بغراء الأكريليك السائل (يتسرّب في الشقّ) من الداخل عبر فتحة الطوق. بعد الجفاف ارفع الطوق، انزع ورق الحماية عن الوجوه الداخلية للجدران وعن الحشوة وحامليها، ضع الحاملين والحشوة في الداخل، ثم ألصق الطوق أخيراً.',
       `الإطارات ${fw.toFixed(1)} × ${fh} مم بعرض ${b} مم: ألصق كلّاً منها في وسط جهته بين القاعدة والطوق، فيلتقي طرفاه بطرفَي الإطارين المجاورين عند الزاوية ويخفيان أخدودها. على المرآة استعمل لاصقاً شفّافاً لا يذيب طلاء ظهرها (UV أو لاصق جِل)، لا غراء الأكريليك السائل.`,
-      `الغطاء: ألصق الشفة تحته في الوسط، على بُعد ${((AFb - lo) / 2).toFixed(1)} مم من حافّته من كل جهة، ثم إطار الغطاء فوقه. الشفة تدخل في فتحة الطوق بخلوص ${gap} مم فيُفتح الغطاء ويُغلق بنعومة.`,
-      'الجدران والقاعدة والطوق والغطاء والشفة والحشوة من أكريليك شفّاف (kerf نحو 0.1 مم)، والإطارات من أكريليك مرآة ذهبي أو فضي.',
+      ...(hg ? hg.notes : [`الغطاء: ألصق الشفة تحته في الوسط، على بُعد ${((AFb - lo) / 2).toFixed(1)} مم من حافّته من كل جهة، ثم إطار الغطاء فوقه. الشفة تدخل في فتحة الطوق بخلوص ${gap} مم فيُفتح الغطاء ويُغلق بنعومة.`]),
+      hg ? clear.replace('والشفة', 'وخدّا المفصل والسندة') : clear,
     ]
     return { panels, notes, warnings, errors }
   },
@@ -4667,4 +4680,4 @@ MORE.push({
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build: (p, c) => tierStand(p, c, true),
 })
-TEMPLATES.push(...MORE, ...TROPHIES, ...COASTER_SETS, ...ROSE_SIGNS, ...GIFT_BAGS, ...ARCH_BOXES, ...MIHRAB_BOXES, ...CUBE_SETS, ...EASELS, ...KILIM_BOXES, ...BOTTLE_BOXES, ...CEILING_FRAMES, ...DOOR_VASE)
+TEMPLATES.push(...MORE, ...TROPHIES, ...COASTER_SETS, ...ROSE_SIGNS, ...GIFT_BAGS, ...ARCH_BOXES, ...MIHRAB_BOXES, ...CUBE_SETS, ...EASELS, ...KILIM_BOXES, ...BOTTLE_BOXES, ...CEILING_FRAMES, ...DOOR_VASE, ...ENGAGE_STANDS, ...FAVOR_CARRIERS, ...WOOD_COMBS)

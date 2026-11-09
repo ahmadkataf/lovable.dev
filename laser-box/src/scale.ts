@@ -28,7 +28,7 @@ const PER_TEMPLATE: Record<string, Record<string, Role>> = {
   fabricset: { band: 'object', sl: 'object', ringH: 'object' }, // the ring's band, its width and how far it stands up
   engagement: { Dd: 'length' }, // the mirror is a laser-cut part of the set, not a bought one
   mabkharatower: { dh: 'object', ov: 'fixed' }, // the dome follows the bowl and coals; the overhang covers the mirror's thickness
-  hexringbox: { ov: 'fixed' },
+  hexringbox: { ov: 'fixed', lidType: 'choice' }, // the lid the customer ordered: lifted off, or hinged
   bedtray: { legH: 'object' }, // set by the person sitting in bed
   napkin: { sep: 'object' }, // the napkin stack
   flex: { R: 'fixed' }, // the tightest bend the living hinge takes
@@ -53,6 +53,8 @@ const PER_TEMPLATE: Record<string, Record<string, Role>> = {
   // customer's measures, taken on site; the sheet is the one bought
   ceilingset: { FW: 'object', FL: 'object', band: 'object', midAt: 'object', midLen: 'object', mid: 'choice', AW: 'object', AH: 'object', BW: 'object', BH: 'object', squares: 'choice', labels: 'choice', fit: 'fixed', sheetL: 'fixed', sheetW: 'fixed' },
   easel: { bolt: 'object', maxL: 'fixed' }, // the bought bolts; the laser bed's length
+  favorcarrier: { hand: 'fixed' }, // the hand slot is sized for a hand
+  woodcomb: { ft: 'fixed', fg: 'fixed', ct: 'fixed', cg: 'fixed', guard: 'fixed' }, // teeth and gaps are sized for hair and for the wood's strength
 }
 
 export function roleOf(tpl: Template, def: ParamDef): Role {

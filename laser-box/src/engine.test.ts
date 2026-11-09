@@ -1461,6 +1461,6 @@ describe('wedding designs', () => {
   })
 
   it('the wedding group lists the engagement set, the ring box and the wedding designs, the easel beside the welcome sign it carries', () => {
-    expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['fabricset', 'engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'easel', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
+    expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['fabricset', 'engagement', 'engagestand', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'easel', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'favorcarrier'])
   })
 })
