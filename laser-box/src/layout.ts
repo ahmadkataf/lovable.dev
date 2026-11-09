@@ -3,7 +3,7 @@
 import { Panel } from './joints'
 import { nest, NestOpts } from './nest'
 
-export interface Placed { panel: Panel; x: number; y: number; copy: number; /** the sheet it is cut from (nestLayout) */ sheet?: number; /** quarter turns applied, degrees */ rot?: number }
+export interface Placed { panel: Panel; x: number; y: number; copy: number; /** the sheet it is cut from (nestLayout) */ sheet?: number; /** the turn applied, degrees clockwise on screen (the nesting: quarter turns; a saved layout: any angle) */ rot?: number }
 /** a sheet in the drawing: its rectangle (x, y, w, h), and how far its pieces reach from its corner */
 export interface SheetBox { x: number; y: number; w: number; h: number; material?: string; used: { w: number; h: number } }
 export interface Layout {

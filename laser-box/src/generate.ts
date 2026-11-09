@@ -12,7 +12,10 @@ export interface Settings extends Common {
   sheetH: number
   /** the least distance from a piece to the sheet's edge, mm */
   margin: number
-  /** pieces may be turned by quarter turns on the sheet (off: every piece as drawn, for the wood grain) */
+  /**
+   * pieces may be turned by quarter turns on the sheet (off: every piece as drawn, for the wood grain; only a saved
+   * full-sheet layout may still half turn some, which keeps the grain on its axis, and the fill says so: sheetpresets.ts)
+   */
   rotate: boolean
   /** other materials' sheets, mm (the main sheet when missing) */
   matSheets?: Record<string, { w: number; h: number }>

@@ -350,6 +350,19 @@ export function rotateLoop(l: Loop, angle: number, cx: number, cy: number): Loop
   return { ...l, pts: l.pts.map(p => ({ ...p, x: cx + (p.x - cx) * c - (p.y - cy) * sn, y: cy + (p.x - cx) * sn + (p.y - cy) * c })) }
 }
 
+/**
+ * Loops turned by `deg` degrees about the origin, clockwise as seen on screen (y down): the sense of nest.ts's
+ * rotatePanel, whose quarter turns this gives exactly. Points rotate and bulges stay as they are (a turn keeps every
+ * arc's sense and size), so a circle keeps its radius, and engraved and open lines turn with the piece.
+ */
+export function turnLoops(loops: Loop[], deg: number): Loop[] {
+  const d = ((deg % 360) + 360) % 360
+  if (d === 0) return loops
+  const q = d / 90
+  const [c, s] = Number.isInteger(q) ? [[1, 0], [0, 1], [-1, 0], [0, -1]][q] : [Math.cos((d * Math.PI) / 180), Math.sin((d * Math.PI) / 180)]
+  return loops.map(l => ({ ...l, pts: l.pts.map(v => { const x = v.x * c - v.y * s, y = v.x * s + v.y * c; return v.b ? { x, y, b: v.b } : { x, y } }) }))
+}
+
 /** A vertical stadium-shaped hole, length `len` (overall, vertical), width `w`. */
 export const stadiumV = (cx: number, cy: number, len: number, w: number): Loop => rotateLoop(stadium(cx, cy, len, w), Math.PI / 2, cx, cy)
 

@@ -8,6 +8,8 @@ import { buildPanel, Panel } from './joints'
 import { polyLoop } from './geom'
 import { toDXF } from './export'
 import { offSheet } from './testutil'
+import { PRESETS } from './sheetpresets-data'
+import { presetCounts } from './sheetpresets'
 
 const S = (o: Partial<Settings> = {}): Settings => ({ ...DEFAULT_SETTINGS, ...o })
 const keyOf = (p: Panel) => p.material ?? MAIN
@@ -33,21 +35,28 @@ function validate(part: FillPart, panels: Panel[], s: Settings) {
   expect(lay.sheets![0]).toMatchObject({ x: 0, y: 0, w: sheet.w, h: sheet.h })
   expect(lay.tooBig ?? []).toEqual([])
   expect(lay.placed.every(pl => pl.sheet === 0)).toBe(true)
-  // exactly `sets` sets: every piece of the material count × sets times, and only those
+  // exactly `sets` sets: every piece of the material count × sets times (and a saved layout's loose pieces), and only those
+  const extra = part.preset ? presetCounts(PRESETS.find(pr => pr.id === part.preset!.id)!, mine).extra : []
   const want = new Map<string, number>()
-  for (const p of mine) want.set(p.id, (want.get(p.id) ?? 0) + p.count * part.sets)
+  mine.forEach((p, i) => want.set(p.id, (want.get(p.id) ?? 0) + p.count * part.sets + (extra[i] ?? 0)))
   const got = new Map<string, number>()
   for (const pl of lay.placed) got.set(pl.panel.id, (got.get(pl.panel.id) ?? 0) + 1)
   expect(got).toEqual(want)
-  expect(lay.placed.length).toBe(part.pieces * part.sets)
+  expect(lay.placed.length).toBe(part.pieces * part.sets + (part.extra ?? 0))
+  expect(part.extra ?? 0).toBe(extra.reduce((a, b) => a + b, 0))
   // materials kept apart: nothing from another material's sheet
   expect(lay.placed.every(pl => keyOf(pl.panel) === part.material)).toBe(true)
-  // inside the margin, no overlaps, the spacing kept, on the true outlines
-  expect(checkSheet(lay.placed.map(pl => ({ panel: pl.panel, x: pl.x, y: pl.y })), sheet.w, sheet.h, s.spacing, s.margin)).toEqual([])
+  // inside the margin, no overlaps, the spacing kept, on the true outlines (a saved layout that declares it: a piece in
+  // another's hole may be holeGap from it)
+  const holeGap = part.preset?.holeGap
+  expect(checkSheet(lay.placed.map(pl => ({ panel: pl.panel, x: pl.x, y: pl.y })), sheet.w, sheet.h, s.spacing, s.margin, undefined, holeGap !== undefined ? { holeGap } : {})).toEqual([])
   expect(offSheet(lay)).toEqual([])
   expect(part.use).toBeGreaterThan(0)
   expect(part.use).toBeLessThanOrEqual(1)
-  if (s.rotate === false) expect(lay.placed.every(pl => !pl.rot)).toBe(true)
+  // turning off keeps the grain: nothing turned; only a saved layout may half turn pieces, and then it says how many
+  if (s.rotate === false) expect(lay.placed.every(pl => (pl.rot ?? 0) % 180 === 0)).toBe(true)
+  if (s.rotate === false && !part.preset) expect(lay.placed.every(pl => !pl.rot)).toBe(true)
+  if (part.preset) expect(part.preset.halfTurned ?? 0).toBe(s.rotate === false ? lay.placed.filter(pl => pl.rot).length : 0)
 }
 
 function validateAll(r: FillResult, panels: Panel[], s: Settings) {
@@ -74,8 +83,8 @@ describe('a whole sheet filled', () => {
       expect(d.errors).toEqual([])
       const r = fillSheet(d.panels, s, { budgetMs: 2000 })
       validateAll(r, d.panels, s)
-      // the rows' count, or one or two more where the nesting placed them
-      for (const part of r.parts) expect(part.sets - part.estimate).toBeLessThanOrEqual(2)
+      // the rows' count, or one or two more where the nesting placed them (a saved layout may give far more)
+      for (const part of r.parts) if (!part.preset) expect(part.sets - part.estimate).toBeLessThanOrEqual(2)
       // each material's file holds only its own cuts: the main sheet on CUT, a mirror sheet on CUT-MIRROR
       for (const part of r.parts) {
         const dxf = toDXF(part.layout!)

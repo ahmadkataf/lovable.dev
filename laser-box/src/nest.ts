@@ -544,7 +544,7 @@ function splitFree(free: Box[], P: Box): Box[] {
 // ---------------------------------------------------------------- exact check
 
 /** a piece's cut geometry as polygons (arcs every ≤ 0.5 mm, chord error ≤ 0.005 mm), in its own coordinates */
-interface LGeo { loops: { pts: number[]; closed: boolean; bb: number[] }[]; bb: number[] }
+interface LGeo { loops: { pts: number[]; closed: boolean; bb: number[] }[]; bb: number[]; /** the closed loops that are holes (inside an odd number of its other closed loops), found when first asked */ holes?: number[] }
 function lgeo(p: Panel): LGeo {
   const loops = p.loops.filter(isCut).map(l => {
     const pts = sampleLoop(l, 0.005, 0.5)
@@ -573,17 +573,29 @@ function segsIn(g: LGeo, dx: number, dy: number, w: number[]): number[] {
 
 /** some segment of A comes closer than d to some segment of B */
 function closer(A: number[], B: number[], d: number): boolean {
+  return nearest(A, B, d, true) < d
+}
+
+/**
+ * The least distance between a segment of A and a segment of B when it is below d, else d. first: stop at the first
+ * pair closer than d (closer's yes or no)
+ */
+function nearest(A: number[], B: number[], d: number, first = false): number {
   const na = A.length / 4, nb = B.length / 4
-  if (!na || !nb) return false
+  if (!na || !nb) return d
+  let best = d
+  /** true: stop here */
   const near = (i: number, j: number) => {
-    // boxes further apart than d first: most pairs end there
-    if (Math.min(A[i], A[i + 2]) - Math.max(B[j], B[j + 2]) >= d || Math.min(B[j], B[j + 2]) - Math.max(A[i], A[i + 2]) >= d) return false
-    if (Math.min(A[i + 1], A[i + 3]) - Math.max(B[j + 1], B[j + 3]) >= d || Math.min(B[j + 1], B[j + 3]) - Math.max(A[i + 1], A[i + 3]) >= d) return false
-    return segSeg(A[i], A[i + 1], A[i + 2], A[i + 3], B[j], B[j + 1], B[j + 2], B[j + 3]) < d
+    // boxes further apart than the best so far first: most pairs end there
+    if (Math.min(A[i], A[i + 2]) - Math.max(B[j], B[j + 2]) >= best || Math.min(B[j], B[j + 2]) - Math.max(A[i], A[i + 2]) >= best) return false
+    if (Math.min(A[i + 1], A[i + 3]) - Math.max(B[j + 1], B[j + 3]) >= best || Math.min(B[j + 1], B[j + 3]) - Math.max(A[i + 1], A[i + 3]) >= best) return false
+    const v = segSeg(A[i], A[i + 1], A[i + 2], A[i + 3], B[j], B[j + 1], B[j + 2], B[j + 3])
+    if (v < best) best = v
+    return first && best < d
   }
   if (na * nb <= 40000) {
-    for (let i = 0; i < A.length; i += 4) for (let j = 0; j < B.length; j += 4) if (near(i, j)) return true
-    return false
+    for (let i = 0; i < A.length; i += 4) for (let j = 0; j < B.length; j += 4) if (near(i, j)) return best
+    return best
   }
   const g = Math.max(2 * d, 2), key = (ix: number, iy: number) => (ix + 1000) * 100000 + iy + 1000
   const cells = new Map<number, number[]>()
@@ -595,9 +607,9 @@ function closer(A: number[], B: number[], d: number): boolean {
   for (let i = 0; i < A.length; i += 4) {
     const x0 = Math.floor((Math.min(A[i], A[i + 2]) - d) / g), x1 = Math.floor((Math.max(A[i], A[i + 2]) + d) / g)
     const y0 = Math.floor((Math.min(A[i + 1], A[i + 3]) - d) / g), y1 = Math.floor((Math.max(A[i + 1], A[i + 3]) + d) / g)
-    for (let ix = x0; ix <= x1; ix++) for (let iy = y0; iy <= y1; iy++) for (const j of cells.get(key(ix, iy)) ?? []) if (near(i, j)) return true
+    for (let ix = x0; ix <= x1; ix++) for (let iy = y0; iy <= y1; iy++) for (const j of cells.get(key(ix, iy)) ?? []) if (near(i, j)) return best
   }
-  return false
+  return best
 }
 
 /** (x, y), in g's own coordinates, lies in g's material (even–odd over its closed cuts) */
@@ -614,16 +626,65 @@ function inMaterial(g: LGeo, x: number, y: number): boolean {
   return inside
 }
 
+/** g's holes: its closed loops whose first point lies inside an odd number of its other closed loops */
+function holesOf(g: LGeo): number[] {
+  if (g.holes) return g.holes
+  const one = (k: number): LGeo => ({ loops: [g.loops[k]], bb: g.loops[k].bb })
+  g.holes = []
+  g.loops.forEach((l, i) => {
+    if (!l.closed) return
+    let depth = 0
+    g.loops.forEach((m, k) => { if (k !== i && m.closed && inMaterial(one(k), l.pts[0], l.pts[1])) depth++ })
+    if (depth % 2) g.holes!.push(i)
+  })
+  return g.holes
+}
+
+/** piece b (geometry gb at pb) lies in one of a's holes: its box inside the hole's box and a point of it inside the hole */
+function inHoleOf(ga: LGeo, pa: CheckPiece, gb: LGeo, pb: CheckPiece): boolean {
+  const first = gb.loops[0]
+  if (!first) return false
+  const x = first.pts[0] + pb.x - pa.x, y = first.pts[1] + pb.y - pa.y
+  for (const h of holesOf(ga)) {
+    const hb = ga.loops[h].bb
+    if (gb.bb[0] + pb.x - pa.x < hb[0] || gb.bb[1] + pb.y - pa.y < hb[1] || gb.bb[2] + pb.x - pa.x > hb[2] || gb.bb[3] + pb.y - pa.y > hb[3]) continue
+    if (inMaterial({ loops: [ga.loops[h]], bb: hb }, x, y)) return true
+  }
+  return false
+}
+
 export interface CheckPiece { panel: Panel; x: number; y: number }
+export interface CheckOpts {
+  /**
+   * a piece lying wholly inside another piece's hole may come this close to that piece (mm; a frame cut inside a
+   * window that drops out as scrap anyway). Only where asked for (a saved layout that declares it); every other pair
+   * keeps the full spacing
+   */
+  holeGap?: number
+  /**
+   * out: holeGap is lowered to the least distance measured between a piece and the piece whose hole it lies in, where
+   * that is below the spacing (− 0.05); left as it was when no such pair is that close. What a saved layout really
+   * keeps in the holes of these very pieces: a narrower frame (wider window) leaves more room than it was made with
+   */
+  measure?: { holeGap: number }
+}
 /**
  * Exact check of pieces on one sheet (W × H): every cut at least margin from the edge, no two pieces closer than
- * spacing − 0.05 anywhere, none inside another's material. Returns the indices of pieces at fault (the later of a pair).
+ * spacing − 0.05 anywhere (holeGap − 0.05 for a piece inside the other's hole, when that option is given), none inside
+ * another's material. Returns the indices of pieces at fault (the later of a pair). Pieces sharing one Panel object share
+ * its geometry (a full sheet of copies is worked out once per shape).
  */
-export function checkSheet(pieces: CheckPiece[], W: number, H: number, spacing: number, margin: number, geo?: (i: number) => LGeo): number[] {
-  const G = (i: number) => (geo ? geo(i) : (cache[i] ??= lgeo(pieces[i].panel)))
-  const cache: LGeo[] = []
+export function checkSheet(pieces: CheckPiece[], W: number, H: number, spacing: number, margin: number, geo?: (i: number) => LGeo, o: CheckOpts = {}): number[] {
+  const byPanel = new Map<Panel, LGeo>()
+  const G = (i: number) => {
+    if (geo) return geo(i)
+    let g = byPanel.get(pieces[i].panel)
+    if (!g) { g = lgeo(pieces[i].panel); byPanel.set(pieces[i].panel, g) }
+    return g
+  }
   const bad = new Set<number>()
   const d = Math.max(spacing, 0.1) - 0.05, tol = 0.01
+  const dHole = o.holeGap !== undefined && o.holeGap < spacing ? Math.max(o.holeGap, 0.1) - 0.05 : d
   const boxes = pieces.map(pc => { const b = cutBox(pc.panel.loops); return [b.minX + pc.x, b.minY + pc.y, b.maxX + pc.x, b.maxY + pc.y] })
   boxes.forEach((b, i) => { if (b[0] < margin - tol || b[1] < margin - tol || b[2] > W - margin + tol || b[3] > H - margin + tol) bad.add(i) })
   const ord = boxes.map((_, i) => i).sort((a, b) => boxes[a][0] - boxes[b][0] || a - b)
@@ -635,7 +696,15 @@ export function checkSheet(pieces: CheckPiece[], W: number, H: number, spacing: 
       if (B[1] > A[3] + d || A[1] > B[3] + d) continue
       const ga = G(a), gb = G(b), pa = pieces[a], pb = pieces[b]
       const win = [Math.max(A[0], B[0]) - d, Math.max(A[1], B[1]) - d, Math.min(A[2], B[2]) + d, Math.min(A[3], B[3]) + d]
-      let fault = closer(segsIn(ga, pa.x, pa.y, win), segsIn(gb, pb.x, pb.y, win), d)
+      const hole = (dHole < d || !!o.measure) && (inHoleOf(ga, pa, gb, pb) || inHoleOf(gb, pb, ga, pa))
+      const dd = hole ? dHole : d, sa = segsIn(ga, pa.x, pa.y, win), sb = segsIn(gb, pb.x, pb.y, win)
+      let fault: boolean
+      if (hole && o.measure) {
+        // the whole window reaches d past the inner piece: every distance below d is found
+        const gap = nearest(sa, sb, d)
+        if (gap < d && gap < o.measure.holeGap) o.measure.holeGap = gap
+        fault = gap < dd
+      } else fault = closer(sa, sb, dd)
       // no edge near the other: a piece wholly inside the other's material (not in a hole) is still wrong
       for (const [g1, p1, g2, p2] of [[ga, pa, gb, pb], [gb, pb, ga, pa]] as const) {
         if (fault) break

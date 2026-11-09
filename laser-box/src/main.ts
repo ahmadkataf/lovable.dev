@@ -8,7 +8,7 @@ import { makeZip } from './zip'
 import { MATERIAL_INFO } from './materials'
 import { scaleDesign, repair, roleOf, Change } from './scale'
 import { designCost, projectTotal, sheetsFor, money, fmtUsd, fmtSyp, matches, defaultPricing, DEFAULT_SHEET, MAIN, Pricing, Currency, materialLabel, DesignCost } from './cost'
-import { fillSheet, fillLayout, FillResult, FillPart } from './fillsheet'
+import { fillSheet, fillLayout, fillMore, FillResult, FillPart } from './fillsheet'
 
 // Inside the claude.ai viewer the page cannot start downloads itself and the link hash carries no state.
 type ClaudeUse = (name: string) => Promise<{ save(r: { filename: string; data: string | Blob }): Promise<unknown> } | null>
@@ -170,7 +170,7 @@ const actions = el('div', { class: 'actions' })
 const fillBox = el('section', { class: 'fill', 'aria-label': 'لوح كامل' })
 previewWrap.append(stats, alerts, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions, fillBox)
 document.body.append(chooser, priceDlg)
-app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), costBox, notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص. · الإصدار 3.2'))
+app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), costBox, notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص. · الإصدار 3.3'))
 
 // ------------------------------------------------------------------ gallery
 
@@ -303,7 +303,7 @@ function renderForm() {
   const rot = el('input', { type: 'checkbox', id: 'rotate' }) as HTMLInputElement
   rot.checked = state.settings.rotate !== false
   rot.onchange = () => { state.settings.rotate = rot.checked; persist(); update(true) }
-  mat.append(el('div', { class: 'field' }, el('label', { class: 'check', for: 'rotate' }, rot, ' السماح بتدوير القطع'), el('span', { class: 'hint' }, 'يدوّر القطع ربع دورة أو نصفها حين يوفّر ذلك من اللوح (لا تُقلب أبداً). أوقفه إن كان اتجاه عروق الخشب مهمّاً')))
+  mat.append(el('div', { class: 'field' }, el('label', { class: 'check', for: 'rotate' }, rot, ' السماح بتدوير القطع'), el('span', { class: 'hint' }, 'يدوّر القطع ربع دورة أو نصفها حين يوفّر ذلك من اللوح (لا تُقلب أبداً). أوقفه إن كان اتجاه عروق الخشب مهمّاً: تبقى القطع كما رُسمت، إلا الترتيب المحفوظ للوح الكامل فقد يدير بعضها نصف دورة (تبقى العروق على اتجاهها)، ويُكتب ذلك مع النتيجة')))
   const reset = el('button', { type: 'button', class: 'link' }, 'إعادة القيم الافتراضية')
   reset.onclick = () => { lastAction = null; state.params[state.tpl] = {}; state.settings = { ...DEFAULT_SETTINGS }; persist(); renderForm(); update(true) }
   form.append(dims, mat, reset)
@@ -566,13 +566,36 @@ function renderFill(blocked: boolean) {
   const list = el('ul', { class: 'fill-list' })
   for (const p of lastFill.r.parts) {
     const size = `${fmt(p.sheet.w / 10)} × ${fmt(p.sheet.h / 10)} سم`
+    // a saved layout that needs pieces closer in their holes than the spacing (the gap as measured on these pieces): it
+    // says so, and offers the spacing everywhere instead (fewer), and back
+    const choice = p.preset?.holeGap !== undefined
+      ? [el('small', { class: 'tip' }, `قطع داخل الثقوب على بعد ${fmtDown(p.preset.holeGap)} مم من حوافّها، أقلّ من المسافة ${fmt(state.settings.spacing)} مم`),
+          el('button', { type: 'button', class: 'link', onclick: () => fillWholeSheet(true) }, `مسافة ${fmt(state.settings.spacing)} مم في كل مكان بدل ذلك (عدد أقلّ)`)]
+      : p.closer ? [el('button', { type: 'button', class: 'link', onclick: () => fillWholeSheet(false) }, `↩ ${pieces(p.closer.sets)}، بقطع داخل الثقوب على بعد ${fmtDown(p.closer.holeGap)} مم من حوافّها`)] : []
+    // in the count's own unit: the comb's 405 combs against the table's 16 × 24 = 384 are 21 more
+    const more = fillMore(p)
     const text = p.sets > 0
-      ? el('div', {}, el('b', {}, p.label), el('div', {}, `${pieces(p.sets)} على لوح ${size}`),
-        el('small', {}, `تغطّي القطع ${Math.round(100 * p.use)}٪ من اللوح${p.sets > p.estimate ? ` · أكثر بـ${p.sets - p.estimate} من جدول التكلفة` : ''}`))
-      : el('div', {}, el('b', {}, p.label), el('div', { class: 'bad' }, p.tooBig.length ? `«${p.tooBig[0]}» أكبر من اللوح ${size}` : `لا تتّسع على لوح ${size}`))
+      ? el('div', {}, el('b', {}, p.label), el('div', {}, `${fillCount(p)} على لوح ${size}`, ...(p.preset ? [el('span', { class: 'saved' }, '✓ ترتيب محفوظ ومفحوص')] : [])),
+        el('small', {}, `تغطّي القطع ${Math.round(100 * p.use)}٪ من اللوح${more > 0 ? ` · أكثر بـ${more} من جدول التكلفة` : ''}`),
+        ...(p.preset?.hint ? [el('small', { class: 'tip' }, p.preset.hint)] : []),
+        ...(p.preset?.halfTurned ? [el('small', { class: 'tip' }, `التدوير موقوف، لكن هذا الترتيب يدير ${pieces(p.preset.halfTurned)} نصف دورة فقط: العروق على اتجاهها نفسه`)] : []),
+        ...choice)
+      : el('div', {}, el('b', {}, p.label), el('div', { class: 'bad' }, p.tooBig.length ? `«${p.tooBig[0]}» أكبر من اللوح ${size}` : `لا تتّسع على لوح ${size}`), ...choice)
     list.append(el('li', {}, ...(p.layout ? [sheetThumb(p.layout)] : []), text))
   }
   fillBox.append(list)
+}
+
+/** a gap, mm, to 0.1 and never more than it is (2.632 → «2.6») */
+function fmtDown(v: number): string {
+  return fmt(Math.floor(v * 10 + 1e-9) / 10)
+}
+
+/** «81 قطعة», or with loose pieces beyond the sets «405 مشط (16 طقم + 21)» */
+function fillCount(p: FillPart): string {
+  if (!p.extra) return pieces(p.sets)
+  const all = p.sets * p.pieces + p.extra
+  return `${all} ${p.preset?.unit ?? 'قطعة'} (${p.sets} طقم + ${p.extra})`
 }
 
 /** a small drawing of a filled sheet: every piece's outline filled in its material's colour */
@@ -593,11 +616,13 @@ function sheetThumb(lay: Layout): SVGSVGElement {
   return t
 }
 
-function fillWholeSheet() {
+/** strict: the spacing everywhere, also between a piece and the hole it sits in (no saved layout that goes closer there) */
+function fillWholeSheet(strict = false) {
   if (!design || design.errors.length) return
   const d = design, key = fillKey(), s = genSettings(state.settings)
   busy('جارٍ ملء اللوح بأكبر عدد من القطع…', () => {
-    const r = fillSheet(d.panels, s)
+    let r: FillResult
+    try { r = fillSheet(d.panels, s, { strict }) } catch (e) { console.error(e); toast('تعذّر ملء اللوح هذه المرة؛ نزّل الملف العادي أو جرّب مرة أخرى', 6000); return }
     lastFill = { key, r }
     renderFill(false)
     fillBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -609,18 +634,31 @@ function fillWholeSheet() {
 async function saveFill(r: FillResult) {
   const ok = r.parts.filter((p): p is FillPart & { layout: Layout } => !!p.layout && p.sets > 0)
   if (!ok.length) { toast('القطع لا تتّسع على اللوح: كبّر اللوح من 💲 أو صغّر التصميم', 6000); return }
-  const name = (p: FillPart, ext: string) => fileName(`${p.material}-${p.sets}pcs.${ext}`)
+  // «…-t3.main-81sets.dxf», with loose pieces beyond the sets «…-16sets+21pcs.dxf». Another material's sheet has its own
+  // thickness (the ring box's mirror frames: tf), not the design's t, so its name leaves t out
+  const name = (p: FillPart, ext: string) => fileName(`${p.material}-${setsTag(p)}.${ext}`, p.material === MAIN)
+  // the zip, and the phone's one DXF of every material, carry the counts too: the ring box's 81 + 233 and its 81 + 206
+  // (the spacing everywhere) are different files under different names. t only when every sheet is the main material's
+  const allName = (ext: string) => fileName(`fullsheet-${fillTag(ok)}.${ext}`, ok.every(p => p.material === MAIN))
+  const counts = ok.map(p => `${p.label}: ${fillCount(p)}`).join('، ')
   if (android) {
     // the phone saves one text file at a time: every material's sheet side by side in one DXF, each in its own colour
-    const one = ok.length === 1, fname = one ? name(ok[0], 'dxf') : fileName('fullsheet.dxf')
+    const one = ok.length === 1, fname = one ? name(ok[0], 'dxf') : allName('dxf')
     android.save(fname, 'application/octet-stream', toDXF(one ? ok[0].layout : fillLayout({ ...r, parts: ok })))
-    toast(one ? `اختر مكان حفظ «${fname}»` : `اختر مكان حفظ «${fname}»: فيه لوح لكلّ خامة بلونها؛ اقصّ كلّ لون وحده`, 6000)
+    toast(one ? `اختر مكان حفظ «${fname}» (${counts})` : `اختر مكان حفظ «${fname}»: فيه لوح لكلّ خامة بلونها (${counts})؛ قُصّ كلّ لون وحده`, 8000)
     return
   }
   const entries = ok.flatMap(p => [{ name: name(p, 'dxf'), data: toDXF(p.layout) }, { name: name(p, 'svg'), data: toSVG(p.layout) }])
-  const zipName = fileName('fullsheet.zip')
+  const zipName = allName('zip')
   if (!(await saveBlob(zipName, new Blob([makeZip(entries)], { type: 'application/zip' })))) return
-  toast(`حُفظ «${zipName}»: ملف DXF وملف SVG لكلّ خامة (${ok.map(p => `${p.label}: ${pieces(p.sets)}`).join('، ')}).`, 9000)
+  toast(`حُفظ «${zipName}»: ملف DXF وملف SVG لكلّ خامة (${counts}).`, 9000)
+}
+
+/** one sheet's count in a file name: «81sets», with loose pieces beyond the sets «16sets+21pcs» */
+const setsTag = (p: FillPart) => `${p.sets}sets${p.extra ? `+${p.extra}pcs` : ''}`
+/** every sheet's count, material by material: «81sets», «81+233sets», and when one has loose pieces «81sets_16sets+21pcs» */
+function fillTag(parts: FillPart[]): string {
+  return parts.length > 1 && parts.every(p => !p.extra) ? `${parts.map(p => p.sets).join('+')}sets` : parts.map(setsTag).join('_')
 }
 
 /**
@@ -888,12 +926,13 @@ function applyView() {
 
 // ------------------------------------------------------------------ export
 
-function fileName(ext: string) {
+/** withT false: no thickness in the name (a sheet of another material, whose thickness is not the design's t) */
+function fileName(ext: string, withT = true) {
   const p = params()
   // the template's own size keys, in order, skipping any it does not have
   const keys = p.Wb !== undefined ? ['W', 'D', 'Wb', 'Db'] : p.pw !== undefined ? ['pw', 'ph'] : p.Dm !== undefined ? ['Dm', 'H'] : p.Dd !== undefined ? ['Dd', 'W', 'D'] : p.S !== undefined ? ['S', 'H'] : p.D1 !== undefined ? ['tiers', 'D1'] : p.PW !== undefined ? ['PW', 'PH'] : ['W', 'D', 'H']
   const dims = keys.filter(k => Number.isFinite(p[k])).map(k => fmt(p[k])).join('x') || state.tpl
-  return `laser-box-${state.tpl}-${dims}-t${state.settings.t}.${ext}`
+  return `laser-box-${state.tpl}-${dims}${withT ? `-t${state.settings.t}` : ''}.${ext}`
 }
 
 /** the settings a design is generated with: the sheets from the prices (cm), every setting a saved design may lack filled in */
