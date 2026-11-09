@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { WOOD_COMBS, combRow, combShape, pyRound, MIN_TOOTH, MIN_GAP, TIP_R, CORNER_R } from './woodcomb'
+import { WOOD_COMBS, combRow, combShape, combCount, pyRound, MIN_TOOTH, MIN_GAP, TIP_R, CORNER_R } from './woodcomb'
 import { generate, DEFAULT_SETTINGS } from './generate'
 import { signedArea, arcInfo, Loop } from './geom'
 import { toDXF } from './export'
@@ -192,6 +192,18 @@ describe('wooden comb (woodcomb)', () => {
     expect(err({}, { ...S0, kerf: 1.4 })).toMatch(/عرض شقّ الليزر/)
   })
 
+  it('starts every tooth and gap at the least that is cut, and each of those builds at the default length', () => {
+    const def = (k: string) => tpl.params.find(d => d.key === k)!
+    for (const k of ['ft', 'ct', 'guard']) expect(def(k).min, k).toBe(MIN_TOOTH)
+    for (const k of ['fg', 'cg']) expect(def(k).min, k).toBe(MIN_GAP)
+    for (const k of ['ft', 'ct', 'guard', 'fg']) expect(generate(tpl, { [k]: def(k).min }, S0).errors, k).toEqual([])
+    // the coarse gap at its least is squeezed under 1.2 at 120 mm, but builds at the lengths where the row spreads it out
+    const q: Record<string, number> = { ...D0, cg: MIN_GAP }
+    const roomy = Array.from({ length: 501 }, (_, i) => 50 + i / 2).filter(L => { const r = combRow(L, q.guard, q.ft, q.fg, q.ct, q.cg); return r.nf >= 4 && r.nc >= 4 && Math.min(r.fineGap, r.coarseGap) >= MIN_GAP })
+    expect(roomy.length).toBeGreaterThan(50)
+    for (const L of roomy.filter((_, i) => i % 10 === 0)) expect(generate(tpl, { cg: MIN_GAP, L }, S0).errors, `L=${L}`).toEqual([])
+  })
+
   it('counts the teeth as comb.py does: Python rounds halves to the even neighbour', () => {
     expect([pyRound(14.5), pyRound(15.5), pyRound(2.4), pyRound(2.6), pyRound(3)]).toEqual([14, 16, 2, 3, 3])
     expect(combRow(124, 4, 2, 2, 2.8, 2.2).nf).toBe(14) // 58 / 4 = 14.5 → 14, as comb.py gets
@@ -205,6 +217,11 @@ describe('wooden comb (woodcomb)', () => {
     expect(notes).toContain('نعّم الأسنان')
     expect(notes).toContain('RDWorks')
     expect(notes).toContain('السماح بتدوير القطع')
+    expect(notes).toContain('اجعل الأسنان على اتجاه عروق الخشب')
+    // the count of combs: the noun follows the last two digits
+    expect([1, 2, 3, 10, 11, 99, 100, 101, 103, 110, 111, 200].map(combCount)).toEqual(['مشط واحد', 'مشطان', '3 أمشاط', '10 أمشاط', '11 مشطاً', '99 مشطاً', '100 مشط', '101 مشط', '103 أمشاط', '110 أمشاط', '111 مشطاً', '200 مشط'])
+    expect(generate(tpl, { n: 200 }, S0).notes[0]).toMatch(/^200 مشط،/)
+    expect(notes).toMatch(/^24 مشطاً،/)
     expect(d.panels[0].loops.some(l => l.layer === 'engrave')).toBe(false) // no text drawn: it is added in RDWorks
     expect(generate(tpl, {}, { ...S0, t: 6 }).warnings.join(' ')).toMatch(/الأنسب أبلكاش 3 مم/)
     expect(generate(tpl, {}, { ...S0, t: 2 }).warnings.join(' ')).toMatch(/تنكسر/)

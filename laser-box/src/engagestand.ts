@@ -30,6 +30,11 @@ import type { PanelSpec } from './joints'
 
 const mm = (key: string, label: string, min: number, max: number, hint?: string): ParamDef => ({ key, label, min, max, step: 0.5, unit: 'مم', hint })
 const f1 = (v: number) => (Math.round(v * 10) / 10).toString()
+/** "n strips" with the Arabic number agreement: one, two, 3 to 10 plural, 11 and up singular (by the last two digits) */
+export const stripCount = (n: number) => {
+  const r = n % 100
+  return n === 1 ? 'شريحة واحدة' : n === 2 ? 'شريحتان' : r >= 3 && r <= 10 ? `${n} شرائح` : `${n} شريحة`
+}
 const KQ = Math.tan(Math.PI / 8) // bulge of a quarter circle
 
 /** the smallest base the design is drawn for: the hearts' fine line needs a heart 37 mm wide */
@@ -83,7 +88,7 @@ export function standGeom(p: Record<string, number>, t: number): { g: StandGeom;
   const strips = Array.from({ length: n }, (_, i) => i * (ws + g) + ws / 2)
   const wsMin = Math.max(6, t + 2)
   if (g < 3) errors.push(`الفراغ بين الشرائح ${f1(g)} مم ضيّق: 3 مم على الأقلّ.`)
-  if (n < 3) errors.push(`الشرائح عريضة على قوس عرضه ${f1(As)} مم: لا تتّسع إلا ${n === 1 ? 'شريحة واحدة' : 'شريحتان'}؛ صغّر عرض الشريحة أو الفراغ بينها.`)
+  if (n < 3) errors.push(`الشرائح عريضة على قوس عرضه ${f1(As)} مم: لا تتّسع إلا ${stripCount(n)}؛ صغّر عرض الشريحة أو الفراغ بينها.`)
   else if (ws < wsMin) errors.push(`الشرائح عرضها ${f1(ws)} مم فقط: يلزم ${f1(wsMin)} مم على الأقلّ لتُلصق عليها الدعامة (سماكتها ${t} مم) ولا تنكسر؛ كبّر عرض الشريحة.`)
   const stx = [0.22 * As, 0.78 * As]
   // the panel's tabs: the nearest place to a fifth and four fifths of its width, either way in whole millimetres, where
@@ -274,7 +279,7 @@ function build(p: Record<string, number>, c: Common): BuildResult {
       post: loops => { for (const [x, y] of [[0, 0], [Wr, 0], [Wr, Dr], [0, Dr]]) roundCorner(loops, x, y, rr) },
       note: 'مرسومة كما تُرى من فوق ووجه المرآة للأعلى: الحافّة الخلفية في الأعلى ولوح الكتابة على اليمين',
     },
-    { id: 'arch', name: 'قوس الشرائح (مرآة فضّية)', ...sized([arch]), material: 'mirror', shape: [arch], note: `${n} شريحة يجمعها حزام في أسفلها، بلسانين في القاعدة` },
+    { id: 'arch', name: 'قوس الشرائح (مرآة فضّية)', ...sized([arch]), material: 'mirror', shape: [arch], note: `${stripCount(n)} يجمعها حزام في أسفلها، بلسانين في القاعدة` },
     { id: 'panel', name: 'لوح الكتابة (أبيض)', ...sized([panel]), material: 'white', shape: [panel], note: 'يقف أمام قوس الشرائح مباشرة ويُلصق ظهره على وجهه؛ الأسماء والشعر تُضاف في RDWorks' },
     { id: 'brace', name: 'دعامة خلفية (مرآة)', ...sized([brace]), count: 2, material: 'mirror', shape: [brace], note: 'حافّتها العمودية على ظهر شريحة من القوس، ولسانها في الشقّ الصغير خلفه' },
   ]
@@ -289,7 +294,7 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   }
   const ordinal = (i: number) => ['الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة', 'الثامنة', 'التاسعة', 'العاشرة'][i] ?? `رقم ${i + 1}`
   const notes = [
-    `القاعدة ${f1(W)} × ${f1(D)} مم. قوس الشرائح ${f1(As)} × ${f1(Hs)} مم: ${n} شريحة عرض كلّ منها ${f1(ws)} مم بينها ${f1(g.g)} مم، يجمعها حزام بارتفاع ${f1(hb)} مم في أسفلها. لوح الكتابة ${f1(At)} × ${f1(Ht)} مم يقف أمامه مباشرة على اليمين${hearts ? `، والقلوب عرضها ${f1(hw)} مم` : ''}.`,
+    `القاعدة ${f1(W)} × ${f1(D)} مم. قوس الشرائح ${f1(As)} × ${f1(Hs)} مم: ${stripCount(n)} عرض كلّ منها ${f1(ws)} مم بينها ${f1(g.g)} مم، يجمعها حزام بارتفاع ${f1(hb)} مم في أسفلها. لوح الكتابة ${f1(At)} × ${f1(Ht)} مم يقف أمامه مباشرة على اليمين${hearts ? `، والقلوب عرضها ${f1(hw)} مم` : ''}.`,
     'التركيب: أدخل لسانَي قوس الشرائح في الشقّين الخلفيين، ثم لسانَي لوح الكتابة في الشقّين أمامهما مباشرة فيستند ظهر اللوح على وجه القوس. الصق ظهر اللوح على القوس بلاصق UV أو جل شفّاف، لا بغراء الأكريليك السائل: يذيب طلاء المرآة ويترك أثراً.',
     `الدعامتان خلف القوس: حافّة كلّ منهما العمودية تُلصق على ظهر الشريحة ${ordinal(braceAt[0])} والشريحة ${ordinal(braceAt[1])} من اليسار (من الأمام)، ولسانها في الشقّ الصغير خلف شقّ القوس.`,
     ...(hearts ? [`القلوب: الصق القلب الأبيض في وسط القلب الفضّي فتبقى حوله حافّة فضّية ${HEART_INSETS.white} مم، ثم الخطّ الفضّي الرفيع (${HEART_INSETS.lineIn - HEART_INSETS.lineOut} مم) فوق الأبيض على بعد ${HEART_INSETS.lineOut - HEART_INSETS.white} مم من حافّته. توضع أمام لوح الكتابة، ويبقى أمام قوس الشرائح على اليسار مكان لعلبتي المحابس.`] : []),

@@ -289,6 +289,8 @@ describe('hexagonal ring box: the hinged lid (lid type 2)', () => {
     expect(low).toMatch(/إطار الغطاء يلمس السندة قبل الغطاء/)
     const aMin = Number(low.match(/اجعل زاوية التوقّف ([\d.]+)° على الأقل/)![1])
     expect(aMin).toBeGreaterThan(95); expect(aMin).toBeLessThanOrEqual(100)
+    expect(Number.isInteger(aMin), `${aMin}°`).toBe(true) // a whole degree, as the stop field steps
+    expect(build({ stop: aMin - 1 }).d.errors.join(' ')).toMatch(/إطار الغطاء يلمس السندة قبل الغطاء/)
     expectStop({ stop: aMin }, 3)
     // and the simulation agrees there is a reason: at 95° the frame touches no later than the plate
     const { hit } = simulate({ stop: 95 }, 3)

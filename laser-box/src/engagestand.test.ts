@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ENGAGE_STANDS, standGeom, heartOutline, HEART_INSETS, MIN_W } from './engagestand'
+import { ENGAGE_STANDS, standGeom, heartOutline, HEART_INSETS, MIN_W, stripCount } from './engagestand'
 import { generate, DEFAULT_SETTINGS, Design } from './generate'
 import { signedArea, bbox, polyLoop, Loop } from './geom'
 import { toDXF } from './export'
@@ -303,6 +303,19 @@ describe('engagement stand: soundness, materials, notes and refusals', () => {
     expect(notes).toContain('ووجه المرآة للأعلى')
     expect(notes).toContain('قِس سماكة الألواح')
     expect(notes).toContain('الخطّ الفضّي')
+  })
+
+  it('counts the strips with the Arabic number agreement: شرائح for 3 to 10, شريحة from 11', () => {
+    expect([1, 2, 3, 10, 11, 99, 100, 101, 103, 110, 111].map(stripCount)).toEqual(['شريحة واحدة', 'شريحتان', '3 شرائح', '10 شرائح', '11 شريحة', '99 شريحة', '100 شريحة', '101 شريحة', '103 شرائح', '110 شرائح', '111 شريحة'])
+    for (const [v, n, word] of [[{}, 11, 'شريحة'], [{ sw: 40, sg: 30 }, 5, 'شرائح'], [{ W: 300, sw: 40, sg: 30 }, 3, 'شرائح'], [{ sw: 30, sg: 20 }, 7, 'شرائح'], [{ sw: 25, sg: 12 }, 9, 'شرائح']] as [Record<string, number>, number, string][]) {
+      const d = build(v)
+      expect(d.errors, JSON.stringify(v)).toEqual([])
+      expect(geomOf(v).n).toBe(n)
+      expect(get(d, 'arch').note).toMatch(new RegExp(`^${n} ${word} يجمعها`))
+      expect(d.notes[0]).toContain(`: ${n} ${word} عرض كلّ منها`)
+    }
+    expect(build({ W: 300, sw: 100 }).errors.join(' ')).toContain('لا تتّسع إلا شريحة واحدة؛')
+    expect(build({ sw: 150 }).errors.join(' ')).toContain('لا تتّسع إلا شريحتان؛')
   })
 
   it('refuses sizes it cannot make, with the reason', () => {

@@ -1,241 +1,241 @@
-// A clear acrylic favours carrier (علبة توزيعات بسقف مائل ومقبض), as in the customer's picture and as delivered to
-// the customer (favorbox.py): a base reaching 5 mm past the walls with slots for every bottom tab, two trapezoid sides
-// (mirror images of each other), a back wall and a low front lip standing between the sides 5 mm inside their back and
-// front edges, and a top sloping down to the front with a stadium hand slot in its middle and a stiffening plate glued
-// under it. The front is open between the lip and the top for taking the favours. Tab-and-slot joints glued with
-// acrylic cement; the baby's name in gold mirror acrylic is added in RDWorks (the app cannot shape Arabic text).
+// A clear acrylic favours box shaped like a tent (علبة توزيعات أكريليك خيمة بفتحة إيد), as the customer described it
+// and as delivered to the customer (favortent.py): ONE piece of acrylic heat-bent on a strip heater along four lines.
+// The two long walls lean in from the base's edges and close on each other at the top, like a tent (a pyramid in
+// section), each with the same stadium hand slot near its top edge and centred in the length, so the hand goes through
+// both; the two ends are low vertical lips, open above, where the favours are taken out. The walls' top corners are
+// rounded, the corners where two bends meet are relieved, and every other corner of the outline is rounded 1 mm
+// (favortent.py closes and opens the outline by 1 mm). The lips are glued to the walls inside with acrylic cement, the
+// seam at the top with gel cement under a decoration strip; the baby's name in gold is added in RDWorks (the app cannot
+// shape Arabic text).
 //
-// Box coordinates: x along the length (0 at the left side's outer face), y the depth from the front (0) to the back
-// (D), z up from the base's top. The sides stand on the base and are H tall at the back and Hf at the front; the top
-// lies on their sloping edges, so its underside is the plane z = Hf + k·y. A point on the slope is (u, v): u along it
-// from the sides' front top corner, v square to it, outward (y = u·cos a − v·sin a, z = Hf + u·sin a + v·cos a).
+// The lean: the walls' outside faces rise from the base's outside edges, leaning in by b, and the inside corners of
+// their top edges (cut square to the wall) meet the middle less half the top gap at the height H:
+// H·tan b + t·cos b = D/2 − gap/2. A wall is then H / cos b long outside and its bend turns 90° + b; the lips' bends 90°.
 //
-// Every size of a joint is the one in favorbox.py at the default box; on a smaller box the tabs narrow with it.
+// Flat lengths by the neutral-axis method: an inside bend radius ri and the neutral axis at mid-thickness, so a bend
+// turning θ takes a band BA = θ·(ri + t/2) of the flat sheet and its outside setback is SB = (ri + t)·tan(θ/2). A wall
+// S long outside is S − SB flat beyond its band, and the base is W − 2·SB(90°) by D − 2·SB(wall) between the bands. The
+// bend lines (on the engraving layer) run along the middle of each band and 8 mm past the sheet.
+//
+// Sheet coordinates as favortent.py draws it: x right, y up, the base's flat part from (0, 0) to (xb, yb), the front
+// wall below the base, the back wall above it and the lips left and right. A point x along the box lies at x − SB(90°);
+// a point of a lip y from the box's front edge (outside) at y − SB(wall) across. The panel is the same drawing with y
+// turned down the screen: X = x − xMin, Y = yMax − y.
 import type { Template, ParamDef, BuildResult, Common } from './templates'
-import { Loop, Rect, rect, unionRects, stadium, polyLoop, roundCorner, round3 } from './geom'
+import { Loop, Vtx, stadium, polyLoop } from './geom'
 import type { PanelSpec } from './joints'
 
-type YZ = { y: number; z: number }
+type XY = { x: number; y: number }
 
 const mm = (key: string, label: string, min: number, max: number, hint?: string): ParamDef => ({ key, label, min, max, step: 0.5, unit: 'مم', ...(hint ? { hint } : {}) })
 const f1 = (v: number) => (Math.round(v * 10) / 10).toString()
+const deg = (rad: number) => (rad * 180) / Math.PI
 
 /** The design's fixed sizes (mm), as in the box delivered to the customer. */
 export const CARRIER = {
-  /** the back wall and the front lip stand this far inside the sides' back and front edges */
-  inset: 5,
-  /** the base reaches this far beyond the walls */
-  overhang: 5,
-  /** the base's corners */
-  baseR: 4,
-  /** the top's and the plate's corners (and the mouths of the top's slots) are eased this much */
+  /** the lips' clearance to the walls' inside faces, each side */
+  clear: 0.2,
+  /** the bend lines run this far past the sheet */
+  overrun: 8,
+  /** every corner of the outline but the walls' and lips' top corners: the inside ones and those at the corner reliefs */
   ease: 1,
-  /** the hand slot's width, up the slope */
-  handW: 24,
-  /** the stiffening plate under the top, up the slope; it stops short of the back wall on a shallow box */
-  plate: 70,
-  /** the plate's clearance to each side's inner face */
-  plateGap: 0.1,
-  /** the least front opening between the lip and the top: a hand reaches in for a favour */
-  openMin: 40,
-  /** the least depth left for the favours between the lip and the back wall */
-  innerMin: 50,
-  /** the least lip: its end tabs keep 4 mm of acrylic above and below their slots in the sides */
-  lipMin: 14,
-  /** the back wall's flat top stays this far under the top's underside at its front face (the cement bridges it) */
-  backGap: 0.1,
-  /** where the sides' three top tabs sit along the slope, as fractions of its length from the front */
-  topTabs: [0.18, 0.5, 0.82],
-  /** the sides' two bottom tabs, as fractions of the depth */
-  baseTabs: [0.25, 0.75],
-  /** the back wall's three and the lip's two bottom tabs, as fractions of the inner length */
-  backTabs: [0.2, 0.5, 0.8],
-  lipTabs: [0.25, 0.75],
+  /** the lips' top corners are rounded this share of the walls' */
+  lipShare: 0.5,
+  /** the most the walls may lean in (degrees): steeper, the box is too low for its depth */
+  leanMax: 45,
+  /** the hand slots keep this far from the lips' inner faces */
+  slotSide: 10,
+  /** and their lowest point this far above the wall's bend band: the heater softens a band either side of the line */
+  slotLow: 10,
+  /** the least base between the bend bands, each way */
+  baseMin: 20,
+  /** the lips stand at least this far above their bend band */
+  lipMin: 10,
+  /** the least width of a lip at its top: room for its rounded corners */
+  lipTopMin: 2,
+  /** the test strip for the bend allowance: its width and each leg's flat length beyond the bend band */
+  strip: { w: 40, leg: 60 },
+  /** the angle gauge for the walls: a right triangle with this leg at the angle */
+  gaugeLeg: 50,
 }
 
 const PARAMS: ParamDef[] = [
-  mm('W', 'الطول', 120, 800, 'من الخارج، بين وجهي الجانبين'),
-  mm('D', 'العمق', 80, 500, 'من الأمام إلى الخلف (القاعدة أعمق بـ 10 مم)'),
-  mm('H', 'الارتفاع من الخلف', 50, 500, 'ارتفاع الجانبين عند الظهر، من سطح القاعدة إلى تحت السقف'),
-  mm('Hf', 'الارتفاع من الأمام', 30, 500, 'ارتفاع الجانبين عند الواجهة، حيث تبدأ حافّة السقف المائل'),
-  mm('lip', 'ارتفاع الحافّة الأمامية', 10, 200, 'الواجهة مفتوحة بين الحافّة والسقف لأخذ التوزيعات (40 مم على الأقل)'),
-  mm('hand', 'طول فتحة الإيد', 70, 200, 'فتحة مستديرة الطرفين عرضها 24 مم في وسط السقف؛ 100–120 مم لأربع أصابع'),
-  { ...mm('fit', 'خلوص الشقوق', 0, 0.5, 'يُضاف لعرض كل شقّ وطوله'), step: 0.05 },
+  mm('W', 'الطول', 100, 800, 'طول الجدارين المائلين، من الخارج'),
+  mm('D', 'العمق من تحت', 60, 500, 'عرض القاعدة من الخارج، من حافّة الجدار الأمامي إلى الخلفي'),
+  mm('H', 'الارتفاع', 60, 500, 'حيث يلتقي الجداران من فوق'),
+  mm('He', 'ارتفاع الجانبين', 20, 300, 'حافّتان واطئتان مفتوحتان من فوق، منهما تُؤخذ التوزيعات'),
+  mm('gap', 'الفراغ بين الجدارين من فوق', 0, 10, 'بين وجهيهما الداخليين حيث يلتقيان'),
+  mm('hand', 'طول فتحة الإيد', 60, 200, 'الفتحة نفسها في الجدارين، في منتصف الطول'),
+  mm('handH', 'ارتفاع فتحة الإيد', 15, 40, 'فتحة مستديرة الطرفين'),
+  mm('handTop', 'بُعد الفتحة عن الحافّة العليا', 8, 60, 'على الجدار المائل'),
+  mm('ri', 'نصف قطر الثني الداخلي', 0.5, 10, 'منه يُحسب طول الثني؛ صحّحه بشريحة التجربة'),
+  mm('rc', 'تدوير زوايا الجدارين', 2, 30, 'زواياهما العليا، وزوايا الجانبين نصفه'),
 ]
-const DEFAULTS = { W: 320, D: 180, H: 165, Hf: 105, lip: 35, hand: 110, fit: 0.1 }
+const DEFAULTS = { W: 300, D: 150, H: 160, He: 45, gap: 1, hand: 95, handH: 24, handTop: 16, ri: 2, rc: 10 }
 
-/** Every size and place of the design, from its parameters and the sheet's thickness t. */
+/** The walls' lean (radians): their inside top corners meet the middle less half the gap at the height H; 0 when the walls touch upright. */
+export function tentLean(H: number, D: number, gap: number, t: number): number {
+  const f = (b: number) => H * Math.tan(b) + t * Math.cos(b) - (D / 2 - gap / 2)
+  if (!(f(0) < 0)) return 0
+  let lo = 0, hi = 1.5
+  for (let i = 0; i < 80; i++) { const mid = (lo + hi) / 2; if (f(mid) > 0) hi = mid; else lo = mid }
+  return (lo + hi) / 2
+}
+
+/** Every size and place of the design, from its parameters (outside sizes) and the sheet's thickness t. */
 export function carrierGeom(p: Record<string, number>, t: number) {
-  const C = CARRIER, M = C.inset
-  const { W, D, H, Hf, lip, hand, fit } = p
-  const rise = H - Hf, LS = Math.hypot(D, rise), cs = D / LS, sn = rise / LS, k = rise / D
-  const deg = (Math.atan2(rise, D) * 180) / Math.PI
-  const Win = W - 2 * t
-  /** the top's underside over the depth y */
-  const zu = (y: number) => Hf + k * y
-  /** a point (u along the slope from the front top corner, v square to it, outward) */
-  const at = (u: number, v: number): YZ => ({ y: u * cs - v * sn, z: Hf + u * sn + v * cs })
-  // the back wall: a flat top 0.1 mm under the top's underside at its front face, where the underside is lowest
-  const backH = Math.round((zu(D - M - t) - C.backGap) * 100) / 100
-  // tab widths: the delivered box's on the default box, narrower on a small one
-  const twBase = Math.min(30, D / 5), twTop = Math.min(20, LS / 8), twBack = Math.min(20, backH / 6)
-  const twLip = Math.max(2, Math.min(20, lip - 8)), twWall = Math.max(1, Math.min(40, Win / 7))
-  const topU = C.topTabs.map(f => f * LS)
-  const baseY = C.baseTabs.map(f => f * D)
-  const backZ = [0.3 * backH, 0.7 * backH], lipZ = lip / 2
-  // along the back wall and the lip, from the sides' inner faces
-  const backX = C.backTabs.map(f => f * Win), lipX = C.lipTabs.map(f => f * Win)
-  // the hand slot in the middle of the top: the full box hangs level from it
-  const hu = LS / 2
-  // the plate under the top, centred on the hand slot: its lower back corner 1 mm clear of the back wall's front face
-  const h2 = Math.min(C.plate / 2, hu, (D - M - t - 1 - t * sn) / cs - hu)
-  const plateW = Win - 2 * C.plateGap
-  return { W, D, H, Hf, lip, hand, fit, t, M, OV: C.overhang, rise, LS, cs, sn, k, deg, Win, zu, at, backH, twBase, twTop, twBack, twLip, twWall, topU, baseY, backZ, lipZ, backX, lipX, hu, h2, plateW, open: Hf - lip, inner: D - 2 * M - 2 * t, Lb: W + 2 * C.overhang, Db: D + 2 * C.overhang }
+  const C = CARRIER
+  const { W, D, H, He, gap, hand, handH, handTop, ri, rc } = p
+  const lean = tentLean(H, D, gap, t), turnW = Math.PI / 2 + lean
+  // the neutral-axis method: a bend turning θ takes a band θ·(ri + t/2) of the flat sheet; a leg measured outside is
+  // (ri + t)·tan(θ/2) longer than its flat part beyond the band
+  const BAof = (th: number) => th * (ri + t / 2), SBof = (th: number) => (ri + t) * Math.tan(th / 2)
+  const BA = BAof(Math.PI / 2), SB = SBof(Math.PI / 2), BAw = BAof(turnW), SBw = SBof(turnW)
+  const S = H / Math.cos(lean) // a wall's outside length, from the base's outside edge to its top edge
+  const re = C.lipShare * rc
+  // the base between the bands, a wall's and a lip's flat part beyond its band
+  const xb = W - 2 * SB, yb = D - 2 * SBw, sw = S - SBw, he = He - SB
+  /** the front wall's inside face at the height z, from the box's front edge (outside) */
+  const yIn = (z: number) => z * Math.tan(lean) + t / Math.cos(lean)
+  /** a lip across at the height z, between the walls' inside faces less the clearance, in sheet coordinates */
+  const lipAt = (z: number) => ({ lo: yIn(z) + C.clear - SBw, hi: D - yIn(z) - C.clear - SBw })
+  // the walls run the full length (box x 0..W)
+  const fx0 = -SB, fx1 = W - SB
+  const xMin = -BA - he, xMax = xb + BA + he, yMin = -BAw - sw, yMax = yb + BAw + sw
+  // the hand slots: centred in the length, their centre this far down each wall from its top edge
+  const sc = handTop + handH / 2
+  const slotX = W / 2 - SB, slotFront = yMin + sc, slotBack = yMax - sc
+  // the bend lines along the middle of each band, in the order to bend them; never past the drawing's extent
+  const cx = (x: number) => Math.min(xMax, Math.max(xMin, x)), cy = (y: number) => Math.min(yMax, Math.max(yMin, y))
+  const lines: { n: number; deg: number; a: XY; b: XY }[] = [
+    { n: 1, deg: deg(turnW), a: { x: cx(fx0 - C.overrun), y: -BAw / 2 }, b: { x: cx(fx1 + C.overrun), y: -BAw / 2 } },
+    { n: 2, deg: deg(turnW), a: { x: cx(fx0 - C.overrun), y: yb + BAw / 2 }, b: { x: cx(fx1 + C.overrun), y: yb + BAw / 2 } },
+    { n: 3, deg: 90, a: { x: -BA / 2, y: cy(-C.overrun) }, b: { x: -BA / 2, y: cy(yb + C.overrun) } },
+    { n: 4, deg: 90, a: { x: xb + BA / 2, y: cy(-C.overrun) }, b: { x: xb + BA / 2, y: cy(yb + C.overrun) } },
+  ]
+  /** a point of the sheet drawing on the panel (y down) */
+  const toPanel = (q: XY): XY => ({ x: q.x - xMin, y: yMax - q.y })
+  return {
+    W, D, H, He, gap, hand, handH, handTop, ri, rc, t, lean, leanDeg: deg(lean), wallDeg: deg(turnW), insideDeg: 90 - deg(lean),
+    BA, SB, BAw, SBw, S, re, xb, yb, sw, he, yIn, lipAt, lipTop: D - 2 * (yIn(He) + C.clear), fx0, fx1, xMin, xMax, yMin, yMax,
+    flatW: xMax - xMin, flatH: yMax - yMin, sc, slotX, slotFront, slotBack, lines, toPanel,
+  }
 }
 export type CarrierGeom = ReturnType<typeof carrierGeom>
 
-/** A rectangular hole from x0..x1 × y0..y1. */
-const rectHole = (x0: number, y0: number, x1: number, y1: number): Loop => polyLoop([{ x: round3(x0), y: round3(y0) }, { x: round3(x1), y: round3(y0) }, { x: round3(x1), y: round3(y1) }, { x: round3(x0), y: round3(y1) }], 'hole')
-/** A slot of w × h (each plus the clearance) centred at (cx, cy). */
-const slot = (cx: number, cy: number, w: number, h: number, fit: number) => rectHole(cx - (w + fit) / 2, cy - (h + fit) / 2, cx + (w + fit) / 2, cy + (h + fit) / 2)
-
-/** Round every convex corner of the outlines by r (straight edges only): what easing a cut piece's corners does. */
-function easeConvex(loops: Loop[], r: number) {
-  for (const l of loops) {
-    const n = l.pts.length
-    const corners = l.pts.filter((v, i) => { const a = l.pts[(i + n - 1) % n], c = l.pts[(i + 1) % n]; return (v.x - a.x) * (c.y - v.y) - (v.y - a.y) * (c.x - v.x) > 1e-9 }).map(v => ({ x: v.x, y: v.y }))
-    for (const v of corners) roundCorner([l], v.x, v.y, r)
-  }
+/**
+ * A polygon with each corner rounded by its own radius (an arc tangent to both edges, whatever the angle). Where two
+ * fillets would overlap on a short edge (between a bend band and the lip beside it) both shrink in proportion to share it.
+ */
+function rounded(cs: { x: number; y: number; r: number }[]): Vtx[] {
+  const n = cs.length, at = (i: number) => cs[(i + n) % n]
+  const dir = (a: XY, b: XY) => { const l = Math.hypot(b.x - a.x, b.y - a.y); return { x: (b.x - a.x) / l, y: (b.y - a.y) / l, l } }
+  const corner = cs.map((v, i) => {
+    const u1 = dir(at(i - 1), v), u2 = dir(v, at(i + 1))
+    const cross = u1.x * u2.y - u1.y * u2.x, turn = Math.atan2(Math.abs(cross), u1.x * u2.x + u1.y * u2.y)
+    // a right turn on screen is a convex corner of an outline drawn clockwise: its arc bows to the left of travel
+    return { u1, u2, turn, convex: cross > 0, take: v.r * Math.tan(turn / 2) }
+  })
+  const fit = (d: number, other: number, L: number) => (d + other > L ? (L * d) / (d + other) : d)
+  const out: Vtx[] = []
+  cs.forEach((v, i) => {
+    const c = corner[i], prev = corner[(i + n - 1) % n], next = corner[(i + 1) % n]
+    const d = Math.min(fit(c.take, prev.take, c.u1.l), fit(c.take, next.take, c.u2.l))
+    if (!(d > 0) || !(c.turn > 1e-9)) { out.push({ x: v.x, y: v.y }); return }
+    const b = Math.tan(c.turn / 4)
+    out.push({ x: v.x - c.u1.x * d, y: v.y - c.u1.y * d, b: c.convex ? -b : b }, { x: v.x + c.u2.x * d, y: v.y + c.u2.y * d })
+  })
+  return out
 }
 
-/** A side's outline in box coordinates (y, z): the trapezoid with two tabs into the base and three into the top. */
-function sideOutline(g: CarrierGeom): YZ[] {
-  const { D, H, Hf, t } = g
-  const pts: YZ[] = [{ y: 0, z: 0 }]
-  for (const yc of g.baseY) pts.push({ y: yc - g.twBase / 2, z: 0 }, { y: yc - g.twBase / 2, z: -t }, { y: yc + g.twBase / 2, z: -t }, { y: yc + g.twBase / 2, z: 0 })
-  pts.push({ y: D, z: 0 }, { y: D, z: H })
-  // down the slope from the back: each tab rises t square to it, flush with the top's upper face
-  const a = g.twTop / 2
-  for (const u of [...g.topU].reverse()) pts.push(g.at(u + a, 0), g.at(u + a, t), g.at(u - a, t), g.at(u - a, 0))
-  pts.push({ y: 0, z: Hf })
-  return pts
-}
-
-/** The slots in a side, in box coordinates: two for the back wall's end tabs, one for the lip's. */
-function sideSlots(g: CarrierGeom): [YZ, YZ][] {
-  const { D, M, t, fit } = g
-  const box = (yc: number, zc: number, h: number): [YZ, YZ] => [{ y: yc - (t + fit) / 2, z: zc - (h + fit) / 2 }, { y: yc + (t + fit) / 2, z: zc + (h + fit) / 2 }]
-  return [...g.backZ.map(z => box(D - M - t / 2, z, g.twBack)), box(M + t / 2, g.lipZ, g.twLip)]
+/** The one piece's outline on the panel: clockwise on screen from the back wall's top left corner. */
+function outline(g: CarrierGeom): Loop {
+  const { BA, BAw, xb, yb, sw, he, SB, He, fx0, fx1, rc, re } = g, e = CARRIER.ease
+  const yTop = yb + BAw + sw, yLow = -BAw - sw, xL = -BA - he, xR = xb + BA + he
+  const bot = g.lipAt(SB), top = g.lipAt(He)
+  const cs: [number, number, number][] = [
+    // the back wall, its top corners rounded; the corner relief at its right foot
+    [fx0, yTop, rc], [fx1, yTop, rc], [fx1, yb + BAw, e], [xb, yb + BAw, e], [xb, yb, e],
+    // the right lip, narrowing as it rises between the leaning walls
+    [xb + BA, yb, e], [xb + BA, bot.hi, e], [xR, top.hi, re], [xR, top.lo, re], [xb + BA, bot.lo, e], [xb + BA, 0, e], [xb, 0, e],
+    // the front wall
+    [xb, -BAw, e], [fx1, -BAw, e], [fx1, yLow, rc], [fx0, yLow, rc], [fx0, -BAw, e], [0, -BAw, e], [0, 0, e],
+    // the left lip
+    [-BA, 0, e], [-BA, bot.lo, e], [xL, top.lo, re], [xL, top.hi, re], [-BA, bot.hi, e], [-BA, yb, e], [0, yb, e], [0, yb + BAw, e], [fx0, yb + BAw, e],
+  ]
+  return polyLoop(rounded(cs.map(([x, y, r]) => ({ ...g.toPanel({ x, y }), r }))), 'outer')
 }
 
 function build(p: Record<string, number>, c: Common): BuildResult {
   const warnings: string[] = [], errors: string[] = []
   const t = c.t, C = CARRIER
-  const vals = ['W', 'D', 'H', 'Hf', 'lip', 'hand'].map(k => p[k])
-  if (!vals.every(v => Number.isFinite(v) && v > 0) || !(Number.isFinite(p.fit) && p.fit >= 0)) return { panels: [], notes: [], warnings, errors: ['كل القياسات يجب أن تكون أكبر من الصفر.'] }
-  const g = carrierGeom(p, t)
-  const { W, D, H, Hf, lip, hand, fit, M, OV, Win, backH } = g
+  const keys = ['W', 'D', 'H', 'He', 'hand', 'handH', 'handTop', 'ri', 'rc']
+  if (!keys.every(k => Number.isFinite(p[k]) && p[k] > 0) || !(Number.isFinite(p.gap) && p.gap >= 0)) return { panels: [], notes: [], warnings, errors: ['كل القياسات يجب أن تكون أكبر من الصفر.'] }
+  // inner sizes: the length, depth and height come in with the thickness added; the lips' too
+  const g = carrierGeom(c.inner ? { ...p, He: p.He + t } : p, t)
+  const { W, D, H, He, gap, hand, handH, handTop, ri, rc, SB, BA, BAw, re } = g
 
   // -------------------------------------------------------------- what cannot be made
-  if (H <= Hf) errors.push(`السقف لا ينحدر نحو الواجهة: الارتفاع من الخلف (${f1(H)} مم) يجب أن يزيد على الارتفاع من الأمام (${f1(Hf)} مم).`)
-  if (lip < C.lipMin) errors.push(`الحافّة الأمامية (${f1(lip)} مم) واطئة على لسانيها في الجانبين: ${C.lipMin} مم على الأقل.`)
-  if (g.open < C.openMin) errors.push(`الواجهة المفتوحة بين الحافّة الأمامية والسقف ${f1(g.open)} مم فقط؛ تحتاج ${C.openMin} مم على الأقل لتدخل اليد وتأخذ التوزيعات: اخفض الحافّة أو ارفع الارتفاع من الأمام.`)
-  if (g.inner < C.innerMin) errors.push(`العمق (${f1(D)} مم) صغير: يبقى للتوزيعات بين الحافّة والظهر ${f1(g.inner)} مم؛ اجعله ${Math.ceil(C.innerMin + 2 * M + 2 * t)} مم على الأقل.`)
-  const handMax = Math.floor(Win - 20)
-  if (hand > handMax) errors.push(handMax >= 70 ? `فتحة الإيد (${f1(hand)} مم) أطول مما يتّسع له السقف بين الجانبين: أقصاها ${handMax} مم بهذا الطول، أو زد الطول.` : `الطول (${f1(W)} مم) لا يتّسع لفتحة الإيد (${f1(hand)} مم) بين الجانبين: اجعله ${Math.ceil(hand + 20 + 2 * t)} مم على الأقل.`)
-  const plateOk = g.h2 >= C.handW / 2 + 8
-  if (!plateOk) errors.push('لا يتّسع السقف لقطعة التقوية حول فتحة الإيد قبل أن تصل إلى الظهر: زد العمق.')
-  if (t < 2.5) warnings.push(`أكريليك ${t} مم رقيق لعلبة تُحمل من فتحة في سقفها؛ استعمل 3 مم أو أسمك.`)
-
-  // -------------------------------------------------------------- the sides (mirror images)
-  const outline = sideOutline(g)
-  const yMin = Math.min(0, ...outline.map(q => q.y)), zMax = Math.max(...outline.map(q => q.z))
-  // as seen from outside: the right side has the front on the left of the drawing, the left side on the right
-  const sidePanel = (id: string, name: string, mirror: boolean): PanelSpec => {
-    const map = (q: YZ) => ({ x: round3(mirror ? D - q.y : q.y - yMin), y: round3(zMax - q.z) })
-    return {
-      id, name, w: round3(D - yMin), h: round3(zMax + t),
-      shape: [polyLoop(outline.map(map), 'outer')],
-      holes: sideSlots(g).map(([a, b]) => { const A = map(a), B = map(b); return rectHole(Math.min(A.x, B.x), Math.min(A.y, B.y), Math.max(A.x, B.x), Math.max(A.y, B.y)) }),
-      note: `${mirror ? 'صورة مرآة للجانب الأيمن' : 'الواجهة على اليسار كما يُرى من الخارج'}: لسانان في القاعدة وثلاثة في السقف، وشقوق الظهر والحافّة`,
-    }
+  const Wmin = Math.ceil(2 * SB + C.baseMin)
+  if (W < Wmin) errors.push(`الطول (${f1(W)} مم) صغير على الثنيتين: أقلّه ${Wmin} مم بهذه السماكة ونصف قطر الثني.`)
+  const steep = g.leanDeg > C.leanMax
+  if (steep) {
+    const k = Math.tan((C.leanMax * Math.PI) / 180), cs = Math.cos((C.leanMax * Math.PI) / 180)
+    const Hmin = Math.ceil((D / 2 - gap / 2 - t * cs) / k), Dmax = Math.floor(2 * (H * k + t * cs) + gap)
+    errors.push(`الجداران لا يلتقيان من فوق إلا بميل ${f1(g.leanDeg)}°، أكثر من ${C.leanMax}°: العلبة واطئة على عمقها. ارفعها إلى ${Hmin} مم أو قلّل العمق إلى ${Dmax} مم.`)
   }
-
-  // -------------------------------------------------------------- the back wall and the lip, between the sides
-  const wall = (h: number, endZ: number[], endTw: number, botX: number[]): Loop[] => unionRects([
-    rect(t, 0, Win, h),
-    ...endZ.flatMap(z => [rect(0, h - z - endTw / 2, t, endTw), rect(t + Win, h - z - endTw / 2, t, endTw)]),
-    ...botX.map(x => rect(t + x - g.twWall / 2, h, g.twWall, t)),
-  ], [])
-
-  // -------------------------------------------------------------- the top: slots open at its ends for the sides' tabs
-  const LS = round3(g.LS)
-  const notches: Rect[] = g.topU.flatMap(u => [rect(0, u - (g.twTop + fit) / 2, t + fit / 2, g.twTop + fit), rect(W - t - fit / 2, u - (g.twTop + fit) / 2, t + fit / 2, g.twTop + fit)])
-  const top = unionRects([rect(0, 0, W, LS)], notches)
-  easeConvex(top, C.ease)
-  const handFits = hand <= handMax && g.hu >= C.handW / 2 + 8
-  const pw = round3(g.plateW), ph = round3(2 * g.h2)
-  const plate = pw > 0 && ph > 0 ? unionRects([rect(0, 0, pw, ph)], []) : []
-  easeConvex(plate, C.ease)
-
-  // -------------------------------------------------------------- the base: a slot under every bottom tab
-  const { Lb, Db } = g
-  const base = unionRects([rect(0, 0, Lb, Db)], [])
-  easeConvex(base, C.baseR)
-  const baseSlots: Loop[] = [
-    ...g.baseY.flatMap(y => [slot(OV + t / 2, OV + y, t, g.twBase, fit), slot(OV + W - t / 2, OV + y, t, g.twBase, fit)]),
-    ...g.backX.map(x => slot(OV + t + x, OV + D - M - t / 2, g.twWall, t, fit)),
-    ...g.lipX.map(x => slot(OV + t + x, OV + M + t / 2, g.twWall, t, fit)),
-  ]
-
-  const panels: PanelSpec[] = [
-    { id: 'base', name: 'القاعدة', w: Lb, h: Db, shape: base, holes: baseSlots, note: `تبرز ${OV} مم عن الجدران من كل جهة؛ الشقوق لألسنة الجانبين والظهر والحافّة` },
-    sidePanel('sideR', 'الجانب الأيمن', false),
-    sidePanel('sideL', 'الجانب الأيسر', true),
-    { id: 'back', name: 'الظهر', w: W, h: round3(backH + t), shape: wall(backH, g.backZ, g.twBack, g.backX), note: `بين الجانبين على بُعد ${M} مم من حافّتهما الخلفية؛ قمّته تحت السقف` },
-    { id: 'lip', name: 'الحافّة الأمامية', w: W, h: round3(lip + t), shape: wall(lip, [g.lipZ], g.twLip, g.lipX), note: `بين الجانبين على بُعد ${M} مم من حافّتهما الأمامية؛ فوقها الواجهة المفتوحة` },
-    { id: 'top', name: 'السقف المائل مع فتحة الإيد', w: W, h: LS, shape: top, holes: handFits ? [stadium(W / 2, LS / 2, hand, C.handW)] : [], note: 'شقوق طرفيه لألسنة الجانبين، وفتحة الإيد في وسطه' },
-  ]
-  if (plate.length) panels.push({ id: 'plate', name: 'تقوية تحت فتحة الإيد', w: pw, h: ph, shape: plate, holes: handFits && plateOk ? [stadium(pw / 2, ph / 2, hand, C.handW)] : [], note: 'تُلصق تحت السقف بين الجانبين، وفتحتها فوق فتحة السقف تماماً' })
-
-  // -------------------------------------------------------------- the assembly seen from the side (x forward, y up)
-  const fwd = (ps: YZ[]) => ps.map(q => ({ x: round3(D - q.y), y: round3(q.z) }))
-  const yz = (y0: number, z0: number, y1: number, z1: number): YZ[] => [{ y: y0, z: z0 }, { y: y1, z: z0 }, { y: y1, z: z1 }, { y: y0, z: z1 }]
-  const sideView = {
-    outline: fwd([{ y: 0, z: 0 }, { y: D, z: 0 }, { y: D, z: H }, { y: 0, z: Hf }]),
-    pieces: [
-      { id: 'base', pts: fwd(yz(-OV, -t, D + OV, 0)) },
-      { id: 'back', pts: fwd(yz(D - M - t, 0, D - M, backH)) },
-      { id: 'lip', pts: fwd(yz(M, 0, M + t, lip)) },
-      { id: 'top', pts: fwd([g.at(0, 0), g.at(g.LS, 0), g.at(g.LS, t), g.at(0, t)]) },
-      { id: 'plate', pts: fwd([g.at(g.hu - g.h2, 0), g.at(g.hu + g.h2, 0), g.at(g.hu + g.h2, -t), g.at(g.hu - g.h2, -t)]) },
-    ],
+  if (g.yb < C.baseMin) errors.push(`العمق (${f1(D)} مم) صغير: لا يبقى من القاعدة بين ثنيتي الجدارين إلا ${f1(g.yb)} مم، ويلزم ${C.baseMin} مم على الأقل.`)
+  const HeMin = Math.ceil(SB + Math.max(C.lipMin, re + C.ease))
+  if (He < HeMin) errors.push(`الجانبان (${f1(He)} مم) واطئان على الثني: أقلّ ارتفاع لهما ${HeMin} مم بهذه السماكة ونصف قطر الثني.`)
+  else if (!steep && g.lipTop < 2 * re + C.lipTopMin) {
+    const HeMax = g.lean > 0 ? Math.floor(((D - 2 * C.clear - 2 * re - C.lipTopMin) / 2 - t / Math.cos(g.lean)) / Math.tan(g.lean)) : 0
+    errors.push(`الجانبان (${f1(He)} مم) أعلى مما يتّسع بين الجدارين المائلين: أقصى ارتفاع لهما ${HeMax} مم بهذه القياسات.`)
   }
+  // the slot keeps clear of the lips and of the rounded top corners, and of the wall's bend
+  const side = Math.max(t + C.slotSide, rc + 3), handMax = Math.floor(W - 2 * side)
+  if (hand > W - 2 * side) errors.push(handMax >= 60 ? `فتحة الإيد (${f1(hand)} مم) أطول مما يتّسع له الجدار: أقصاها ${handMax} مم بهذا الطول، أو زد الطول.` : `الطول (${f1(W)} مم) لا يتّسع لفتحة الإيد (${f1(hand)} مم): اجعله ${Math.ceil(hand + 2 * side)} مم على الأقل.`)
+  const low = g.sw - handTop - handH
+  if (!steep && low < C.slotLow) errors.push(`فتحة الإيد قريبة من ثني الجدار: يبقى تحتها ${f1(low)} مم من الجدار المستقيم، ويلزم ${C.slotLow} مم على الأقل؛ ارفع العلبة أو صغّر الفتحة أو قرّبها من الحافّة العليا.`)
+  if (errors.length) return { panels: [], notes: [], warnings, errors }
+  if (t < 2.5) warnings.push(`أكريليك ${t} مم رقيق لعلبة تُحمل من فتحتي الإيد؛ استعمل 3 مم.`)
+  if (t > 4) warnings.push(`أكريليك ${t} مم سميك على سخّان السلك: يحتاج تسخيناً أطول ومن الوجهين؛ الأنسب 3 مم.`)
+
+  // -------------------------------------------------------------- the one piece
+  const wDeg = Math.round(g.wallDeg), inDeg = Math.round(g.insideDeg)
+  const slots = [g.slotFront, g.slotBack].map(y => { const q = g.toPanel({ x: g.slotX, y }); return stadium(q.x, q.y, hand, handH) })
+  const bends: Loop[] = g.lines.map(l => ({ closed: false, layer: 'engrave', pts: [g.toPanel(l.a), g.toPanel(l.b)] }))
+  const panels: PanelSpec[] = [{
+    id: 'box', name: 'العلبة — قطعة واحدة تُثنى', w: g.flatW, h: g.flatH, shape: [outline(g)], holes: slots, engrave: bends,
+    note: `الأحمر قصّ، والخطوط الزرقاء أماكن الثني: 1 و2 للجدارين ${wDeg}°، و3 و4 للجانبين 90°`,
+  }]
 
   // -------------------------------------------------------------- notes
-  const nameW = Math.round((D * 5) / 9), nameH = Math.round(Hf * 0.74)
+  const { leg, w: stripW } = C.strip
+  const gauge = C.gaugeLeg * Math.tan((g.insideDeg * Math.PI) / 180)
   const notes = [
-    `علبة توزيعات ${f1(W)} × ${f1(D)} مم، ارتفاعها ${f1(H)} مم من الخلف و${f1(Hf)} مم من الأمام (من سطح القاعدة إلى تحت السقف)، على قاعدة ${f1(Lb)} × ${f1(Db)} مم تبرز ${OV} مم من كل جهة. السقف مائل ${f1(g.deg)}° وطوله ${f1(g.LS)} مم، والواجهة مفتوحة ${f1(g.open)} مم بين الحافّة الأمامية (${f1(lip)} مم) والسقف لأخذ التوزيعات.`,
-    `القطع كلّها من أكريليك شفّاف ${t} مم: القاعدة، جانبان على شكل شبه منحرف (كلّ منهما صورة مرآة للآخر، مرسومان كما يُريان من الخارج)، الظهر ${f1(Win)} × ${f1(backH)} مم والحافّة الأمامية ${f1(Win)} × ${f1(lip)} مم بين الجانبين على بُعد ${M} مم من حافّتيهما الخلفية والأمامية، السقف ${f1(W)} × ${f1(g.LS)} مم، وقطعة تقوية ${f1(pw)} × ${f1(ph)} مم تحته. الشقوق ${f1(t + fit)} مم عرضاً (السماكة وخلوص ${fit} مم).`,
-    `قمّة الظهر أفقية وتحت السقف بـ ${C.backGap} مم عند وجهه الأمامي، فلا ترفع السقف عن الجانبين؛ الغراء يملأ الفراغ الصغير فوقها.`,
-    'التجميع: أدخل ألسنة الظهر والحافّة في شقوق الجانبين، وأنزل الجدران الأربعة معاً في شقوق القاعدة، ثم ضع السقف فوقها فتدخل ألسنة الجانبين الثلاثة في الشقوق على طرفيه وتستوي مع سطحه. والقطع مركّبة ألصق كل وصلة بغراء الأكريليك السائل (cement) بإبرة من الداخل: يسري في الشقّ ويلحم القطعتين، فلا تمسحه.',
-    `فتحة الإيد ${f1(hand)} × ${C.handW} مم في وسط السقف، فتتعلّق العلبة معتدلة وهي ممتلئة. قطعة التقوية بالفتحة نفسها تُلصق تحت السقف بين الجانبين (بخلوص ${C.plateGap} مم من كل جانب) وفتحتها فوق فتحة السقف تماماً، فتقوّي السقف حيث يُحمل. إن امتلأت العلبة كثيراً فاحملها من تحتها.`,
-    `اسم المولود من أكريليك مرآة ذهبي يُضاف في RDWorks أو CorelDRAW، فالبرنامج لا يكتب العربية: اكتب الاسم بخطّ عربي (حتى نحو ${nameW} × ${nameH} مم على الجانب) واقصّه من المرآة الذهبية ووجهها العاكس للأعلى كي لا ينقلب، ثم ألصقه على أحد الجانبين من الخارج بلاصق شفّاف مزدوج الوجه، لا بغراء الأكريليك السائل الذي يُتلف المرآة.`,
-    'ورق الحماية: اتركه أثناء القصّ وانزعه قبل اللصق. في RDWorks اقصّ الداخل أولاً (الشقوق وفتحة الإيد قبل المحيط).',
+    `علبة على شكل خيمة (هرم في المقطع) من قطعة أكريليك شفّاف واحدة ${t} مم تُثنى بالحرارة على أربعة خطوط: قاعدتها ${f1(W)} × ${f1(D)} مم من الخارج، والجداران الطويلان يميلان للداخل ${f1(g.leanDeg)}° ويلتقيان من فوق على ارتفاع ${f1(H)} مم (بينهما ${f1(gap)} مم). الجانبان حافّتان واطئتان ${f1(He)} مم مفتوحتان من فوق، ومنهما تُؤخذ التوزيعات. القطعة المفرودة ${f1(g.flatW)} × ${f1(g.flatH)} مم.`,
+    `في كلّ جدار فتحة الإيد نفسها ${f1(hand)} × ${f1(handH)} مم في منتصف الطول، على بُعد ${f1(handTop)} مم من حافّته العليا، فتتقابل الفتحتان وتدخل اليد من الاثنتين معاً. لا تملأ العلبة حتى الفتحتين.`,
+    `الخطوط الزرقاء أماكن الثني: ضع القطعة والخطوط للأعلى والسخّان تحت الخطّ تماماً (الخطّ في وسط السخّان)، واثنِ للأعلى. الترتيب: 1 الجدار الأمامي (الخطّ الأسفل في الرسم) ${wDeg}°، فتبقى الزاوية من الداخل بين القاعدة والجدار ${inDeg}°؛ 2 الخلفي مثله؛ 3 الجانب الأيسر 90°؛ 4 الجانب الأيمن 90°. بعد 1 و2 يجب أن يلتقي الجداران من فوق: إن بقي بينهما فراغ أو ركب أحدهما على الآخر فصحّح الزاوية قليلاً وأنت تسخّن.`,
+    `ثبّت كلّ ثنية على مقياس زاوية حتى تبرد: ${inDeg}° من الداخل للجدارين، و90° للجانبين. مقياس الجدارين مثلّث قائم ضلعاه ${C.gaugeLeg} و${f1(gauge)} مم تقصّه من بقايا اللوح، والزاوية بين ضلع الـ ${C.gaugeLeg} والوتر.`,
+    'السخّان (سلك) على 150–180 درجة: سخّن 30–60 ثانية لأكريليك 3 مم حتى يلين، ثم اثنِ.',
+    `طول الثني محسوب بنصف قطر داخلي ${f1(ri)} مم: ثنية الجدار تأخذ ${f1(BAw)} مم من القطعة المفرودة وثنية الجانب ${f1(BA)} مم. جرّبه أولاً على شريحة: ارسم في RDWorks مستطيلاً ${stripW} × ${f1(2 * leg + BA)} مم بخطّ في منتصفه، واثنها 90° على الخطّ؛ كلّ ضلع من الخارج يجب أن يطلع ${f1(leg + SB)} مم. إن طلع أطول فزِد «نصف قطر الثني الداخلي»، وإن طلع أقصر فأنقصه.`,
+    `الجانبان يقفان بين وجهي الجدارين الداخليين بخلوص ${CARRIER.clear} مم من كل جهة. الصقهما بالجدارين من الداخل بغراء الأكريليك السائل (cement)، والخطّ الذي يلتقي فيه الجداران من فوق بغراء جل (gel)، ثم غطّه بشريطة زينة.`,
+    'ورق الحماية: اتركه وقت القصّ. علّم الخطوط الزرقاء قبل القصّ الأحمر بقصّ خفيف جداً يعلّم على الورق ولا يصل للأكريليك، أو أوقف طبقتها (Output = No) وعلّم أطراف الخطوط بقلم.',
+    'اسم المولود بالذهبي يُضاف في RDWorks، فالبرنامج لا يكتب العربية: من مرآة ذهبية تُلصق على الجدار الأمامي بلاصق شفّاف مزدوج الوجه. وإن حفرته على الوجه الداخلي للأمامي (وجه الخطوط) فاعكسه بالمرآة ورأسه نحو حافّة الجدار العليا، فيُقرأ صحيحاً من الخارج.',
   ]
-  return { panels, notes, warnings, errors, slotted: true, sideView }
+  return { panels, notes, warnings, errors, slotted: false }
 }
 
 export const FAVOR_CARRIERS: Template[] = [
   {
     id: 'favorcarrier',
-    name: 'علبة توزيعات أكريليك بسقف مائل ومقبض',
-    desc: 'علبة أكريليك شفّاف لتوزيعات المواليد والأعراس كما في الصورة: قاعدة تبرز 5 مم بشقوق، جانبان على شكل شبه منحرف، ظهر وحافّة أمامية واطئة بينهما، وسقف ينحدر نحو الأمام بفتحة يد للحمل وقطعة تقوية تحتها؛ الواجهة مفتوحة بين الحافّة والسقف لأخذ التوزيعات. ألسنة وشقوق تُلصق بغراء الأكريليك، واسم المولود من المرآة الذهبية يُضاف في RDWorks.',
-    icon: `<path d="M6 53h52v4H6z"/><path d="M10 53V31l44-14v36z"/><path d="M25 26.4l14-4.4" stroke-width="4"/><path d="M10 45h9" stroke-width="1.3"/><path d="M36 43l-4-4a2.5 2.5 0 0 1 4-3 2.5 2.5 0 0 1 4 3z" stroke-width="1.3"/>`,
+    name: 'علبة توزيعات أكريليك خيمة بفتحة إيد، تُثنى بالحرارة',
+    desc: 'علبة أكريليك شفّاف على شكل خيمة كما وصفها الزبون، من قطعة واحدة تُثنى على سخّان سلك على أربعة خطوط: قاعدة، وجداران طويلان يميلان للداخل ويلتقيان من فوق، في كلّ منهما فتحة الإيد نفسها قرب حافّته العليا فتمرّ اليد من الاثنتين، وجانبان واطئان مفتوحان من فوق تُؤخذ منهما التوزيعات؛ زوايا الجدارين العليا مدوّرة. خطوط الثني على طبقة الحفر الزرقاء، والجانبان يُلصقان بغراء الأكريليك، واسم المولود بالذهبي يُضاف في RDWorks.',
+    icon: `<path d="M6 54h40l12-8"/><path d="M6 54 21 16h27l10 30"/><path d="M46 54 48 16"/><path d="M47.4 44.5l8.6-6.2" stroke-width="1.4"/><path d="M26.5 22h10a2.5 2.5 0 0 1 0 5h-10a2.5 2.5 0 0 1 0-5z" stroke-width="1.6"/>`,
     params: PARAMS,
     defaults: DEFAULTS,
-    // inner sizes: the length between the sides, the depth between the lip and the back wall; heights are inner already
-    innerAdd: t => ({ W: 2 * t, D: 2 * (CARRIER.inset + t), H: 0 }),
+    // inner sizes: the length and depth between the walls at the base, the heights from the base's top (the lips' in build)
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
     build,
   },
 ]

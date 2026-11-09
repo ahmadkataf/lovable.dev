@@ -117,7 +117,8 @@ export function hexHinge(p: HexHingeIn) {
     const c1 = clearAt(stop)
     if (c1 < m) {
       let aMin = 0
-      for (let d = Math.ceil(stop * 2) / 2; d <= stopMax + 1e-9; d += 0.5) if (clearAt(d) >= m) { aMin = d; break }
+      // a whole degree, as the stop field steps
+      for (let d = Math.ceil(stop); d <= stopMax + 1e-9; d++) if (clearAt(d) >= m) { aMin = d; break }
       const bMax = Math.floor((reach - (tf * sA + m) / -cA - e - 1) * 2) / 2, tfMax = Math.floor((((reach - g.sBack) * -cA - m) / sA) * 10) / 10
       const ways = [...(aMin ? [`اجعل زاوية التوقّف ${aMin}° على الأقل`] : []), ...(bMax >= 2 ? [`عرض الإطار ${bMax} مم على الأكثر`] : []), ...(tfMax >= 0.5 ? [`لوح إطار الغطاء ${f1(tfMax)} مم على الأكثر`] : [])]
       errors.push(`إطار الغطاء يلمس السندة قبل الغطاء: عند ${stop}° تبقى حافّة شريطه الخلفي على ${Math.max(0, c1).toFixed(2)} مم من السندة، والمطلوب ${m} مم على الأقل${ways.length ? `؛ ${ways.join('، أو ')}` : ''}.`)
