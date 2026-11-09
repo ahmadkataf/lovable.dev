@@ -55,6 +55,7 @@ const PER_TEMPLATE: Record<string, Record<string, Role>> = {
   easel: { bolt: 'object', maxL: 'fixed' }, // the bought bolts; the laser bed's length
   favorcarrier: { hand: 'fixed', handH: 'fixed', handTop: 'fixed', ri: 'fixed' }, // the hand slots are sized for a hand; the bend radius is the heater's and the acrylic's (the top gap is fixed by its key)
   woodcomb: { ft: 'fixed', fg: 'fixed', ct: 'fixed', cg: 'fixed', guard: 'fixed' }, // teeth and gaps are sized for hair and for the wood's strength
+  incenselantern: { hole: 'object', steps: 'choice', per: 'choice', clr: 'fixed', loc: 'fixed' }, // the hole is the burner's; the steps and their sheets are the customer's design
 }
 
 export function roleOf(tpl: Template, def: ParamDef): Role {
