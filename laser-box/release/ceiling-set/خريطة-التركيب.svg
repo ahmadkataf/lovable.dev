@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="406.0mm" height="596.0mm" viewBox="0 0 406.0 596.0" font-family="DejaVu Sans, Arial, sans-serif">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="153.0" y="12" font-size="7" text-anchor="middle" direction="rtl" font-weight="bold">خريطة التركيب — السقف من تحت</text>
+<polygon points="30.00,30.00 30.00,197.17 68.00,197.17 68.00,68.00 30.00,30.00" fill="#eed6aa" stroke="#000" stroke-width="0.6"/>
+<polygon points="30.00,197.17 30.00,366.50 68.00,366.50 68.00,197.17 30.00,197.17" fill="#eed6aa" stroke="#000" stroke-width="0.6"/>
+<polygon points="30.00,366.50 30.00,576.00 68.00,538.00 68.00,366.50 30.00,366.50" fill="#eed6aa" stroke="#000" stroke-width="0.6"/>
+<polygon points="30.00,576.00 153.00,576.00 153.00,538.00 68.00,538.00 30.00,576.00" fill="#d6e8c4" stroke="#000" stroke-width="0.6"/>
+<polygon points="153.00,576.00 276.00,576.00 238.00,538.00 153.00,538.00 153.00,576.00" fill="#d6e8c4" stroke="#000" stroke-width="0.6"/>
+<polygon points="276.00,576.00 276.00,408.83 238.00,408.83 238.00,538.00 276.00,576.00" fill="#eed6aa" stroke="#000" stroke-width="0.6"/>
+<polygon points="276.00,408.83 276.00,239.50 238.00,239.50 238.00,408.83 276.00,408.83" fill="#eed6aa" stroke="#000" stroke-width="0.6"/>
+<polygon points="276.00,239.50 276.00,30.00 238.00,68.00 238.00,239.50 276.00,239.50" fill="#eed6aa" stroke="#000" stroke-width="0.6"/>
+<polygon points="276.00,30.00 153.00,30.00 153.00,68.00 238.00,68.00 276.00,30.00" fill="#d6e8c4" stroke="#000" stroke-width="0.6"/>
+<polygon points="153.00,30.00 30.00,30.00 68.00,68.00 153.00,68.00 153.00,30.00" fill="#d6e8c4" stroke="#000" stroke-width="0.6"/>
+<polygon points="238.00,284.00 238.00,322.00 68.00,322.00 68.00,284.00 238.00,284.00" fill="#c4daee" stroke="#000" stroke-width="0.6"/>
+<polygon points="223.00,123.50 83.00,123.50 83.00,228.50 223.00,228.50 223.00,123.50" fill="#e8e4f0" stroke="#000" stroke-width="0.6"/>
+<polygon points="222.00,376.00 84.00,376.00 84.00,484.00 222.00,484.00 222.00,376.00" fill="#e8e4f0" stroke="#000" stroke-width="0.6"/>
+<polygon points="243.00,284.00 243.00,322.00 238.00,322.00 238.00,284.00 243.00,284.00" fill="none" stroke="#1e46aa" stroke-width="0.5" stroke-dasharray="2 1.3"/>
+<polygon points="63.00,322.00 63.00,284.00 68.00,284.00 68.00,322.00 63.00,322.00" fill="none" stroke="#1e46aa" stroke-width="0.5" stroke-dasharray="2 1.3"/>
+<circle cx="48.19" cy="122.68" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="48.19" y="126.10" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">1</text>
+<circle cx="49.00" cy="281.83" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="49.00" y="285.25" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">2</text>
+<circle cx="48.37" cy="462.07" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="48.37" y="465.49" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">3</text>
+<circle cx="100.42" cy="558.16" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="100.42" y="561.58" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">4</text>
+<circle cx="205.58" cy="558.16" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="205.58" y="561.58" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">5</text>
+<circle cx="257.81" cy="483.32" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="257.81" y="486.74" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">6</text>
+<circle cx="257.00" cy="324.17" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="257.00" y="327.59" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">7</text>
+<circle cx="257.63" cy="143.93" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="257.63" y="147.35" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">8</text>
+<circle cx="205.58" cy="47.84" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="205.58" y="51.26" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">9</text>
+<circle cx="100.42" cy="47.84" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="100.42" y="51.26" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">10</text>
+<circle cx="153.00" cy="303.00" r="9" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="153.00" y="306.42" font-size="9.9" text-anchor="middle" fill="#aa1414" font-weight="bold">11</text>
+<circle cx="153.00" cy="176.00" r="12" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="153.00" y="180.56" font-size="13.2" text-anchor="middle" fill="#aa1414" font-weight="bold">12</text>
+<circle cx="153.00" cy="430.00" r="12" fill="#fff" stroke="#aa1414" stroke-width="0.8"/><text x="153.00" y="434.56" font-size="13.2" text-anchor="middle" fill="#aa1414" font-weight="bold">13</text>
+<line x1="30.0" y1="24" x2="276.0" y2="24" stroke="#333" stroke-width="0.4"/><text x="153.0" y="22.5" font-size="4.5" text-anchor="middle" direction="rtl">246 سم من الخارج</text>
+<line x1="24" y1="30.0" x2="24" y2="576.0" stroke="#333" stroke-width="0.4"/><text x="22" y="303.0" font-size="4.5" text-anchor="end" direction="rtl">546 سم</text>
+<line x1="256.0" y1="68.0" x2="256.0" y2="284.0" stroke="#333" stroke-width="0.4"/><text x="254.0" y="176.0" font-size="4.5" text-anchor="end" direction="rtl">216 سم</text>
+<line x1="256.0" y1="322.0" x2="256.0" y2="538.0" stroke="#333" stroke-width="0.4"/><text x="254.0" y="430.0" font-size="4.5" text-anchor="end" direction="rtl">216 سم</text>
+<text x="153.0" y="328.0" font-size="3.6" text-anchor="middle" direction="rtl">الشريطة النصّانية 180 × 38 سم (170 ظاهرة + 5 سم تحت كلّ شريحة)، الشرائح 38 سم</text>
+<text x="401.0" y="34" font-size="4.2" text-anchor="start" direction="rtl">الرقم محفور على الوجه المخفي (للأعلى)،</text>
+<text x="401.0" y="40.2" font-size="4.2" text-anchor="start" direction="rtl">والسهم إلى الحافّة الخارجية للإطار.</text>
+<text x="401.0" y="46.400000000000006" font-size="4.2" text-anchor="start" direction="rtl"></text>
+<text x="401.0" y="52.60000000000001" font-size="4.2" text-anchor="start" direction="rtl">قائمة القطع لكلّ لوح:</text>
+<text x="401.0" y="58.80000000000001" font-size="4.2" text-anchor="start" direction="rtl">اللوح 1: 13</text>
+<text x="401.0" y="65.00000000000001" font-size="4.2" text-anchor="start" direction="rtl">اللوح 2: 2 و5 و7 و10</text>
+<text x="401.0" y="71.20000000000002" font-size="4.2" text-anchor="start" direction="rtl">اللوح 3: 3 و8 و11</text>
+<text x="401.0" y="77.40000000000002" font-size="4.2" text-anchor="start" direction="rtl">اللوح 4: 1 و4 و6 و9</text>
+<text x="401.0" y="83.60000000000002" font-size="4.2" text-anchor="start" direction="rtl">اللوح 5: 12</text>
+<text x="401.0" y="89.80000000000003" font-size="4.2" text-anchor="start" direction="rtl"></text>
+<text x="401.0" y="96.00000000000003" font-size="4.2" text-anchor="start" direction="rtl">إطار-وشريطة فقط:</text>
+<text x="401.0" y="102.20000000000003" font-size="4.2" text-anchor="start" direction="rtl">اللوح 1: 2 و3 و4 و9</text>
+<text x="401.0" y="108.40000000000003" font-size="4.2" text-anchor="start" direction="rtl">اللوح 2: 5 و8 و10 و11</text>
+<text x="401.0" y="114.60000000000004" font-size="4.2" text-anchor="start" direction="rtl">اللوح 3: 1 و6 و7</text>
+<text x="401.0" y="120.80000000000004" font-size="4.2" text-anchor="start" direction="rtl"></text>
+<text x="401.0" y="127.00000000000004" font-size="4.2" text-anchor="start" direction="rtl">المقاسات (مم):</text>
+<text x="401.0" y="133.20000000000005" font-size="4.2" text-anchor="start" direction="rtl">1: 1671.7 × 380</text>
+<text x="401.0" y="139.40000000000003" font-size="4.2" text-anchor="start" direction="rtl">2: 1693.3 × 380</text>
+<text x="401.0" y="145.60000000000002" font-size="4.2" text-anchor="start" direction="rtl">3: 2095 × 380</text>
+<text x="401.0" y="151.8" font-size="4.2" text-anchor="start" direction="rtl">4: 1230 × 380</text>
+<text x="401.0" y="158.0" font-size="4.2" text-anchor="start" direction="rtl">5: 1230 × 380</text>
+<text x="401.0" y="164.2" font-size="4.2" text-anchor="start" direction="rtl">6: 1671.7 × 380</text>
+<text x="401.0" y="170.39999999999998" font-size="4.2" text-anchor="start" direction="rtl">7: 1693.3 × 380</text>
+<text x="401.0" y="176.59999999999997" font-size="4.2" text-anchor="start" direction="rtl">8: 2095 × 380</text>
+<text x="401.0" y="182.79999999999995" font-size="4.2" text-anchor="start" direction="rtl">9: 1230 × 380</text>
+<text x="401.0" y="188.99999999999994" font-size="4.2" text-anchor="start" direction="rtl">10: 1230 × 380</text>
+<text x="401.0" y="195.19999999999993" font-size="4.2" text-anchor="start" direction="rtl">11: 1800 × 380</text>
+<text x="401.0" y="201.39999999999992" font-size="4.2" text-anchor="start" direction="rtl">12: 1400 × 1050</text>
+<text x="401.0" y="207.5999999999999" font-size="4.2" text-anchor="start" direction="rtl">13: 1380 × 1080</text>
+</svg>
