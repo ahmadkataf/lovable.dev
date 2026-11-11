@@ -61,7 +61,7 @@ export type DeviceRow = {
   optout_h?: string               // the do-not-contact fingerprint that blanked this row
 }
 type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string; cloud_price: string; cloud_days: number; cloud_keep: number; web_trial: number; apk_url: string; win_url: string }
-const DEFAULTS: Settings = { price: '35$', whatsapp: '963996489504', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3, web_trial: 0, apk_url: '', win_url: '' }
+const DEFAULTS: Settings = { price: '35$', whatsapp: '963969031665', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3, web_trial: 0, apk_url: '', win_url: '' }
 /** Download links the seller may point elsewhere (a GitHub release, a drive): https only, else the built-in file / WhatsApp. */
 const safeUrl = (v: unknown): string => { const s = clip(v, 400).trim(); return /^https:\/\/[^\s<>"']+$/i.test(s) ? s : '' }
 
