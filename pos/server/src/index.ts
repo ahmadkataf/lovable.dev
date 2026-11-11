@@ -1030,10 +1030,10 @@ export default {
         return Response.redirect(waLink(s.whatsapp, 'مرحباً، أريد نسخة ويندوز من برنامج كاسب'), 302)
       }
       if (p.startsWith('/download/') && env.FILES) {
-        // big files live in R2 (the static-asset limit is 25 MB): streamed with a download name, range requests honoured
+        // big files live in R2 (the static-asset limit is 25 MB), and so may the APK: streamed with a download name, range requests honoured
         const key = decodeURIComponent(p.slice('/download/'.length))
         if (/^[\w.-]+$/.test(key)) {
-          const type = key.endsWith('.exe') ? 'application/vnd.microsoft.portable-executable' : 'application/octet-stream'
+          const type = key.endsWith('.exe') ? 'application/vnd.microsoft.portable-executable' : key.endsWith('.apk') ? 'application/vnd.android.package-archive' : 'application/octet-stream'
           const r = await r2File(req, env.FILES, key, { download: key, type, maxAge: 3600 })
           if (r) return r
         }
