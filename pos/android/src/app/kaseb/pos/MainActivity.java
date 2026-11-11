@@ -44,6 +44,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -81,6 +83,7 @@ public class MainActivity extends Activity {
     // the print WebView and job are kept here so the garbage collector does not take them mid-print
     private WebView printView;
     private PrintJob printJob;
+    private OnBackInvokedCallback backCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +96,12 @@ public class MainActivity extends Activity {
         styleBars();
         web = newWebView();
         if (savedInstanceState == null || web.restoreState(savedInstanceState) == null) web.loadUrl(ORIGIN + "index.html");
+        // Android 13+ hands the back gesture to a callback (from Android 16 on, targeting it, onBackPressed is no longer
+        // called at all); older phones keep calling onBackPressed. Both go to the same handler.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            backCallback = this::handleBack;
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, backCallback);
+        }
         showLastCrash();
     }
 
@@ -727,8 +736,10 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- lifecycle
 
     @Override
-    public void onBackPressed() {
-        if (web == null) { super.onBackPressed(); return; }
+    public void onBackPressed() { handleBack(); }
+
+    private void handleBack() {
+        if (web == null) { moveTaskToBack(true); return; }
         // the page closes its topmost dialog itself; otherwise go back in history, and at the root just leave the app
         // in the background (the cart and the open screen survive)
         web.evaluateJavascript("(function(){try{return !!(window.onPosBack&&window.onPosBack())}catch(e){return false}})()", value -> {
@@ -752,6 +763,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (backCallback != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            try { getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback); } catch (Exception ignored) { }
+            backCallback = null;
+        }
         dismissFrozen();
         if (printView != null) { try { printView.destroy(); } catch (Exception ignored) { } printView = null; }
         // a recreated activity builds a new WebView: the old one must not keep running (timers, its database connection)
