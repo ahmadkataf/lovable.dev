@@ -34,10 +34,10 @@
  *   stopped afterwards; one that already answers on 5190 is reused and left running. The game is
  *   opened with its debug switches (?debug=1&lang=…&still=1&gate=off&seed=N&save=…, src/ui/flags.ts)
  *   and driven through window.__app / window.__play (src/main.ts, src/play/index.ts). The page clock
- *   is Playwright's, paused: a frame is taken an exact number of milliseconds after the move, so a
- *   run always shows the same instant. Math.random is seeded for the same reason (sparks).
- *   A scene names the level, the seed and the move; if the level data changed and the seed no longer
- *   gives the scene, another seed is searched with the game's own engine.
+ *   is Playwright's, paused: time moves only when this script says so, so a run always shows the
+ *   same instant. Math.random is seeded for the same reason (sparks).
+ *   A scene says what kind of level it wants, a seed and a move; when the level data changed and
+ *   they no longer give the scene, the game's own engine searches a level, a seed and a move that do.
  *
  * Rules these files follow (docs/research/play-policy.md, naming-ip.md, and the ad platforms):
  *   no other game, app or brand is named, shown or imitated; no ranking, price or promotion wording
@@ -119,22 +119,32 @@ const PLAY_VIEW = { w: 600, h: 1066, dsf: 3 };
 const BOOSTERS = { prism: true, beamNova: true };
 
 /**
- * A scene = which level, a seed, the move to play and the instant to take (ms after the move).
+ * A scene = which level, a seed, what the player does and the instant to take.
  * The level is chosen by what it contains, not by its number, because the level order is still
  * being tuned: `pick: 'rich'` = the 8×8 level with lamps, chains and stones and nothing else in the
- * way (today level 78, in the Palace chapter); `pick: 'plain'` = the 8×8 level of nothing but gems
- * in six colours (today level 50, in the Bazaar chapter; it comes with two beams and a nova of its own). `prefer` is the level / seed / move the
- * frames were chosen with; when it no longer gives the scene, the game's own engine searches
- * another seed (see probeScene). The backdrop of the image is the chapter that level belongs to.
- * `want`: 'combo' = a beam and a nova side by side in the middle of the board are swapped, the
- * prism stands outside the blast; 'single' = the move fires exactly one special of that kind.
+ * way (today level 78, in the Palace chapter); `pick: 'plain'` = the level of nothing but gems in
+ * six colours (today level 50, in the Bazaar chapter; it comes with two beams and a nova of its own).
+ * `prefer` is the level / seed / move the frames were first chosen with; when it no longer gives the
+ * scene, the game's own engine searches another (see probeScene). The backdrop of the image is the
+ * chapter that level belongs to.
+ * `want` — what happens in the scene:
+ *   'combo'   a beam and a nova side by side in the middle of the board are swapped (the Beam + Nova
+ *             combination); the prism stands outside the blast
+ *   'prism'   the prism is swapped with a gem next to it and clears that colour
+ *   'hammer'  the hammer booster is used on one special piece (`fx`: 'beam' or 'nova'), which fires
+ *             alone — nothing else is set off, so the lens shows that piece's effect and no other
+ * `at` — the instant, in ms after the move. A swap unfolds on the same clock whatever the board, so
+ * a fixed number works there. For the hammer scenes the instant is found: 'peak' steps through
+ * `window` 16 ms at a time and keeps the frame in which the lens around the piece is brightest.
  */
 const SCENES = {
   hero: { pick: 'rich', prefer: { level: 78, seed: 3765, a: { c: 3, r: 4 }, b: { c: 4, r: 4 } }, at: 512, want: { type: 'combo' } },
-  beam: { pick: 'plain', prefer: { level: 50, seed: 899, a: { c: 4, r: 4 }, b: { c: 4, r: 5 } }, at: 592, want: { type: 'single', fx: 'beamH' } },
-  nova: { pick: 'plain', prefer: { level: 50, seed: 13, a: { c: 3, r: 3 }, b: { c: 4, r: 3 } }, at: 560, want: { type: 'single', fx: 'nova' } },
-  prism: { pick: 'plain', prefer: { level: 50, seed: 3495, a: { c: 4, r: 2 }, b: { c: 4, r: 3 } }, at: 560, want: { type: 'single', fx: 'prism' } },
+  beam: { pick: 'plain', prefer: { level: 50, seed: 1, a: { c: 0, r: 0 } }, at: 'peak', window: [96, 960], want: { type: 'hammer', fx: 'beam' } },
+  nova: { pick: 'plain', prefer: { level: 50, seed: 1, a: { c: 0, r: 0 } }, at: 'peak', window: [96, 960], want: { type: 'hammer', fx: 'nova' } },
+  prism: { pick: 'plain', prefer: { level: 50, seed: 216, a: { c: 4, r: 3 }, b: { c: 4, r: 4 } }, at: 560, want: { type: 'prism' } },
 };
+/** How many cells across each lens of concept C shows (also the area searched for the brightest frame). */
+const LENS_CELLS = { beam: 4.3, nova: 4.6, prism: 4.9 };
 
 /** Map tiles: CSS size of the part of the map that is kept (between the top bar and the tray). */
 const MAP_TILES = {
@@ -299,49 +309,83 @@ async function probeScene(arg) {
             if (!prism || Math.abs(prism.c - b.c) <= 1 || Math.abs(prism.r - b.r) <= 1) continue;
             if (fixed && (a.c !== fixed.a.c || a.r !== fixed.a.r || b.c !== fixed.b.c || b.r !== fixed.b.r)) continue;
             if (!g0.canSwap({ c: a.c, r: a.r }, { c: b.c, r: b.r })) continue;
-            return { a: { c: a.c, r: a.r }, b: { c: b.c, r: b.r }, focus: { c: b.c, r: b.r }, color: -1 };
+            return { a: { c: a.c, r: a.r }, b: { c: b.c, r: b.r }, focus: { c: b.c, r: b.r }, color: -1, kind: 'combo' };
           }
         }
       }
       return null;
     }
+    const fxOf = (turn) => {
+      const acts = turn.steps.filter((x) => x.type === 'activate');
+      const total = acts.reduce((n, x) => n + x.fx.length, 0);
+      const firstClear = turn.steps.find((x) => x.type === 'clear');
+      // exactly one effect, and nothing new is made: a clean picture
+      if (total !== 1 || !firstClear || firstClear.created.length > 0) return null;
+      const firstFall = turn.steps.findIndex((x) => x.type === 'fall');
+      if (firstFall >= 0 && turn.steps.indexOf(acts[0]) > firstFall) return null;
+      return acts[0].fx[0];
+    };
+    if (arg.want.type === 'hammer') {
+      // a special well inside the board (the lens around it shows board on every side) that fires alone
+      let best = null;
+      s.cells.forEach((cell, i) => {
+        const piece = cell.piece;
+        if (!piece || piece.chained) return;
+        const at = { c: i % s.cols, r: Math.floor(i / s.cols) };
+        if (fixed && (at.c !== fixed.a.c || at.r !== fixed.a.r)) return;
+        const wanted = arg.want.fx === 'beam' ? isBeam(piece.kind) : piece.kind === arg.want.fx;
+        if (!wanted) return;
+        if (at.c < 2 || at.c > s.cols - 3 || at.r < 2 || at.r > s.rows - 3) return;
+        const g = new Game(level, { seed, boosters: arg.boosters });
+        const turn = g.useBooster('hammer', at);
+        if (!turn.accepted) return;
+        const fx = fxOf(turn);
+        if (!fx || fx.kind !== piece.kind) return;
+        // a beam along the row reads best; otherwise the one nearest the middle
+        const rank = (piece.kind === 'beamV' ? 10 : 0) + Math.max(Math.abs(at.c - cx), Math.abs(at.r - cy));
+        if (!best || rank < best.rank) best = { rank, a: at, b: null, focus: at, color: piece.color, kind: piece.kind };
+      });
+      return best && (fixed || best.rank < 10 || arg.allowVertical) ? best : null;
+    }
+    // 'prism': the prism swapped with a gem next to it
     const moves = fixed ? [fixed] : g0.validMoves();
     for (const m of moves) {
       const pa = pieceAt(s, m.a);
       const pb = pieceAt(s, m.b);
       if (!pa || !pb) continue;
-      const prismSwap = pa.kind === 'prism' || pb.kind === 'prism';
-      if ((arg.want.fx === 'prism') !== prismSwap) continue;
+      if ((pa.kind === 'prism') === (pb.kind === 'prism')) continue;
+      if (pa.kind !== 'gem' && pb.kind !== 'gem') continue;
       const g = new Game(level, { seed, boosters: arg.boosters });
       const turn = g.swap(m.a, m.b);
       if (!turn.accepted) continue;
-      const acts = turn.steps.filter((x) => x.type === 'activate');
-      const total = acts.reduce((n, x) => n + x.fx.length, 0);
-      if (total !== 1 || acts[0].fx[0].kind !== arg.want.fx) continue;
-      const firstFall = turn.steps.findIndex((x) => x.type === 'fall');
-      if (firstFall >= 0 && turn.steps.indexOf(acts[0]) > firstFall) continue;
-      const fx = acts[0].fx[0];
+      const fx = fxOf(turn);
+      if (!fx || fx.kind !== 'prism') continue;
       if (Math.max(Math.abs(fx.at.c - cx), Math.abs(fx.at.r - cy)) > 0.5) continue;
       // a prism should have plenty to clear, or the picture is thin
-      if (arg.want.fx === 'prism' && fx.targets.length < 12) continue;
-      return { a: m.a, b: m.b, focus: { c: fx.at.c, r: fx.at.r }, color: fx.color };
+      if (fx.targets.length < 12) continue;
+      return { a: m.a, b: m.b, focus: { c: fx.at.c, r: fx.at.r }, color: fx.color, kind: 'prism' };
     }
     return null;
   }
   const ranked = LEVELS.map((level) => ({ level, score: score(level) })).sort((x, y) => y.score - x.score || x.level.id - y.level.id);
   const best = ranked[0].score;
-  const done = (level, seed, hit, searched) => ({ ok: true, level: level.id, theme: chapterOf(level.id).theme, cols: level.cols, rows: level.rows, seed, a: hit.a, b: hit.b, focus: hit.focus, color: hit.color, searched });
+  const done = (level, seed, hit, searched) => ({ ok: true, level: level.id, theme: chapterOf(level.id).theme, cols: level.cols, rows: level.rows, seed, a: hit.a, b: hit.b, focus: hit.focus, color: hit.color, kind: hit.kind, searched });
   // the frames were chosen with this level, seed and move: keep them while they still hold
   const preferred = ranked.find((x) => x.level.id === arg.prefer.level);
   if (preferred && preferred.score === best) {
     const hit = tryIt(preferred.level, arg.prefer.seed, { a: arg.prefer.a, b: arg.prefer.b });
     if (hit) return done(preferred.level, arg.prefer.seed, hit, false);
   }
-  for (const entry of ranked.slice(0, 8)) {
-    for (let seed = 1; seed <= 12000; seed++) {
-      const hit = tryIt(entry.level, seed, null);
-      if (hit) return done(entry.level, seed, hit, true);
+  // otherwise search: the best-suited levels first; a beam along the row before one down a column
+  for (const pass of [false, true]) {
+    arg.allowVertical = pass;
+    for (const entry of ranked.slice(0, 8)) {
+      for (let seed = 1; seed <= (pass ? 2000 : 6000); seed++) {
+        const hit = tryIt(entry.level, seed, null);
+        if (hit) return done(entry.level, seed, hit, true);
+      }
     }
+    if (arg.want.type !== 'hammer' || arg.want.fx !== 'beam') break;
   }
   return { ok: false, why: 'no level and seed give the scene' };
 }
@@ -349,8 +393,9 @@ async function probeScene(arg) {
 /** One board scene from the real game → { png, meta }. */
 async function captureBoard(browser, base, name, scene, stagePage) {
   const found = await stagePage.evaluate(probeScene, { pick: scene.pick, prefer: scene.prefer, want: scene.want, boosters: BOOSTERS });
+  const moveText = found.ok ? (found.b ? 'swap ' + found.a.c + ',' + found.a.r + ' with ' + found.b.c + ',' + found.b.r : 'hammer on ' + found.a.c + ',' + found.a.r) : '';
   if (!found.ok) throw new Error('scene "' + name + '": ' + found.why);
-  if (found.searched) console.log('  note: scene "' + name + '": level ' + scene.prefer.level + ' with seed ' + scene.prefer.seed + ' no longer gives it (the level data changed) — using level ' + found.level + ', seed ' + found.seed + '. LOOK at the result.');
+  if (found.searched && scene.want.type !== 'hammer') console.log('  note: scene "' + name + '": level ' + scene.prefer.level + ' with seed ' + scene.prefer.seed + ' no longer gives it (the level data changed) — using level ' + found.level + ', seed ' + found.seed + '. LOOK at the result.');
   const { context, page } = await openGame(browser, base, { lang: 'en', w: PLAY_VIEW.w, h: PLAY_VIEW.h, dsf: PLAY_VIEW.dsf, tag: name, query: { seed: String(found.seed) } });
   try {
     await page.evaluate(([n, b]) => window.__app.ctx.nav.toPlay(n, b), [found.level, BOOSTERS]);
@@ -393,11 +438,83 @@ async function captureBoard(browser, base, name, scene, stagePage) {
         rows: snap.rows,
       };
     });
-    const accepted = await page.evaluate(([a, b]) => window.__play.swap(a, b), [found.a, found.b]);
-    if (accepted === false) throw new Error('scene "' + name + '": the game refused the move');
-    await page.clock.runFor(scene.at);
-    const url = await page.evaluate(() => document.querySelector('.pl-board').toDataURL('image/png'));
-    const meta = Object.assign({ level: found.level, theme: found.theme, seed: found.seed, move: { a: found.a, b: found.b }, at: scene.at, focus: found.focus, color: found.color }, geo);
+    if (scene.want.type === 'hammer') {
+      // the hammer booster, as a player uses it: tap its button, then tap the piece
+      const button = await page.evaluate(() => {
+        const el = document.querySelector('.pl-boost[data-booster="hammer"] button');
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      });
+      if (!button) throw new Error('scene "' + name + '": the hammer button is not on the play screen');
+      await page.mouse.click(button.x, button.y);
+      await page.clock.runFor(300);
+      if ((await page.evaluate(() => window.__play.info().targeting)) !== 'hammer') throw new Error('scene "' + name + '": the hammer did not arm');
+      const target = await page.evaluate((at) => window.__play.cell(at.c, at.r), found.a);
+      const before = await page.evaluate(() => window.__play.turns());
+      await page.mouse.click(target.x, target.y);
+      await page.clock.runFor(16);
+      const started = await page.evaluate((t) => window.__play.turns() > t || !window.__play.isIdle(), before);
+      if (!started) throw new Error('scene "' + name + '": the hammer tap did not start a turn');
+    } else {
+      const accepted = await page.evaluate(([a, b]) => window.__play.swap(a, b), [found.a, found.b]);
+      if (accepted === false) throw new Error('scene "' + name + '": the game refused the move');
+    }
+    let at = scene.at;
+    let url;
+    if (scene.at === 'peak') {
+      // the brightest frame of the lens around the special, searched 16 ms at a time
+      const probe = {
+        x: geo.origin.x + (found.focus.c + 0.5) * geo.cell,
+        y: geo.origin.y + (found.focus.r + 0.5) * geo.cell,
+        r: (LENS_CELLS[name] / 2) * geo.cell,
+      };
+      await page.clock.runFor(scene.window[0]);
+      let best = -1;
+      for (let t = scene.window[0]; t <= scene.window[1]; t += 16) {
+        const score = await page.evaluate(
+          ([p, t, best]) => {
+            const c = document.querySelector('.pl-board');
+            const N = 96;
+            const k = window.__promoProbe || (window.__promoProbe = document.createElement('canvas'));
+            k.width = N;
+            k.height = N;
+            const g = k.getContext('2d', { willReadFrequently: true });
+            g.drawImage(c, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2, 0, 0, N, N);
+            const d = g.getImageData(0, 0, N, N).data;
+            let n = 0;
+            for (let y = 0; y < N; y++) {
+              for (let x = 0; x < N; x++) {
+                const dx = x - N / 2 + 0.5;
+                const dy = y - N / 2 + 0.5;
+                if (dx * dx + dy * dy > (N / 2) * (N / 2)) continue;
+                const i = (y * N + x) * 4;
+                if (d[i + 3] > 200 && d[i] > 226 && d[i + 1] > 226 && d[i + 2] > 226) n++;
+              }
+            }
+            if (n > best) {
+              const keep = window.__promoBest || (window.__promoBest = document.createElement('canvas'));
+              keep.width = c.width;
+              keep.height = c.height;
+              keep.getContext('2d').drawImage(c, 0, 0);
+            }
+            return n;
+          },
+          [probe, t, best],
+        );
+        if (score > best) {
+          best = score;
+          at = t;
+        }
+        await page.clock.runFor(16);
+      }
+      if (best <= 0) throw new Error('scene "' + name + '": the special never lit up in ' + scene.window.join('–') + ' ms');
+      url = await page.evaluate(() => window.__promoBest.toDataURL('image/png'));
+    } else {
+      await page.clock.runFor(scene.at);
+      url = await page.evaluate(() => document.querySelector('.pl-board').toDataURL('image/png'));
+    }
+    const meta = Object.assign({ level: found.level, theme: found.theme, seed: found.seed, move: moveText, at, focus: found.focus, color: found.color, kind: found.kind }, geo);
     return { png: Buffer.from(url.split(',')[1], 'base64'), meta };
   } finally {
     await context.close();
@@ -1133,8 +1250,8 @@ async function setupStage(opts) {
     const order = ['beam', 'nova', 'prism'];
     // the badge on each lens is the very piece that fires in it
     const tint = (c, fallback) => (typeof c === 'number' && c >= 0 && c <= 5 ? c : fallback);
-    const badges = { beam: 'beamH' + tint(meta.beam.color, 5), nova: 'nova' + tint(meta.nova.color, 1), prism: 'prism' };
-    const cells = { beam: 4.3, nova: 4.6, prism: 4.9 };
+    const badges = { beam: (meta.beam.kind === 'beamV' ? 'beamV' : 'beamH') + tint(meta.beam.color, 5), nova: 'nova' + tint(meta.nova.color, 1), prism: 'prism' };
+    const cells = opts.lensCells;
     const Z = L.lenses;
     const zig = Z.label.side !== undefined;
     for (let i = 0; i < 3; i++) {
@@ -1550,7 +1667,7 @@ async function main() {
         const shot = await captureBoard(browser, server.base, name, SCENES[name], stage);
         captures[name] = shot.png;
         meta[name] = shot.meta;
-        console.log('  captured ' + name + ': level ' + shot.meta.level + ', seed ' + shot.meta.seed + ', ' + shot.meta.at + ' ms after the move, canvas ' + shot.meta.width + '×' + shot.meta.height);
+        console.log('  captured ' + name + ': level ' + shot.meta.level + ' (' + shot.meta.theme + '), seed ' + shot.meta.seed + ', ' + shot.meta.move + ', ' + shot.meta.at + ' ms later, canvas ' + shot.meta.width + '×' + shot.meta.height);
         if (CACHE) {
           writeFile(path.join(CACHE, name + '.png'), shot.png);
           writeFile(path.join(CACHE, name + '.json'), JSON.stringify(shot.meta));
@@ -1578,7 +1695,7 @@ async function main() {
 
       // ── compose ──
       const sample = LANGS.map((l) => [COPY[l].A.hook.join(' '), COPY[l].B.hook.join(' '), COPY[l].C.labels.join(' '), COPY[l].store].join(' ')).join(' ');
-      await stage.evaluate(setupStage, { images: Object.keys(captures), meta, layout: LAYOUT, sample });
+      await stage.evaluate(setupStage, { images: Object.keys(captures), meta, layout: LAYOUT, sample, lensCells: LENS_CELLS });
       for (const job of jobs) {
         const spec = {
           concept: job.concept.id,
@@ -1652,7 +1769,7 @@ async function main() {
     const manifest = {
       game: 'Zumurud (com.zumurud.game)',
       note: 'Made by tools/store/make-promo.cjs from the game itself. png and jpg are the same image; cleanJpg is the same design without the store line. letteringShare = boxes of the wordmark, the hook and the store line divided by the image area.',
-      scenes: Object.keys(meta).map((name) => ({ scene: name, level: meta[name].level, seed: meta[name].seed, move: meta[name].move, msAfterMove: meta[name].at })),
+      scenes: Object.keys(meta).map((name) => ({ scene: name, level: meta[name].level, chapter: meta[name].theme, seed: meta[name].seed, move: meta[name].move, msAfterMove: meta[name].at })),
       mapTiles: { focusLevels: MAP_FOCUS, sizesCssPx: MAP_TILES },
       images: listed,
     };

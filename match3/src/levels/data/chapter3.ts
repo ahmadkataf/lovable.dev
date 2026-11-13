@@ -10,26 +10,26 @@
 import type { LevelDef } from '../../engine/types.ts';
 
 export const CHAPTER_3: readonly LevelDef[] = [
-  // [tutorial] Vines: three broken hedges of vine — match beside them to cut them back. Fixed start board: the hinted move cuts a vine.
+  // [tutorial] Vines: two thick hedges of vine — match beside them to cut them back. Fixed start board: the hinted move cuts a vine.
   {
-    id: 41, cols: 9, rows: 8, colors: 5, moves: 9,
+    id: 41, cols: 9, rows: 8, colors: 5, moves: 10,
     tutorial: 'vine',
     pieces: [
-      'aeaaCaade',
-      'Cdbbebdeb',
-      'dvvvCvvvb',
-      'CbbdaCCbC',
-      'bvvvCvvve',
-      'CadCaCeCa',
-      'bvvvCvvve',
-      'CddedbCCb',
+      'dbbCbebae',
+      'adCddCeed',
+      'bvvvdvvve',
+      'avvvevvva',
+      'bbeaeaaCC',
+      'evvvavvvd',
+      'bvvvevvva',
+      'beCCeCCed',
     ],
     goals: [{ kind: 'vine' }],
-    stars: [2300, 6000, 9800],
+    stars: [2500, 7400, 13000],
   },
   // [normal] The creeper: a column of vine down the middle while you gather amber — keep it trimmed or it takes the board.
   {
-    id: 42, cols: 9, rows: 9, colors: 5, moves: 18,
+    id: 42, cols: 9, rows: 9, colors: 5, moves: 21,
     pieces: [
       '.........',
       '.........',
@@ -42,7 +42,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '.........',
     ],
     goals: [{ kind: 'color', color: 1, target: 52 }],
-    stars: [5400, 14700, 21600],
+    stars: [7000, 16600, 24400],
   },
   // [build-up] The overgrown court: a deep sand court with vines rooted in it — the sand under a vine waits for the vine.
   {
@@ -68,7 +68,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '000000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [10400, 18200, 24700],
+    stars: [10400, 18200, 24600],
   },
   // [spike] The hedge: three lamps and a hedge of vine across their way.
   {
@@ -84,7 +84,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'lamp', target: 3 }],
-    stars: [6200, 12500, 17800],
+    stars: [6000, 12400, 17800],
   },
   // [breather] The market square: a big open board with six pillars, three colours to gather — and a sixth colour in play.
   {
@@ -105,7 +105,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       { kind: 'color', color: 1, target: 18 },
       { kind: 'color', color: 3, target: 18 },
     ],
-    stars: [2900, 7700, 10600],
+    stars: [2800, 7600, 10600],
   },
   // [normal] Locks and ivy: pairs of chained gems above and below, vines creeping in from both sides.
   {
@@ -128,7 +128,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
   },
   // [normal] The low wall: four lamps and a stone wall with two gaps.
   {
-    id: 47, cols: 8, rows: 7, colors: 5, moves: 23,
+    id: 47, cols: 8, rows: 7, colors: 5, moves: 26,
     pieces: [
       '.L.LL.L.',
       '........',
@@ -139,7 +139,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'lamp', target: 4 }],
-    stars: [6000, 11500, 15800],
+    stars: [7300, 13000, 17300],
   },
   // [build-up] The lattice: a grid of sand lines, deep where they run down the board.
   {
@@ -167,11 +167,11 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '002000200',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [7300, 17500, 25000],
+    stars: [7400, 17400, 25000],
   },
   // [hard] The choked garden: a deep sand court, a knot of vine in its middle, chained corners — and six colours.
   {
-    id: 49, cols: 8, rows: 8, colors: 6, moves: 24,
+    id: 49, cols: 8, rows: 8, colors: 6, moves: 25,
     hard: true,
     pieces: [
       '........',
@@ -197,7 +197,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       { kind: 'sand' },
       { kind: 'vine' },
     ],
-    stars: [5800, 9600, 12700],
+    stars: [5800, 9900, 13000],
   },
   // [breather] A gift of lights: two beams and a nova lie ready; two colours to gather on an open board.
   {
@@ -233,11 +233,11 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '.........',
     ],
     goals: [{ kind: 'stone' }],
-    stars: [4200, 10800, 16200],
+    stars: [4400, 10600, 16100],
   },
   // [normal] Ivy at the gates: three lamps come down between vines growing in from both edges.
   {
-    id: 52, cols: 8, rows: 7, colors: 5, moves: 27,
+    id: 52, cols: 8, rows: 7, colors: 5, moves: 26,
     pieces: [
       '.L..L.L.',
       '........',
@@ -248,7 +248,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'lamp', target: 3 }],
-    stars: [6800, 13000, 17400],
+    stars: [6700, 12800, 17100],
   },
   // [build-up] Two rooms: stones in the left room, deep sand in the right, one shared floor.
   {
@@ -277,7 +277,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       { kind: 'stone' },
       { kind: 'sand' },
     ],
-    stars: [4800, 9600, 12600],
+    stars: [4900, 9500, 12600],
   },
   // [spike] The chain mail: sixteen chained gems on a checkerboard.
   {
@@ -293,7 +293,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       'c.c.c.c.',
     ],
     goals: [{ kind: 'chain' }],
-    stars: [4900, 12000, 17700],
+    stars: [4900, 12000, 17800],
   },
   // [breather] Rain on the dunes: slanting stripes of shallow sand on an open board.
   {
@@ -336,7 +336,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '.........',
     ],
     goals: [{ kind: 'stone' }],
-    stars: [5200, 12100, 19700],
+    stars: [5000, 12200, 19400],
   },
   // [normal] Lamps over the wadi: two lamps held by chains, and three rows of sand at the bottom to sweep.
   {
@@ -365,7 +365,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       { kind: 'lamp', target: 2 },
       { kind: 'sand' },
     ],
-    stars: [9400, 17000, 22500],
+    stars: [9400, 16900, 22400],
   },
   // [build-up] The thicket: a block of stones inside a wall of vine — cut your way in, then break the stones.
   {
@@ -385,7 +385,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       { kind: 'vine' },
       { kind: 'stone' },
     ],
-    stars: [5700, 13400, 20400],
+    stars: [5800, 13400, 20500],
   },
   // [hard] The sunken garden: three lamps, a hedge of vine across the board and a deep sand bed below it.
   {
@@ -416,7 +416,7 @@ export const CHAPTER_3: readonly LevelDef[] = [
       { kind: 'sand' },
       { kind: 'vine' },
     ],
-    stars: [10600, 18000, 23900],
+    stars: [10600, 17900, 23900],
   },
   // [finale] The crossroads: a wide plus-shaped board, three colours to gather and a prism at its heart.
   {
@@ -437,6 +437,6 @@ export const CHAPTER_3: readonly LevelDef[] = [
       { kind: 'color', color: 2, target: 30 },
       { kind: 'color', color: 3, target: 30 },
     ],
-    stars: [5300, 12300, 17600],
+    stars: [5300, 12300, 17500],
   },
 ];

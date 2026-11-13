@@ -69,7 +69,7 @@ Special pieces and combos
 • Swap two special pieces with each other for a bigger effect. There are six combos to discover.
 
 Six worlds, 120 levels
-Oasis, Dunes, Bazaar, Palace, Caverns and Starlit Sky: each world is a chapter of twenty levels with its own backdrop. Goals change as you go: reach a score, collect jewels of one color, clear the sand, break stones and chains, cut back vines before they spread, or bring brass lamps down to the bottom of the board.
+Oasis, Dunes, Bazaar, Palace, Caverns and Starlit Sky: each world is a chapter of twenty levels with its own backdrop. Goals change as you go: reach a score, collect gems of one color, clear the sand, break stones and chains, cut back vines before they spread, or bring brass lamps down to the bottom of the board.
 
 Jewels you can tell apart at a glance
 Ruby, amber, emerald, sapphire, amethyst and moonstone: each jewel has its own color and its own cut, so the board stays readable on small screens and for players who find some colors hard to tell apart.
@@ -84,18 +84,18 @@ Play anywhere
 • A match 3 game that works offline: the puzzle levels need no Wi-Fi and no mobile data, so you can play in airplane mode, on a flight or on your commute.
 • Single player. Your progress is saved on your device.
 • English and Arabic, with a full right-to-left layout in Arabic. Switch language at any time in Settings.
-• Artwork and sound made for this game, with a calm, relaxing soundtrack led by an oud-like melody.
+• Artwork and sound made for this game, with a calm, relaxing soundtrack led by an oud-style melody.
 • Made for teens and adults aged 13 and over who enjoy jewel games and matching puzzles.
 
 Purchases and ads, stated plainly
-You can install Zumurud and finish all 120 levels without paying. The game contains optional in-app purchases: packs of coins, a one-time starter pack, and an option that removes the ads shown between levels. Coins are also earned by playing. The game contains ads: video ads that give a reward play only when you choose to watch one, and ads between levels are occasional, never interrupt a level, and are switched off after any purchase. Playing needs no connection; only purchases and ads do.
+All 120 levels can be finished without buying anything. The game contains optional in-app purchases: packs of coins, a one-time starter pack, and an option that removes the ads shown between levels. Coins are also earned by playing. The game contains ads. Rewarded video ads play only when you choose to watch one. Ads between levels are occasional, never interrupt a level, and stop after any purchase. Playing needs no connection; only purchases and ads do.
 
 Zumurud is the Arabic word for emerald. The oasis is waiting: make your first match and see how far the caravan takes you.
 ```
 
 </div>
 
-**عدد الأحرف:** 3221 / 4000
+**عدد الأحرف:** 3184 / 4000
 
 **كيف بُني:** أول ثلاثة أسطر تبيع اللعبة وفيها الكلمات الأساسية الأربع (<span dir="ltr">offline · match 3 · puzzle · jewels</span>) داخل أول 160 حرفًا، وهو ما يظهر قبل زر «المزيد». بعدها أقسام قصيرة بعناوين ونقاط: طريقة اللعب، القطع الخاصة والتركيبات، العوالم، الجواهر، المعزّزات والمكافآت، اللعب بلا اتصال واللغات، ثم المشتريات والإعلانات بوضوح، وسطر ختامي يدعو إلى اللعب بلا عبارات ممنوعة. لا قوائم كلمات، ولا ذكر لأي لعبة أخرى، وكل رقم فيه يطابق اللعبة (السكربت يقارنه بملفات اللعبة نفسها).
 
@@ -108,12 +108,12 @@ Zumurud is the Arabic word for emerald. The oasis is waiting: make your first ma
 
 ```text
 Purchases, stated plainly
-You can install Zumurud and finish all 120 levels without paying. The game contains optional in-app purchases: packs of coins and a one-time starter pack. Coins are also earned by playing. Playing needs no connection; only purchases do.
+All 120 levels can be finished without buying anything. The game contains optional in-app purchases: packs of coins and a one-time starter pack. Coins are also earned by playing. Playing needs no connection; only purchases do.
 ```
 
 </div>
 
-**عدد الأحرف:** 262 / 4000
+**عدد الأحرف:** 252 / 4000
 
 ## 4) ملاحظات الإصدار 1.0.0 — `Release notes` (ما الجديد)
 
@@ -158,7 +158,7 @@ Welcome to Zumurud, a match 3 puzzle game with jewels, set in a desert oasis.
 | الخانة | مطلوبة؟ | ماذا تكتب |
 |---|---|---|
 | <span dir="ltr">`Email address`</span> | **نعم** | بريد حساب Play Console نفسه (أنت من يدخله؛ ليس مكتوبًا في أي ملف هنا). تلتزم بالرد على استفسارات المشتريات خلال 3 أيام عمل. |
-| <span dir="ltr">`Website`</span> | إلزامية مع الإعلانات | <span dir="ltr">`https://zumurud-privacy.almutafawiqin.workers.dev/`</span> |
+| <span dir="ltr">`Website`</span> | Google يصفها بأنها «موصى بها»؛ **اكتبها** إن رفعت نسخة الإعلانات، لأن AdMob يقرأ منها ملف <span dir="ltr">`app-ads.txt`</span> | <span dir="ltr">`https://zumurud-privacy.almutafawiqin.workers.dev/`</span> |
 | <span dir="ltr">`Phone number`</span> | اختيارية | راجع <span dir="ltr">`store/PUBLISHING-GUIDE.ar.md`</span> (صفة التاجر). |
 | <span dir="ltr">`Privacy policy`</span> (في <span dir="ltr">`App content`</span>) | **نعم** | <span dir="ltr">`https://zumurud-privacy.almutafawiqin.workers.dev/`</span> |
 

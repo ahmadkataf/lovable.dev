@@ -402,6 +402,13 @@ const demo = {
   levelReward: (previousStars: number, stars: number) => levelReward(previousStars, stars),
   /** Start a level by id or harness name. */
   start: (key: string, boosters?: StartBoosters) => startLevel(findLevel(key), boosters || {}),
+  /** Start a level by id or harness name with some of its fields replaced (e.g. `{ moves: 2 }`). */
+  startWith: (key: string, patch: Partial<LevelDef>, boosters?: StartBoosters) => {
+    const level: LevelDef = { ...findLevel(key), ...patch };
+    const problems = validateLevel(level);
+    if (problems.length > 0) throw new Error('invalid level: ' + problems.join('; '));
+    startLevel(level, boosters || {});
+  },
   stop: () => {
     if (play) play.stop();
   },

@@ -8,7 +8,8 @@
  * random swipes in every direction (also off the board and into blockers), taps, rapid bursts
  * made while the board is still resolving, every booster (use, cancel, buy when empty), pause /
  * resume / restart / quit, Back presses at any moment, app pause / resume in the middle of an
- * animation, resizes and rotations, levels started twice or over a running one, the lose dialog
+ * animation, resizes and rotations, real multi-touch (a second finger while the first holds a
+ * gem, a touch cancelled in mid-drag), levels started twice or over a running one, the lose dialog
  * (coins, video, shop, retry, give up) and the win dialog (finale skipped or not, double coins).
  *
  * The oracle is independent of the screen's own bookkeeping:
@@ -96,6 +97,7 @@ const stats = {
   skips: 0,
   doubles: 0,
   rapidStarts: 0,
+  touches: 0,
 };
 const trail = [];
 function note(what) {
@@ -867,6 +869,55 @@ async function randomTap(page, o) {
   if (expectValid) stats.moves++;
 }
 
+/**
+ * Real touch points (Chrome DevTools Protocol): a finger rests on a gem while a second finger
+ * swipes somewhere else — or the system takes the touch away in mid-drag. Only the first finger
+ * counts, a cancelled drag is no move, and everything must be back at rest afterwards.
+ */
+async function multiTouch(page, o) {
+  if (!page.__cdp) page.__cdp = await page.context().newCDPSession(page);
+  const client = page.__cdp;
+  const g = await geometry(page);
+  const cellA = { c: int(g.cols), r: int(g.rows) };
+  const a = centre(g, cellA.c, cellA.r);
+  const b0 = centre(g, int(g.cols), int(g.rows));
+  const dir = pick([[1, 0], [-1, 0], [0, 1], [0, -1]]);
+  const b1 = { x: clampX(g, b0.x + dir[0] * g.cell), y: clampY(g, b0.y + dir[1] * g.cell) };
+  const pt = (p, id) => ({ x: Math.round(p.x), y: Math.round(p.y), id });
+  const send = (type, touchPoints) => client.send('Input.dispatchTouchEvent', { type, touchPoints });
+  const sel = o.info.selection;
+  let expectValid = false;
+  if (chance(0.6)) {
+    // two fingers: the first holds, the second swipes, the second lifts, the first lifts (= a tap of the first)
+    await send('touchStart', [pt(a, 1)]);
+    await send('touchStart', [pt(a, 1), pt(b0, 2)]);
+    await send('touchMove', [pt(a, 1), pt({ x: (b0.x + b1.x) / 2, y: (b0.y + b1.y) / 2 }, 2)]);
+    await send('touchMove', [pt(a, 1), pt(b1, 2)]);
+    await send('touchEnd', [pt(a, 1)]);
+    await send('touchEnd', []);
+    expectValid = !!(g.cells[cellA.r * g.cols + cellA.c] && sel && adjacent(sel, cellA) && pickable(g, sel) && pickable(g, cellA) && isValid(g, sel, cellA));
+    note(`two fingers: hold ${cellA.c},${cellA.r}, swipe elsewhere`);
+  } else {
+    // a drag the system cancels half way
+    await send('touchStart', [pt(a, 1)]);
+    await send('touchMove', [pt({ x: a.x + dir[0] * g.cell * 0.4, y: a.y + dir[1] * g.cell * 0.4 }, 1)]);
+    await send('touchMove', [pt({ x: a.x + dir[0] * g.cell * 0.9, y: a.y + dir[1] * g.cell * 0.9 }, 1)]);
+    await send('touchCancel', []);
+    note(`touch cancelled in mid-drag from ${cellA.c},${cellA.r}`);
+  }
+  await page.waitForTimeout(40);
+  await settle(page);
+  const now = await observe(page);
+  if (now.status === 'won') {
+    must(expectValid, 'a touch that is not a valid move won the level');
+    return;
+  }
+  const spent = o.moves - now.moves;
+  must(spent === (expectValid ? 1 : 0), `touch gesture on ${JSON.stringify(cellA)} (selection ${JSON.stringify(sel)}) spent ${spent} moves, expected ${expectValid ? 1 : 0}`);
+  if (expectValid) stats.moves++;
+  stats.touches++;
+}
+
 async function boosterButton(page, o) {
   if (o.boosters.length === 0) return;
   const id = pick(o.boosters);
@@ -966,6 +1017,7 @@ async function targetingAction(page, o) {
 
 async function playAction(page, o, ctx) {
   if (o.info.targeting) return targetingAction(page, o);
+  if (ctx.touch && chance(0.12)) return multiTouch(page, o);
   const roll = rnd();
   if (roll < 0.4) return hintMove(page, o, false);
   if (roll < 0.52) return hintMove(page, o, true);
@@ -1021,7 +1073,7 @@ async function startLevel(page, key, ctx, again) {
 }
 
 async function playLevel(page, key, env) {
-  const ctx = { key, adsMode: env.ads, restarted: () => undefined };
+  const ctx = { key, adsMode: env.ads, touch: !!env.touch, restarted: () => undefined };
   ctx.restarted = () => {
     ctx.credited = false;
     ctx.lostSeen = false;
@@ -1142,7 +1194,7 @@ async function playLevel(page, key, env) {
     { tag: 'en · videos earned', lang: 'en', ads: '1', query: 'inv=2&coins=6000&ads=1&tut=0' },
     { tag: 'ar · videos not earned', lang: 'ar', ads: 'fail', query: 'inv=1&coins=2500&ads=fail&tut=0' },
     { tag: 'en · no videos, tips on', lang: 'en', ads: null, query: 'inv=0&coins=1200' },
-    { tag: 'ar · videos earned, touch', lang: 'ar', ads: '1', query: 'inv=3&coins=20000&ads=1&tut=0' },
+    { tag: 'ar · videos earned, touch', lang: 'ar', ads: '1', query: 'inv=3&coins=20000&ads=1&tut=0', touch: true },
   ];
   const perEnv = Math.ceil(LEVELS / ENVS.length);
   let played = 0;
@@ -1150,7 +1202,7 @@ async function playLevel(page, key, env) {
     for (let e = 0; e < ENVS.length && played < LEVELS; e++) {
       const env = ENVS[e];
       const [w, h] = pick(SIZES);
-      const page = await H.openHarness(browser, { w, h, lang: env.lang, query: `level=none&fast=1&seed=${SEED * 100 + e}&${env.query}`, problems, tag: `[${env.tag}]`, dpr: pick([1, 2, 3]) });
+      const page = await H.openHarness(browser, { w, h, lang: env.lang, query: `level=none&fast=1&seed=${SEED * 100 + e}&${env.query}`, problems, tag: `[${env.tag}]`, dpr: pick([1, 2, 3]), touch: !!env.touch });
       await syncLedger(page);
       for (let i = 0; i < perEnv && played < LEVELS; i++) {
         const key = chance(0.45) ? pick(HARNESS_LEVELS) : String(1 + int(120));

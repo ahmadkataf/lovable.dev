@@ -13,7 +13,7 @@ import type { LevelDef } from '../../engine/types.ts';
 export const CHAPTER_2: readonly LevelDef[] = [
   // [tutorial] Two lamps: the first lamps wait at the top — clear the cells beneath them. Four colours keep it gentle. Fixed start board: the hinted move lowers a lamp.
   {
-    id: 21, cols: 7, rows: 7, colors: 4, moves: 12,
+    id: 21, cols: 7, rows: 7, colors: 4, moves: 13,
     tutorial: 'lamp',
     pieces: [
       'bbLaLda',
@@ -25,7 +25,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       'Caababa',
     ],
     goals: [{ kind: 'lamp', target: 2 }],
-    stars: [4700, 14400, 21200],
+    stars: [4200, 12800, 19800],
   },
   // [normal] The caravan: four lamps travel together, two ahead and two behind. Lamps always stand away from the edges.
   {
@@ -41,7 +41,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'lamp', target: 4 }],
-    stars: [8200, 15500, 21200],
+    stars: [8300, 15500, 21200],
   },
   // [build-up] Wet sand: two lamps sink through a band of sand — clearing their way sweeps most of it.
   {
@@ -68,7 +68,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       { kind: 'lamp', target: 2 },
       { kind: 'sand' },
     ],
-    stars: [5500, 11000, 15400],
+    stars: [5400, 11000, 15400],
   },
   // [spike] The mosaic: sand on every other tile, deep in the middle of the board — a long sweep.
   {
@@ -92,7 +92,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '1010101',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [5700, 11300, 14800],
+    stars: [5800, 11200, 14800],
   },
   // [breather] The dune: a wide rounded board, two colours, nothing in the way.
   {
@@ -112,7 +112,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       { kind: 'color', color: 1, target: 34 },
       { kind: 'color', color: 4, target: 34 },
     ],
-    stars: [5300, 12600, 18500],
+    stars: [5200, 12700, 18800],
   },
   // [normal] The stairway: three-layer stones step down across the board.
   {
@@ -128,7 +128,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'stone' }],
-    stars: [5100, 11000, 16500],
+    stars: [5000, 11000, 16400],
   },
   // [normal] Lamps over stones: each of the three lamps must break through the stone under it.
   {
@@ -143,7 +143,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'lamp', target: 3 }],
-    stars: [6900, 13200, 17600],
+    stars: [7200, 13300, 17700],
   },
   // [build-up] The crossing: a plus-shaped board, two colours to gather in its narrow arms.
   {
@@ -162,7 +162,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       { kind: 'color', color: 0, target: 28 },
       { kind: 'color', color: 3, target: 28 },
     ],
-    stars: [3900, 8200, 11700],
+    stars: [3500, 8200, 11600],
   },
   // [spike] The buried gate: lamps blocked by stones, and a sandy floor with a deep seam to clear as well.
   {
@@ -191,7 +191,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       { kind: 'lamp', target: 2 },
       { kind: 'sand' },
     ],
-    stars: [7500, 14400, 20000],
+    stars: [7300, 14300, 20000],
   },
   // [breather] The picture frame: sand around a gap in the board, a second ring outside it.
   {
@@ -219,7 +219,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '00000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [5500, 11300, 15600],
+    stars: [5600, 11200, 15600],
   },
   // [tutorial] Chains: chained gems cannot move — match each one where it stands. On the start board every possible move breaks a chain.
   {
@@ -235,7 +235,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       'baCbddC',
     ],
     goals: [{ kind: 'chain' }],
-    stars: [3000, 7300, 11100],
+    stars: [3100, 7300, 11000],
   },
   // [normal] The locked court: sand under a ring of chained gems, deepest inside the ring.
   {
@@ -261,7 +261,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '00000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [6900, 14000, 19600],
+    stars: [7000, 14000, 19600],
   },
   // [build-up] The chain curtain: twenty-one chained gems hang in a lattice — every one has to be matched in place.
   {
@@ -277,7 +277,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '.........',
     ],
     goals: [{ kind: 'chain' }],
-    stars: [4400, 12000, 18700],
+    stars: [4100, 11900, 18600],
   },
   // [spike] Lamps on chains: each lamp rests on a chained gem — break the chain before the lamp can sink.
   {
@@ -292,7 +292,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '.......',
     ],
     goals: [{ kind: 'lamp', target: 2 }],
-    stars: [5000, 10600, 14900],
+    stars: [5200, 10500, 14700],
   },
   // [breather] The sealed prism: a prism locked inside a ring of stones — free it and the amber falls in heaps.
   {
@@ -308,7 +308,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '.......',
     ],
     goals: [{ kind: 'color', color: 1, target: 35 }],
-    stars: [4900, 11200, 16000],
+    stars: [5000, 11200, 15900],
   },
   // [normal] The weave: thick stones and chained gems alternate in two rows.
   {
@@ -327,7 +327,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       { kind: 'stone' },
       { kind: 'chain' },
     ],
-    stars: [4100, 10000, 14700],
+    stars: [3900, 10000, 14800],
   },
   // [normal] The lamp bearers: two lamps wait at the top and two more follow them down — never through the notched edge columns.
   {
@@ -344,7 +344,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
     ],
     goals: [{ kind: 'lamp', target: 4 }],
     lamps: { total: 4, maxOnBoard: 2, everyMoves: 2 },
-    stars: [8800, 16300, 21700],
+    stars: [9000, 16200, 21600],
   },
   // [build-up] The hourglass: sand in both bulbs, deepest where the glass narrows.
   {
@@ -370,7 +370,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '0111110',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [5800, 10900, 14500],
+    stars: [5800, 10900, 14400],
   },
   // [hard] The buried caravan: three lamps on chained gems above a deep pyramid of sand. The first hard level.
   {
@@ -402,7 +402,7 @@ export const CHAPTER_2: readonly LevelDef[] = [
       { kind: 'lamp', target: 3 },
       { kind: 'sand' },
     ],
-    stars: [10300, 19800, 28800],
+    stars: [10400, 19800, 29200],
   },
   // [finale] The dune crest: three colours, a prism and a nova lying ready, a few chains and stones for show.
   {
@@ -422,6 +422,6 @@ export const CHAPTER_2: readonly LevelDef[] = [
       { kind: 'color', color: 2, target: 30 },
       { kind: 'color', color: 3, target: 30 },
     ],
-    stars: [5400, 12200, 16900],
+    stars: [5400, 12200, 17000],
   },
 ];

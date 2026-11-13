@@ -206,12 +206,20 @@ async function devTests(browser) {
       return out;
     });
     eq(bad.join(','), '', 'the intro of every level shows its number and all its goals');
+    // hard levels carry their tag under the title, the others the ornament
+    const hardId = await page.evaluate(() => (window.__app.ctx.levels.filter((l) => l.hard)[0] || { id: 0 }).id);
+    ok(hardId > 0, 'the game has hard levels (first: ' + hardId + ')');
+    await page.evaluate((id) => window.__app.ctx.nav.openLevelIntro(id), hardId);
+    await page.waitForSelector('.m-dialog-intro', { timeout: 5000 });
+    eq(await page.locator('.m-dialog-intro .k-dialog__head .m-tag--hard').count(), 1, 'a hard level is tagged as hard under its title');
+    ok(await page.locator('.m-dialog-intro .k-dialog__head .m-best').isVisible(), 'a level won before shows its stars and best score there too');
+    await page.evaluate(() => window.__app.kit.closeAll());
+    await page.waitForSelector('.k-overlay', { state: 'detached', timeout: 3000 });
     await sleep(500);
     // one real level, started from its intro
     await tap(page, '.m-node[data-level="120"]');
     await page.waitForSelector('.m-dialog-intro', { timeout: 5000 });
     await sleep(420);
-    ok((await page.locator('.m-dialog-intro .m-tag--hard').count()) === 1, 'the last level is tagged as hard');
     await tap(page, '[data-act="intro-play"]');
     await waitScreen(page, 'play');
     await page.waitForFunction(() => window.__play && window.__play.state() === 'play', null, { timeout: 15000 });
@@ -471,7 +479,9 @@ async function devTests(browser) {
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
       for (let n = walker.nextNode(); n; n = walker.nextNode()) {
         const text = n.textContent || '';
-        if (/[؀-ۿ]/.test(text) && text.trim() !== 'العربية') out.push(text.trim().slice(0, 30));
+        const tag = n.parentElement ? n.parentElement.tagName : '';
+        if (tag === 'SCRIPT' || tag === 'STYLE') continue;
+        if (/[\u0600-\u06FF]/.test(text) && text.trim() !== 'العربية') out.push(text.trim().slice(0, 30));
       }
       return out;
     });
@@ -920,9 +930,18 @@ async function prodTests(browser, preview) {
     }
     for (const f of js) {
       const name = f.file.split('/').pop();
+      // The one `fetch` a Vite build always carries: its modulepreload polyfill, which only runs
+      // where <link rel="modulepreload"> is unknown (before Chrome 66) and then loads the app's own
+      // files. It cannot run on the game's browsers; anything else that reaches for the network fails.
+      let code = f.text;
+      const polyfill = /fetch\(\w+\.href,\w+\)/;
+      if (code.indexOf('modulepreload') >= 0 && polyfill.test(code)) {
+        code = code.replace(polyfill, 'void 0');
+        console.log("    note: " + name + " carries Vite's modulepreload polyfill (a same-origin fetch that never runs on Chrome ≥ 66; `build.modulePreload.polyfill: false` in vite.config.ts would drop it)");
+      }
       for (const [what, re] of JS_TOO_NEW) {
-        const m = re.exec(f.text);
-        ok(!m, name + ': ' + what + (m ? '  →  …' + f.text.slice(Math.max(0, m.index - 50), m.index + 30).replace(/\s+/g, ' ') + '…' : ''));
+        const m = re.exec(code);
+        ok(!m, name + ': ' + what + (m ? '  →  …' + code.slice(Math.max(0, m.index - 50), m.index + 30).replace(/\s+/g, ' ') + '…' : ''));
       }
       // Array / String .at() — told apart from identifiers that merely end in "at" by the argument
       const at = /[\w\])]\.at\(-?\d*\)/.exec(f.text);

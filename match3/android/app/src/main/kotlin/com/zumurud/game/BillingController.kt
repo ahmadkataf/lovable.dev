@@ -98,12 +98,20 @@ internal class BillingController(
 
     /** Purchase token → what the store said about it, from the last listing and from new purchases. */
     private val known = HashMap<String, Known>()
-    private val finishing = HashSet<String>()
 
+    /** Purchase token → when its consume / acknowledge was started (elapsedRealtime). */
+    private val finishing = HashMap<String, Long>()
+
+    /** The one purchase flow that is open, if any: its product, when it began, and how far it got. */
     private var buying: String? = null
     private var buyingSince = 0L
+    private var buySerial = 0
+
+    /** Google Play's purchase sheet has been opened for the current flow. */
+    private var buyLaunched = false
 
     private var ownedQueryRunning = false
+    private var ownedSerial = 0
 
     private val reconnect = Runnable {
         if (!destroyed && resumed && !connectedOnce) connect()
@@ -132,19 +140,34 @@ internal class BillingController(
         }
         buying = id
         buyingSince = SystemClock.elapsedRealtime()
+        buyLaunched = false
+        val serial = ++buySerial
+        // Whatever happens on the way to Play's purchase sheet, the page gets its answer.
+        main.postDelayed({
+            if (buySerial == serial && buying == id && !buyLaunched) {
+                Log.w(TAG, "buy $id: Google Play did not answer in time")
+                endBuy(id, "error")
+            }
+        }, BUY_PREPARE_TIMEOUT_MS)
         // Product details are fetched fresh for every purchase: Play refuses stale ones.
         withClient(
-            fail = { code -> endBuy(id, stateFor(code)) },
+            fail = { code -> if (buySerial == serial) endBuy(id, stateFor(code)) },
             run = { c ->
                 c.queryProductDetailsAsync(productParams(listOf(id))) { result, details ->
-                    onMain { launch(c, id, result, details) }
+                    onMain { launch(c, id, serial, result, details) }
                 }
             },
         )
     }
 
     fun finish(token: String) {
-        if (destroyed || !finishing.add(token)) return
+        if (destroyed) return
+        // One consume / acknowledge per token at a time; one that never reported back is given up
+        // after a while, so the page's next request for the same token is not ignored for ever.
+        val now = SystemClock.elapsedRealtime()
+        val since = finishing[token]
+        if (since != null && now - since < FINISH_STALE_MS) return
+        finishing[token] = now
         val purchase = known[token]
         if (purchase != null) return finishKnown(token, purchase, attempt = 1)
         // Not from this session's listings: ask Play what it is before touching it.
@@ -172,11 +195,19 @@ internal class BillingController(
         // A listing that is already under way answers this request too.
         if (destroyed || ownedQueryRunning) return
         ownedQueryRunning = true
+        val serial = ++ownedSerial
+        // A listing that never answers must not block every later one.
+        main.postDelayed({
+            if (ownedQueryRunning && ownedSerial == serial) {
+                Log.w(TAG, "owned: Google Play did not answer in time")
+                ownedDone(serial, null)
+            }
+        }, OWNED_TIMEOUT_MS)
         withClient(
-            fail = { ownedDone(null) },
+            fail = { ownedDone(serial, null) },
             run = { c ->
                 c.queryPurchasesAsync(PURCHASES_PARAMS) { result, purchases ->
-                    onMain { ownedDone(if (result.responseCode == BillingResponseCode.OK) purchases else null, result) }
+                    onMain { ownedDone(serial, if (result.responseCode == BillingResponseCode.OK) purchases else null, result) }
                 }
             },
         )
@@ -185,6 +216,22 @@ internal class BillingController(
     fun onResume() {
         if (destroyed) return
         resumed = true
+        // Back on screen while a purchase flow is open: Play's sheet has gone. Its answer normally
+        // arrives within a moment; a sheet that was swept away (the app re-opened from its icon
+        // while the sheet was up, say) never sends one. The page must not wait for ever: end the
+        // flow, then ask Play what happened — a purchase that did complete is delivered by that
+        // listing and granted as usual.
+        val id = buying
+        if (id != null && buyLaunched) {
+            val serial = buySerial
+            main.postDelayed({
+                if (!destroyed && resumed && buySerial == serial && buying == id) {
+                    Log.w(TAG, "buy $id: the purchase sheet closed without an answer")
+                    endBuy(id, "error")
+                    restore()
+                }
+            }, BUY_RETURN_GRACE_MS)
+        }
         // A payment may have completed, or a purchase been made outside the app, while it was away.
         restore()
     }
@@ -290,8 +337,10 @@ internal class BillingController(
     // ───────────────────────── buying ─────────────────────────
 
     /** Main thread, as the Billing Library demands for launchBillingFlow. */
-    private fun launch(c: BillingClient, id: String, result: BillingResult, details: QueryProductDetailsResult) {
-        if (buying != id) return
+    private fun launch(c: BillingClient, id: String, serial: Int, result: BillingResult, details: QueryProductDetailsResult) {
+        // Only the flow that is still open, and only once: a late answer to an attempt that was
+        // given up must never put a second purchase sheet on screen.
+        if (buying != id || buySerial != serial || buyLaunched) return
         val host = activity
         if (host == null || !resumed || host.isFinishing) return endBuy(id, "error")
         if (result.responseCode != BillingResponseCode.OK) {
@@ -316,8 +365,10 @@ internal class BillingController(
             Log.w(TAG, "buy $id: ${describe(launched)}")
             endBuy(id, stateFor(launched.responseCode))
             if (launched.responseCode == BillingResponseCode.ITEM_ALREADY_OWNED) restore()
+            return
         }
         // OK: Play's purchase sheet is up; the outcome arrives in onPurchasesUpdated.
+        buyLaunched = true
     }
 
     /** Any thread. Also called for purchases that complete outside a flow started here. */
@@ -327,10 +378,19 @@ internal class BillingController(
             when (result.responseCode) {
                 BillingResponseCode.OK -> {
                     for (purchase in purchases.orEmpty()) {
-                        report(purchase)
+                        val reported = report(purchase)
                         // The flow started here has its answer. (An update about another product —
                         // a pending payment completing meanwhile — leaves the open flow alone.)
-                        if (id != null && id in purchase.products) buying = null
+                        if (id != null && buying == id && id in purchase.products) {
+                            if (reported) {
+                                buying = null
+                            } else {
+                                // Neither paid nor pending (Play's "unspecified" state): nothing
+                                // to grant, but the page still needs its answer. The listing will tell.
+                                endBuy(id, "error")
+                                restore()
+                            }
+                        }
                     }
                     if (id != null && purchases.isNullOrEmpty()) {
                         // "OK" with nothing in it: no token to grant with. The listing will tell.
@@ -350,8 +410,10 @@ internal class BillingController(
         }
     }
 
+    /** Ends the open flow for [id] with its one answer; does nothing when that flow has already been answered. */
     private fun endBuy(id: String, state: String) {
-        if (buying == id) buying = null
+        if (buying != id) return
+        buying = null
         emitPurchase(id, state)
     }
 
@@ -367,21 +429,35 @@ internal class BillingController(
         return entry
     }
 
-    /** One purchase → its 'purchase' event. Paid: with the token. Pending: "pending" and nothing else. */
-    private fun report(purchase: Purchase) {
-        val entry = remember(purchase) ?: return
-        when (purchase.purchaseState) {
-            Purchase.PurchaseState.PURCHASED -> sink.emit(
-                StoreEvents.purchase(entry.productId, "purchased", purchase.purchaseToken, purchase.isAcknowledged, purchase.quantity),
-            )
-            Purchase.PurchaseState.PENDING -> emitPurchase(entry.productId, "pending")
-            else -> Unit
+    /**
+     * One purchase → its 'purchase' event. Paid: with the token. Pending: "pending" and nothing else.
+     * Returns false when there was nothing to say (a purchase that is neither paid nor pending).
+     */
+    private fun report(purchase: Purchase): Boolean {
+        val entry = remember(purchase) ?: return false
+        return when (purchase.purchaseState) {
+            Purchase.PurchaseState.PURCHASED -> {
+                sink.emit(
+                    StoreEvents.purchase(entry.productId, "purchased", purchase.purchaseToken, purchase.isAcknowledged, purchase.quantity),
+                )
+                true
+            }
+            Purchase.PurchaseState.PENDING -> {
+                emitPurchase(entry.productId, "pending")
+                true
+            }
+            else -> false
         }
     }
 
     /** [purchases] is null when Play could not be asked. */
-    private fun ownedDone(purchases: List<Purchase>?, result: BillingResult? = null) {
-        ownedQueryRunning = false
+    private fun ownedDone(serial: Int, purchases: List<Purchase>?, result: BillingResult? = null) {
+        if (serial == ownedSerial) {
+            if (!ownedQueryRunning && purchases == null) return // already answered (timed out, then failed)
+            ownedQueryRunning = false
+        } else if (purchases == null) {
+            return // the failure of a listing that was given up: already answered
+        }
         if (purchases == null) {
             if (result != null) Log.w(TAG, "owned: ${describe(result)}")
             // Not an answer about ownership: an empty list without "complete" takes nothing away.
@@ -531,7 +607,9 @@ internal class BillingController(
                 val c = client ?: newClient().also { client = it }
                 c.startConnection(object : BillingClientStateListener {
                     override fun onBillingSetupFinished(result: BillingResult) {
-                        onMain { connectionDone(attempt, result.responseCode, result.debugMessage, discard = false) }
+                        // An answer from a client that has been replaced meanwhile says nothing
+                        // about the current one.
+                        onMain { if (c === client) connectionDone(attempt, result.responseCode, result.debugMessage, discard = false) }
                     }
 
                     // The library reconnects by itself (enableAutoServiceReconnection) with the next call.
@@ -679,7 +757,17 @@ internal class BillingController(
         const val RECONNECT_MAX_MS = 300_000L
         const val MAX_AUTO_RECONNECTS = 8
         const val STALE_BUY_MS = 60_000L
+
+        /** From iapBuy to Play's sheet on screen (connecting + product details), at most. */
+        const val BUY_PREPARE_TIMEOUT_MS = 45_000L
+
+        /** Back on screen with the purchase flow still open: how long its answer may trail. The page gives up after 30 s. */
+        const val BUY_RETURN_GRACE_MS = 8_000L
+        const val OWNED_TIMEOUT_MS = 45_000L
         const val FINISH_ATTEMPTS = 3
         const val FINISH_RETRY_MS = 3_000L
+
+        /** A consume / acknowledge that has not reported back after this long may be started again. */
+        const val FINISH_STALE_MS = 120_000L
     }
 }

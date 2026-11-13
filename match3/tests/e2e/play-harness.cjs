@@ -119,4 +119,48 @@ async function playHints(page, max, each) {
   return made;
 }
 
-module.exports = { BASE, openHarness, idle, settled, state, cell, freeze, swipe, tapCell, tapTap, turn, playHints };
+/**
+ * The renderer's own model (window.__play.model()) against the engine's snapshot, and the header
+ * against both. Returns the differences (empty = equal), or null while the board is not idle.
+ */
+async function pictureProblems(page) {
+  await page.waitForFunction(() => !window.__play.isIdle() || window.__play.loop().tweens === 0, null, { timeout: 8000 }).catch(() => undefined);
+  return page.evaluate(() => {
+    const p = window.__play;
+    if (!p.isIdle() || p.loop().tweens !== 0) return null;
+    const s = p.snapshot();
+    const m = p.model();
+    const out = [];
+    const byId = new Map(m.pieces.map((x) => [x.id, x]));
+    let expected = 0;
+    for (let i = 0; i < s.cells.length; i++) {
+      const cell = s.cells[i];
+      const at = (i % s.cols) + ',' + Math.floor(i / s.cols);
+      if (m.sand[i] !== cell.sand) out.push('sand at ' + at + ': shown ' + m.sand[i] + ', engine ' + cell.sand);
+      const piece = cell.exists ? cell.piece : null;
+      if (!piece) {
+        if (m.grid[i] !== -1) out.push('cell ' + at + ' is empty in the engine but shows a piece');
+        continue;
+      }
+      expected++;
+      const v = byId.get(piece.id);
+      if (!v || m.grid[i] !== piece.id) out.push('cell ' + at + ': the engine has piece ' + piece.id + ', the screen ' + m.grid[i]);
+      else if (v.kind !== piece.kind || v.color !== piece.color || v.hp !== piece.hp || v.chained !== piece.chained) out.push('piece at ' + at + ' drawn as ' + v.kind + '/' + v.color + ', engine ' + piece.kind + '/' + piece.color);
+      else if (v.dying || Math.abs(v.x - (i % s.cols)) > 0.001 || Math.abs(v.sx - 1) > 0.005 || Math.abs(v.sy - 1) > 0.005 || Math.abs(v.ox) > 0.005 || Math.abs(v.oy) > 0.005 || v.lift || v.flash > 0.005 || v.alpha < 0.995)
+        out.push('piece at ' + at + ' is not at rest');
+    }
+    if (m.pieces.length !== expected) out.push(m.pieces.length + ' pieces drawn, engine has ' + expected);
+    const digits = (t) => Number(String(t).replace(/[^\d]/g, ''));
+    if (Number(document.querySelector('.pl-moves__n').textContent) !== s.movesLeft) out.push('header moves ' + document.querySelector('.pl-moves__n').textContent + ', engine ' + s.movesLeft);
+    if (digits(document.querySelector('.pl-score__n').textContent) !== s.score) out.push('header score, engine ' + s.score);
+    const chips = document.querySelectorAll('.pl-goals .pl-goal');
+    for (let i = 0; i < s.goals.length && i < chips.length; i++) {
+      const g = s.goals[i];
+      if (chips[i].classList.contains('pl-goal--done') !== g.done) out.push('goal ' + i + ' done-mark');
+      else if (!g.done && digits(chips[i].querySelector('.pl-goal__n').textContent) !== g.target - g.current) out.push('goal ' + i + ' shows ' + chips[i].querySelector('.pl-goal__n').textContent + ', engine ' + (g.target - g.current));
+    }
+    return out.slice(0, 8);
+  });
+}
+
+module.exports = { BASE, openHarness, idle, settled, state, cell, freeze, swipe, tapCell, tapTap, turn, playHints, pictureProblems };

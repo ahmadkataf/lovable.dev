@@ -29,8 +29,13 @@
  *                 in Unicode code points AND UTF-16 units (the stricter reading), graphemes reported
  *   hygiene       NFC, no tabs / CR / double spaces / trailing spaces / invisible or bidi-control
  *                 characters, at most one blank line in a row
+ *   plain text    Play shows every field as plain text: no Markdown (**bold**, _italic_, # heading, `code`,
+ *                 [link](…), "- " or "1. " list markers, > quote), no HTML tag or entity, no backslash escape
  *   metadata      no emoji or pictograph, no ★/☆, no repeated punctuation, no word in capitals, no
- *                 ranking / price / promotion / call-to-action wording, no year numbers
+ *                 ranking / price / promotion / call-to-action wording, no comparison wording, no year numbers
+ *   vocabulary    ar: one word per concept, the game's own (src/i18n/strings/common.ts): مرحلة not مستوى,
+ *                 قلوب not أرواح, حركة not نقلة, جوهرة for a piece (never عنصر, and never a bare حجر, which
+ *                 is the stone blocker)
  *   other games   no name or vocabulary of any other game, app or brand: the list is read from
  *                 docs/research/naming-ip.md and from the never-use block of store/aso/KEYWORDS.md
  *                 (this script itself spells none of them); rows of type `owner` are claims that need
@@ -170,6 +175,50 @@ const BANNED = {
     'مضمون', 'الأقوى', 'الأجمل', 'الأروع', 'الأحلى', 'إدمان', 'الرسمية', 'الرسمي',
   ],
 };
+
+/**
+ * Wording that compares the game with another one, whatever name follows ("Don't compare your app or
+ * game to other apps or games" — Google's store listing guidance).
+ */
+const COMPARISON = {
+  en: ['better than', 'just like', 'similar to', 'inspired by', 'alternative to', 'as good as', 'clone'],
+  // on the folded text, as whole words («تبديل» must not count as «بديل»)
+  ar: [/(?<![ء-ي])(?:مثل|تشبه|كلعبة|شبيهة ب|على غرار|لمحبي|لعشاق) ?لعبة(?![ء-ي])/, /(?<![ء-ي])بديل(?:ة)? (?:ل|عن)/, /(?<![ء-ي])(?:احسن|اجمل|اقوي|امتع) من(?![ء-ي])/],
+};
+
+/**
+ * Markdown and HTML that Play Console would show literally (the store renders plain text only).
+ */
+const MARKUP = [
+  [/\*\*|__|~~/, '**bold**, __bold__ or ~~strike~~ markers'],
+  [/(^|\n) {0,3}#{1,6} /, 'a "# " heading'],
+  [/`/, 'a backtick'],
+  [/\[[^\]\n]*\]\([^)\n]*\)/, 'a Markdown link'],
+  [/(^|\n)\s*[-*+] /, 'a "- " / "* " list marker (the listing uses "• ")'],
+  [/(^|\n)\s*\d+[.)] /, 'a numbered-list marker'],
+  [/(^|\n)\s*> /, 'a "> " quote marker'],
+  [/[*_]/, 'an asterisk or underscore (*italic* / _italic_ emphasis)'],
+  [/<\/?[A-Za-z][^>\n]*>/, 'an HTML tag'],
+  [/&(?:[a-z]+|#\d+);/i, 'an HTML entity'],
+  [/\\[nrt*_#`[\]]/, 'a backslash escape'],
+];
+
+/**
+ * Arabic vocabulary: one word per concept, the game's own (header of src/i18n/strings/common.ts).
+ * Each row: a pattern on the folded text, and what to write instead.
+ */
+const AR_ONE_WORD = [
+  [/مستوي(?![ء-ي])|مستويات(?! الصعوبة)/, 'a level is «مرحلة», not «مستوى» (only «مستويات الصعوبة» is allowed, for degrees of difficulty)'],
+  [/ارواح/, 'lives are «قلوب», not «أرواح»'],
+  [/نقلة|نقلات/, 'a move is «حركة», not «نقلة»'],
+  [/عنصر|عناصر/, 'a piece is «جوهرة / قطعة», not «عنصر»'],
+];
+/**
+ * «حجر / أحجار» on its own is the stone blocker. A gem is «جوهرة»; the word may also stand inside the
+ * fixed names «الأحجار الكريمة», «حجر كريم» and «حجر القمر». So a text names the bare word at most once
+ * (the goal "break the stones"); a second bare use means a gem was called a stone.
+ */
+const AR_STONE = /(?<![ء-ي])[وفبلك]{0,2}(?:ال)?(?:احجار|حجر)(?![ء-ي])(?! (?:الكريمة|كريمة|كريم|القمر)(?![ء-ي]))/g;
 
 /** Function words left out of the "most repeated words" report (compared after fold()). */
 const STOP_WORDS = {
@@ -350,7 +399,14 @@ function checkText(L, kind, label, text, limit, body, waiveOwnerRows) {
   if (/[\u0000-\u0009\u000B-\u001F\u007F]/.test(text)) fail(label + ': control characters');
   if (kind !== 'full' && kind !== 'whatsnew' && /\n/.test(text)) fail(label + ': must be a single line');
 
+  // plain text only: Play would show Markdown or HTML literally
+  for (const [re, what] of MARKUP) if (re.test(text)) fail(label + ': markup that Google Play would show literally: ' + what);
+
   // metadata policy
+  for (const w of COMPARISON[L.lang]) {
+    const found = typeof w === 'string' ? (hit(text, w) ? w : null) : (w.exec(fold(text)) || [null])[0];
+    if (found) fail(label + ': comparison wording: "' + found + '" (a listing must not compare the game with another one)');
+  }
   if (/\p{Extended_Pictographic}/u.test(text)) fail(label + ': contains an emoji or pictograph');
   if (/[★☆✓✔✗✘→←♥♦♣♠©®™]/.test(text)) fail(label + ': contains a symbol (★ ☆ ✓ → ™ …)');
   if (/([!?*~.,;:،؛؟\-_=+#])\1/.test(text) || /…|\?!|!\?|؟!|!؟/.test(text)) fail(label + ': repeated punctuation or an ellipsis');
@@ -379,6 +435,10 @@ function checkText(L, kind, label, text, limit, body, waiveOwnerRows) {
     const stray = latin.match(/[A-Za-z]+/g);
     if (stray) fail(label + ': Latin words in the Arabic text: ' + Array.from(new Set(stray)).join(', '));
     if ((kind === 'title' || kind === 'short') && text !== text.replace(AR_MARKS, '')) fail(label + ': diacritics in a ' + kind + ' (Play search does not fold them reliably — see KEYWORDS.md §5)');
+    // one word per concept, the game's own
+    for (const [re, what] of AR_ONE_WORD) if (re.test(fold(text))) fail(label + ': vocabulary — ' + what);
+    const bareStones = fold(text).match(AR_STONE) || [];
+    if (bareStones.length > 1) fail(label + ': vocabulary — «حجر / أحجار» on its own is the stone blocker and is named ' + bareStones.length + ' times; a gem is «جوهرة» (or «الأحجار الكريمة» as a kind)');
     // a search keyword must never carry a diacritic
     const marked = text.match(new RegExp('[' + AR_LETTER + '\\u064B-\\u0652\\u0670]*[\\u064B-\\u0652\\u0670][' + AR_LETTER + '\\u064B-\\u0652\\u0670]*', 'g')) || [];
     for (const w of marked) {
@@ -623,12 +683,15 @@ function buildJson(out) {
       'Google Play store listing texts for Zumurud (com.zumurud.game), ready to paste. Generated from store/listing/en-US.md and store/listing/ar.md by: node store/aso/check-listing.cjs --write. Do not edit by hand.',
       'Paste each string exactly as it is. "\\n" inside a string is a line break: the full description and the release notes have several lines, the title and the short description have one.',
       'Where: Play Console > Grow users > Store presence > Store listings > the default store listing (this kit\'s guides call it "Main store listing"), fields under "App details": title -> "App name", shortDescription -> "Short description", fullDescription -> "Full description". The default language is en-US.',
+      'The name typed in the "Create app" dialog is the en-US title of this file. If the app was already created under another name, replace the "App name" on the store listing with this title (Play Console says of the name given at creation: "You can change this later").',
+      'Every string is plain text: no Markdown, no HTML. The bullet character and the line breaks are part of the text. After pasting, compare the counter under each Play Console field with _meta.counts: the title and the short description must match exactly; a multi-line text may read slightly higher if the console counts a line break as two characters, and is still far inside its limit. A lower number means text was cut: paste again.',
       'Arabic: on the same page click "Manage translations" > "Select languages", add "Arabic - ar", Apply and Save, then paste the ar strings into the Arabic version of the same three fields.',
       'releaseNotes does not go on the store listing. It goes on the release page (Prepare release > Release notes), each language between its own tags on separate lines. releaseNotesBox is that text ready to paste; if the box shows other tags, keep the tags the box shows and paste only the notes between them.',
       'ifTheBuildHasNoAds: use these full descriptions instead ONLY when the uploaded app bundle is the flavour without the ad library (App content > Ads answered "No"). Otherwise ignore the block.',
       'experimentCandidates are NOT part of the listing: they are alternatives for later store listing experiments (see store/listing/ar-variants.md and en-US-variants.md). Entries with needsOwnerConfirmation need the owner\'s yes first.',
       'The Arabic strings are correct as stored. Inside a left-to-right text box their periods, bullets and numbers can LOOK misplaced; that is only how the box draws them. Do not reorder characters and do not add direction marks.',
       'Nothing from store/aso/KEYWORDS.md is ever typed into Play Console: Google Play has no keyword field.',
+      'Not in this file: the contact e-mail, website and privacy policy URL (store/owner.json and store/listing/en-US.md section 6), the graphics (store/graphics, store/screenshots) and every App content declaration (store/PUBLISHING-GUIDE.ar.md).',
     ],
     _meta: {
       applicationId: 'com.zumurud.game',

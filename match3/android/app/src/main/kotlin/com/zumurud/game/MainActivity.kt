@@ -136,6 +136,11 @@ class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
         onBackPressedDispatcher.addCallback(this, backToPage)
         applyOrientationPolicy(resources.configuration)
         createWebView()
+        // The splash screen's condition is only asked again when a frame is about to be drawn, and
+        // a page that has stopped changing (or never started) draws none. Ask for a frame when
+        // the time limit is up, and once more a little later, so the splash screen always leaves.
+        root.postDelayed(redrawForSplash, splashMaxMs + 20)
+        root.postDelayed(redrawForSplash, splashMaxMs + 500)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -167,6 +172,7 @@ class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
 
     override fun onDestroy() {
         bridge.active = false
+        root.removeCallbacks(redrawForSplash)
         store.onDestroy()
         destroyWebView()
         super.onDestroy()
@@ -199,6 +205,10 @@ class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
      * [splashMaxMs]: a page that fails to start must not hide behind the logo.
      */
     private fun splashUp(): Boolean = !pageReady.get() && SystemClock.uptimeMillis() - createdAt < splashMaxMs
+
+    private val redrawForSplash = Runnable {
+        if (!isDestroyed) root.invalidate()
+    }
 
     /**
      * The WebView converts its size to CSS pixels only when its pixel size changes. When the screen
@@ -294,7 +304,17 @@ class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
     // ───────────────────────── WebView ─────────────────────────
 
     private fun createWebView() {
-        val view = GameWebView(this)
+        val view = try {
+            GameWebView(this)
+        } catch (error: Throwable) {
+            // No usable WebView on the device right now — typically while "Android System WebView"
+            // is being updated or is disabled. Say so instead of crashing; Retry tries again.
+            Log.e(TAG, "the WebView could not be created: ${error.javaClass.simpleName}")
+            showError("no WebView")
+            return
+        }
+        // Once per process, before the first page loads (needs the WebView library loaded).
+        LocalContent.lockServiceWorkers(hasOtherWebContent = AdsFactory.HAS_ADS)
         view.setBackgroundColor(ContextCompat.getColor(this, R.color.night))
         view.overScrollMode = View.OVER_SCROLL_NEVER
         view.isVerticalScrollBarEnabled = false
@@ -311,6 +331,11 @@ class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
             domStorageEnabled = true
             allowFileAccess = false
             allowContentAccess = false
+            // Already the default on every supported Android version; stated because it matters.
+            @Suppress("DEPRECATION")
+            allowFileAccessFromFileURLs = false
+            @Suppress("DEPRECATION")
+            allowUniversalAccessFromFileURLs = false
             // The page must never reach the network, although the app has the INTERNET permission
             // (billing and ad libraries need it). Without this line the default would be "allow".
             // Bundled files still load: they are answered by shouldInterceptRequest, not fetched.

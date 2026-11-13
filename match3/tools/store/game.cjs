@@ -204,7 +204,13 @@ async function planMoment(page, spec) {
           for (const fx of step.fx) {
             out.fx[fx.kind] = (out.fx[fx.kind] || 0) + 1;
             out.fxCount++;
-            if (firstActivate) out.firstFx.push(fx.kind);
+            if (firstActivate) {
+              out.firstFx.push(fx.kind);
+              // how far the first effect's line (or centre) lies from the middle of the board, in cells
+              const dc = Math.abs(fx.at.c - (before.cols - 1) / 2);
+              const dr = Math.abs(fx.at.r - (before.rows - 1) / 2);
+              out.offCentre = fx.kind === 'beamV' ? dc : fx.kind === 'beamH' ? dr : Math.max(dc, dr);
+            }
           }
           // the special goes off with the move itself, not somewhere down a cascade
           if (firstActivate) out.early = !fell;
@@ -231,12 +237,14 @@ async function planMoment(page, spec) {
         // a single beam opens the move (not a swap combo), and it sets off other specials
         if (st.early && st.firstFx.length === 1 && (st.firstFx[0] === 'beamH' || st.firstFx[0] === 'beamV') && !n('cross') && !n('bigCross') && !n('prismAll') && !n('prismCombo')) {
           v = 20 + 14 * Math.min(4, st.fxCount - 1) + Math.min(30, st.pieces) + 4 * Math.min(3, st.specialsLeft);
+          // a beam through the middle of the board reads better than one along its edge
+          v += 24 - 8 * Math.min(3, st.offCentre || 0);
         }
       } else if (wish === 'cross') {
         if (n('bigCross')) v = 100;
         else if (n('bigNova')) v = 80;
         else if (n('cross')) v = 60;
-        if (v > 0) v += 6 * Math.min(4, st.fxCount - 1) + 3 * Math.min(3, st.specialsLeft) + Math.min(20, st.pieces / 3);
+        if (v > 0) v += 6 * Math.min(4, st.fxCount - 1) + 3 * Math.min(3, st.specialsLeft) + Math.min(20, st.pieces / 3) - 3 * Math.min(3, st.offCentre || 0);
       } else if (wish === 'prism') {
         if (n('prismCombo')) v = 60 + Math.min(30, 3 * (st.transformed || 0)) + 3 * Math.min(3, st.specialsLeft);
       } else if (wish === 'cascade') {

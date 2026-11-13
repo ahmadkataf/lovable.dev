@@ -55,7 +55,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'stone' },
       { kind: 'color', color: 5, target: 26 },
     ],
-    stars: [4000, 8700, 12000],
+    stars: [4000, 8700, 12100],
   },
   // [build-up] The lantern stair: three lamps, and four stones standing in the outer two columns of descent.
   {
@@ -71,7 +71,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '.......',
     ],
     goals: [{ kind: 'lamp', target: 3 }],
-    stars: [6600, 12300, 16800],
+    stars: [6500, 12400, 16900],
   },
   // [spike] The chained mosaic: a lattice of chained gems over sand of mixed depth.
   {
@@ -100,7 +100,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'sand' },
       { kind: 'chain' },
     ],
-    stars: [7500, 14800, 19800],
+    stars: [7600, 14500, 19800],
   },
   // [breather] Ivy on the walls: vines climb both side walls while you gather rubies in the open middle.
   {
@@ -116,7 +116,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '.........',
     ],
     goals: [{ kind: 'color', color: 0, target: 36 }],
-    stars: [5200, 12400, 18400],
+    stars: [5100, 12500, 18500],
   },
   // [normal] The cellar: three rows of sand under a ceiling of stone — little falls in until the ceiling breaks.
   {
@@ -144,11 +144,11 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '02222220',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [5500, 13600, 19800],
+    stars: [5600, 13800, 19900],
   },
   // [normal] The amethyst bower: two clumps of vine and a lot of amethyst to gather before they close in.
   {
-    id: 67, cols: 8, rows: 8, colors: 5, moves: 22,
+    id: 67, cols: 8, rows: 8, colors: 5, moves: 21,
     pieces: [
       '_......_',
       '........',
@@ -163,7 +163,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'vine' },
       { kind: 'color', color: 4, target: 44 },
     ],
-    stars: [6300, 12500, 17400],
+    stars: [5700, 12000, 17100],
   },
   // [build-up] The courtyard: two lamps on chains, and a knot of vine in the middle of the yard.
   {
@@ -182,7 +182,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'lamp', target: 2 },
       { kind: 'vine' },
     ],
-    stars: [6800, 14800, 20500],
+    stars: [6800, 14900, 20500],
   },
   // [hard] The keep: a wall of vine with stone towers at its corners and one in its heart — and emeralds to gather.
   {
@@ -204,7 +204,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'vine' },
       { kind: 'color', color: 2, target: 45 },
     ],
-    stars: [6500, 15000, 22000],
+    stars: [6500, 15000, 21500],
   },
   // [breather] The jewel box: a small board, sand everywhere, deep in the middle. Nothing but sweeping.
   {
@@ -226,7 +226,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '111111',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [6000, 10000, 12500],
+    stars: [5800, 10000, 12500],
   },
   // [normal] The fountain: a wide basin under a gap in the board — deep sand in the basin, amber to gather around it.
   {
@@ -257,7 +257,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'sand' },
       { kind: 'color', color: 1, target: 34 },
     ],
-    stars: [5300, 10500, 14500],
+    stars: [5300, 10500, 14400],
   },
   // [normal] The lamp nests: two lamps, each between chained gems, and more chains hanging below.
   {
@@ -276,7 +276,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'lamp', target: 2 },
       { kind: 'chain' },
     ],
-    stars: [6000, 13700, 19500],
+    stars: [5700, 13600, 19400],
   },
   // [build-up] The corridor: deep sand between two walls where only three tiles fit side by side.
   {
@@ -302,11 +302,11 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '001111100',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [5200, 10000, 12700],
+    stars: [5100, 9900, 12700],
   },
   // [spike] The double gate: three lamps, and two stones in the way of each.
   {
-    id: 74, cols: 7, rows: 8, colors: 5, moves: 23,
+    id: 74, cols: 7, rows: 8, colors: 5, moves: 22,
     pieces: [
       '.L.L.L.',
       '.......',
@@ -318,7 +318,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '.......',
     ],
     goals: [{ kind: 'lamp', target: 3 }],
-    stars: [6100, 12600, 17000],
+    stars: [6100, 12400, 16600],
   },
   // [breather] The necklace: a ring of chained gems; two colours to gather, inside the ring or out.
   {
@@ -337,7 +337,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'color', color: 1, target: 30 },
       { kind: 'color', color: 3, target: 30 },
     ],
-    stars: [4600, 11100, 16000],
+    stars: [4600, 11200, 16100],
   },
   // [normal] The vine court: a deep sand court with vines rooted across it.
   {
@@ -368,7 +368,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'sand' },
       { kind: 'vine' },
     ],
-    stars: [10300, 18800, 24300],
+    stars: [10100, 18800, 24400],
   },
   // [normal] The star tile: a diamond-shaped board with a ring of stones; two colours to gather.
   {
@@ -389,7 +389,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'color', color: 0, target: 34 },
       { kind: 'color', color: 4, target: 34 },
     ],
-    stars: [5000, 10600, 14700],
+    stars: [5100, 10600, 14900],
   },
   // [build-up] The guarded lamps: two lamps above chained gems, with stone posts at the sides.
   {
@@ -408,7 +408,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'lamp', target: 2 },
       { kind: 'stone' },
     ],
-    stars: [5700, 12800, 18000],
+    stars: [5800, 12700, 18500],
   },
   // [hard] The throne room: two lamps on chains, a block of stone in the middle and deep sand under and around it.
   {
@@ -441,7 +441,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
       { kind: 'stone' },
       { kind: 'sand' },
     ],
-    stars: [9100, 18200, 25300],
+    stars: [9200, 18100, 25200],
   },
   // [finale] The palace garden: a wide board with eight small pools, a prism and a nova lying ready, three colours to gather.
   {

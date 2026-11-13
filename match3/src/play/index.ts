@@ -1068,6 +1068,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     const { snap, stars, summary } = s.result;
     const id = s.level.id;
     const hasNext = id < ctx.levels.length;
+    // nothing of the level's show is left under the dialog (a banner cut short by a skipped finale)
+    hud.clearTransient();
     sfx('win');
     openWin(dialogDeps, {
       stars,

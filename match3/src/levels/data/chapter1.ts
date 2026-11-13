@@ -24,8 +24,8 @@ export const CHAPTER_1: readonly LevelDef[] = [
       'adaCCb',
       'abaabC',
     ],
-    goals: [{ kind: 'score', target: 850 }],
-    stars: [850, 8000, 14100],
+    goals: [{ kind: 'score', target: 1150 }],
+    stars: [1150, 9400, 15000],
   },
   // [tutorial] Collecting: gather rubies. A fixed start board whose hinted move is a match of rubies; the level ends early and the spare moves burst.
   {
@@ -40,7 +40,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       'daaCCda',
     ],
     goals: [{ kind: 'color', color: 0, target: 25 }],
-    stars: [5600, 12000, 17700],
+    stars: [5900, 12600, 18200],
   },
   // [tutorial] The beam: a fixed start board (a = ruby … d = sapphire) — the ruby at column 3, row 2 drops into a line of four.
   {
@@ -56,7 +56,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       'adbaCbb',
     ],
     goals: [{ kind: 'color', color: 0, target: 30 }],
-    stars: [7700, 16400, 23000],
+    stars: [7700, 16500, 23200],
   },
   // [tutorial] The nova: a fixed start board whose hinted move closes an L of five. Points only.
   {
@@ -72,8 +72,8 @@ export const CHAPTER_1: readonly LevelDef[] = [
       'bbCdCaC',
       'CbdCbCd',
     ],
-    goals: [{ kind: 'score', target: 2650 }],
-    stars: [2650, 30500, 42000],
+    goals: [{ kind: 'score', target: 2000 }],
+    stars: [2000, 27100, 39500],
   },
   // [tutorial] The prism: a fixed start board — the ruby at column 4, row 2 drops into five in a row; then trade the prism with a ruby.
   {
@@ -89,11 +89,11 @@ export const CHAPTER_1: readonly LevelDef[] = [
       'bddaCaba',
     ],
     goals: [{ kind: 'color', color: 0, target: 30 }],
-    stars: [8500, 19700, 27100],
+    stars: [8500, 19700, 27200],
   },
   // [tutorial] The pond: the first sand, a shallow patch in the middle of the board. A fifth colour joins. Fixed start board: the hinted move sweeps three tiles.
   {
-    id: 6, cols: 7, rows: 7, colors: 5, moves: 15,
+    id: 6, cols: 7, rows: 7, colors: 5, moves: 19,
     tutorial: 'sand',
     pieces: [
       'eeaCeea',
@@ -114,7 +114,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '0000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [3400, 7100, 10200],
+    stars: [4000, 8300, 11900],
   },
   // [breather] Footprints: a ring of sand on a board with clipped corners. Easy sweeping practice.
   {
@@ -159,11 +159,11 @@ export const CHAPTER_1: readonly LevelDef[] = [
       { kind: 'color', color: 1, target: 22 },
       { kind: 'color', color: 3, target: 22 },
     ],
-    stars: [4100, 9400, 13100],
+    stars: [4200, 9400, 13200],
   },
   // [tutorial] Deep water: sand that takes two sweeps, thickest at the centre. Fixed start board: the hinted move sweeps deep sand.
   {
-    id: 9, cols: 7, rows: 7, colors: 5, moves: 18,
+    id: 9, cols: 7, rows: 7, colors: 5, moves: 17,
     tutorial: 'sand2',
     pieces: [
       'aaCbbdC',
@@ -184,11 +184,11 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '0000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [4100, 8300, 11800],
+    stars: [3500, 7900, 11300],
   },
   // [breather] The hourglass: a narrow waist and one colour to gather. Rounds off the first ten with an easy win.
   {
-    id: 10, cols: 7, rows: 7, colors: 5, moves: 27,
+    id: 10, cols: 7, rows: 7, colors: 5, moves: 28,
     pieces: [
       '.......',
       '.......',
@@ -199,7 +199,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '.......',
     ],
     goals: [{ kind: 'color', color: 4, target: 26 }],
-    stars: [4000, 8500, 10900],
+    stars: [4200, 8800, 11300],
   },
   // [normal] Buried lanes: sand along both edges and the floor — the awkward places, one layer deep.
   {
@@ -225,11 +225,11 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '01111110',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [5600, 13100, 18400],
+    stars: [5700, 12900, 18400],
   },
   // [tutorial] The fire ring: the first stones — a ring around one sealed gem, and four harder posts. Fixed start board: the hinted move cracks a stone.
   {
-    id: 12, cols: 9, rows: 7, colors: 5, moves: 19,
+    id: 12, cols: 9, rows: 7, colors: 5, moves: 13,
     tutorial: 'stone',
     pieces: [
       'beCabdaeC',
@@ -241,7 +241,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       'CaCCdedCd',
     ],
     goals: [{ kind: 'stone' }],
-    stars: [4200, 9100, 13900],
+    stars: [2500, 6700, 11200],
   },
   // [build-up] Stepping stones: three staggered rows of two-layer stones — the board below fills only through the gaps.
   {
@@ -257,7 +257,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'stone' }],
-    stars: [4100, 9800, 15600],
+    stars: [4200, 9700, 15200],
   },
   // [spike] Buried treasure: a sand court with stones sitting on its deep centre — the first gentle peak.
   {
@@ -285,7 +285,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '00000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [7000, 14200, 20100],
+    stars: [6900, 14200, 20500],
   },
   // [breather] The tiled court: amber to gather between stones on a checkerboard; the stones crumble along the way.
   {
@@ -301,7 +301,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '.........',
     ],
     goals: [{ kind: 'color', color: 1, target: 30 }],
-    stars: [5700, 12200, 18000],
+    stars: [5100, 12400, 18300],
   },
   // [tutorial] Crossed lights: a beam and a nova side by side — swap them and the top layer of the sand cross is gone.
   {
@@ -326,7 +326,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '0011100',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [5700, 9800, 13600],
+    stars: [5700, 9900, 13600],
   },
   // [normal] The vault: thick stones walled in by thin ones.
   {
@@ -342,11 +342,11 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'stone' }],
-    stars: [3800, 9200, 13800],
+    stars: [3600, 9200, 14000],
   },
   // [build-up] Twin pools: two boards joined by a channel; sand in both pools and along the channel.
   {
-    id: 18, cols: 9, rows: 8, colors: 5, moves: 21,
+    id: 18, cols: 9, rows: 8, colors: 5, moves: 20,
     pieces: [
       '...._....',
       '...._....',
@@ -368,7 +368,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '000010000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [4100, 8600, 11700],
+    stars: [3800, 8400, 12100],
   },
   // [spike] The oasis gate: a sandy court with a deep rim, stone corner posts and a keystone — the chapter's peak.
   {
@@ -396,7 +396,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '000000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [6600, 15800, 23500],
+    stars: [6800, 15800, 23500],
   },
   // [finale] The cut gem: an octagonal board, three colours to gather and a prism waiting in the middle — a generous send-off.
   {
@@ -416,6 +416,6 @@ export const CHAPTER_1: readonly LevelDef[] = [
       { kind: 'color', color: 2, target: 18 },
       { kind: 'color', color: 4, target: 18 },
     ],
-    stars: [3500, 7600, 10100],
+    stars: [3300, 7500, 10000],
   },
 ];

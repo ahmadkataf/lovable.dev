@@ -10,8 +10,8 @@
  *                                              shuffle lose praise)
  *   node tools/play-shots.cjs sizes           the mid-level scene at every screen size, both languages
  *
- * Every scene is captured at 360×640, 412×915 and 800×1280 in English and Arabic (plus two
- * landscape sizes for the mid-level scene), at deviceScaleFactor 2. Mid-animation frames are taken
+ * Every scene is captured at 360×640, 412×915, 800×1280 and 320×480 in English and Arabic (plus
+ * two landscape sizes for the mid-level scene), at deviceScaleFactor 2. Mid-animation frames are taken
  * by freezing the screen (setPaused) at a chosen moment, so they are sharp and repeatable.
  * Uses the dev harness play-demo.html; exits non-zero on any console error.
  */
@@ -28,6 +28,7 @@ const SIZES = [
   { name: '360', w: 360, h: 640 },
   { name: '412', w: 412, h: 915 },
   { name: '800', w: 800, h: 1280 },
+  { name: '320', w: 320, h: 480 },
 ];
 const LANDSCAPE = [
   { name: '640x360', w: 640, h: 360 },

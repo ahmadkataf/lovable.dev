@@ -60,8 +60,10 @@ const MID = { upTo: 46, coins: 12850, lives: 3, lifeAgoMs: 400000, dailyDay: tod
 /**
  * Scenes. `query` = extra URL parameters; `run(page)` drives the app to the state to capture;
  * `after(page, shoot)` may take further captures (shoot(suffix)).
+ * `pick` = the levels the intro scenes show, chosen from the real level data by what they are
+ * (hard, three goals …), so the scenes keep their meaning when the levels are retuned.
  */
-const SCENES = [
+const scenes = (pick) => [
   { name: 'title', query: {}, run: async () => {} },
   { name: 'title-returning', query: { save: save({ upTo: 46 }) }, run: async () => {} },
   { name: 'title-finished', query: { save: save({ upTo: 120, stars: 3 }) }, run: async () => {} },
@@ -74,26 +76,26 @@ const SCENES = [
   { name: 'map-finished', query: { screen: 'map', save: save({ upTo: 120, stars: 3, coins: 3210, dailyDay: today, dailyStreak: 3 }) }, run: async () => {} },
   { name: 'map-rich-nolives', query: { screen: 'map', save: save({ upTo: 101, stars: 3, coins: 987654, lives: 0, lifeAgoMs: 1000, dailyDay: today - 1, dailyStreak: 6 }) }, run: async (page) => closeAll(page) },
 
-  { name: 'intro', query: { screen: 'map', save: save({ upTo: 16, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 17) },
+  { name: 'intro', query: { screen: 'map', save: save({ upTo: pick.plain - 1, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', pick.plain) },
   {
     name: 'intro-hard',
-    query: { screen: 'map', save: save({ upTo: 26, dailyDay: today, dailyStreak: 3 }) },
+    query: { screen: 'map', save: save({ upTo: pick.hard - 1, dailyDay: today, dailyStreak: 3 }) },
     run: async (page) => {
-      await go(page, 'intro', 27);
+      await go(page, 'intro', pick.hard);
       await sleep(500);
       await page.click('[data-booster="beamNova"]');
     },
   },
   { name: 'intro-replay', query: { screen: 'map', save: save({ upTo: 46, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 33) },
-  { name: 'intro-3goals', query: { screen: 'map', save: save({ upTo: 58, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 59) },
-  { name: 'intro-caravan', query: { screen: 'map', save: save({ upTo: 71, caravan: 2, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 72) },
+  { name: 'intro-3goals', query: { screen: 'map', save: save({ upTo: pick.three - 1, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', pick.three) },
+  { name: 'intro-caravan', query: { screen: 'map', save: save({ upTo: pick.two - 1, caravan: 2, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', pick.two) },
   {
-    // everything at once: hard, three goals, a full Caravan, a replay, six-digit best score
+    // everything at once: hard, as many goals as a hard level has, a full Caravan, a replay, six-digit best score
     name: 'intro-max',
-    query: { screen: 'map', save: save({ upTo: 110, caravan: 5, coins: 100, boosters: { extraMoves: 0, prism: 12, beamNova: 0 }, dailyDay: today, dailyStreak: 3 }) },
+    query: { screen: 'map', save: save({ upTo: Math.min(119, pick.max + 6), caravan: 5, coins: 100, boosters: { extraMoves: 0, prism: 12, beamNova: 0 }, dailyDay: today, dailyStreak: 3 }) },
     run: async (page) => {
-      await page.evaluate(() => window.__app.profile.recordWin(100, 2, 123456, 4));
-      await go(page, 'intro', 100);
+      await page.evaluate((id) => window.__app.profile.recordWin(id, 2, 123456, 4), pick.max);
+      await go(page, 'intro', pick.max);
     },
   },
   { name: 'intro-nolives', query: { screen: 'map', save: save({ upTo: 46, lives: 0, lifeAgoMs: 500000, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 47) },
@@ -306,6 +308,21 @@ async function buildSheets(browser, names) {
   return made;
 }
 
+/** The levels the intro scenes show (see `scenes`). */
+async function pickLevels() {
+  const { LEVELS } = await import(require('url').pathToFileURL(path.join(ROOT, 'src', 'levels', 'index.ts')).href);
+  const first = (test, fallback) => (LEVELS.filter(test)[0] || { id: fallback }).id;
+  const late = (l) => l.id >= 21; // the Caravan and every start booster are unlocked
+  const hardMost = LEVELS.filter((l) => l.hard && late(l)).sort((a, b) => b.goals.length - a.goals.length || a.id - b.id)[0];
+  return {
+    plain: first((l) => l.id >= 15 && l.id <= 19 && l.goals.length === 1 && !l.hard, 17),
+    hard: first((l) => l.hard && late(l) && l.goals.length <= 2, 39),
+    three: first((l) => !l.hard && late(l) && l.goals.length === 3, 59),
+    two: first((l) => !l.hard && l.id >= 60 && l.goals.length === 2, 72),
+    max: hardMost ? hardMost.id : 100,
+  };
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const sheets = args.indexOf('--sheets') >= 0;
@@ -313,6 +330,8 @@ async function main() {
   const filters = args.filter((a) => a.indexOf('--') !== 0);
   const sizeFilter = (process.env.META_SIZES || '').split(',').filter(Boolean);
   const langFilter = (process.env.META_LANGS || '').split(',').filter(Boolean);
+  const pick = await pickLevels();
+  const SCENES = scenes(pick);
   let server = null;
   if (!sheetsOnly) {
     const running = await L.get(L.BASE);

@@ -169,8 +169,26 @@ async function main(): Promise<void> {
     });
   }
 
-  // ── pass 2: verify with fresh seeds and derive the stars ──
-  const verify = await runJobs(tuned.map((level) => ({ level, bot: 'casual', games: args.games, seed: seedFor(level.id, args.seed + 1) }) as SimJob));
+  // ── pass 2: verify with fresh seeds; nudge a level that landed outside its band; derive the stars ──
+  const verifyJobs = (list: readonly LevelDef[]): SimJob[] => list.map((level) => ({ level, bot: 'casual', games: args.games, seed: seedFor(level.id, args.seed + 1) }));
+  const verify = await runJobs(verifyJobs(tuned));
+  if (!args.starsOnly) {
+    for (let round = 0; round < 3; round++) {
+      const redo: number[] = [];
+      tuned.forEach((level, k) => {
+        if (isScoreOnly(level)) return;
+        const rate = (100 * verify[k]!.wins) / verify[k]!.games;
+        const band = bandFor(level);
+        if (rate < band.lo + 1) level.moves += 1;
+        else if (rate > band.hi - 1 && band.hi < 100) level.moves -= 1;
+        else return;
+        redo.push(k);
+      });
+      if (redo.length === 0) break;
+      const again = await runJobs(verifyJobs(redo.map((k) => tuned[k]!)));
+      redo.forEach((k, n) => (verify[k] = again[n]!));
+    }
+  }
   console.log(' lvl  moves     band               pass%  shuf  goals                               notes');
   let flagged = 0;
   tuned.forEach((level, k) => {

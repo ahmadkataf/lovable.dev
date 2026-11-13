@@ -334,9 +334,10 @@ async function tap(page, selector) {
   await target.tap();
 }
 
+/** Wait for a screen, and past the moment it starts taking pointer input (the shell arms a new screen like the kit a new dialog). */
 async function waitScreen(page, screen) {
   await page.waitForFunction((s) => window.__app.shell.current() === s, screen, { timeout: 8000 });
-  await sleep(320);
+  await sleep(400);
 }
 
 /** Wait until exactly `n` dialogs are open, and past the moment a new dialog starts taking input. */

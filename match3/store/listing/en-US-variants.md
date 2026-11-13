@@ -63,7 +63,7 @@ Match 3 jewels across a desert oasis: 120 puzzle levels, playable offline
 <div dir="ltr">
 
 ```text
-Swap gems, build combos and cross 120 levels of a desert oasis. Works offline.
+Swap gems, build combos and cross a desert oasis in 120 levels. Works offline.
 ```
 
 </div>

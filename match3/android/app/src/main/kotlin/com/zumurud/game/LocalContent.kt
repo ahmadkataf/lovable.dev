@@ -4,11 +4,16 @@ import android.content.Context
 import android.content.res.AssetManager
 import android.net.Uri
 import android.util.Log
+import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import androidx.webkit.ServiceWorkerClientCompat
+import androidx.webkit.ServiceWorkerControllerCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewFeature
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -60,8 +65,50 @@ internal object LocalContent {
             "data", "blob", "about" -> return null
         }
         if (!isLocalOrigin(url)) return blocked(url)
-        return loader.shouldInterceptRequest(url) ?: notFound()
+        return try {
+            loader.shouldInterceptRequest(url) ?: notFound()
+        } catch (error: Exception) {
+            // An exception thrown here would end the app (this runs on a WebView thread).
+            Log.w(TAG, "a bundled file could not be served: ${error.javaClass.simpleName}")
+            notFound()
+        }
     }
+
+    /**
+     * Service workers fetch through a path of their own, which the page's request filter above
+     * never sees — so it gets the same lock. The game uses no service worker: registering one
+     * would need its script from the bundled origin, and that request is refused here, always.
+     *
+     * The setting is one per process, not per WebView. Where an ad SDK shares the process
+     * ([hasOtherWebContent]) only requests to the game's own origin are refused and everything
+     * else is left exactly as it was; otherwise every service-worker request is refused and the
+     * service-worker network switch is turned off as well.
+     */
+    fun lockServiceWorkers(hasOtherWebContent: Boolean) {
+        if (!serviceWorkersLocked.compareAndSet(false, true)) return
+        try {
+            if (!WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BASIC_USAGE)) return
+            val controller = ServiceWorkerControllerCompat.getInstance()
+            controller.setServiceWorkerClient(object : ServiceWorkerClientCompat() {
+                override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
+                    val url: Uri? = request.url
+                    return if (hasOtherWebContent && url != null && !isLocalOrigin(url)) null else blocked(url, "a service worker")
+                }
+            })
+            if (!hasOtherWebContent) {
+                val settings = controller.serviceWorkerWebSettings
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BLOCK_NETWORK_LOADS)) settings.blockNetworkLoads = true
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_CONTENT_ACCESS)) settings.allowContentAccess = false
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_FILE_ACCESS)) settings.allowFileAccess = false
+            }
+        } catch (error: Throwable) {
+            // An odd or half-updated WebView: the page's own lock (request filter, page policy,
+            // blocked network loads) still stands.
+            Log.w(TAG, "service workers could not be locked: ${error.javaClass.simpleName}")
+        }
+    }
+
+    private val serviceWorkersLocked = AtomicBoolean(false)
 
     /** Debug builds count refused requests here (the diagnostics page asks for them). */
     @Volatile
@@ -78,9 +125,9 @@ internal object LocalContent {
      * The page asked for something outside the APK. The bundled game never does, so the first few
      * are worth a line in the log (scheme and host only).
      */
-    private fun blocked(url: Uri?): WebResourceResponse {
+    private fun blocked(url: Uri?, who: String = "the page"): WebResourceResponse {
         if (blockedLogLines.incrementAndGet() <= MAX_BLOCKED_LOG_LINES) {
-            Log.w(TAG, "blocked a request of the page to ${url?.scheme}://${url?.host}")
+            Log.w(TAG, "blocked a request of $who to ${url?.scheme}://${url?.host}")
         }
         onBlocked?.invoke(url?.toString().orEmpty())
         return empty(403, "Blocked")
@@ -118,28 +165,37 @@ internal object LocalContent {
         /** The asset-relative file for a URL path, or null when the path tries to leave the directory. */
         private fun cleanPath(path: String): String? {
             val trimmed = path.trimStart('/')
-            if (trimmed.isEmpty() || trimmed.endsWith("/")) return trimmed + "index.html"
-            if (trimmed.indexOf('\\') >= 0 || trimmed.indexOf('\u0000') >= 0) return null
-            if (trimmed.split('/').any { it.isEmpty() || it == "." || it == ".." }) return null
-            return trimmed
+            if (trimmed.length > MAX_PATH_CHARS || trimmed.indexOf('\\') >= 0 || trimmed.indexOf('\u0000') >= 0) return null
+            // A directory is answered with its index page; apart from that no segment may be
+            // empty, "." or "..".
+            val file = if (trimmed.isEmpty() || trimmed.endsWith("/")) trimmed + "index.html" else trimmed
+            if (file.split('/').any { it.isEmpty() || it == "." || it == ".." }) return null
+            return file
         }
     }
 
     private val NO_HEADERS: Map<String, String> = emptyMap()
 
     /**
-     * Sent with every bundled HTML page: fetch / XMLHttpRequest / WebSocket / EventSource /
-     * sendBeacon may only talk to the bundled origin, and frames may only show bundled pages.
-     * It is a second lock on top of the request filter above and of WebSettings.blockNetworkLoads,
-     * and the only one that also covers WebSockets now that the app carries the INTERNET permission
-     * for its billing and ad libraries.
+     * Sent with every bundled HTML page, on top of whatever policy the page declares for itself
+     * (a browser applies both, and both must agree):
+     *  - connect-src: fetch / XMLHttpRequest / WebSocket / EventSource / sendBeacon may only talk
+     *    to the bundled origin. It is the only lock that covers WebSockets, now that the app
+     *    carries the INTERNET permission for its billing and ad libraries.
+     *  - frame-src: a frame may only show a bundled page — in particular no data: or blob:
+     *    document, which would run at an origin of its own and still see the JavaScript bridge
+     *    (addJavascriptInterface reaches every frame of the WebView).
+     *  - form-action: a form may only be sent to the bundled origin. A form POST is the one
+     *    navigation WebViewClient.shouldOverrideUrlLoading is never asked about.
+     * A second lock next to the request filter above and to WebSettings.blockNetworkLoads.
      */
     private val HTML_HEADERS: Map<String, String> = mapOf(
-        "Content-Security-Policy" to "connect-src 'self' data: blob:; frame-src 'self' data: blob:",
+        "Content-Security-Policy" to "connect-src 'self' data: blob:; frame-src 'self'; form-action 'self'",
     )
 
     private const val TAG = "Zumurud"
     private const val MAX_BLOCKED_LOG_LINES = 20
+    private const val MAX_PATH_CHARS = 1024
 
     private val MIME_TYPES: Map<String, String> = mapOf(
         "html" to "text/html",

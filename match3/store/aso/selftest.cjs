@@ -92,6 +92,25 @@ const CASES = [
   { name: 'short description repeated in the full description', expect: 'repeated inside the full description', break: (d) => { const s = field(d, EN, 'short'); editField(d, EN, 'full', (t) => s + '. ' + t); } },
   { name: 'title without the brand word first', expect: 'brand word must come first', break: (d) => editField(d, EN, 'title', () => 'Gem Match 3 Puzzle: Zumurud') },
 
+  // plain text: Markdown or HTML that Play would show literally
+  { name: 'Markdown bold in the full description', expect: 'markup that Google Play would show literally', break: (d) => editField(d, EN, 'full', (t) => t.replace('How to play', '**How to play**')) },
+  { name: 'Markdown heading in the full description', expect: 'a "# " heading', break: (d) => editField(d, EN, 'full', (t) => t.replace('How to play', '## How to play')) },
+  { name: 'Markdown list marker instead of the bullet', expect: 'list marker', break: (d) => editField(d, EN, 'whatsnew', (t) => t.replace('• 120 levels', '- 120 levels')) },
+  { name: 'backticks around a word', expect: 'a backtick', break: (d) => editField(d, EN, 'full', (t) => t.replace('in Settings', 'in `Settings`')) },
+  { name: 'Markdown link', expect: 'a Markdown link', break: (d) => editField(d, EN, 'full', (t) => t.replace('in Settings', 'in [Settings](settings)')) },
+  { name: 'HTML tag in the Arabic full description', expect: 'an HTML tag', break: (d) => editField(d, AR, 'full', (t) => t.replace('طريقة اللعب', '<b>طريقة اللعب</b>')) },
+  { name: 'italic asterisks in the Arabic release notes', expect: 'italic', break: (d) => editField(d, AR, 'whatsnew', (t) => t.replace('هدية اليوم', '*هدية اليوم*')) },
+
+  // comparison with another game, whatever its name
+  { name: 'comparison wording (English)', expect: 'comparison wording', break: (d) => editField(d, EN, 'full', (t) => t.replace('How to play', 'Just like the puzzles you know.\n\nHow to play')) },
+  { name: 'comparison wording (Arabic)', expect: 'comparison wording', break: (d) => editField(d, AR, 'full', (t) => t.replace('طريقة اللعب', 'تشبه لعبة تعرفها.\n\nطريقة اللعب')) },
+
+  // Arabic vocabulary: one word per concept, the game's own
+  { name: 'Arabic: «مستوى» for a level', expect: 'vocabulary', break: (d) => editField(d, AR, 'full', (t) => t.replace('حقّق هدف المرحلة', 'حقّق هدف المستوى')) },
+  { name: 'Arabic: «أرواح» for lives', expect: 'vocabulary', break: (d) => editField(d, AR, 'full', (t) => t.replace('ويعود قلب كل 30 دقيقة', 'وتعود الأرواح، ويعود قلب كل 30 دقيقة')) },
+  { name: 'Arabic: «عناصر» for the pieces', expect: 'vocabulary', break: (d) => editField(d, AR, 'full', (t) => t.replace('لتصطف ثلاث جواهر متماثلة', 'لتصطف ثلاثة عناصر متماثلة')) },
+  { name: 'Arabic: a gem called a stone', expect: 'is the stone blocker', break: (d) => editField(d, AR, 'full', (t) => t.replace('لكل جوهرة لونها وشكلها الخاص', 'لكل حجر لونه وشكله الخاص')) },
+
   // other games, never-use list
   { name: 'a word of another game (naming research)', expect: 'naming research', break: (d) => editField(d, EN, 'full', (t) => t.replace('How to play', 'A ' + namingTerm() + ' game.\n\nHow to play')) },
   { name: 'a name on the never-use list of KEYWORDS.md', expect: 'never-use list', break: (d) => editField(d, EN, 'full', (t) => t.replace('How to play', 'Better than ' + neverUseTerm(d, 'en', 'brand') + '.\n\nHow to play')) },
@@ -110,7 +129,7 @@ const CASES = [
   // keyword plan
   { name: 'keyword repeated beyond the plan', expect: 'the plan allows at most', break: (d) => editField(d, EN, 'full', (t) => t.replace('How to play', 'Match 3 fun, match 3 gems, match 3 levels.\n\nHow to play')) },
   { name: 'primary keyword missing from the first 160 characters', expect: 'not inside the first 160 characters', break: (d) => editField(d, EN, 'full', (t) => t.replace('Zumurud is an offline match 3 puzzle game set', 'Zumurud is a game set')) },
-  { name: 'Arabic keyword only behind an attached conjunction', expect: 'never written as a clean word', break: (d) => editField(d, AR, 'full', (t) => t.replace('مراحل تتدرج', 'ومراحل تتدرج')) },
+  { name: 'Arabic keyword only behind an attached conjunction', expect: 'never written as a clean word', break: (d) => editField(d, AR, 'full', (t) => t.replace('تتدرج في مستويات الصعوبة', 'تتدرج صعوبتها بمستويات الصعوبة')) },
   { name: 'KEYWORDS.md summary no longer matches the title', expect: 'does not quote the current en-US title', break: (d) => editField(d, EN, 'title', () => 'Zumurud: Gem Match Puzzle') },
 
   // truth

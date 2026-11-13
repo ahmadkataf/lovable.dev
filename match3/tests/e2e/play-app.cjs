@@ -71,7 +71,18 @@ async function enter(page, level) {
     await page.waitForSelector('.k-overlay.k-open:not(.k-arming) .k-dialog[data-pl="tip"]');
     await page.click('.k-dialog[data-pl="tip"] [data-action="ok"]');
   }
-  await H.idle(page);
+  try {
+    await H.idle(page, 15000);
+  } catch (err) {
+    const what = await page.evaluate(() => ({
+      state: window.__play.state(),
+      idle: window.__play.isIdle(),
+      loop: window.__play.loop(),
+      screen: window.__app.shell.current(),
+      overlays: Array.prototype.map.call(document.querySelectorAll('.k-overlay'), (o) => o.className + ' | ' + ((o.querySelector('.k-dialog') || {}).className || '') + ' | ' + ((o.querySelector('.k-dialog__title') || {}).textContent || '')),
+    }));
+    throw new Error('level ' + level + ' did not become idle: ' + JSON.stringify(what));
+  }
 }
 
 /** The renderer's model must equal the engine's snapshot (ids on cells, kinds, at rest). */
@@ -137,6 +148,7 @@ async function section(name, fn) {
         await page.evaluate(() => {
           const p = window.__app.profile;
           for (let i = 1; i <= 30; i++) p.recordWin(i, 2, 1000, 0);
+          if (p.claimUnlocks) p.claimUnlocks(); // the booster gifts of those levels, without their dialogs
           p.addBooster('hammer', 2);
         });
         eq(await page.evaluate(() => document.documentElement.dir), lang === 'ar' ? 'rtl' : 'ltr', 'page direction');
@@ -179,9 +191,8 @@ async function section(name, fn) {
         eq(await page.evaluate(() => window.__play.state()), 'none', 'the play screen stopped');
         const rest = await page.evaluate(() => window.__play.loop());
         eq([rest.running, rest.tweens, rest.timers, rest.dialogs, rest.frozen], [false, 0, 0, 0, 0], 'nothing of the level left running');
-        await page.waitForSelector('.k-overlay.k-open .k-dialog', { timeout: 12000 }); // the next level's intro (after the map's celebration)
-        await page.evaluate(() => window.__app.kit.closeAll());
-        await noOverlay(page);
+        // the shell follows up with the next level's intro (after the map's celebration); entering a level closes whatever is up
+        await page.waitForSelector('.k-overlay.k-open .k-dialog', { timeout: 15000 });
 
         // ── a level played badly to the loss, then given up ──
         await enter(page, 30);
@@ -203,7 +214,6 @@ async function section(name, fn) {
           await page.click('[data-action="map"]');
           await page.waitForFunction(() => window.__app.shell.current() === 'map', null, { timeout: 8000 });
         }
-        await page.evaluate(() => window.__app.kit.closeAll());
 
         // ── quit through pause after a move: confirm, one life, the map ──
         await enter(page, 12);
@@ -228,6 +238,7 @@ async function section(name, fn) {
       await page.evaluate(() => {
         const p = window.__app.profile;
         for (let i = 1; i <= 20; i++) p.recordWin(i, 2, 1000, 0);
+        if (p.claimUnlocks) p.claimUnlocks();
       });
       await enter(page, 5);
       await page.evaluate(() => {
@@ -237,7 +248,6 @@ async function section(name, fn) {
         app.shell.setPaused(false); // Activity.onResume reaches the map, not the play screen
       });
       await page.waitForFunction(() => window.__app.shell.current() === 'map');
-      await page.evaluate(() => window.__app.kit.closeAll());
       await enter(page, 6);
       eq(await page.evaluate(() => window.__play.loop().frozen), 0, 'the next level runs');
       const m = await page.evaluate(() => window.__play.hint());
@@ -262,6 +272,7 @@ async function section(name, fn) {
       await page.evaluate(() => {
         const p = window.__app.profile;
         for (let i = 1; i <= 20; i++) p.recordWin(i, 2, 1000, 0);
+        if (p.claimUnlocks) p.claimUnlocks();
       });
       await enter(page, 9);
       const lives0 = (await profile(page)).lives;

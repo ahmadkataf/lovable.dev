@@ -68,7 +68,7 @@ const SCENES = [
     devices: ALL,
     level: { chapters: [3], prefer: [51], plain: true },
     caravan: 3,
-    plan: { wish: 'beam', depth: 2, min: 90, seeds: 80 },
+    plan: { wish: 'beam', depth: 2, min: 112, seeds: 80 },
     burst: { lead: 200, step: 45, until: 1100 },
     pick: 0.5,
     what: 'Gameplay: a beam fires along its line',

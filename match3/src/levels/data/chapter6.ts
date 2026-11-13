@@ -24,7 +24,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '.........',
     ],
     goals: [{ kind: 'color', color: 3, target: 30 }],
-    stars: [3800, 8600, 11800],
+    stars: [3800, 8600, 11700],
   },
   // [normal] The night garden: a square of deep sand with vines winding through it. Six colours.
   {
@@ -53,7 +53,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'sand' },
       { kind: 'vine' },
     ],
-    stars: [6600, 10500, 13500],
+    stars: [6400, 10500, 13400],
   },
   // [build-up] The galaxy: a spiral of sand winding in to the middle of the board. Six colours.
   {
@@ -81,7 +81,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '000000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [4400, 9200, 12700],
+    stars: [4400, 9200, 12900],
   },
   // [hard] The comet: a diagonal of stones, thickest in the middle, trailing sand on both sides. Six colours.
   {
@@ -131,7 +131,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'color', color: 1, target: 32 },
       { kind: 'color', color: 4, target: 32 },
     ],
-    stars: [4700, 10000, 14100],
+    stars: [4700, 10000, 14400],
   },
   // [normal] The falling stars: three lamps on a diagonal, chained gems beside and below them.
   {
@@ -150,11 +150,11 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'lamp', target: 3 },
       { kind: 'chain' },
     ],
-    stars: [5600, 12400, 18500],
+    stars: [5800, 12400, 18200],
   },
   // [normal] The star map: eight stones in a ring pattern on a board with clipped corners; moonstone to gather. Six colours.
   {
-    id: 107, cols: 9, rows: 9, colors: 6, moves: 15,
+    id: 107, cols: 9, rows: 9, colors: 6, moves: 19,
     pieces: [
       '_......._',
       '..2...2..',
@@ -170,11 +170,11 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'stone' },
       { kind: 'color', color: 5, target: 20 },
     ],
-    stars: [4100, 11600, 18000],
+    stars: [3500, 7200, 9800],
   },
   // [build-up] The eclipse: a ring of sand around a prism locked in stone. Six colours.
   {
-    id: 108, cols: 9, rows: 9, colors: 6, moves: 20,
+    id: 108, cols: 9, rows: 9, colors: 6, moves: 21,
     pieces: [
       '.........',
       '.........',
@@ -198,11 +198,11 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '000000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [4600, 9500, 13600],
+    stars: [4400, 9800, 13300],
   },
   // [hard] The locked observatory: an eight-sided board, a ring of chained gems and a deep sand floor inside and under it.
   {
-    id: 109, cols: 9, rows: 9, colors: 5, moves: 24,
+    id: 109, cols: 9, rows: 9, colors: 5, moves: 23,
     hard: true,
     pieces: [
       '___...___',
@@ -230,7 +230,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'sand' },
       { kind: 'chain' },
     ],
-    stars: [8700, 15900, 21000],
+    stars: [8500, 15800, 20800],
   },
   // [breather] The arrowhead: a small board shaped like an arrowhead; amber to gather.
   {
@@ -266,7 +266,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'stone' },
       { kind: 'chain' },
     ],
-    stars: [5700, 14100, 21300],
+    stars: [5100, 14100, 21300],
   },
   // [normal] The chained star: a star of chained gems on an eight-sided board; two colours to gather.
   {
@@ -287,11 +287,11 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'color', color: 0, target: 28 },
       { kind: 'color', color: 2, target: 28 },
     ],
-    stars: [4900, 10400, 15300],
+    stars: [4900, 10500, 15100],
   },
   // [build-up] The four lanterns: four lamps and five stones scattered in their way.
   {
-    id: 113, cols: 8, rows: 7, colors: 5, moves: 20,
+    id: 113, cols: 8, rows: 7, colors: 5, moves: 21,
     pieces: [
       '.L.LL.L.',
       '........',
@@ -302,7 +302,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'lamp', target: 4 }],
-    stars: [5700, 11300, 15900],
+    stars: [5600, 11500, 16200],
   },
   // [hard] The black hole: a ring of vine around a hole in the board — and a great deal of amethyst to gather.
   {
@@ -323,7 +323,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'vine' },
       { kind: 'color', color: 4, target: 40 },
     ],
-    stars: [5600, 11300, 16200],
+    stars: [5600, 11300, 16100],
   },
   // [breather] The caged nova: a ring of thick stones with a nova waiting inside it.
   {
@@ -359,11 +359,11 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'lamp', target: 4 },
       { kind: 'vine' },
     ],
-    stars: [7700, 15500, 22000],
+    stars: [7800, 15800, 22100],
   },
   // [normal] The wings: a V of chained gems above a V of sand. Six colours.
   {
-    id: 117, cols: 9, rows: 8, colors: 6, moves: 24,
+    id: 117, cols: 9, rows: 8, colors: 6, moves: 25,
     pieces: [
       '_......._',
       '.........',
@@ -388,7 +388,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'chain' },
       { kind: 'sand' },
     ],
-    stars: [3900, 8500, 11700],
+    stars: [3900, 8700, 11900],
   },
   // [build-up] The starfield: single tiles of sand scattered over the whole board, a few of them deep. Six colours.
   {
@@ -414,7 +414,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '001010010',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [4000, 7900, 10900],
+    stars: [4000, 8000, 11100],
   },
   // [hard] The last gate: three lamps on chains, vines growing in from both sides, and a bed of sand at the bottom.
   {
@@ -447,11 +447,11 @@ export const CHAPTER_6: readonly LevelDef[] = [
       { kind: 'sand' },
       { kind: 'vine' },
     ],
-    stars: [9300, 20300, 28500],
+    stars: [9400, 20300, 28600],
   },
   // [finale] The festival of lights: rows of sand with beams lying on them and a nova in the middle — a victory lap.
   {
-    id: 120, cols: 9, rows: 9, colors: 5, moves: 20,
+    id: 120, cols: 9, rows: 9, colors: 5, moves: 19,
     pieces: [
       '_......._',
       'H.......H',
@@ -475,6 +475,6 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '000000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [7800, 15200, 21800],
+    stars: [7100, 15100, 21900],
   },
 ];
