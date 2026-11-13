@@ -206,7 +206,7 @@ describe('hardening: a hostile Android bridge', () => {
 
   it('a readable save from the wrapper always wins, also in sloppy wrappings', () => {
     const newer = JSON.stringify({ version: 1, coins: 9 });
-    for (const wrapped of [newer, '﻿' + newer, JSON.stringify(newer), '  ' + newer + '\n']) {
+    for (const wrapped of [newer, '\uFEFF' + newer, JSON.stringify(newer), '  ' + newer + '\n']) {
       const l = lab({ bridge: { loadSave: () => wrapped } });
       l.disk.set(SAVE_KEY, GOOD_SAVE);
       expect(createPlatform().loadSave()).toBe(wrapped);

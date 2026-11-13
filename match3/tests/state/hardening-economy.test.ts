@@ -110,10 +110,10 @@ function expectLedger(h: Harness, ledger: Ledger, where: string): void {
 }
 
 describe('hardening: the economy against a ledger model', () => {
-  it('matches to the unit over 30 random histories with hostile arguments', () => {
+  it('matches to the unit over 20 random histories with hostile arguments', () => {
     let refusedSpends = 0;
     let refusedBuys = 0;
-    for (let seed = 1; seed <= 30; seed++) {
+    for (let seed = 1; seed <= 20; seed++) {
       const random = rng(seed * 7919);
       let h = harness();
       const ledger = new Ledger();

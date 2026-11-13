@@ -263,7 +263,8 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
   // the horizon sits low so the far bank and the rising sun show below a board in the middle
   const hz = h * 0.7;
-  fillV(ctx, w, 0, hz + 1, [
+  // (painted a little past the horizon: the low dips of the far bank must never leave a gap)
+  fillV(ctx, w, 0, hz + 4 * u, [
     [0, '#3d4bb4'],
     [0.16, '#7a70cc'],
     [0.34, '#d98fbc'],

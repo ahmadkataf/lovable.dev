@@ -123,6 +123,8 @@ function withOwnProto(value: unknown, rest: Record<string, unknown> = {}): Recor
 }
 
 const LONG = 'x'.repeat(200_000);
+/** Long enough to be far beyond any limit, short enough to appear in thousands of random documents. */
+const LONGISH = 'y'.repeat(12_000);
 
 const NUMBERS = [
   0, -0, 1, -1, 2, 3, 4, 5, 6, 7, 0.5, -0.5, 2.5, 4.999, 1e-7, 5e-324, 99, 120, 121, 9999, 10000, 1e9, 1e10,
@@ -134,7 +136,7 @@ const NUMBERS = [
 const STRINGS = [
   '', ' ', '0', '1', '-1', '3', '1e3', '0x10', 'NaN', 'Infinity', 'null', 'true', 'false', 'undefined', '{}', '[]',
   '__proto__', 'constructor', 'prototype', 'toString', 'valueOf', 'hasOwnProperty', 'length', 'en', 'ar', 'AR', 'fr',
-  'hammer', 'tut.swap', '\u0000', '\uD800', '﻿', '‮', 'مرحبا', '💎', LONG,
+  'hammer', 'tut.swap', '\u0000', '\uD800', '\uFEFF', '\u202E', 'مرحبا', '💎', LONGISH,
 ];
 
 function pick<T>(random: () => number, list: readonly T[]): T {
@@ -208,7 +210,7 @@ function mutated(random: () => number): unknown {
     if (roll < 0.7) parent[key] = hostile(random);
     else if (roll < 0.85 || Array.isArray(parent)) delete parent[key];
     else {
-      const other = pick(random, STRINGS.slice(0, STRINGS.length - 1));
+      const other = pick(random, STRINGS.slice(0, STRINGS.length - 1)); // any key but the long one
       const value = parent[key];
       if (other === '__proto__') Object.defineProperty(parent, other, { value, enumerable: true, writable: true, configurable: true });
       else parent[other] = value;
@@ -399,7 +401,7 @@ describe('hardening: fuzzing the save loader', () => {
   it('2,000 valid save strings cut, spliced and scrambled as text always load into a valid profile', () => {
     const random = rng(31337);
     const failures: string[] = [];
-    const junk = ['', '\u0000', '{', '}', '[', ']', '"', ':', ',', '\\', '\\u', 'null', '1e999', '-', '﻿', '"__proto__":{"coins":9}', '/*x*/', '\n'];
+    const junk = ['', '\u0000', '{', '}', '[', ']', '"', ':', ',', '\\', '\\u', 'null', '1e999', '-', '\uFEFF', '"__proto__":{"coins":9}', '/*x*/', '\n'];
     for (let i = 0; i < 2000 && failures.length < 5; i++) {
       let text = JSON.stringify(validSave(random));
       for (let hits = 1 + Math.floor(random() * 3); hits > 0; hits--) {
@@ -418,7 +420,7 @@ describe('hardening: fuzzing the save loader', () => {
 
   it('every single field survives every hostile value, one at a time', () => {
     const base = JSON.parse(JSON.stringify(sampleSave())) as Record<string, unknown>;
-    const values: unknown[] = [...NUMBERS, ...STRINGS, null, true, false, [], [1], [[]], {}, { a: 1 }, withOwnProto({ coins: 1 }), [LONG, LONG]];
+    const values: unknown[] = [...NUMBERS, ...STRINGS, LONG, null, true, false, [], [1], [[]], {}, { a: 1 }, withOwnProto({ coins: 1 }), [LONG, LONG]];
     const failures: string[] = [];
     for (const path of paths(base)) {
       for (const value of values) {
@@ -510,7 +512,7 @@ describe('hardening: hand-picked hostile saves', () => {
 
   it('a save wrapped by a sloppy bridge (BOM, padding, encoded twice) is still recognised', () => {
     const good = JSON.stringify(sampleSave());
-    for (const json of ['﻿' + good, '  \n' + good + '\n\n', JSON.stringify(good), '﻿' + JSON.stringify(good)]) {
+    for (const json of ['\uFEFF' + good, '  \n' + good + '\n\n', JSON.stringify(good), '\uFEFF' + JSON.stringify(good)]) {
       expect(gauntlet(json)).toEqual([]);
       expect(parseSave(json), JSON.stringify(json.slice(0, 12))).toEqual(sampleSave());
     }

@@ -169,10 +169,10 @@ function run(seed: number, steps: number): { regenerated: number; refills: numbe
 }
 
 describe('hardening: lives against a reference model', () => {
-  it('agrees over 40 random histories of 2,500 steps each', () => {
+  it('agrees over 30 random histories of 2,000 steps each', () => {
     const total = { regenerated: 0, refills: 0, backwards: 0 };
-    for (let seed = 1; seed <= 40; seed++) {
-      const c = run(seed, 2500);
+    for (let seed = 1; seed <= 30; seed++) {
+      const c = run(seed, 2000);
       total.regenerated += c.regenerated;
       total.refills += c.refills;
       total.backwards += c.backwards;

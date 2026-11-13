@@ -18,7 +18,7 @@ import {
 } from '../../src/i18n/index.ts';
 import type { Lang, StringTable } from '../../src/i18n/types.ts';
 
-const LRM = '‎';
+const LRM = '\u200E';
 
 function rng(seed: number): () => number {
   let a = seed >>> 0;
