@@ -3,229 +3,201 @@
  *
  *   node tools/meta-shots.cjs                 every scene, every size, both languages → shots/meta/*.png
  *   node tools/meta-shots.cjs map intro       only scenes whose name contains one of the words
- *   META_SIZES=360 META_LANGS=ar node tools/meta-shots.cjs shop
+ *   META_SIZES=360,1280 META_LANGS=ar node tools/meta-shots.cjs shop
+ *   node tools/meta-shots.cjs --sheets        also build contact sheets (one per scene: every size × language) → shots/meta/sheets
  *
- * Scenes: title, map at the start / mid-journey (level 47 current) / near the end / finished,
- * level intro (plain, hard, replay), lives at 0, shop with the simulated store and without,
- * settings, privacy policy, credits, daily reward, new booster, and the post-win celebration.
- * Sizes: 360×640, 412×915, 800×1280 (+ 320×480 and landscape 640×360 for the key scenes),
- * English and Arabic, deviceScaleFactor 2.
+ * Scenes: title (first run / returning / finished), the map at the start / gated / mid-journey /
+ * chapter seam / near the end / finished / with a six-digit coin count and no lives, the level intro
+ * (plain, hard, replay, three goals, Caravan, everything at once, no lives), buying one booster,
+ * lives (0 / some / full), the shop with the test store (three scroll positions), without a store,
+ * without coins, settings, privacy policy, credits, the two reset confirmations, daily reward (claim,
+ * claimed, day 7, waiting), new booster, journey complete, toasts with long texts, and the post-win
+ * celebration.
+ * Sizes: 320×480, 360×640, 412×915, 640×360 (landscape), 800×1280, 1280×800 — English and Arabic,
+ * deviceScaleFactor 2.
  *
- * Uses the dev server at http://127.0.0.1:5185 (META_PORT overrides); starts one if none is running.
- * The scenes run on a generated 120-level list (?mocklevels=120) with every feature unlocked
- * (?gate=off) unless META_REAL=1 is set.
+ * Runs on the real 120 levels with every feature unlocked (?gate=off); the store scenes use the test
+ * store of src/monetize (?fakestore=1). Starts its own dev server on port 5185 (META_PORT) without
+ * hot reload — or uses the one that is already running there.
  */
 const { chromium } = require('playwright');
 const fs = require('fs');
-const http = require('http');
 const path = require('path');
-const { spawn } = require('child_process');
+const L = require('../tests/e2e/meta-lib.cjs');
 
-const ROOT = path.join(__dirname, '..');
-const PORT = Number(process.env.META_PORT || 5185);
-const BASE = 'http://127.0.0.1:' + PORT + '/';
+const ROOT = L.ROOT;
 const OUT = path.join(ROOT, 'shots', 'meta');
-const REAL = process.env.META_REAL === '1';
+const SHEETS = path.join(OUT, 'sheets');
+const { sleep, today } = L;
 
 const SIZES = [
-  { w: 360, h: 640, key: true },
-  { w: 412, h: 915, key: true },
-  { w: 800, h: 1280, key: true },
-  { w: 320, h: 480, key: false },
-  { w: 640, h: 360, key: false },
+  { w: 320, h: 480 },
+  { w: 360, h: 640 },
+  { w: 412, h: 915 },
+  { w: 640, h: 360 },
+  { w: 800, h: 1280 },
+  { w: 1280, h: 800 },
 ];
 const LANGS = ['en', 'ar'];
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const save = (opts) => L.saveParam(opts);
+const go = (page, screen, arg) => page.evaluate(([s, a]) => window.__app.goto(s, a), [screen, arg]);
+const closeAll = (page) => page.evaluate(() => window.__app.kit.closeAll());
+const scrollBody = (page, selector, frac) =>
+  page.evaluate(
+    ([sel, f]) => {
+      const body = document.querySelector(sel + ' .k-dialog__body');
+      if (body) body.scrollTop = (body.scrollHeight - body.clientHeight) * f;
+    },
+    [selector, frac],
+  );
+const waitStore = (page) => page.waitForFunction(() => window.__app.store.iapAvailable() && window.__app.store.rewardedReady(), null, { timeout: 8000 }).catch(() => undefined);
 
-function ping(url) {
-  return new Promise((resolve) => {
-    const req = http.get(url, (res) => {
-      res.resume();
-      resolve(res.statusCode === 200);
-    });
-    req.on('error', () => resolve(false));
-    req.setTimeout(1500, () => {
-      req.destroy();
-      resolve(false);
-    });
-  });
-}
-
-async function ensureServer() {
-  if (await ping(BASE)) return null;
-  const vite = path.join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
-  const child = spawn(process.execPath, [vite, '--port', String(PORT), '--strictPort'], { cwd: ROOT, stdio: 'ignore' });
-  for (let i = 0; i < 80; i++) {
-    await sleep(250);
-    if (await ping(BASE)) return child;
-  }
-  child.kill();
-  throw new Error('dev server did not start on port ' + PORT);
-}
-
-/** A save with levels 1..upTo won (stars vary), as the base64 the ?save= flag takes. */
-function save(opts) {
-  const o = Object.assign({ upTo: 0, coins: 2000, lives: 5, lifeAgoMs: 0, boosters: {}, dailyDay: -1, dailyStreak: 0 }, opts || {});
-  const levels = {};
-  for (let i = 1; i <= o.upTo; i++) levels[i] = { stars: 1 + ((i * 7 + 1) % 3), best: 2400 + ((i * 373) % 4000) };
-  const data = {
-    version: 1,
-    levels,
-    coins: o.coins,
-    lives: o.lives,
-    lifeTimer: o.lives >= 5 ? 0 : Date.now() - o.lifeAgoMs,
-    boosters: Object.assign({ hammer: 3, freeSwap: 2, shuffle: 1, extraMoves: 2, prism: 0, beamNova: 1 }, o.boosters),
-    settings: { sfx: true, music: true, haptics: true, lang: null },
-    dailyDay: o.dailyDay,
-    dailyStreak: o.dailyStreak,
-    seen: [],
-    stats: { played: o.upTo, won: o.upTo, bestCascade: 4, totalScore: o.upTo * 3000 },
-    // a player who started a while ago and has met every booster (no "new booster" pop-ups, daily reward open)
-    firstDay: today - 30,
-    gifted: o.gifted || ['beamNova', 'hammer', 'freeSwap', 'prism', 'shuffle', 'extraMoves'],
-    caravan: o.caravan || 0,
-  };
-  return Buffer.from(JSON.stringify(data), 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-const today = Math.floor(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()) / 86400000);
+const MID = { upTo: 46, coins: 12850, lives: 3, lifeAgoMs: 400000, dailyDay: today, dailyStreak: 3 };
 
 /**
  * Scenes. `query` = extra URL parameters; `run(page)` drives the app to the state to capture;
  * `after(page, shoot)` may take further captures (shoot(suffix)).
  */
 const SCENES = [
-  { name: 'title', key: true, query: {}, run: async () => {} },
-  { name: 'title-returning', key: false, query: { save: save({ upTo: 46 }) }, run: async () => {} },
-  { name: 'map-start', key: true, query: { screen: 'map', save: save({ upTo: 0, dailyDay: today, dailyStreak: 1 }) }, run: async () => {} },
-  { name: 'map-early', key: false, query: { screen: 'map', save: save({ upTo: 3, dailyDay: today, dailyStreak: 1 }), gate: 'on' }, run: async () => {} },
-  { name: 'map-mid', key: true, query: { screen: 'map', save: save({ upTo: 46, coins: 12850, lives: 3, lifeAgoMs: 400000, dailyDay: today, dailyStreak: 3 }) }, run: async () => {} },
-  { name: 'map-chapter-seam', key: false, query: { screen: 'map', save: save({ upTo: 39, coins: 950, dailyDay: today, dailyStreak: 3 }) }, run: async () => {} },
-  { name: 'map-end', key: true, query: { screen: 'map', save: save({ upTo: 117, coins: 70450, dailyDay: today - 1, dailyStreak: 3 }) }, run: async (page) => closeAll(page) },
-  { name: 'map-finished', key: false, query: { screen: 'map', save: save({ upTo: 120, coins: 3210, dailyDay: today, dailyStreak: 3 }) }, run: async () => {} },
-  {
-    name: 'intro',
-    key: true,
-    query: { screen: 'map', save: save({ upTo: 46, dailyDay: today, dailyStreak: 3 }) },
-    run: async (page) => {
-      await page.evaluate(() => window.__app.goto('intro', 47));
-    },
-  },
+  { name: 'title', query: {}, run: async () => {} },
+  { name: 'title-returning', query: { save: save({ upTo: 46 }) }, run: async () => {} },
+  { name: 'title-finished', query: { save: save({ upTo: 120, stars: 3 }) }, run: async () => {} },
+
+  { name: 'map-start', query: { screen: 'map', save: save({ upTo: 0, dailyDay: today, dailyStreak: 1 }) }, run: async () => {} },
+  { name: 'map-early', query: { screen: 'map', gate: 'on', save: save({ upTo: 3, dailyDay: today, dailyStreak: 1, gifted: [] }) }, run: async () => {} },
+  { name: 'map-mid', query: { screen: 'map', save: save(MID) }, run: async () => {} },
+  { name: 'map-chapter-seam', query: { screen: 'map', save: save({ upTo: 39, coins: 950, dailyDay: today, dailyStreak: 3 }) }, run: async () => {} },
+  { name: 'map-end', query: { screen: 'map', save: save({ upTo: 117, coins: 70450, dailyDay: today - 1, dailyStreak: 3 }) }, run: async (page) => closeAll(page) },
+  { name: 'map-finished', query: { screen: 'map', save: save({ upTo: 120, stars: 3, coins: 3210, dailyDay: today, dailyStreak: 3 }) }, run: async () => {} },
+  { name: 'map-rich-nolives', query: { screen: 'map', save: save({ upTo: 101, stars: 3, coins: 987654, lives: 0, lifeAgoMs: 1000, dailyDay: today - 1, dailyStreak: 6 }) }, run: async (page) => closeAll(page) },
+
+  { name: 'intro', query: { screen: 'map', save: save({ upTo: 16, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 17) },
   {
     name: 'intro-hard',
-    key: true,
-    query: { screen: 'map', save: save({ upTo: 47, dailyDay: today, dailyStreak: 3 }) },
+    query: { screen: 'map', save: save({ upTo: 26, dailyDay: today, dailyStreak: 3 }) },
     run: async (page) => {
-      await page.evaluate(() => window.__app.goto('intro', 48));
+      await go(page, 'intro', 27);
       await sleep(500);
       await page.click('[data-booster="beamNova"]');
     },
   },
+  { name: 'intro-replay', query: { screen: 'map', save: save({ upTo: 46, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 33) },
+  { name: 'intro-3goals', query: { screen: 'map', save: save({ upTo: 58, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 59) },
+  { name: 'intro-caravan', query: { screen: 'map', save: save({ upTo: 71, caravan: 2, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 72) },
   {
-    name: 'intro-replay',
-    key: false,
+    // everything at once: hard, three goals, a full Caravan, a replay, six-digit best score
+    name: 'intro-max',
+    query: { screen: 'map', save: save({ upTo: 110, caravan: 5, coins: 100, boosters: { extraMoves: 0, prism: 12, beamNova: 0 }, dailyDay: today, dailyStreak: 3 }) },
+    run: async (page) => {
+      await page.evaluate(() => window.__app.profile.recordWin(100, 2, 123456, 4));
+      await go(page, 'intro', 100);
+    },
+  },
+  { name: 'intro-nolives', query: { screen: 'map', save: save({ upTo: 46, lives: 0, lifeAgoMs: 500000, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 47) },
+  { name: 'intro-first', query: { screen: 'map', gate: 'on', save: save({ upTo: 1, gifted: [], dailyDay: today, dailyStreak: 1 }) }, run: (page) => go(page, 'intro', 2) },
+  {
+    name: 'buy-one',
     query: { screen: 'map', save: save({ upTo: 46, dailyDay: today, dailyStreak: 3 }) },
     run: async (page) => {
-      await page.evaluate(() => window.__app.goto('intro', 33));
+      await go(page, 'intro', 47);
+      await sleep(500);
+      await page.click('[data-booster="prism"]');
     },
   },
+
   {
     name: 'lives-empty',
-    key: true,
-    query: { screen: 'map', mockstore: '1', save: save({ upTo: 46, lives: 0, lifeAgoMs: 500000, coins: 1200, dailyDay: today, dailyStreak: 3 }) },
+    query: { screen: 'map', fakestore: '1', save: save({ upTo: 46, lives: 0, lifeAgoMs: 500000, coins: 1200, dailyDay: today, dailyStreak: 3 }) },
     run: async (page) => {
-      await page.evaluate(() => window.__app.goto('lives'));
+      await waitStore(page);
+      await go(page, 'lives');
     },
   },
-  {
-    name: 'lives-some',
-    key: false,
-    query: { screen: 'map', save: save({ upTo: 46, lives: 3, lifeAgoMs: 100000, coins: 1200, dailyDay: today, dailyStreak: 3 }) },
-    run: async (page) => {
-      await page.evaluate(() => window.__app.goto('lives'));
-    },
-  },
+  { name: 'lives-some', query: { screen: 'map', save: save({ upTo: 46, lives: 3, lifeAgoMs: 100000, coins: 1200, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'lives') },
+  { name: 'lives-full', query: { screen: 'map', save: save({ upTo: 46, coins: 1200, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'lives') },
+
   {
     name: 'shop-store',
-    key: true,
-    query: { screen: 'map', mockstore: '1', save: save({ upTo: 46, coins: 1250, dailyDay: today, dailyStreak: 3 }) },
+    query: { screen: 'map', fakestore: '1', save: save({ upTo: 46, coins: 1250, dailyDay: today, dailyStreak: 3 }) },
     run: async (page) => {
-      await page.evaluate(() => window.__app.goto('shop'));
+      await waitStore(page);
+      await go(page, 'shop');
     },
     after: async (page, shoot) => {
       for (const [suffix, f] of [
-        ['-2', 0.42],
-        ['-3', 1],
+        ['-2', 0.36],
+        ['-3', 0.68],
+        ['-4', 1],
       ]) {
-        await page.evaluate((frac) => {
-          const body = document.querySelector('.m-dialog-shop .k-dialog__body');
-          if (body) body.scrollTop = (body.scrollHeight - body.clientHeight) * frac;
-        }, f);
+        await scrollBody(page, '.m-dialog-shop', f);
         await sleep(250);
         await shoot(suffix);
       }
     },
   },
+  { name: 'shop-plain', query: { screen: 'map', save: save({ upTo: 46, coins: 540, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'shop') },
   {
-    // the real src/monetize store in its own test mode (shows boosters only until that module supports it)
-    name: 'shop-fakestore',
-    key: false,
-    query: { screen: 'map', fakestore: '1', save: save({ upTo: 46, coins: 1250, dailyDay: today, dailyStreak: 3 }) },
+    name: 'shop-rich',
+    query: { screen: 'map', fakestore: '1', save: save({ upTo: 46, coins: 987654, boosters: { hammer: 128, freeSwap: 99, shuffle: 0, extraMoves: 1000, prism: 7, beamNova: 12 }, dailyDay: today, dailyStreak: 3 }) },
     run: async (page) => {
-      await sleep(600);
-      await page.evaluate(() => window.__app.goto('shop'));
+      await waitStore(page);
+      await go(page, 'shop');
+      await sleep(400);
+      await scrollBody(page, '.m-dialog-shop', 1);
     },
   },
-  {
-    name: 'shop-plain',
-    key: true,
-    query: { screen: 'map', save: save({ upTo: 46, coins: 540, dailyDay: today, dailyStreak: 3 }) },
-    run: async (page) => {
-      await page.evaluate(() => window.__app.goto('shop'));
-    },
-  },
+  { name: 'shop-early', query: { screen: 'map', gate: 'on', save: save({ upTo: 9, coins: 2210, gifted: ['beamNova', 'hammer'], dailyDay: today, dailyStreak: 1 }) }, run: (page) => go(page, 'shop') },
+
   {
     name: 'settings',
-    key: true,
-    query: { mockstore: '1', save: save({ upTo: 46 }) },
+    query: { fakestore: '1', save: save({ upTo: 46 }) },
     run: async (page) => {
-      await page.evaluate(() => window.__app.goto('settings'));
+      await waitStore(page);
+      await go(page, 'settings');
     },
     after: async (page, shoot) => {
-      await page.evaluate(() => {
-        const body = document.querySelector('.m-dialog-settings .k-dialog__body');
-        if (body) body.scrollTop = body.scrollHeight;
-      });
+      await scrollBody(page, '.m-dialog-settings', 1);
       await sleep(250);
       await shoot('-2');
     },
   },
   {
     name: 'privacy',
-    key: true,
     query: { save: save({ upTo: 46 }) },
     run: async (page) => {
-      await page.evaluate(() => window.__app.goto('settings'));
+      await go(page, 'settings');
       await sleep(400);
       await page.click('[data-act="privacy"]');
     },
   },
   {
     name: 'credits',
-    key: true,
     query: { save: save({ upTo: 46 }) },
     run: async (page) => {
-      await page.evaluate(() => window.__app.goto('settings'));
+      await go(page, 'settings');
       await sleep(400);
       await page.click('[data-act="credits"]');
     },
   },
   {
+    name: 'reset',
+    query: { save: save({ upTo: 46 }) },
+    run: async (page) => {
+      await go(page, 'settings');
+      await sleep(400);
+      await page.click('[data-act="reset"]');
+    },
+    after: async (page, shoot) => {
+      await sleep(400);
+      await page.click('.k-overlay:not(.k-under) .k-btn--danger');
+      await sleep(700);
+      await shoot('-2');
+    },
+  },
+
+  {
     name: 'daily',
-    key: true,
     query: { screen: 'map', save: save({ upTo: 46, dailyDay: today - 1, dailyStreak: 3 }) },
     run: async () => {
       await sleep(700); // offered by itself
@@ -237,16 +209,45 @@ const SCENES = [
     },
   },
   {
-    name: 'unlock',
-    key: false,
-    query: { screen: 'map', save: save({ upTo: 7, dailyDay: today, dailyStreak: 1 }) },
+    name: 'daily-day7',
+    query: { screen: 'map', save: save({ upTo: 46, dailyDay: today - 1, dailyStreak: 6 }) },
+    run: async () => {
+      await sleep(700);
+    },
+    after: async (page, shoot) => {
+      await page.click('[data-act="daily-claim"]');
+      await sleep(700);
+      await shoot('-claimed');
+    },
+  },
+  { name: 'unlock', query: { screen: 'map', save: save({ upTo: 7, dailyDay: today, dailyStreak: 1 }) }, run: (page) => go(page, 'unlock', 'hammer') },
+  { name: 'unlock-long', query: { screen: 'map', save: save({ upTo: 13, dailyDay: today, dailyStreak: 1 }) }, run: (page) => go(page, 'unlock', 'freeSwap') },
+  {
+    name: 'finished',
+    query: { screen: 'map', still: '0', save: save({ upTo: 119, stars: 3, dailyDay: today, dailyStreak: 3 }) },
     run: async (page) => {
-      await page.evaluate(() => window.__app.goto('unlock', 'hammer'));
+      await page.evaluate(() => {
+        window.__app.profile.recordWin(120, 3, 9100, 3);
+        window.__app.goto('map', { justWon: 120 });
+      });
+      await page.waitForSelector('.k-dialog--medal', { timeout: 8000 });
+    },
+  },
+  {
+    name: 'toasts',
+    query: { screen: 'map', save: save(MID) },
+    run: async (page) => {
+      await page.evaluate(() => {
+        const a = window.__app;
+        const t = (k, v) => a.ctx.i18n.t(k, v);
+        a.kit.toast(t('meta.shop.pending'), { icon: 'info', duration: 60000 });
+        a.kit.toast(t('meta.ad.closed'), { icon: 'adVideo', duration: 60000 });
+        a.kit.toast(t('meta.map.lockedToast', { n: 119 }), { icon: 'lock', duration: 60000 });
+      });
     },
   },
   {
     name: 'celebrate',
-    key: true,
     query: { screen: 'map', save: save({ upTo: 46, dailyDay: today, dailyStreak: 3 }), still: '0' },
     run: async (page) => {
       await page.evaluate(() => {
@@ -264,38 +265,67 @@ const SCENES = [
   },
 ];
 
-async function closeAll(page) {
-  await page.evaluate(() => window.__app.kit.closeAll());
-}
-
 function urlFor(scene, lang) {
-  // fakestore=0: under the dev server src/monetize would otherwise switch its test store on by itself
-  const q = Object.assign({ debug: '1', still: '1', lang, fakestore: '0' }, REAL ? {} : { mocklevels: '120', gate: 'off' }, scene.query);
+  // fakestore=0 unless the scene asks for the test store (under the dev server it would switch itself on)
+  const q = Object.assign({ still: '1', lang, fakestore: '0', gate: 'off' }, scene.query);
   if (q.gate === 'on') delete q.gate;
   if (q.still === '0') delete q.still;
-  const parts = [];
-  for (const k of Object.keys(q)) parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(q[k]));
-  return BASE + '?' + parts.join('&');
+  return L.url(q);
+}
+
+/** One PNG per scene shot: every size × language side by side, labelled. */
+async function buildSheets(browser, names) {
+  fs.mkdirSync(SHEETS, { recursive: true });
+  const page = await browser.newPage({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 1 });
+  let made = 0;
+  for (const name of names) {
+    for (const lang of LANGS) {
+      const cells = [];
+      for (const size of SIZES) {
+        const file = path.join(OUT, name + '-' + size.w + '-' + lang + '.png');
+        if (!fs.existsSync(file)) continue;
+        // shown at one screenshot pixel = 0.5 px (the screenshots are 2×), i.e. at CSS size
+        cells.push('<figure><img src="data:image/png;base64,' + fs.readFileSync(file).toString('base64') + '" width="' + size.w + '" height="' + size.h + '"><figcaption>' + size.w + '×' + size.h + '</figcaption></figure>');
+      }
+      if (cells.length === 0) continue;
+      await page.setContent(
+        '<html><body style="margin:0;background:#222;color:#eee;font:14px sans-serif"><div id="s" style="display:inline-flex;flex-wrap:wrap;align-items:flex-start;padding:10px;max-width:3400px">' +
+          '<style>figure{margin:6px}figcaption{padding:3px 0}img{display:block}</style>' +
+          cells.join('') +
+          '</div></body></html>',
+      );
+      const box = await page.locator('#s').boundingBox();
+      await page.setViewportSize({ width: Math.ceil(box.width), height: Math.ceil(box.height) });
+      await page.locator('#s').screenshot({ path: path.join(SHEETS, name + '-' + lang + '.png') });
+      made++;
+    }
+  }
+  await page.close();
+  return made;
 }
 
 async function main() {
-  const filters = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const sheets = args.indexOf('--sheets') >= 0;
+  const sheetsOnly = args.indexOf('--sheets-only') >= 0;
+  const filters = args.filter((a) => a.indexOf('--') !== 0);
   const sizeFilter = (process.env.META_SIZES || '').split(',').filter(Boolean);
   const langFilter = (process.env.META_LANGS || '').split(',').filter(Boolean);
-  const server = await ensureServer();
+  const server = sheetsOnly ? null : await L.quietDevServer();
   fs.mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch();
   const problems = [];
+  const shotNames = [];
   let count = 0;
   try {
     for (const size of SIZES) {
+      if (sheetsOnly) break;
       if (sizeFilter.length && sizeFilter.indexOf(String(size.w)) < 0) continue;
       const context = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: 2, hasTouch: true });
       for (const lang of LANGS) {
         if (langFilter.length && langFilter.indexOf(lang) < 0) continue;
         for (const scene of SCENES) {
           if (filters.length && !filters.some((f) => scene.name.indexOf(f) >= 0)) continue;
-          if (!size.key && !scene.key && !filters.length) continue;
           const page = await context.newPage();
           const label = scene.name + '-' + size.w + '-' + lang;
           page.on('console', (msg) => {
@@ -307,24 +337,35 @@ async function main() {
             await page.waitForFunction(() => window.__booted === true, null, { timeout: 30000 });
             await sleep(450);
             await scene.run(page);
-            await sleep(650);
+            await sleep(700);
             const shoot = async (suffix) => {
-              await page.screenshot({ path: path.join(OUT, scene.name + (suffix || '') + '-' + size.w + '-' + lang + '.png') });
+              const name = scene.name + (suffix || '');
+              await page.screenshot({ path: path.join(OUT, name + '-' + size.w + '-' + lang + '.png') });
+              if (shotNames.indexOf(name) < 0) shotNames.push(name);
               count++;
             };
             await shoot('');
             if (scene.after) await scene.after(page, shoot);
           } catch (err) {
-            problems.push(label + ' [tool] ' + err.message);
+            problems.push(label + ' [tool] ' + err.message.split('\n')[0]);
           }
           await page.close();
         }
       }
       await context.close();
     }
+    if (sheets || sheetsOnly) {
+      let names = shotNames;
+      if (sheetsOnly) {
+        const all = fs.readdirSync(OUT).filter((f) => /-\d+-(en|ar)\.png$/.test(f)).map((f) => f.replace(/-\d+-(en|ar)\.png$/, ''));
+        names = all.filter((n, i) => all.indexOf(n) === i && (!filters.length || filters.some((f) => n.indexOf(f) >= 0)));
+      }
+      const made = await buildSheets(browser, names);
+      console.log(made + ' contact sheets → ' + path.relative(ROOT, SHEETS));
+    }
   } finally {
     await browser.close();
-    if (server) server.kill();
+    if (server) await server.stop();
   }
   console.log(count + ' screenshots → ' + path.relative(ROOT, OUT));
   if (problems.length) {

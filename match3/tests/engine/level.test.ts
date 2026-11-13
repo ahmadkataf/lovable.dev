@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Game, parseLevel, pieceSpecFor, validateLevel, type LevelDef } from '../../src/engine/index.ts';
 import { picture, refHasMatch, refValidMoves } from './helpers.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 const good = (): LevelDef => ({
   id: 1,

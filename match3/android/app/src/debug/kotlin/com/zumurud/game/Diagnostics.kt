@@ -86,6 +86,10 @@ internal object Diagnostics {
             return blocked.count { it.contains(text) }
         }
 
+        /** What iapFinish does before it consumes or acknowledges: force the save onto disk. (Bridge thread: may block.) */
+        @JavascriptInterface
+        fun flushSave(): Boolean = activity.flushSave()
+
         /** Asynchronous on purpose: the state is read on the main thread, then handed to `callback`. */
         @JavascriptInterface
         fun requestState(callbackName: String?) {

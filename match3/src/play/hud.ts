@@ -81,6 +81,8 @@ export interface Hud {
 
   setFrozen(on: boolean): void;
   clearTransient(): void;
+  /** Drop every flyer / spark in flight (their tweens were cut short). */
+  clearFlyers(): void;
   /** Flyers and sparks crossing the HUD right now (test hook). */
   flyerCount(): number;
   goalText(goal: GoalProgress): string;
@@ -601,6 +603,10 @@ export function createHud(deps: HudDeps): Hud {
       chainTimer = 0;
       hud.targeting(null, null, null);
       scoreTween++;
+    },
+
+    clearFlyers() {
+      while (flyLayer.firstChild) drop(flyLayer.firstChild as HTMLElement);
     },
 
     flyerCount: () => flyLayer.childNodes.length,

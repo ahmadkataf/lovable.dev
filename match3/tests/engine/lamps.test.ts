@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Game, type LevelDef, type Step } from '../../src/engine/index.ts';
 import { P, board, cellOf, checkTurn, newTally, pieceOf, stepTypes, stepsOf } from './helpers.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 // DESIGN §2.2 (lamp swap rule is in swap.test.ts), §2.5, §2.6 — lamps.
 

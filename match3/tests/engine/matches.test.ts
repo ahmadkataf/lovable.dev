@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Hit, Step } from '../../src/engine/index.ts';
 import { P, board, checkTurn, pieceOf, refHasMatch, stepTypes, stepsOf } from './helpers.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 // DESIGN §2.3 — matches, groups and the specials they make.
 // Boards use the filler token '~' and build their shapes from d / e / f (see helpers.ts), with

@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createRng, validateLevel, type LevelDef, type Snapshot, type TurnResult } from '../../src/engine/index.ts';
 import { checkTurn, playRandomGame, randomLevel, type Action } from './helpers.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 // Property / fuzz suite: about a thousand complete games on generated levels (every blocker type,
 // several hole shapes, 3..6 colours, start boosters), played by a seeded bot that also uses

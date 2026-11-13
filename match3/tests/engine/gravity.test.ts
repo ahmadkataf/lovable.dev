@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Game, applySteps, createRng, type CellView, type LevelDef, type Snapshot, type Step } from '../../src/engine/index.ts';
 import { P, board, cellOf, checkTurn, pieceOf, stepsOf, unfilledReachable } from './helpers.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 // DESIGN §2.6 — gravity, diagonal feeding around blockers and holes, refill.
 

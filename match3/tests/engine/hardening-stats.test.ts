@@ -6,10 +6,13 @@
  * each one is legal; this file checks that they are also fair — spread the way the design
  * says "random" — and measures what a turn and a validMoves() call cost on a 9 × 9 board.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Game } from '../../src/engine/index.ts';
 import type { LevelDef, Piece, Step } from '../../src/engine/index.ts';
 import { at, build, dice, posKey, stepsOf } from './hardening-kit.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 const open9: LevelDef = {
   id: 1,

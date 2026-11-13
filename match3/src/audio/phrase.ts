@@ -74,7 +74,10 @@ export interface Bar {
 
 export interface TrackStyle {
   bpm: number;
-  /** Output level of the track; the sparser menu track is lifted a little to match. */
+  /**
+   * Level of the track on its way into the music's compressor and clipper (output.ts); the
+   * sparser menu track is driven a little harder so that both tracks come out equally full.
+   */
   gain: number;
   /** Weight of each entry of RHYTHM_CELLS when a motif is invented. */
   cellWeights: readonly number[];

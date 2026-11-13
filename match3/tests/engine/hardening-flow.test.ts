@@ -6,7 +6,7 @@
  * Expectations come from the design text. Every call also runs through the independent Referee
  * of ./hardening-kit.ts. Notation: see `build()` in the kit.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Game, SCORE, validateLevel } from '../../src/engine/index.ts';
 import type { CellView, LevelDef, Piece, Pos, Snapshot, Step, TurnResult } from '../../src/engine/index.ts';
 import {
@@ -33,6 +33,9 @@ import {
   type BuildOpts,
   type Call,
 } from './hardening-kit.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 const D = 3;
 

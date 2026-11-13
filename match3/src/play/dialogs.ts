@@ -31,6 +31,15 @@ function lockButtons(deps: DialogDeps, dialog: DialogHandle<unknown>): void {
   deps.timers.after(T.dialogLock, () => dialog.el.classList.remove('pl-locked'));
 }
 
+/** Names a dialog and its footer buttons for tests (`data-pl="pause"`, `data-action="quit"`). */
+function tag<T>(dialog: DialogHandle<T>, name: string, actions?: readonly string[]): DialogHandle<T> {
+  dialog.el.dataset.pl = name;
+  if (actions) {
+    for (let i = 0; i < actions.length && i < dialog.buttons.length; i++) (dialog.buttons[i] as KitButton).dataset.action = actions[i] as string;
+  }
+  return dialog;
+}
+
 function missingChip(kit: Kit, i18n: I18nApi, goal: GoalProgress): HTMLElement {
   const left = Math.max(0, goal.target - goal.current);
   const icon = kit.icon(goalIconOf(goal), 26);
@@ -44,13 +53,17 @@ export function openTip(deps: DialogDeps, id: TipId): DialogHandle<void> {
   const { kit, i18n } = deps;
   const width = Math.round(Math.min(280, Math.max(200, (window.innerWidth || 360) - 96)));
   const body = kit.el('div', { class: 'pl-dlg' }, drawTip(deps.art, id, width), kit.el('p', { class: 'pl-dlg__text' }, i18n.t('play.tut.' + id + '.text')));
-  return deps.track(
-    kit.openDialog<void>({
-      title: i18n.t('play.tut.' + id + '.title'),
-      body,
-      buttons: [{ label: i18n.t('play.tut.ok'), variant: 'primary' }],
-      closeButton: false,
-    }),
+  return tag(
+    deps.track(
+      kit.openDialog<void>({
+        title: i18n.t('play.tut.' + id + '.title'),
+        body,
+        buttons: [{ label: i18n.t('play.tut.ok'), variant: 'primary' }],
+        closeButton: false,
+      }),
+    ),
+    'tip',
+    ['ok'],
   );
 }
 
@@ -61,16 +74,20 @@ export function openConfirm(deps: DialogDeps, opts: { title: string; lines: stri
   const body = kit.el('div', { class: 'pl-dlg' });
   for (let i = 0; i < opts.lines.length; i++) body.appendChild(kit.el('p', { class: 'pl-dlg__text' }, opts.lines[i] as string));
   if (opts.warn && opts.warn.length > 0) body.appendChild(kit.el('p', { class: 'pl-dlg__warn' }, opts.warn.join(' ')));
-  const dialog = deps.track(
-    kit.openDialog<boolean>({
-      title: opts.title,
-      icon: opts.icon,
-      body,
-      buttons: [
-        { label: opts.yes, variant: 'danger', result: true },
-        { label: opts.no, variant: 'primary', result: false },
-      ],
-    }),
+  const dialog = tag(
+    deps.track(
+      kit.openDialog<boolean>({
+        title: opts.title,
+        icon: opts.icon,
+        body,
+        buttons: [
+          { label: opts.yes, variant: 'danger', result: true },
+          { label: opts.no, variant: 'primary', result: false },
+        ],
+      }),
+    ),
+    'confirm',
+    ['yes', 'no'],
   );
   return dialog.closed.then((result) => result === true);
 }
@@ -115,18 +132,22 @@ export function openPause(
   music.el.dataset.setting = 'music';
   haptics.el.dataset.setting = 'haptics';
   const body = kit.el('div', { class: 'pl-dlg' }, kit.el('div', { class: 'pl-pause__toggles' }, sound.el, music.el, haptics.el));
-  return deps.track(
-    kit.openDialog<PauseChoice>({
-      title: i18n.t('play.pause.title'),
-      icon: 'pause',
-      body,
-      buttonLayout: 'column',
-      buttons: [
-        { label: i18n.t('common.resume'), icon: 'play', variant: 'primary', result: 'resume' },
-        { label: i18n.t('play.pause.restart'), icon: 'retry', variant: 'secondary', result: 'restart' },
-        { label: i18n.t('play.pause.quit'), icon: 'map', variant: 'secondary', result: 'quit' },
-      ],
-    }),
+  return tag(
+    deps.track(
+      kit.openDialog<PauseChoice>({
+        title: i18n.t('play.pause.title'),
+        icon: 'pause',
+        body,
+        buttonLayout: 'column',
+        buttons: [
+          { label: i18n.t('common.resume'), icon: 'play', variant: 'primary', result: 'resume' },
+          { label: i18n.t('play.pause.restart'), icon: 'retry', variant: 'secondary', result: 'restart' },
+          { label: i18n.t('play.pause.quit'), icon: 'map', variant: 'secondary', result: 'quit' },
+        ],
+      }),
+    ),
+    'pause',
+    ['resume', 'restart', 'quit'],
   );
 }
 
@@ -167,7 +188,7 @@ export function openBuyBooster(
     buttons.push(shop);
   }
   buttons.push(buy);
-  dialog = deps.track(kit.openDialog<BuyChoice>({ title: i18n.t('play.buy.title', { name }), icon: opts.id, body, buttons, buttonLayout: 'column' }));
+  dialog = tag(deps.track(kit.openDialog<BuyChoice>({ title: i18n.t('play.buy.title', { name }), icon: opts.id, body, buttons, buttonLayout: 'column' })), 'buy');
   return dialog;
 }
 
@@ -202,8 +223,10 @@ export function openWin(deps: DialogDeps, opts: WinOptions): DialogHandle<void> 
 
   let dialog: DialogHandle<void> | null = null;
   let left = false;
+  /** a rewarded video is being asked for / shown: nothing else may happen until it has answered */
+  let watching = false;
   const leave = (fn: () => void): void => {
-    if (left) return;
+    if (left || watching) return;
     left = true;
     if (dialog) dialog.close();
     fn();
@@ -216,15 +239,20 @@ export function openWin(deps: DialogDeps, opts: WinOptions): DialogHandle<void> 
       caption: i18n.t('play.win.watch'),
       rewardIcon: 'coin',
       block: true,
-      onClick: () =>
-        opts.onDouble().then((earned) => {
+      onClick: () => {
+        if (left || watching) return undefined;
+        watching = true;
+        const done = (earned: boolean): void => {
+          watching = false;
           if (!earned) return;
           ad.update({ disabled: true, label: i18n.t('play.win.doubled'), caption: null });
           coinsN.textContent = '‎+' + i18n.num(opts.coins * 2);
           coinsRow.classList.remove('pl-bump');
           void coinsRow.offsetWidth;
           coinsRow.classList.add('pl-bump');
-        }),
+        };
+        return opts.onDouble().then(done, () => done(false));
+      },
     });
     ad.dataset.action = 'double';
     buttons.push(ad);
@@ -247,6 +275,7 @@ export function openWin(deps: DialogDeps, opts: WinOptions): DialogHandle<void> 
       onBack: () => leave(opts.onMap),
     }),
   );
+  tag(dialog, 'win');
   lockButtons(deps, dialog);
 
   // stars slam in one by one, then the score counts up
@@ -308,8 +337,10 @@ export function openLose(deps: DialogDeps, opts: LoseOptions): DialogHandle<void
 
   let dialog: DialogHandle<void> | null = null;
   let done = false;
+  /** a rewarded video is being asked for / shown: every other choice waits for its answer */
+  let watching = false;
   const finish = (fn: () => void): void => {
-    if (done) return;
+    if (done || watching) return;
     done = true;
     if (dialog) dialog.close();
     fn();
@@ -336,7 +367,7 @@ export function openLose(deps: DialogDeps, opts: LoseOptions): DialogHandle<void
       size: 'lg',
       block: true,
       onClick: () => {
-        if (done) return;
+        if (done || watching) return;
         if (opts.onCoins()) {
           done = true;
           if (dialog) dialog.close();
@@ -354,7 +385,7 @@ export function openLose(deps: DialogDeps, opts: LoseOptions): DialogHandle<void
         variant: 'secondary',
         size: 'sm',
         block: true,
-        onClick: () => opts.onShop().then(refresh, refresh),
+        onClick: () => (done || watching ? undefined : opts.onShop().then(refresh, refresh)),
       });
       shopBtn.dataset.action = 'shop';
       stack.appendChild(shopBtn);
@@ -365,13 +396,18 @@ export function openLose(deps: DialogDeps, opts: LoseOptions): DialogHandle<void
       label: i18n.t('play.lose.moves', { n: opts.adMoves }),
       caption: i18n.t('play.win.watch'),
       block: true,
-      onClick: () =>
-        opts.onAd().then((earned) => {
+      onClick: () => {
+        if (done || watching) return undefined;
+        watching = true;
+        const answer = (earned: boolean): void => {
+          watching = false;
           if (earned && !done) {
             done = true;
             if (dialog) dialog.close();
           }
-        }),
+        };
+        return opts.onAd().then(answer, () => answer(false));
+      },
     });
     ad.dataset.action = 'adContinue';
     stack.appendChild(ad);
@@ -394,6 +430,7 @@ export function openLose(deps: DialogDeps, opts: LoseOptions): DialogHandle<void
       silent: true,
     }),
   );
+  tag(dialog, 'lose');
   lockButtons(deps, dialog);
   return dialog;
 }

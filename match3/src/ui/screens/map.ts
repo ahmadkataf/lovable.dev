@@ -8,6 +8,7 @@
  */
 import type { ChapterTheme } from '../../art/types.ts';
 import { focusLevel, levelById, nodeState } from '../helpers.ts';
+import type { NodeState } from '../helpers.ts';
 import type { Chip, KitButton } from '../kit/index.ts';
 import { BANNER_LIFT, METRICS, litCount, naturalHeight, nodePos, scrollFor, smoothPieces, spanCount, trailPoints } from '../map/layout.ts';
 import type { SectionGeo, TrailPt } from '../map/layout.ts';
@@ -38,6 +39,8 @@ export interface MapOptions {
   /** The daily reward may be offered by itself this time. */
   offerDaily: boolean;
   onDailyOffered(): void;
+  /** What the bars offer has changed while the map was showing (a feature switched on): rebuild it. */
+  onStale(): void;
 }
 
 export interface MapScreen extends Screen {
@@ -250,9 +253,11 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     return 'calc(var(--k-u) * ' + Math.round(n * 100) / 100 + ')';
   }
 
-  function skinOf(state: 'done' | 'current' | 'locked', hard: boolean): NodeSkin {
-    if (hard) return state === 'done' ? 'hardDone' : state === 'current' ? 'hardCurrent' : 'hardLocked';
-    return state;
+  function skinOf(state: NodeState, hard: boolean): NodeSkin {
+    // an open level (playable, never won, below the frontier) wears the current level's medallion
+    const look = state === 'open' ? 'current' : state;
+    if (hard) return look === 'done' ? 'hardDone' : look === 'current' ? 'hardCurrent' : 'hardLocked';
+    return look;
   }
 
   function applyNode(v: NodeView): void {
@@ -265,9 +270,9 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       'aria-label',
       state === 'done'
         ? ui.t('meta.map.aria.done', { n: v.level, stars })
-        : state === 'current'
-          ? ui.t('meta.map.aria.current', { n: v.level })
-          : ui.t('meta.map.aria.locked', { n: v.level }),
+        : state === 'locked'
+          ? ui.t('meta.map.aria.locked', { n: v.level })
+          : ui.t('meta.map.aria.current', { n: v.level }),
     );
   }
 
@@ -644,8 +649,9 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     coinTween = window.requestAnimationFrame(step);
   }
 
-  function refreshLives(): void {
-    if (!livesChip || !livesCount) return;
+  /** Returns the time left on the countdown that is showing (0 = none). */
+  function refreshLives(): number {
+    if (!livesChip || !livesCount) return 0;
     const info = profile.lives();
     const text = info.count >= info.max ? ui.t('common.full') : i18n.clock(info.nextInMs);
     livesChip.set(text, false);
@@ -656,6 +662,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     }
     livesChip.el.classList.toggle('m-chip--empty', info.count <= 0);
     livesChip.el.setAttribute('aria-label', ui.t('meta.map.aria.lives', { n: info.count }));
+    return info.count >= info.max ? 0 : info.nextInMs;
   }
 
   function refreshDailyBadge(): void {
@@ -687,18 +694,18 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     }
   }
 
-  let ticker = 0;
-  function startTicker(): void {
-    stopTicker();
-    if (disposed || paused) return;
-    ticker = window.setInterval(() => {
-      refreshLives();
-      refreshDailyBadge();
-    }, 1000);
-  }
-  function stopTicker(): void {
-    if (ticker) window.clearInterval(ticker);
-    ticker = 0;
+  /** Follows the lives countdown second by second (and the calendar, for the daily reward). */
+  let stopTicker: (() => void) | null = null;
+
+  function tick(): number {
+    if (disposed) return 0;
+    // a new day may switch the daily reward on while the map is showing: the tray gains a button
+    if (!celebrating && ui.feature('daily') !== showDaily) {
+      opts.onStale();
+      return 0;
+    }
+    refreshDailyBadge();
+    return refreshLives();
   }
 
   // ───────────────────────────── win celebration ─────────────────────────────
@@ -933,9 +940,9 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       refreshDailyBadge();
       unsubscribe = profile.subscribe(refreshProfile);
       window.addEventListener('resize', onResize);
-      startTicker();
       if (won) celebrate(won);
       else autoPopups();
+      stopTicker = ui.ticker(tick);
     },
 
     dispose(): void {
@@ -943,7 +950,8 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       celebrating = false;
       for (const id of celebrationTimers) window.clearTimeout(id);
       celebrationTimers = [];
-      stopTicker();
+      if (stopTicker) stopTicker();
+      stopTicker = null;
       window.clearTimeout(warmTimer);
       window.clearTimeout(resizeTimer);
       window.cancelAnimationFrame(coinTween);
@@ -961,13 +969,8 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     },
 
     setPaused(value: boolean): void {
+      // the ticker stops and restarts with the app by itself (ui.ticker)
       paused = value;
-      if (value) stopTicker();
-      else {
-        refreshLives();
-        refreshDailyBadge();
-        startTicker();
-      }
     },
 
     scrollRatio(): number {

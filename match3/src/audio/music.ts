@@ -8,6 +8,11 @@
  *
  * The player only schedules; the caller decides when ({@link MusicPlayer.schedule} from a
  * timer when live, once up front when rendering offline).
+ *
+ * Its output goes to the music input of the output chain (output.ts), where a gentle
+ * compressor and a soft clipper give the plucked, spiky material some body and hold its peak
+ * at the music's level in the mix; the track's own gain (TrackStyle.gain) is therefore a
+ * drive into those, not a loudness.
  */
 import type { MusicTrack } from './types.ts';
 import { createComposer } from './phrase.ts';

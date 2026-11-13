@@ -133,7 +133,7 @@ const START_DELAY = 0.09;
  * anything aimed closer than that can find its start already in the past.
  */
 export const SFX_LEAD_MIN = 0.008;
-export const SFX_LEAD_MAX = 0.03;
+export const SFX_LEAD_MAX = 0.045;
 const SFX_LEAD_MARGIN = 0.003;
 /** Used when the context does not say how large its buffer is. */
 const SFX_LEAD_DEFAULT = 0.013;

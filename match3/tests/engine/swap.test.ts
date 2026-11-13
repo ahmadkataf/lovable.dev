@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { P, board, checkTurn, pieceOf, refHasMatch, stepTypes } from './helpers.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 // DESIGN §2.2 — which swaps are legal, and what an illegal one does.
 

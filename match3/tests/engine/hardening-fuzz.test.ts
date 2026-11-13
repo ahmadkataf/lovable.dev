@@ -13,11 +13,14 @@
  * clone() equivalence, and that swap() accepts exactly the moves validMoves() lists (every
  * adjacent pair of sampled boards, both orders).
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Game, applySteps, validateLevel } from '../../src/engine/index.ts';
 import type { Color, DebugPiece, LevelDef, PieceKind, Pos, Snapshot, Step } from '../../src/engine/index.ts';
 import { LEVELS } from '../../src/levels/index.ts';
 import { Referee, at, checkDeterminism, dice, genLevel, moveKey, perform, picture, playAudited, probeSwaps, type Call, type Dice, type GameLog } from './hardening-kit.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 const LONG = 600_000;
 

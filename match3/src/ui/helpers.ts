@@ -179,11 +179,6 @@ export function rewardedLeft(store: StoreApi, placement: AdPlacement): number | 
   return null;
 }
 
-/** "×3" that keeps its order inside right-to-left text (U+200E in front, see src/i18n/strings/common.ts). */
-export function timesText(amount: string): string {
-  return '\u200E×' + amount;
-}
-
 // ───────────────────────────── levels ─────────────────────────────
 
 /** A level by id from a list where index 0 = level 1 (ids are checked, not assumed). */

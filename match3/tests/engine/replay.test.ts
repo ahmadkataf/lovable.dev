@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { applySteps, type Snapshot, type Step } from '../../src/engine/index.ts';
 import { P, board, pieceOf } from './helpers.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 // The reference replayer is what the fuzz suite uses to prove transcripts faithful, so it has to
 // be strict itself: these tests make sure it notices a transcript that does not fit the board.

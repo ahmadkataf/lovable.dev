@@ -50,7 +50,8 @@ export function openDailyDialog(ui: Ui): Promise<void> {
         h(
           'div',
           { class: 'm-day__rewards' },
-          rewards.map((r) => rewardNode(r, last ? 38 : 32)),
+          // two rewards share a narrow card: smaller icons, so neither covers the other
+          rewards.map((r) => rewardNode(r, last ? 38 : rewards.length > 1 ? 25 : 32)),
         ),
         done ? h('span', { class: 'm-day__tick', 'aria-label': t('meta.daily.claimed') }, kit.icon('check', 16)) : null,
       );

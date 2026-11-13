@@ -615,6 +615,20 @@ async function run() {
     return undefined;
   });
 
+  await check('save-flush', function () {
+    // Before a purchase is consumed or acknowledged the wrapper forces the save onto disk.
+    if (!D || typeof D.flushSave !== 'function') {
+      set('save-flush', 'INFO', 'no DiagBridge in this build');
+      return undefined;
+    }
+    const start = performance.now();
+    const first = D.flushSave();
+    const second = D.flushSave();
+    assert(first === true && second === true, 'the save could not be forced onto disk (' + first + ', ' + second + ')');
+    assert(B.loadSave() === window.__diagSave.text, 'the save changed while it was flushed');
+    return 'save forced onto disk twice in ' + Math.round(performance.now() - start) + ' ms (what iapFinish does first)';
+  });
+
   await check('save-limit', function () {
     const good = B.loadSave();
     const big = new Array(1024 * 1024 + 2).join('x'); // 1 MiB + 1

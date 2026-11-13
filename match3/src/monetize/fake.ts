@@ -112,6 +112,18 @@ export function createFakeBridge(deps: FakeBridgeDeps): MonetizeBridge {
     emit({ type: 'ads', canRequestAds: true, rewardedReady: true, interstitialReady: true, privacyOptionsRequired: true });
   }
 
+  /** Open an overlay; one that cannot even be opened counts as closed without an answer. */
+  function ask<T>(open: () => Promise<T>, answered: (value: T) => void, failed: () => void): void {
+    let pending: Promise<T>;
+    try {
+      pending = open();
+    } catch {
+      failed();
+      return;
+    }
+    pending.then(answered, failed);
+  }
+
   function has(list: { id: string }[], id: string): boolean {
     for (const p of list) if (p.id === id) return true;
     return false;
@@ -178,7 +190,7 @@ export function createFakeBridge(deps: FakeBridgeDeps): MonetizeBridge {
           emit({ type: 'purchase', id: def.id, state: 'cancelled' });
         }
       };
-      deps.ui.purchase({ id: def.id, price: FAKE_PRICES[def.id] }).then(done, () => done('cancel'));
+      ask(() => deps.ui.purchase({ id: def.id, price: FAKE_PRICES[def.id] }), done, () => done('cancel'));
     },
 
     iapFinish(token: string): void {
@@ -222,7 +234,7 @@ export function createFakeBridge(deps: FakeBridgeDeps): MonetizeBridge {
         emit({ type: 'adResult', format: 'rewarded', result: watched ? 'earned' : 'dismissed' });
         emitAds();
       };
-      deps.ui.ad('rewarded', placement).then(done, () => done(false));
+      ask(() => deps.ui.ad('rewarded', placement), done, () => done(false));
     },
 
     adShowInterstitial(): void {
@@ -236,11 +248,11 @@ export function createFakeBridge(deps: FakeBridgeDeps): MonetizeBridge {
         emit({ type: 'adResult', format: 'interstitial', result: 'dismissed' });
         emitAds();
       };
-      deps.ui.ad('interstitial', null).then(done, done);
+      ask(() => deps.ui.ad('interstitial', null), done, done);
     },
 
     adPrivacyOptions(): void {
-      deps.ui.privacy().then(emitAds, emitAds);
+      ask(() => deps.ui.privacy(), emitAds, emitAds);
     },
   };
 }

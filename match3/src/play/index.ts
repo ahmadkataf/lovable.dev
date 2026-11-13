@@ -21,7 +21,9 @@ import type { SfxName, SfxOptions } from '../audio/types.ts';
 import { Game } from '../engine/index.ts';
 import type { InLevelBooster, LevelDef, Pos, Snapshot, StartBoosters, TurnResult } from '../engine/types.ts';
 import { chapterOf } from '../levels/index.ts';
+import type { AdPlacement } from '../monetize/types.ts';
 import type { HapticKind } from '../platform/types.ts';
+import type { LevelResultSummary } from '../state/types.ts';
 import * as econ from '../state/econ.ts';
 import { createKit } from '../ui/kit/index.ts';
 import type { DialogHandle, IconName, Kit } from '../ui/kit/index.ts';
@@ -37,6 +39,7 @@ import { cellAtPoint, isAdjacent, samePos } from './geometry.ts';
 import { createHud } from './hud.ts';
 import type { InputMode } from './input.ts';
 import { attachInput } from './input.ts';
+import { createJournal, settleOpenAttempt, webStorage } from './journal.ts';
 import type { PlayOptions } from './player.ts';
 import { createStepPlayer } from './player.ts';
 import { EARLY_LEVELS, FAST_FACTOR, INVALID_FOR_HINT, LOW_MOVES, T, hintDelay } from './timing.ts';
@@ -77,6 +80,10 @@ interface Session {
   hand: boolean;
   finaleRunning: boolean;
   finaleStart: number;
+  /** lowest "still to do" number each goal chip has shown (a late flyer must not raise it again) */
+  goalShown: number[];
+  /** the settled win: final board, stars and what the profile paid (set the moment the level is won) */
+  result: { snap: Snapshot; stars: 1 | 2 | 3; summary: LevelResultSummary } | null;
 }
 
 const IN_LEVEL: readonly InLevelBooster[] = ['hammer', 'freeSwap', 'shuffle'];
@@ -119,6 +126,14 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
   const speedFactor = fast ? FAST_FACTOR : 1;
   /** Real-time waits of the level flow shrink with `fast=1` too. */
   const rt = (ms: number): number => ms / speedFactor;
+
+  // An attempt that was left open by closing the app costs its life now (see ./journal.ts).
+  const journal = createJournal(webStorage());
+  try {
+    settleOpenAttempt(journal, profile);
+  } catch (err) {
+    if (typeof console !== 'undefined') console.error('[play] could not settle the open attempt', err);
+  }
 
   const sched = new Scheduler();
   const timers = new Timers({
@@ -237,10 +252,36 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
         perf.winTotal = 0;
       }
     }
+    // every tween has ended: each piece must be standing squarely on its cell now
+    const active = sched.active();
+    if (schedWasActive && !active) auditRest();
+    schedWasActive = active;
+
     if (debug) work.total += nowMs() - t0;
     if (debug) work.frames++;
 
     if (sched.active() || view.animating() || view.dirty()) raf = requestAnimationFrame(frame);
+  }
+
+  let schedWasActive = false;
+  const restHeld: (VPiece | null)[] = [null, null, null, null];
+
+  /**
+   * Only between turns: while a transcript plays, the scheduler is briefly empty between two
+   * awaited steps (the next step starts in a microtask), with pieces rightly in mid-pose.
+   */
+  function auditRest(): void {
+    const s = session;
+    if (!s || s.busy || player.busy() || sched.active()) return;
+    restHeld[0] = held;
+    restHeld[1] = dragPiece;
+    restHeld[2] = dragOther;
+    restHeld[3] = s.selection ? view.pieceAt(s.selection.c, s.selection.r) : null;
+    const problems = view.restAudit(restHeld);
+    restHeld[0] = restHeld[1] = restHeld[2] = restHeld[3] = null;
+    if (problems.length > 0 && debug && typeof console !== 'undefined') {
+      console.warn('[play] pieces were not at rest when the animation ended and were put right:\n  ' + problems.join('\n  '));
+    }
   }
   /** CPU time spent inside frame() (dev only). */
   const work = { frames: 0, total: 0 };
@@ -306,7 +347,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     // a tap anywhere skips the finale
     const onTap = (): void => {
       const s = session;
-      if (s && s.state === 'finale' && s.finaleRunning) player.finishNow();
+      if (s && s.state === 'finale' && s.finaleRunning) skipFinale();
     };
     hud.el.addEventListener('pointerdown', onTap);
     detachGlobal = () => {
@@ -347,8 +388,21 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     showMoves(snap.movesLeft, false);
     for (let i = 0; i < snap.goals.length; i++) {
       const g = snap.goals[i];
-      if (g) hud.setGoal(i, Math.max(0, g.target - g.current), g.done, false);
+      if (!g) continue;
+      const left = Math.max(0, g.target - g.current);
+      s.goalShown[i] = left;
+      hud.setGoal(i, left, g.done, false);
     }
+  }
+
+  /** A goal chip counts down only: a flyer that lands late never raises the number again. */
+  function showGoal(index: number, remaining: number, done: boolean): void {
+    const s = session;
+    if (!s) return;
+    const shown = s.goalShown[index];
+    if (shown !== undefined && remaining > shown) return;
+    s.goalShown[index] = remaining;
+    hud.setGoal(index, remaining, done, true);
   }
 
   const player = createStepPlayer(view, sched, {
@@ -368,7 +422,9 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       hud.setScore(s.tracker.score, true);
       for (let i = 0; i < changed.length; i++) {
         const gi = changed[i] as number;
-        hud.setGoal(gi, s.tracker.remaining(gi), s.tracker.done(gi), false);
+        const left = s.tracker.remaining(gi);
+        s.goalShown[gi] = left;
+        hud.setGoal(gi, left, s.tracker.done(gi), false);
       }
     },
     goalChanged(index, x, y, fly) {
@@ -380,12 +436,12 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       const kind = goal ? goal.goal.kind : 'score';
       const to = fly && kind !== 'sand' && kind !== 'score' && goal ? hud.goalCentre(index) : null;
       if (!to || !goal) {
-        hud.setGoal(index, remaining, done, true);
+        showGoal(index, remaining, done);
         return;
       }
       const my = gen;
       void hud.fly(hud.goalIcon(goal), cellToRoot(x, y), to, T.flyToChip, 26).then(() => {
-        if (my === gen) hud.setGoal(index, remaining, done, true);
+        if (my === gen) showGoal(index, remaining, done);
       });
     },
     cascade(n) {
@@ -624,6 +680,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     }
     s.busy = false;
     if (s.state !== 'play') return;
+    auditRest();
     if (snap.status === 'won') {
       onWon();
       return;
@@ -637,6 +694,19 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
         s.invalidStreak = 0;
         armHint(60);
       } else armHint();
+    }
+  }
+
+  /** A real move or a booster was used: from now on, leaving the level costs a life. */
+  function noteMove(): void {
+    const s = session;
+    if (!s) return;
+    s.movesMade++;
+    if (s.movesMade !== 1 || s.lifeTaken) return;
+    try {
+      journal.open(s.level.id, profile.data().stats.played);
+    } catch {
+      // without the note, closing the app now is simply not charged
     }
   }
 
@@ -807,10 +877,12 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     return !(profile.featureUnlocked && profile.featureUnlocked('shop') === false);
   }
 
-  function rewardedOk(): boolean {
+  function rewardedOk(placement: AdPlacement): boolean {
     if (profile.featureUnlocked && profile.featureUnlocked('rewardedAds') === false) return false;
     try {
-      return ctx.store.rewardedReady();
+      if (!ctx.store.rewardedReady()) return false;
+      // today's quota of this placement may be used up while other placements still have videos
+      return !ctx.store.rewardedLeft || ctx.store.rewardedLeft(placement) > 0;
     } catch {
       return false;
     }
@@ -846,6 +918,12 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     return elapsed < 2600 ? 1 : elapsed < 3600 ? 1.7 : 2.8;
   }
 
+  /** Skip what is left of the finale: the board jumps to its final state, sparks in flight are dropped. */
+  function skipFinale(): void {
+    player.finishNow();
+    hud.clearFlyers();
+  }
+
   function onWon(): void {
     const s = session;
     if (!s) return;
@@ -857,15 +935,28 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     cancelHint();
     hideHand();
     if (s.targeting) exitTargeting();
+
+    // The level is won: settle it NOW. The end bonus is computed at once (only its show takes
+    // time), so the final score and stars are known — and closing the app during the finale can
+    // no longer lose the win.
+    const res = s.game.endBonus();
+    const final = res.accepted ? res.snapshot : s.game.snapshot();
+    const bonus = turnStats(res.steps);
+    if (bonus.maxCascade > s.bestCascade) s.bestCascade = bonus.maxCascade;
+    const stars = (final.stars < 1 ? 1 : final.stars > 3 ? 3 : final.stars) as 1 | 2 | 3;
+    const summary = profile.recordWin(s.level.id, stars, final.score, s.bestCascade);
+    s.result = { snap: final, stars, summary };
+    journal.close();
+
     sfx('goalDone');
     haptic('success');
     hud.praise(i18n.t(FINALE_KEY), 'finale');
     kick();
     timers.after(rt(T.finaleBanner), () => {
       if (my !== gen || !session) return;
-      const res = s.game.endBonus();
       if (!res.accepted || res.steps.length === 0) {
-        if (res.accepted) s.snap = res.snapshot;
+        s.snap = final;
+        syncHud(final);
         showWin();
         return;
       }
@@ -873,16 +964,14 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       s.finaleStart = nowMs();
       sfx('finale');
       // whatever happens, the finale is over after 5 s
-      const cap = timers.after(rt(T.finaleMax), () => player.finishNow());
-      void player.play(res.steps, res.snapshot, { swapCostsMove: false, speed: finaleSpeed, finaleBudget: 2200 }).then(() => {
+      const cap = timers.after(rt(T.finaleMax), skipFinale);
+      void player.play(res.steps, final, { swapCostsMove: false, speed: finaleSpeed, finaleBudget: 2200 }).then(() => {
         timers.cancel(cap);
         if (my !== gen || !session) return;
         s.finaleRunning = false;
-        s.snap = res.snapshot;
-        syncHud(res.snapshot);
+        s.snap = final;
+        syncHud(final);
         hud.chain(0);
-        const stats = turnStats(res.steps);
-        if (stats.maxCascade > s.bestCascade) s.bestCascade = stats.maxCascade;
         showWin();
       });
     });
@@ -909,12 +998,10 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
 
   function showWin(): void {
     const s = session;
-    if (!s) return;
+    if (!s || !s.result) return;
     const my = gen;
     s.state = 'won';
-    const snap = s.snap;
-    const stars = (snap.stars < 1 ? 1 : snap.stars > 3 ? 3 : snap.stars) as 1 | 2 | 3;
-    const summary = profile.recordWin(s.level.id, stars, snap.score, s.bestCascade);
+    const { snap, stars, summary } = s.result;
     const id = s.level.id;
     const hasNext = id < ctx.levels.length;
     sfx('win');
@@ -923,17 +1010,17 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       score: snap.score,
       newBest: summary.newBest && !summary.firstClear,
       coins: summary.coinsEarned,
-      canDouble: summary.coinsEarned > 0 && rewardedOk(),
+      canDouble: summary.coinsEarned > 0 && rewardedOk('doubleReward'),
       onDouble: () =>
         ctx.store.showRewarded('doubleReward').then(
           (outcome) => {
-            if (my !== gen) return false;
             if (outcome === 'earned') {
+              // the video was watched: the coins are the player's, whatever became of this screen meanwhile
               profile.addCoins(summary.coinsEarned);
-              sfx('reward');
-              return true;
+              if (my === gen) sfx('reward');
+              return my === gen;
             }
-            if (outcome === 'unavailable') kit.toast(i18n.t('play.noVideo'));
+            if (my === gen && outcome === 'unavailable') kit.toast(i18n.t('play.noVideo'));
             return false;
           },
           () => false,
@@ -954,6 +1041,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     if (!s || s.lifeTaken) return;
     s.lifeTaken = true;
     profile.loseLife();
+    journal.close();
     sfx('lifeLost');
   }
 
@@ -1008,7 +1096,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       canContinue,
       price,
       coinMoves,
-      adOffer: !s.adUsed && rewardedOk(),
+      adOffer: !s.adUsed && rewardedOk('extraMoves'),
       adMoves,
       coins: () => profile.coins(),
       caravan: (profile.caravan && profile.caravan()) || 0,
@@ -1335,6 +1423,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     dragPiece = null;
     dragOther = null;
     held = null;
+    // every orderly way out has settled the attempt by now; only an app that is killed leaves the note behind
+    journal.close();
     dropFreeze(FREEZE_DIALOG);
     slowLeft = 0;
     session = null;
@@ -1371,6 +1461,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       hand: false,
       finaleRunning: false,
       finaleStart: 0,
+      goalShown: snap.goals.map((g) => Math.max(0, g.target - g.current)),
+      result: null,
     };
     session = s;
     try {
@@ -1454,7 +1546,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
         particles: view.particleCount(),
       }),
       loop: () => ({ running: raf !== 0, tweens: sched.count(), timers: timers.count(), dialogs: own.length, frozen }),
-      finish: () => player.finishNow(),
+      finish: () => skipFinale(),
       /** the renderer's own model: what is drawn where (compare with snapshot()) */
       model: () => (session ? view.debugState() : null),
       /** bookkeeping of the running attempt */
@@ -1474,6 +1566,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
           hand: s.hand,
           attempt,
           flyers: hud.flyerCount(),
+          /** the open-attempt note (closing the app now would cost a life at the next start) */
+          note: journal.pending(),
         };
       },
     };
@@ -1491,6 +1585,11 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     stop() {
       teardown();
       if (detachGlobal) detachGlobal();
+      // The shell tells only the screen on display about pause / resume: once stopped, this screen
+      // would never hear that the app came back (an interstitial closing after the map is up), and
+      // the next level would start frozen. A pause that is still on is announced again when the
+      // screen is mounted the next time.
+      dropFreeze(FREEZE_APP);
     },
     handleBack() {
       const s = session;
@@ -1504,7 +1603,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
         return true;
       }
       if (s.state === 'finale') {
-        if (s.finaleRunning) player.finishNow();
+        if (s.finaleRunning) skipFinale();
         return true;
       }
       if (s.state === 'play' || s.state === 'intro') openPauseDialog();

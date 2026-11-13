@@ -32,8 +32,8 @@ const table: StringTable = {
 
     // ── Caravan (win streak) ──
     'meta.caravan.name': 'Caravan',
-    'meta.caravan.brings': 'Your Caravan brings you, free:',
-    'meta.caravan.hint': 'Win levels in a row and your Caravan brings free boosters. Losing sends it back.',
+    'meta.caravan.brings': 'Free:',
+    'meta.caravan.hint': 'Win in a row for free boosters.',
     'meta.caravan.wins': '{n, plural, one {1 win in a row} other {{n} wins in a row}}',
 
     // ── lives ──
@@ -160,8 +160,8 @@ const table: StringTable = {
 
     // ── Caravan (win streak) ──
     'meta.caravan.name': 'القافلة',
-    'meta.caravan.brings': 'قافلتك تحمل لك مجانًا:',
-    'meta.caravan.hint': 'فُز بالمراحل تباعًا لتحمل لك القافلة معزّزات مجانية، والخسارة تعيدها أدراجها.',
+    'meta.caravan.brings': 'مجانًا:',
+    'meta.caravan.hint': 'فُز تباعًا لتحصل على معزّزات مجانية.',
     'meta.caravan.wins': '{n, plural, one {فوز واحد متتالٍ} two {فوزان متتاليان} few {{n} انتصارات متتالية} other {{n} فوزًا متتاليًا}}',
 
     // ── lives ──

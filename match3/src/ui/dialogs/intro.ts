@@ -1,11 +1,12 @@
 /**
- * Level intro: "Level N", the goals as icon + sentence, the best result when replaying, the
- * Caravan (win streak) and its gift, the start boosters as toggles, and one primary button: Play.
+ * Level intro: "Level N" (with the "hard level" tag or, on a replay, the stars already won), the
+ * goals as icon + sentence, the Caravan (win streak) and its gift, the start boosters as toggles,
+ * and one primary button: Play.
  * Play needs a life (once the lives system is unlocked): with none left it opens the lives dialog.
  */
 import type { LevelDef, StartBoosters } from '../../engine/types.ts';
 import type { StartBoosterId } from '../../state/types.ts';
-import { START_BOOSTER_IDS, boosterIcon, boosterList, goalIcon, goalText, mergeBoosters } from '../helpers.ts';
+import { START_BOOSTER_IDS, boosterIcon, boosterList, goalIcon, goalText } from '../helpers.ts';
 import type { DialogHandle, Qty } from '../kit/index.ts';
 import type { Ui } from '../types.ts';
 
@@ -23,72 +24,54 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
 
   const body = h('div', { class: 'm-intro' });
   const selected: StartBoosters = {};
+  let launched = false;
 
-  // ── moves, lives (once that system is unlocked) and the "hard level" tag ──
+  function sfx(name: 'select' | 'coin'): void {
+    try {
+      audio.sfx(name);
+    } catch {
+      // sound is a nicety
+    }
+  }
+
+  // ── moves and lives (once that system is unlocked) ──
   const livesText = h('span', { class: 'k-num' });
-  const livesPill = ui.feature('lives') ? h('div', { class: 'm-pill m-pill--lives' }, kit.icon('heart', 22), livesText) : null;
-  function renderLives(): void {
-    if (!livesPill) return;
+  const livesPill = ui.feature('lives') ? h('div', { class: 'm-pill m-pill--lives' }, kit.icon('heart', 20), livesText) : null;
+  /** Returns the time left until the next life (0 = full, or nothing to show). */
+  function renderLives(): number {
+    if (!livesPill) return 0;
     const info = profile.lives();
-    livesText.textContent = info.count + '/' + info.max;
+    const text = info.count + '/' + info.max;
+    if (livesText.textContent !== text) livesText.textContent = text;
     livesPill.classList.toggle('m-pill--empty', info.count <= 0);
     livesPill.setAttribute('aria-label', t('meta.map.aria.lives', { n: info.count }));
+    return info.count >= info.max ? 0 : info.nextInMs;
   }
-  renderLives();
-  body.appendChild(
-    h(
-      'div',
-      { class: 'm-intro__meta' },
-      h('div', { class: 'm-pill' }, kit.icon('moves', 22), h('span', { text: t('meta.intro.moves', { n: level.moves }) })),
-      livesPill,
-      level.hard ? h('div', { class: 'm-tag m-tag--hard' }, h('i', { class: 'm-tag__gem' }), h('span', { text: t('meta.intro.hard') })) : null,
-    ),
-  );
+  body.appendChild(h('div', { class: 'm-intro__meta' }, h('div', { class: 'm-pill' }, kit.icon('moves', 20), h('span', { text: t('meta.intro.moves', { n: level.moves }) })), livesPill));
 
   // ── goals ──
   const goals = h('div', { class: 'm-goals' });
   for (const goal of level.goals) {
-    goals.appendChild(h('div', { class: 'm-goal' }, h('span', { class: 'm-goal__icon' }, kit.icon(goalIcon(goal), 34)), h('span', { class: 'm-goal__text', text: goalText(t, goal) })));
+    goals.appendChild(h('div', { class: 'm-goal' }, h('span', { class: 'm-goal__icon' }, kit.icon(goalIcon(goal), 30)), h('span', { class: 'm-goal__text', text: goalText(t, goal) })));
   }
   body.appendChild(goals);
 
-  // ── best result (replay) ──
-  const record = profile.record(level.id);
-  if (record) {
-    body.appendChild(
-      h(
-        'div',
-        { class: 'm-best' },
-        kit.starRow(record.stars, { size: 30 }).el,
-        h('div', { class: 'm-best__text' }, h('span', { text: t('meta.intro.best') }), h('b', { class: 'k-num', text: i18n.num(record.best) })),
-      ),
-    );
-  }
-
-  // ── Caravan ──
+  // ── Caravan: the streak as three steps; what it brings for this level, or how to get it going ──
   let gift: StartBoosters = {};
   if (ui.feature('caravan')) {
-    let wins = 0;
-    try {
-      wins = typeof profile.caravan === 'function' ? profile.caravan() || 0 : 0;
-      gift = (typeof profile.caravanBoosters === 'function' ? profile.caravanBoosters() : null) || {};
-    } catch {
-      gift = {};
-    }
+    const wins = profile.caravan();
+    gift = profile.caravanBoosters();
     const ids = boosterList(gift);
-    const steps = h('div', { class: 'm-caravan__steps', 'aria-hidden': 'true' });
+    const steps = h('span', { class: 'm-caravan__steps', 'aria-hidden': 'true' });
     for (let i = 1; i <= 3; i++) steps.appendChild(h('i', { class: i <= wins ? 'on' : '' }));
-    const box = h(
-      'div',
-      { class: 'm-caravan' + (ids.length > 0 ? ' m-caravan--on' : '') },
-      h('div', { class: 'm-caravan__head' }, h('b', { text: t('meta.caravan.name') }), steps, wins > 0 ? h('span', { class: 'm-caravan__wins', text: t('meta.caravan.wins', { n: wins }) }) : null),
-    );
+    const head = h('div', { class: 'm-caravan__head' }, h('b', { text: t('meta.caravan.name') }), steps);
+    const box = h('div', { class: 'm-caravan' + (ids.length > 0 ? ' m-caravan--on' : ''), 'aria-label': wins > 0 ? t('meta.caravan.wins', { n: wins }) : undefined }, head);
     if (ids.length > 0) {
-      const icons = h('div', { class: 'm-caravan__gifts' });
-      for (const id of ids) icons.appendChild(h('span', { class: 'm-caravan__gift', title: t('booster.' + id + '.name') }, kit.icon(boosterIcon(id), 30)));
-      box.appendChild(h('div', { class: 'm-caravan__row' }, h('span', { class: 'm-caravan__text', text: t('meta.caravan.brings') }), icons));
+      const icons = h('span', { class: 'm-caravan__gifts' }, h('span', { class: 'm-caravan__free', text: t('meta.caravan.brings') }));
+      for (const id of ids) icons.appendChild(h('span', { class: 'm-caravan__gift', title: t('booster.' + id + '.name') }, kit.icon(boosterIcon(id), 28)));
+      head.appendChild(icons);
     } else {
-      box.appendChild(h('div', { class: 'm-caravan__text m-caravan__text--hint', text: t('meta.caravan.hint') }));
+      box.appendChild(h('div', { class: 'm-caravan__hint', text: t('meta.caravan.hint') }));
     }
     body.appendChild(box);
   }
@@ -103,7 +86,7 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
     tile.el.classList.toggle('m-boost--on', on);
     tile.el.classList.toggle('m-boost--none', count <= 0 && !on);
     tile.el.setAttribute('aria-pressed', on ? 'true' : 'false');
-    tile.qty.set(count > 0 ? String(count) : '+', false);
+    tile.qty.set(count > 0 ? i18n.num(count) : '+', false);
   }
 
   function offerToBuy(tile: Tile): void {
@@ -122,14 +105,11 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
           icon: 'coin',
           variant: 'primary',
           onClick: () => {
+            if (!offer.isOpen()) return;
             if (profile.buyBooster(id)) {
               selected[id] = true;
               renderTile(tile);
-              try {
-                audio.sfx('coin');
-              } catch {
-                // sound is a nicety
-              }
+              sfx('coin');
               offer.close();
               return;
             }
@@ -143,6 +123,7 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
   }
 
   function toggle(tile: Tile): void {
+    if (launched) return;
     if (selected[tile.id]) {
       delete selected[tile.id];
     } else if (profile.boosterCount(tile.id) > 0) {
@@ -151,11 +132,7 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
       offerToBuy(tile);
       return;
     }
-    try {
-      audio.sfx('select');
-    } catch {
-      // sound is a nicety
-    }
+    sfx('select');
     renderTile(tile);
   }
 
@@ -166,7 +143,7 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
       const el = h(
         'button',
         { type: 'button', class: 'm-boost', dataset: { booster: id }, 'aria-label': t('booster.' + id + '.name') },
-        h('span', { class: 'm-boost__art' }, kit.icon(boosterIcon(id), 44), qty.el, h('span', { class: 'm-boost__tick', 'aria-hidden': 'true' }, kit.icon('check', 14))),
+        h('span', { class: 'm-boost__art' }, kit.icon(boosterIcon(id), 42), qty.el, h('span', { class: 'm-boost__tick', 'aria-hidden': 'true' }, kit.icon('check', 14))),
         h('span', { class: 'm-boost__name', text: t('booster.' + id + '.name') }),
       );
       const tile: Tile = { id, el, qty };
@@ -175,37 +152,27 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
       renderTile(tile);
       row.appendChild(el);
     }
-    body.appendChild(h('div', { class: 'm-intro__label', text: t('meta.intro.boosters') }));
-    body.appendChild(row);
+    body.appendChild(h('div', { class: 'm-intro__boosters' }, h('div', { class: 'm-intro__label', text: t('meta.intro.boosters') }), row));
   }
 
   // ── Play ──
   function play(): void {
+    if (launched) return;
     if (ui.feature('lives') && profile.lives().count <= 0) {
       kit.toast(t('meta.lives.need'), { icon: 'heart' });
       void ui.openLives();
       return;
     }
-    const chosen: StartBoosters = {};
-    for (const id of boosterList(selected)) {
-      if (profile.takeBooster(id)) chosen[id] = true;
-    }
-    let caravan: StartBoosters = {};
-    try {
-      caravan = (typeof profile.caravanBoosters === 'function' && ui.feature('caravan') ? profile.caravanBoosters() : null) || {};
-    } catch {
-      caravan = {};
-    }
+    // what the Caravan brings is decided now, not when the dialog was opened
+    const caravan = ui.feature('caravan') ? profile.caravanBoosters() : {};
     launched = true;
-    ctx.nav.toPlay(level.id, mergeBoosters(chosen, caravan));
+    // the chosen boosters leave the inventory only if the level really starts (see Ui.startLevel)
+    if (!ui.startLevel(level.id, selected, caravan)) launched = false;
   }
 
-  let launched = false;
   const playButton = kit.button({ label: t('common.play'), icon: 'play', size: 'lg', block: true, shine: true, onClick: play });
   playButton.dataset.act = 'intro-play';
 
-  // lives come back with time, which the profile does not announce: look once a second
-  const livesTimer = livesPill ? window.setInterval(renderLives, 1000) : 0;
   const unsubscribe = profile.subscribe(() => {
     renderLives();
     for (const tile of tiles) {
@@ -214,17 +181,39 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
       renderTile(tile);
     }
   });
+  let stopTicker: (() => void) | null = null;
 
   const dialog = kit.openDialog({
     title: t('common.level', { n: level.id }),
     icon: level.goals.length > 0 ? goalIcon(level.goals[0]!) : 'play',
     body,
     buttons: [playButton],
-    className: 'm-dialog-intro' + (level.hard ? ' m-dialog-intro--hard' : ''),
+    className: 'm-dialog-intro',
     onClose: () => {
       unsubscribe();
-      if (livesTimer) window.clearInterval(livesTimer);
+      if (stopTicker) stopTicker();
+      stopTicker = null;
     },
   });
+  dialog.el.dataset.dialog = 'intro';
+
+  // Under the title, in place of the ornament: the "hard level" tag, or the stars won so far and the best score.
+  const head = dialog.el.querySelector('.k-dialog__head');
+  const record = profile.record(level.id);
+  if (head && (level.hard || record)) {
+    const extra = h('div', { class: 'm-intro__head' });
+    if (level.hard) extra.appendChild(h('div', { class: 'm-tag m-tag--hard' }, h('i', { class: 'm-tag__gem' }), h('span', { text: t('meta.intro.hard') })));
+    if (record) {
+      extra.appendChild(
+        h('div', { class: 'm-best', 'aria-label': t('meta.intro.best') + ': ' + i18n.num(record.best) }, kit.starRow(record.stars, { size: 24 }).el, h('span', { class: 'm-best__text' }, h('span', { text: t('meta.intro.best') }), h('b', { class: 'k-num', text: i18n.num(record.best) }))),
+      );
+    }
+    head.appendChild(extra);
+    dialog.el.classList.add('m-dialog-intro--tagged');
+  }
+
+  // lives come back with time, which the profile does not announce: follow the countdown
+  if (livesPill && dialog.isOpen()) stopTicker = ui.ticker(renderLives);
+  else renderLives();
   return dialog;
 }

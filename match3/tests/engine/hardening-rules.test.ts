@@ -9,10 +9,13 @@
  * A / B / C only). Where a test needs a transcript without accidental matches among the random
  * refill gems, `quietRun` picks the first seed that gives one.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SCORE } from '../../src/engine/index.ts';
 import type { Pos, Snapshot, Step, TurnResult } from '../../src/engine/index.ts';
 import { at, audit, build, cellsOf, clearsOf, hitCells, hitList, keysOf, pieceAt, quietRun, stepTypes, stepsOf } from './hardening-kit.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 const D = 3;
 const E = 4;

@@ -9,7 +9,7 @@
 import type { ProductDef, ProductId, ProductInfo, PurchaseOutcome } from '../../monetize/types.ts';
 import * as econ from '../../state/index.ts';
 import type { BoosterId, Reward } from '../../state/types.ts';
-import { SHOP_BOOSTER_IDS, boosterIcon, coinPackArt, coinsIn, pickNumber, rewardView, rewardedLeft, splitProducts } from '../helpers.ts';
+import { SHOP_BOOSTER_IDS, boosterIcon, coinPackArt, coinsIn, rewardView, rewardedLeft, splitProducts } from '../helpers.ts';
 import type { KitButton, OfferCard } from '../kit/index.ts';
 import type { Ui } from '../types.ts';
 
@@ -21,9 +21,9 @@ interface BuyTarget {
   update(patch: { loading?: boolean }): void;
 }
 
-/** Coins granted by one "free coins" ad: from the economy constants (docs/DESIGN.md §7: 50). */
+/** Coins granted by one "free coins" ad (docs/DESIGN.md §7). */
 export function freeCoinsAmount(): number {
-  return pickNumber(econ, ['FREE_COINS_AD_REWARD', 'AD_FREE_COINS', 'FREE_COINS_REWARD', 'REWARDED_COINS', 'AD_COINS_REWARD', 'FREE_COINS_PER_AD', 'AD_REWARD_COINS'], 50);
+  return econ.FREE_COINS_AD_REWARD;
 }
 
 export function openShopDialog(ui: Ui): Promise<void> {
@@ -280,11 +280,11 @@ export function openShopDialog(ui: Ui): Promise<void> {
       });
       freeButton.dataset.act = 'free-coins';
       freeBox.appendChild(heading(t('meta.shop.free')));
+      // the button carries the picture (video badge, amount, coin): the card needs no artwork of its own
       freeBox.appendChild(
         h(
           'div',
           { class: 'k-offer k-offer--row m-shop__freecard' },
-          h('div', { class: 'k-offer__art' }, kit.icon('coinPile', 56)),
           h('div', { class: 'k-offer__texts' }, h('div', { class: 'k-offer__title', text: t('meta.ad.watch') }), freeLeftEl),
           h('div', { class: 'k-offer__action' }, freeButton),
         ),
@@ -303,7 +303,7 @@ export function openShopDialog(ui: Ui): Promise<void> {
       if (outcome === 'earned') {
         profile.addCoins(amount);
         sfx('coin');
-        if (open) flyCoins(freeBox.querySelector('.k-offer__art'));
+        if (open) flyCoins(freeButton);
         kit.toast(t('meta.shop.freeGot', { n: amount }), { icon: 'coin' });
       } else if (outcome === 'dismissed') {
         kit.toast(t('meta.ad.closed'), { icon: 'adVideo' });
@@ -347,8 +347,11 @@ export function openShopDialog(ui: Ui): Promise<void> {
             sfx('coin');
             kit.toast(t('meta.shop.boosterBought', { name }), { icon: boosterIcon(id), duration: 1600 });
           } else {
+            // never a dead button: say why, and show where coins come from
             sfx('invalid');
             kit.toast(t('common.notEnoughCoins'), { icon: 'coin' });
+            balance.bump();
+            showCoinOffers();
           }
         },
       });
@@ -366,7 +369,22 @@ export function openShopDialog(ui: Ui): Promise<void> {
   function patchBoosters(): void {
     const coins = profile.coins();
     for (const { id, card } of boosterCards) {
-      card.update({ quantity: '×' + i18n.num(profile.boosterCount(id)), disabled: coins < profile.boosterPrice(id) });
+      card.update({ quantity: '×' + i18n.num(profile.boosterCount(id)) });
+      // a price out of reach is shown as such, but the button still answers (see onBuy)
+      card.el.classList.toggle('m-brow--short', coins < profile.boosterPrice(id));
+    }
+  }
+
+  /** Bring the ways to get coins into view (coin packs, or the free-coins ad), when there are any. */
+  function showCoinOffers(): void {
+    const target = moneyBox.querySelector('.m-shop__grid') || (freeBox.firstChild as Element | null);
+    if (!target || !(target as HTMLElement).offsetParent) return;
+    const scroller = dialog.body;
+    const top = scroller.scrollTop + target.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 56 * kit.unit();
+    try {
+      scroller.scrollTo({ top: Math.max(0, top), behavior: kit.reducedMotion() ? 'auto' : 'smooth' });
+    } catch {
+      scroller.scrollTop = Math.max(0, top);
     }
   }
 

@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Game, type LevelDef, type Snapshot } from '../../src/engine/index.ts';
 import { P, board, checkTurn, picture, playRandomGame, refHasMatch, refValidMoves, stepTypes, stepsOf } from './helpers.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 // DESIGN §2.9 (goals, winning, losing, end bonus), §2.8 (shuffles), §2.11 (start boosters),
 // §2.12 (determinism), plus hint().

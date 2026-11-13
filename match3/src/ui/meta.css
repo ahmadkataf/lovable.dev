@@ -438,6 +438,19 @@
   font-size: calc(var(--k-u) * 21);
 }
 
+/* playable, never won, below the current level (only a damaged save shows these): the green medallion at normal size */
+.m-node--open .m-node__num {
+  text-shadow:
+    0 calc(var(--k-u) * 1.5) 0 rgba(6, 70, 42, 0.85),
+    0 0 calc(var(--k-u) * 3) rgba(6, 70, 42, 0.6);
+}
+
+.m-node--open.m-node--hard .m-node__num {
+  text-shadow:
+    0 calc(var(--k-u) * 1.5) 0 rgba(110, 12, 36, 0.85),
+    0 0 calc(var(--k-u) * 3) rgba(110, 12, 36, 0.6);
+}
+
 .m-node--current.m-node--hard .m-node__num {
   text-shadow:
     0 calc(var(--k-u) * 2) 0 rgba(110, 12, 36, 0.85),
@@ -1075,6 +1088,10 @@
 }
 
 /* ───────────────────────────── level intro ───────────────────────────── */
+/*
+ * Sized so that a level with two goals, the Caravan and the start boosters shows whole on a
+ * 360 × 640 phone; taller content (three goals, a replay) scrolls inside the dialog, Play stays put.
+ */
 
 .m-intro {
   display: flex;
@@ -1082,7 +1099,23 @@
 }
 
 .m-intro > * + * {
-  margin-top: calc(var(--k-u) * 10);
+  margin-top: calc(var(--k-u) * 8);
+}
+
+/* under the title, in place of the ornament: the "hard level" tag / the stars won so far */
+.m-dialog-intro--tagged .k-dialog__head .k-rule {
+  display: none;
+}
+
+.m-intro__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: calc(var(--k-u) * 5);
+}
+
+.m-intro__head > * + * {
+  margin-top: calc(var(--k-u) * 6);
 }
 
 .m-intro__meta {
@@ -1100,7 +1133,7 @@
 .m-pill {
   display: inline-flex;
   align-items: center;
-  padding: calc(var(--k-u) * 3) calc(var(--k-u) * 14) calc(var(--k-u) * 3) calc(var(--k-u) * 9);
+  padding: calc(var(--k-u) * 2) calc(var(--k-u) * 13) calc(var(--k-u) * 2) calc(var(--k-u) * 9);
   border-radius: calc(var(--k-u) * 14);
   background: rgba(13, 10, 44, 0.55);
   box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(245, 201, 90, 0.65);
@@ -1111,7 +1144,7 @@
 }
 
 [dir='rtl'] .m-pill {
-  padding: calc(var(--k-u) * 3) calc(var(--k-u) * 9) calc(var(--k-u) * 3) calc(var(--k-u) * 14);
+  padding: calc(var(--k-u) * 2) calc(var(--k-u) * 9) calc(var(--k-u) * 2) calc(var(--k-u) * 13);
 }
 
 [dir='rtl'] .m-tag {
@@ -1132,7 +1165,7 @@
 }
 
 .m-goals {
-  padding: calc(var(--k-u) * 6) calc(var(--k-u) * 12);
+  padding: calc(var(--k-u) * 4) calc(var(--k-u) * 12);
   border-radius: calc(var(--k-u) * 18);
   background: rgba(13, 10, 44, 0.42);
   box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(168, 152, 245, 0.35);
@@ -1141,7 +1174,7 @@
 .m-goal {
   display: flex;
   align-items: center;
-  min-height: calc(var(--k-u) * 44);
+  min-height: calc(var(--k-u) * 40);
 }
 
 .m-goal + .m-goal {
@@ -1153,19 +1186,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--k-u) * 40);
+  width: calc(var(--k-u) * 36);
   margin-inline-end: calc(var(--k-u) * 10);
 }
 
 .m-goal__text {
   flex: 1 1 auto;
   min-width: 0;
+  padding: calc(var(--k-u) * 3) 0;
   font-size: calc(var(--k-u) * 16.5);
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
   text-align: start;
 }
 
+/* a replay: the stars won so far and the best score */
 .m-best {
   display: flex;
   align-items: center;
@@ -1174,23 +1209,25 @@
 
 .m-best__text {
   display: flex;
-  flex-direction: column;
-  margin-inline-start: calc(var(--k-u) * 12);
+  align-items: baseline;
+  margin-inline-start: calc(var(--k-u) * 10);
   font-size: calc(var(--k-u) * 13);
+  font-weight: 700;
   line-height: 1.25;
   color: var(--k-muted);
-  text-align: start;
 }
 
 .m-best__text b {
-  font-size: calc(var(--k-u) * 18);
+  margin-inline-start: calc(var(--k-u) * 6);
+  font-size: calc(var(--k-u) * 17);
   font-weight: 800;
   color: var(--k-cream);
 }
 
 .m-intro__label {
-  font-size: calc(var(--k-u) * 14.5);
+  font-size: calc(var(--k-u) * 14);
   font-weight: 700;
+  line-height: 1.3;
   color: var(--k-muted);
   text-align: center;
 }
@@ -1242,7 +1279,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: calc(var(--k-u) * 60);
+  height: calc(var(--k-u) * 56);
   border-radius: calc(var(--k-u) * 18);
   background: linear-gradient(180deg, #5946b8 0%, #3a2c8a 100%);
   box-shadow:
@@ -1290,7 +1327,7 @@
 
 .m-boost__name {
   display: block;
-  margin-top: calc(var(--k-u) * 9);
+  margin-top: calc(var(--k-u) * 8);
   font-size: calc(var(--k-u) * 12.5);
   font-weight: 700;
   line-height: 1.2;
@@ -1301,9 +1338,9 @@
   margin-top: calc(var(--k-u) * 8);
 }
 
-/* Caravan */
+/* Caravan: name, the streak as three steps, and what it brings (or how to get it going) */
 .m-caravan {
-  padding: calc(var(--k-u) * 7) calc(var(--k-u) * 12);
+  padding: calc(var(--k-u) * 5) calc(var(--k-u) * 12) calc(var(--k-u) * 6);
   border-radius: calc(var(--k-u) * 18);
   background: rgba(13, 10, 44, 0.42);
   box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(168, 152, 245, 0.35);
@@ -1317,7 +1354,9 @@
 .m-caravan__head {
   display: flex;
   align-items: center;
+  min-height: calc(var(--k-u) * 30);
   font-size: calc(var(--k-u) * 15.5);
+  line-height: 1.3;
   color: var(--k-gold-light);
 }
 
@@ -1326,14 +1365,15 @@
 }
 
 .m-caravan__steps {
+  flex: none;
   display: flex;
-  margin: 0 calc(var(--k-u) * 10);
+  margin: 0 calc(var(--k-u) * 9);
 }
 
 .m-caravan__steps i {
-  width: calc(var(--k-u) * 13);
-  height: calc(var(--k-u) * 13);
-  margin: 0 calc(var(--k-u) * 3);
+  width: calc(var(--k-u) * 12);
+  height: calc(var(--k-u) * 12);
+  margin: 0 calc(var(--k-u) * 3.5);
   border-radius: calc(var(--k-u) * 3);
   background: rgba(13, 10, 44, 0.7);
   box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(245, 201, 90, 0.55);
@@ -1342,45 +1382,38 @@
 
 .m-caravan__steps i.on {
   background: linear-gradient(135deg, #fff1c0 0%, #f0b93f 100%);
-}
-
-.m-caravan__wins {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: calc(var(--k-u) * 12.5);
-  font-weight: 600;
-  color: var(--k-muted);
-  text-align: end;
-}
-
-.m-caravan__row {
-  display: flex;
-  align-items: center;
-  margin-top: calc(var(--k-u) * 6);
-}
-
-.m-caravan__text {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: calc(var(--k-u) * 13.5);
-  line-height: 1.35;
-  text-align: start;
-}
-
-.m-caravan__text--hint {
-  margin-top: calc(var(--k-u) * 3);
-  color: var(--k-muted);
-  font-size: calc(var(--k-u) * 12.5);
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) #fffae0, 0 0 calc(var(--k-u) * 6) rgba(255, 214, 102, 0.6);
 }
 
 .m-caravan__gifts {
-  flex: none;
+  flex: 1 1 auto;
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.m-caravan__free {
+  min-width: 0;
+  color: var(--k-cream);
+  font-size: calc(var(--k-u) * 12.5);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: end;
 }
 
 .m-caravan__gift {
+  flex: none;
   display: flex;
-  margin-inline-start: calc(var(--k-u) * 6);
+  margin-inline-start: calc(var(--k-u) * 5);
+}
+
+.m-caravan__hint {
+  color: var(--k-muted);
+  font-size: calc(var(--k-u) * 12.5);
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: start;
 }
 
 /* ───────────────────────────── lives ───────────────────────────── */
@@ -1568,8 +1601,31 @@
   flex-wrap: wrap;
 }
 
+.m-brow .k-offer__art {
+  width: calc(var(--k-u) * 54);
+  height: calc(var(--k-u) * 54);
+}
+
 .m-brow .k-offer__title {
-  font-size: calc(var(--k-u) * 18);
+  font-size: calc(var(--k-u) * 17);
+}
+
+/* a price out of reach: shown as such, still pressable (the press explains and points to the coins) */
+.m-brow--short .k-btn .k-btn__face {
+  filter: saturate(0.5) brightness(0.9);
+}
+
+.m-brow--short .k-btn .k-price {
+  opacity: 0.72;
+}
+
+/* free coins: texts and the video button */
+.m-shop__freecard .k-offer__texts {
+  margin-inline-start: calc(var(--k-u) * 4);
+}
+
+.m-shop__freecard .k-offer__action {
+  max-width: 58%;
 }
 
 .m-brow__desc {

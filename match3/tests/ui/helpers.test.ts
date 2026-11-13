@@ -17,7 +17,6 @@ import {
   levelById,
   mergeBoosters,
   nodeState,
-  pickNumber,
   rewardView,
   rewardedLeft,
   splitProducts,
@@ -56,12 +55,16 @@ describe('goals', () => {
 });
 
 describe('map nodes', () => {
-  it('a level is done, current or locked', () => {
+  it('a level is done, current, open or locked', () => {
     expect(nodeState(3, 5, 2)).toBe('done');
     expect(nodeState(5, 5, 0)).toBe('current');
     expect(nodeState(6, 5, 0)).toBe('locked');
     expect(nodeState(120, 120, 3)).toBe('done'); // the journey is finished: no current node
-    expect(nodeState(4, 5, 0)).toBe('current'); // never happens (an unlocked level below the frontier has stars), but it must be playable
+    // a damaged save can hold a playable level below the frontier that was never won: it is open,
+    // and there is still exactly one current level
+    expect(nodeState(4, 5, 0)).toBe('open');
+    const states = [1, 2, 3, 4, 5, 6, 7].map((id) => nodeState(id, 5, id === 2 ? 3 : 0));
+    expect(states).toEqual(['open', 'done', 'open', 'open', 'current', 'locked', 'locked']);
   });
 
   it('the focus level stays inside the level list', () => {
@@ -135,12 +138,6 @@ describe('ads', () => {
       },
     } as unknown as StoreApi;
     expect(rewardedLeft(broken, 'freeCoins')).toBe(null);
-  });
-
-  it('picks a number from the economy constants by name', () => {
-    expect(pickNumber({ A: 0, B: 50.9 }, ['A', 'B'], 7)).toBe(50);
-    expect(pickNumber({ A: 'x' }, ['A', 'Z'], 7)).toBe(7);
-    expect(pickNumber(null, ['A'], 7)).toBe(7);
   });
 });
 

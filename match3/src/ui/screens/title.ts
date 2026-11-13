@@ -19,18 +19,19 @@ export function createTitleScreen(ui: Ui): Screen {
   backdrop.style.background = 'linear-gradient(180deg, ' + palette.bgTop + ' 0%, ' + palette.bgBottom + ' 100%)';
 
   /** The very first launch goes straight into level 1: no map detour, no pop-ups. */
-  const firstRun = profile.highestUnlocked() <= 1 && profile.record(1) === null;
-  const next = focusLevel(profile.highestUnlocked(), ui.world.levels.length);
+  const isFirstRun = (): boolean => profile.highestUnlocked() <= 1 && profile.record(1) === null;
+  const caption = (): string | null => (isFirstRun() ? null : ui.t('common.level', { n: focusLevel(profile.highestUnlocked(), ui.world.levels.length) }));
 
   const playButton = kit.button({
     label: ui.t('common.play'),
     icon: 'play',
     size: 'lg',
     shine: true,
-    caption: firstRun ? undefined : ui.t('common.level', { n: next }),
+    caption: caption() || undefined,
     className: 'm-title__play',
     onClick: () => {
-      if (firstRun) ctx.nav.toPlay(1, {});
+      // judged at the moment of the press: the progress may have been reset while this screen was up
+      if (isFirstRun()) ctx.nav.toPlay(1, {});
       else ctx.nav.toMap();
     },
   });
@@ -52,6 +53,7 @@ export function createTitleScreen(ui: Ui): Screen {
   let disposed = false;
   let resizeTimer = 0;
   let lastSize = '';
+  let unsubscribe: (() => void) | null = null;
 
   function layout(): void {
     if (disposed) return;
@@ -85,11 +87,17 @@ export function createTitleScreen(ui: Ui): Screen {
     shown(): void {
       layout();
       window.addEventListener('resize', onResize);
+      // "Level N" under Play follows the profile (a reset from the settings turns it back into a first run)
+      unsubscribe = profile.subscribe(() => {
+        if (!disposed) playButton.update({ caption: caption() });
+      });
     },
     dispose(): void {
       disposed = true;
       window.clearTimeout(resizeTimer);
       window.removeEventListener('resize', onResize);
+      if (unsubscribe) unsubscribe();
+      unsubscribe = null;
     },
   };
 }

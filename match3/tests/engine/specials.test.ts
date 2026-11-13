@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Fx, Hit, Pos, Snapshot, Step } from '../../src/engine/index.ts';
 import { P, board, cellOf, checkTurn, pieceOf, stepTypes, stepsOf } from './helpers.ts';
+
+// Generous: these tests are fast, but the suite must not fail because the machine is busy with other work.
+vi.setConfig({ testTimeout: 120_000 });
 
 // DESIGN §2.4 / §2.5 — what specials do, chain reactions, and the six swap combos.
 

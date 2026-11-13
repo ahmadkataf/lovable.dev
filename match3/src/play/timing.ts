@@ -89,6 +89,8 @@ export const T = {
   hintRepeat: 5000,
   /** two bounces toward each other */
   hintBounce: 600,
+  /** the hint halo stays this long */
+  hintShow: 1500,
 
   // ── input ──
   /** a swap made while the board resolves waits at most this long (real time) */

@@ -10,6 +10,8 @@ import type { HapticKind } from '../platform/types.ts';
 // ───────────────────────────── limits ─────────────────────────────
 
 export const FEEDBACK = {
+  /** a gem under the finger or selected grows to this */
+  pickScale: 1.12,
   /** shards per cleared gem */
   particlesPerGem: 8,
   /** particle lifetime ceiling, ms */

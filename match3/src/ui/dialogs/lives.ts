@@ -63,32 +63,24 @@ export function openLivesDialog(ui: Ui): Promise<void> {
         (outcome) => {
           adButton.update({ loading: false });
           if (outcome === 'earned') {
-            let added = false;
-            try {
-              if (typeof profile.addLife === 'function') added = profile.addLife();
-              else {
-                const before = profile.lives().count;
-                profile.grant([{ kind: 'lives', amount: 1 }]);
-                added = profile.lives().count > before;
-              }
-            } catch (err) {
-              console.error('[lives] could not add the life', err);
-            }
-            if (added) {
+            if (profile.addLife()) {
               sfx('reward');
               kit.toast(t('meta.lives.gotOne'), { icon: 'heart' });
+            } else {
+              // the last life came back by itself while the ad was playing
+              kit.toast(t('meta.lives.full'), { icon: 'heart' });
             }
           } else if (outcome === 'dismissed') {
             kit.toast(t('meta.ad.closed'), { icon: 'adVideo' });
           } else {
             kit.toast(t('meta.ad.none'), { icon: 'adVideo' });
           }
-          render();
+          if (dialog.isOpen()) render();
         },
         () => {
           adButton.update({ loading: false });
           kit.toast(t('meta.ad.none'), { icon: 'adVideo' });
-          render();
+          if (dialog.isOpen()) render();
         },
       );
     },
@@ -99,9 +91,11 @@ export function openLivesDialog(ui: Ui): Promise<void> {
   body.appendChild(actions);
 
   let lastCount = -1;
+  let shownFull: boolean | null = null;
   let titleKey = '';
 
-  function render(): void {
+  /** Draws the current state; returns the time left on the countdown (0 when the lives are full). */
+  function render(): number {
     const info = profile.lives();
     const full = info.count >= info.max;
     if (info.count !== lastCount) {
@@ -111,13 +105,19 @@ export function openLivesDialog(ui: Ui): Promise<void> {
       for (let i = 0; i < info.max; i++) pips.appendChild(h('i', { class: i < info.count ? 'on' : '' }));
     }
     heart.classList.toggle('m-lives__heart--empty', info.count <= 0);
-    kit.clear(status);
-    if (full) {
-      status.appendChild(h('span', { text: t('meta.lives.full') }));
-    } else {
-      clock.textContent = i18n.clock(info.nextInMs);
-      status.appendChild(h('span', { text: t('meta.lives.next') }));
-      status.appendChild(clock);
+    if (full !== shownFull) {
+      shownFull = full;
+      kit.clear(status);
+      if (full) {
+        status.appendChild(h('span', { text: t('meta.lives.full') }));
+      } else {
+        status.appendChild(h('span', { text: t('meta.lives.next') }));
+        status.appendChild(clock);
+      }
+    }
+    if (!full) {
+      const text = i18n.clock(info.nextInMs);
+      if (clock.textContent !== text) clock.textContent = text;
     }
     refillButton.update({ disabled: full });
     refillButton.classList.toggle('m-hidden', full);
@@ -135,6 +135,7 @@ export function openLivesDialog(ui: Ui): Promise<void> {
       titleKey = key;
       dialog.setTitle(t(key));
     }
+    return full ? 0 : info.nextInMs;
   }
 
   const dialog = kit.openDialog({
@@ -142,14 +143,15 @@ export function openLivesDialog(ui: Ui): Promise<void> {
     body,
     className: 'm-dialog-lives',
     onClose: () => {
-      window.clearInterval(timer);
+      stopTicker();
       unsubscribe();
       unwatch();
     },
   });
-  const timer = window.setInterval(render, 1000);
-  const unsubscribe = profile.subscribe(render);
-  const unwatch = store.onChange(render);
-  render();
+  dialog.el.dataset.dialog = 'lives';
+  const unsubscribe = profile.subscribe(() => void render());
+  const unwatch = store.onChange(() => void render());
+  // follows the countdown second by second; stands still while the app is in the background
+  const stopTicker = ui.ticker(render);
   return dialog.closed.then(() => undefined);
 }

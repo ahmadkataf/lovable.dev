@@ -107,6 +107,12 @@ export const INTERSTITIALS_PER_DAY = 5;
 export const AD_WATCHDOG_MS = 120_000;
 /** After the app returned from the background with an ad still open, its result must arrive within this long. */
 export const AD_RESUME_GRACE_MS = 15_000;
+/**
+ * While the app is in the background with an ad open (the ad covers it) the ad's time does not
+ * count — but should the return never be reported, the ad is given up after this long, so that
+ * whoever waits for it is answered in any case.
+ */
+export const AD_AWAY_WATCHDOG_MS = 7_200_000;
 /** A purchase flow that never reports back is given up after this long (a late result is still granted). */
 export const BUY_WATCHDOG_MS = 600_000;
 /**

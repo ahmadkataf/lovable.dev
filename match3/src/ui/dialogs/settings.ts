@@ -184,8 +184,11 @@ export function openSettingsDialog(ui: Ui): Promise<void> {
   // the language switch re-renders this dialog in place; the screen behind is rebuilt by the shell
   const offLang = i18n.onChange(() => {
     dialog.setTitle(t('common.settings'));
+    const closeButton = dialog.el.querySelector('.k-dialog__x');
+    if (closeButton) closeButton.setAttribute('aria-label', t('common.close'));
     render();
   });
+  dialog.el.dataset.dialog = 'settings';
   const offStore = store.onChange(() => {
     if (dialog.isOpen()) render();
   });

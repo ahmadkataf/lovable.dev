@@ -32,6 +32,7 @@ import type { FullProfile } from '../state/extensions.ts';
 import type { Reward } from '../state/types.ts';
 import type { AdPlacement, FullStoreApi, MonetizeBridge, ProductDef, ProductId, ProductInfo, PurchaseOutcome, RewardedOutcome } from './types.ts';
 import {
+  AD_AWAY_WATCHDOG_MS,
   AD_PLACEMENTS,
   AD_RESUME_GRACE_MS,
   AD_WATCHDOG_MS,
@@ -107,6 +108,18 @@ function log(what: string, err: unknown): void {
   } catch {
     // even logging failed: nothing may escape from here
   }
+}
+
+/** `fn`, except that a failure is logged and answered with `fallback()`. */
+function guard<A extends unknown[], R>(what: string, fallback: () => R, fn: (...args: A) => R): (...args: A) => R {
+  return (...args: A): R => {
+    try {
+      return fn(...args);
+    } catch (err) {
+      log(what + ' failed', err);
+      return fallback();
+    }
+  };
 }
 
 /** What the build was compiled with. Anything unreadable means "nothing". */
@@ -603,10 +616,10 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
 
   platform.onPause(() => {
     // A full-screen ad (or the store's own screen) is in front: its time does not count against it.
+    // Only a very long backstop stays, for a return that is never reported.
     if (ad) {
       ad.away = true;
-      if (ad.timer !== null) clearTimeout(ad.timer);
-      ad.timer = null;
+      armAdWatchdog(AD_AWAY_WATCHDOG_MS);
     }
     const open = buying;
     if (open) {
@@ -786,5 +799,25 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
     },
   };
 
-  return api;
+  // The last line of defence for "nothing in here throws": should anything above ever fail in a
+  // way nobody foresaw, a question gets its cautious answer and a request resolves as "nothing
+  // happened" — never an exception into a screen, never a promise that is not returned.
+  return {
+    receive,
+    start: api.start,
+    iapAvailable: guard('iapAvailable', () => false, api.iapAvailable),
+    products: guard('products', () => [], api.products),
+    buy: guard('buy', () => Promise.resolve<PurchaseOutcome>('error'), api.buy),
+    restore: guard('restore', () => Promise.resolve(0), api.restore),
+    owns: guard('owns', () => false, api.owns),
+    adsAvailable: guard('adsAvailable', () => false, api.adsAvailable),
+    rewardedReady: guard('rewardedReady', () => false, api.rewardedReady),
+    freeCoinAdsLeft: guard('freeCoinAdsLeft', () => 0, api.freeCoinAdsLeft),
+    rewardedLeft: guard('rewardedLeft', () => 0, api.rewardedLeft),
+    showRewarded: guard('showRewarded', () => Promise.resolve<RewardedOutcome>('unavailable'), api.showRewarded),
+    maybeShowInterstitial: guard('maybeShowInterstitial', () => Promise.resolve(false), api.maybeShowInterstitial),
+    privacyOptionsRequired: guard('privacyOptionsRequired', () => false, api.privacyOptionsRequired),
+    showPrivacyOptions: guard('showPrivacyOptions', () => Promise.resolve(), api.showPrivacyOptions),
+    onChange: api.onChange,
+  };
 }
