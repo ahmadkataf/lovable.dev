@@ -8,7 +8,7 @@
  */
 import type { AppContext, Navigator, PlayScreen } from '../app/types.ts';
 import { createArt } from '../art/index.ts';
-import { createAudio } from '../audio/index.ts';
+import type { AudioApi } from '../audio/types.ts';
 import { validateLevel } from '../engine/index.ts';
 import type { LevelDef, StartBoosters } from '../engine/types.ts';
 import { createI18n } from '../i18n/index.ts';
@@ -170,8 +170,23 @@ if (q.get('keep') !== '1') {
   }
 }
 
+/**
+ * The real audio engine — or, when that module cannot be loaded (someone is editing it right now),
+ * a silent stand-in, so the harness and its tests keep working.
+ */
+async function loadAudio(): Promise<AudioApi> {
+  try {
+    const mod = await import('../audio/index.ts');
+    return mod.createAudio();
+  } catch (err) {
+    console.info('[demo] audio module unavailable, running silent: ' + String(err));
+    const noop = (): void => undefined;
+    return { unlock: noop, setSfxEnabled: noop, setMusicEnabled: noop, sfx: noop, music: noop, suspend: noop, resume: noop };
+  }
+}
+
 const art = createArt();
-const audio = createAudio();
+const audio = await loadAudio();
 const i18n = createI18n(lang);
 const platform = createPlatform();
 const kit = createKit({ art, audio, i18n, platform });

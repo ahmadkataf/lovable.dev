@@ -5,34 +5,33 @@
  * The model is deliberately written differently from the implementation: it keeps no timestamps at
  * all, only "how far the current interval has progressed", and is fed time DIFFERENCES.
  * Rules it encodes (DESIGN §5 and the profile's documented behaviour):
- *  - at most 5 lives; while fewer, 20 minutes of progress make one life; full ⇒ no progress is kept;
+ *  - at most 5 lives; while fewer, 30 minutes of progress make one life; full ⇒ no progress is kept;
  *  - time is only noticed when the profile looks at its lives (it is lazy), so only the net change
  *    since the last look counts;
  *  - a clock that moved backwards takes progress away but never below zero and never takes a life;
- *  - refilling costs 120 coins and needs a missing life.
+ *  - refilling costs 900 coins and needs a missing life.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createProfile, fixedOffsetDayNumber, freshSave } from '../../src/state/index.ts';
 import type { ProfileApi, Reward } from '../../src/state/types.ts';
-import { DAY, HOUR, MINUTE, SECOND, harness, rng } from './harness.ts';
+import { DAY, HOUR, SECOND, harness, rng } from './harness.ts';
 import type { Harness } from './harness.ts';
 
 // Thousands of cases per test: quick on an idle machine, but allow for a busy one.
 vi.setConfig({ testTimeout: 60_000 });
 
-// NOTE — which design these numbers are: docs/DESIGN.md §5 was revised by the strategy study while
-// this suite was being written (30-minute lives, 2,000 starting coins, new prices, booster unlocks,
-// a new daily cycle). The profile still implements the previous §5, and so do the numbers below;
-// the revision is implemented by the economy module (see src/state/extensions.ts). When it lands,
-// update the hand-written numbers in this file — the rules being tested do not change.
-const INTERVAL = 20 * MINUTE;
+// The numbers below are hand-written from docs/DESIGN.md §5 (30-minute lives, 900-coin refill, 2,000
+// starting coins) on purpose: the reference model must not share constants with the implementation.
+/** One twentieth of the regeneration interval: the scenarios are written in twentieths. */
+const UNIT = 90 * SECOND;
+const INTERVAL = 20 * UNIT;
 const FULL = 5;
-const REFILL_PRICE = 120;
+const REFILL_PRICE = 900;
 
 class LivesModel {
   lives = FULL;
   progress = 0;
-  coins = 150;
+  coins = 2000;
   private seenAt: number;
 
   constructor(now: number) {
@@ -99,12 +98,12 @@ function sameInfo(actual: { count: number; max: number; nextInMs: number }, expe
 function clockStep(random: () => number): number {
   const roll = random();
   if (roll < 0.1) return Math.floor(random() * 10); // a few milliseconds
-  if (roll < 0.35) return Math.floor(random() * 25 * MINUTE);
+  if (roll < 0.35) return Math.floor(random() * 25 * UNIT);
   if (roll < 0.45) return INTERVAL + Math.floor(random() * 3) - 1; // exactly on the edge
   if (roll < 0.55) return Math.floor(random() * 3 * HOUR);
   if (roll < 0.6) return Math.floor(random() * 3 * DAY);
   if (roll < 0.65) return 0;
-  if (roll < 0.8) return -Math.floor(random() * 25 * MINUTE); // small backwards correction
+  if (roll < 0.8) return -Math.floor(random() * 25 * UNIT); // small backwards correction
   if (roll < 0.9) return -Math.floor(random() * 5 * HOUR);
   if (roll < 0.95) return -(INTERVAL + Math.floor(random() * 3) - 1);
   return -Math.floor(random() * 400 * DAY); // the clock was reset
@@ -249,7 +248,7 @@ describe('hardening: lives — what a look may and may not do', () => {
       const h = harness();
       h.profile.loseLife();
       h.profile.loseLife();
-      h.clock.now += 25 * MINUTE; // one life is back, unseen so far
+      h.clock.now += 25 * UNIT; // one life is back, unseen so far
       const writes = h.storage.writes;
       const notified = h.notifications.count;
       act(h);
@@ -263,7 +262,7 @@ describe('hardening: lives — what a look may and may not do', () => {
     const h = harness();
     for (let i = 0; i < 5; i++) h.profile.loseLife();
     h.profile.spendCoins(h.profile.coins()); // cannot afford a refill
-    h.clock.now += 45 * MINUTE; // two lives are back
+    h.clock.now += 45 * UNIT; // two lives are back
     let writes = h.storage.writes;
     const notified = h.notifications.count;
     expect(h.profile.refillLives()).toBe(false);
@@ -322,7 +321,7 @@ describe('hardening: lives — a clock that does not work yet', () => {
   function twoLivesFiveMinutesIn(): string {
     const save = freshSave();
     save.lives = 2;
-    save.lifeTimer = START - 5 * MINUTE;
+    save.lifeTimer = START - 5 * UNIT;
     return JSON.stringify(save);
   }
 
@@ -344,12 +343,12 @@ describe('hardening: lives — a clock that does not work yet', () => {
         expect(storage.writes).toBe(0);
         // The clock works now: 5 minutes of the interval had passed, nothing more.
         clock.value = START;
-        expect(profile.lives(), String(broken)).toEqual({ count: 2, max: 5, nextInMs: 15 * MINUTE });
+        expect(profile.lives(), String(broken)).toEqual({ count: 2, max: 5, nextInMs: 15 * UNIT });
       }
     }
   });
 
-  it('a life lost while the clock is broken starts its 20 minutes when the clock first works', () => {
+  it('a life lost while the clock is broken starts its 30 minutes when the clock first works', () => {
     for (const broken of BROKEN) {
       const h = flaky(null);
       h.clock.value = broken;
@@ -370,15 +369,15 @@ describe('hardening: lives — a clock that does not work yet', () => {
   it('a clock that breaks later simply stands still', () => {
     const h = flaky(twoLivesFiveMinutesIn());
     h.clock.value = START;
-    expect(h.profile.lives().nextInMs).toBe(15 * MINUTE);
+    expect(h.profile.lives().nextInMs).toBe(15 * UNIT);
     for (const broken of BROKEN) {
       h.clock.value = broken;
-      expect(h.profile.lives()).toEqual({ count: 2, max: 5, nextInMs: 15 * MINUTE });
+      expect(h.profile.lives()).toEqual({ count: 2, max: 5, nextInMs: 15 * UNIT });
       expect(h.profile.loseLife()).toBe(true);
       h.profile.grant([{ kind: 'lives', amount: 1 }]);
     }
-    h.clock.value = START + 16 * MINUTE;
-    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 19 * MINUTE });
+    h.clock.value = START + 16 * UNIT;
+    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 19 * UNIT });
   });
 
   it('nothing can be claimed from the daily reward until the clock works', () => {
@@ -390,7 +389,7 @@ describe('hardening: lives — a clock that does not work yet', () => {
       expect(h.storage.writes).toBe(0);
       h.clock.value = START;
       expect(h.profile.daily()).toMatchObject({ canClaim: true, cycleDay: 0, streak: 0 });
-      expect(h.profile.claimDaily()).toEqual([{ kind: 'coins', amount: 50 }]);
+      expect(h.profile.claimDaily()).toEqual([{ kind: 'coins', amount: 100 }]);
       // …and a clock that breaks afterwards cannot unlock a second claim.
       h.clock.value = broken;
       expect(h.profile.claimDaily()).toBeNull();

@@ -8,7 +8,6 @@ import {
   nodePos,
   scrollFor,
   sectionHeight,
-  sectionsNear,
   smoothPath,
   smoothPieces,
   spanCount,
@@ -150,13 +149,5 @@ describe('map layout', () => {
     expect(scrollFor(100, 600, 5000, 0.6)).toBe(0);
     expect(scrollFor(4990, 600, 5000, 0.6)).toBe(4400);
     expect(scrollFor(100, 600, 300, 0.6)).toBe(0);
-  });
-
-  it('finds the sections near a viewport', () => {
-    const tops = [0, 1000, 2000, 3000];
-    const heights = [1000, 1000, 1000, 1000];
-    expect(sectionsNear(tops, heights, 1200, 1800, 0)).toEqual([1]);
-    expect(sectionsNear(tops, heights, 1200, 1800, 300)).toEqual([0, 1, 2]);
-    expect(sectionsNear(tops, heights, 9000, 9600, 100)).toEqual([]);
   });
 });

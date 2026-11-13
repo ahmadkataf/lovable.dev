@@ -7,7 +7,7 @@ export type SfxName =
   | 'select'      // picking up a gem
   | 'swap'        // valid swap whoosh
   | 'invalid'     // rejected swap
-  | 'match'       // gems clearing; opts.step = cascade number (1..n) raises the pitch along the scale
+  | 'match'       // gems clearing; opts.step = cascade number (1..n) climbs the pitch ladder (12 rungs, then holds + sparkle)
   | 'land'        // pieces landing after a fall (soft tick)
   | 'createBeam' | 'createNova' | 'createPrism'
   | 'beam'        // line blast
@@ -18,12 +18,17 @@ export type SfxName =
   | 'lamp'        // lamp delivered
   | 'shuffle'
   | 'booster'     // booster used
-  | 'praise'      // short sparkle under the praise word; opts.step = intensity 1..4
+  | 'praise'      // rising motif under the praise word; opts.step = tier 1..4 (2, 3, 4, 5 notes)
   | 'goalDone'
   | 'star'        // one star awarded; opts.step = 1..3
   | 'win' | 'lose'
   | 'coin' | 'reward' | 'purchase' | 'lifeLost' | 'levelStart' | 'popupOpen' | 'popupClose'
-  | 'movesLow';   // warning when 5 moves remain
+  | 'movesLow'    // warning when 5 moves remain
+  // Added with the strategy study (audio-01); purely additive.
+  | 'finale'      // the end-of-level bonus begins (conversions then continue the 'match' ladder)
+  | 'chest'       // a reward chest opens
+  | 'caravan'     // the win-streak caravan sets off / gains a tier
+  | 'hint';       // soft cue with the idle hint
 
 export type MusicTrack = 'menu' | 'level';
 

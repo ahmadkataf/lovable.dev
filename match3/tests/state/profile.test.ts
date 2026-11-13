@@ -19,9 +19,9 @@ describe('a new profile', () => {
   it('starts with the designed defaults', () => {
     const h = harness();
     const p = h.profile;
-    expect(p.coins()).toBe(150);
+    expect(p.coins()).toBe(2000);
     expect(p.lives()).toEqual({ count: 5, max: 5, nextInMs: 0 });
-    for (const id of ALL_BOOSTERS) expect(p.boosterCount(id)).toBe(START_BOOSTERS[id]);
+    for (const id of ALL_BOOSTERS) expect(p.boosterCount(id)).toBe(0);
     expect(p.highestUnlocked()).toBe(1);
     expect(p.totalStars()).toBe(0);
     expect(p.record(1)).toBeNull();
@@ -31,15 +31,29 @@ describe('a new profile', () => {
     expect(p.data()).toEqual({
       version: 1,
       levels: {},
-      coins: 150,
+      coins: 2000,
       lives: 5,
       lifeTimer: 0,
-      boosters: { hammer: 3, freeSwap: 3, shuffle: 3, extraMoves: 2, prism: 1, beamNova: 1 },
+      boosters: { hammer: 0, freeSwap: 0, shuffle: 0, extraMoves: 0, prism: 0, beamNova: 0 },
       settings: { sfx: true, music: true, haptics: true, lang: null },
       dailyDay: -1,
       dailyStreak: 0,
       seen: [],
       stats: { played: 0, won: 0, bestCascade: 0, totalScore: 0 },
+      firstDay: -1, // stamped by the first save,
+      gifted: [],
+      caravan: 0,
+      shop: {
+        tokens: [],
+        owned: [],
+        purchased: false,
+        adDay: -1,
+        rewarded: { extraMoves: 0, freeLife: 0, freeCoins: 0, doubleReward: 0 },
+        interstitials: 0,
+        finished: 0,
+        lastInterstitial: 0,
+        lastRewarded: 0,
+      },
     });
   });
 
@@ -72,7 +86,7 @@ describe('a new profile', () => {
     expect(b.profile.hasSeen('x')).toBe(false);
     expect(b.profile.settings().sfx).toBe(true);
     expect(b.profile.record(1)).toBeNull();
-    expect(START_BOOSTERS.hammer).toBe(3);
+    expect(START_BOOSTERS.hammer).toBe(0);
   });
 });
 
@@ -80,8 +94,8 @@ describe('coins', () => {
   it('addCoins adds, saves and notifies once', () => {
     const h = harness();
     h.profile.addCoins(25);
-    expect(h.profile.coins()).toBe(175);
-    expect(h.saved().coins).toBe(175);
+    expect(h.profile.coins()).toBe(2025);
+    expect(h.saved().coins).toBe(2025);
     expect(h.storage.writes).toBe(1);
     expect(h.notifications.count).toBe(1);
   });
@@ -100,7 +114,7 @@ describe('coins', () => {
   it('addCoins rounds fractions down and caps at the maximum', () => {
     const h = harness();
     h.profile.addCoins(10.9);
-    expect(h.profile.coins()).toBe(160);
+    expect(h.profile.coins()).toBe(2010);
     h.profile.addCoins(1e300);
     expect(h.profile.coins()).toBe(MAX_COINS);
     const writes = h.storage.writes;
@@ -118,18 +132,18 @@ describe('coins', () => {
 
   it('spendCoins takes the coins when there are enough', () => {
     const h = harness();
-    expect(h.profile.spendCoins(90)).toBe(true);
-    expect(h.profile.coins()).toBe(60);
-    expect(h.saved().coins).toBe(60);
+    expect(h.profile.spendCoins(900)).toBe(true);
+    expect(h.profile.coins()).toBe(1100);
+    expect(h.saved().coins).toBe(1100);
     expect(h.notifications.count).toBe(1);
-    expect(h.profile.spendCoins(60)).toBe(true);
+    expect(h.profile.spendCoins(1100)).toBe(true);
     expect(h.profile.coins()).toBe(0);
   });
 
   it('spendCoins refuses when there are not enough, and changes nothing', () => {
     const h = harness();
-    expect(h.profile.spendCoins(151)).toBe(false);
-    expect(h.profile.coins()).toBe(150);
+    expect(h.profile.spendCoins(2001)).toBe(false);
+    expect(h.profile.coins()).toBe(2000);
     expect(h.storage.writes).toBe(0);
     expect(h.notifications.count).toBe(0);
   });
@@ -139,7 +153,7 @@ describe('coins', () => {
     for (const bad of [-1, -1000, NaN, Infinity, -Infinity, '5' as unknown as number]) {
       expect(h.profile.spendCoins(bad)).toBe(false);
     }
-    expect(h.profile.coins()).toBe(150);
+    expect(h.profile.coins()).toBe(2000);
     expect(h.storage.writes).toBe(0);
   });
 
@@ -152,18 +166,17 @@ describe('coins', () => {
 
   it('spendCoins rounds a fractional price up', () => {
     const h = harness();
-    expect(h.profile.spendCoins(149.2)).toBe(true);
+    expect(h.profile.spendCoins(1999.2)).toBe(true);
     expect(h.profile.coins()).toBe(0);
     expect(h.profile.spendCoins(0.1)).toBe(false);
   });
 
-  it('the continue prices add up: 90 + 150 + 240', () => {
+  it('the continue prices add up: 900 + 1,900 + 2,900, and there is no fourth', () => {
     const h = harness();
-    h.profile.addCoins(480 - START_COINS);
-    expect(h.profile.spendCoins(90)).toBe(true);
-    expect(h.profile.spendCoins(150)).toBe(true);
-    expect(h.profile.spendCoins(240)).toBe(true);
+    h.profile.addCoins(5700 - START_COINS);
+    for (let n = 0; n < 3; n++) expect(h.profile.spendCoins(h.profile.continuePrice(n)!)).toBe(true);
     expect(h.profile.coins()).toBe(0);
+    expect(h.profile.continuePrice(3)).toBeNull();
     expect(h.profile.spendCoins(1)).toBe(false);
   });
 });
@@ -171,30 +184,33 @@ describe('coins', () => {
 describe('boosters', () => {
   it('prices are the designed ones', () => {
     const p = harness().profile;
-    expect(ALL_BOOSTERS.map((id) => p.boosterPrice(id))).toEqual([90, 80, 60, 70, 120, 100]);
+    expect(ALL_BOOSTERS.map((id) => p.boosterPrice(id))).toEqual([650, 600, 400, 500, 800, 650]);
   });
 
   it('takeBooster consumes one, down to zero', () => {
     const h = harness();
+    expect(h.profile.takeBooster('prism')).toBe(false); // none at install
+    expect(h.storage.writes).toBe(0);
+    h.profile.addBooster('prism', 1);
     expect(h.profile.takeBooster('prism')).toBe(true);
     expect(h.profile.boosterCount('prism')).toBe(0);
     expect(h.saved().boosters.prism).toBe(0);
-    expect(h.notifications.count).toBe(1);
+    expect(h.notifications.count).toBe(2);
     expect(h.profile.takeBooster('prism')).toBe(false);
     expect(h.profile.boosterCount('prism')).toBe(0);
-    expect(h.notifications.count).toBe(1);
-    expect(h.storage.writes).toBe(1);
+    expect(h.notifications.count).toBe(2);
+    expect(h.storage.writes).toBe(2);
   });
 
   it('addBooster adds whole amounts only', () => {
     const h = harness();
     h.profile.addBooster('shuffle', 2);
-    expect(h.profile.boosterCount('shuffle')).toBe(5);
+    expect(h.profile.boosterCount('shuffle')).toBe(2);
     h.profile.addBooster('shuffle', 1.9);
-    expect(h.profile.boosterCount('shuffle')).toBe(6);
+    expect(h.profile.boosterCount('shuffle')).toBe(3);
     const writes = h.storage.writes;
     for (const bad of [0, -3, NaN, 0.5]) h.profile.addBooster('shuffle', bad);
-    expect(h.profile.boosterCount('shuffle')).toBe(6);
+    expect(h.profile.boosterCount('shuffle')).toBe(3);
     expect(h.storage.writes).toBe(writes);
   });
 
@@ -209,9 +225,9 @@ describe('boosters', () => {
       const h = harness();
       h.profile.addCoins(1000);
       expect(h.profile.buyBooster(id)).toBe(true);
-      expect(h.profile.coins()).toBe(1150 - BOOSTER_PRICES[id]);
+      expect(h.profile.coins()).toBe(3000 - BOOSTER_PRICES[id]);
       expect(h.profile.boosterCount(id)).toBe(START_BOOSTERS[id] + 1);
-      expect(h.saved().coins).toBe(1150 - BOOSTER_PRICES[id]);
+      expect(h.saved().coins).toBe(3000 - BOOSTER_PRICES[id]);
       expect(h.saved().boosters[id]).toBe(START_BOOSTERS[id] + 1);
       expect(h.notifications.count).toBe(2); // addCoins + one for the whole purchase
     }
@@ -219,10 +235,10 @@ describe('boosters', () => {
 
   it('buyBooster is refused without enough coins — nothing is charged or added', () => {
     const h = harness();
-    h.profile.spendCoins(START_COINS - 119); // 119 left, prism costs 120
+    h.profile.spendCoins(START_COINS - 799); // 799 left, prism costs 800
     const writes = h.storage.writes;
     expect(h.profile.buyBooster('prism')).toBe(false);
-    expect(h.profile.coins()).toBe(119);
+    expect(h.profile.coins()).toBe(799);
     expect(h.profile.boosterCount('prism')).toBe(START_BOOSTERS.prism);
     expect(h.storage.writes).toBe(writes);
     h.profile.addCoins(1);
@@ -238,12 +254,14 @@ describe('boosters', () => {
     expect(h.profile.coins()).toBe(coins);
   });
 
-  it('150 starting coins buy exactly what the prices allow', () => {
+  it('2,000 starting coins buy exactly what the prices allow', () => {
     const h = harness();
-    expect(h.profile.buyBooster('shuffle')).toBe(true); // 60 → 90 left
-    expect(h.profile.buyBooster('freeSwap')).toBe(true); // 80 → 10 left
+    expect(h.profile.buyBooster('prism')).toBe(true); // 800 → 1,200 left
+    expect(h.profile.buyBooster('hammer')).toBe(true); // 650 → 550 left
+    expect(h.profile.buyBooster('freeSwap')).toBe(false); // 600
+    expect(h.profile.buyBooster('shuffle')).toBe(true); // 400 → 150 left
     expect(h.profile.buyBooster('shuffle')).toBe(false);
-    expect(h.profile.coins()).toBe(10);
+    expect(h.profile.coins()).toBe(150);
   });
 
   it('unknown booster ids are harmless', () => {
@@ -276,14 +294,14 @@ describe('grant', () => {
       { kind: 'booster', id: 'prism', amount: 2 },
       { kind: 'lives' },
     ]);
-    expect(h.profile.coins()).toBe(1150);
-    expect(h.profile.boosterCount('hammer')).toBe(6);
-    expect(h.profile.boosterCount('freeSwap')).toBe(6);
-    expect(h.profile.boosterCount('prism')).toBe(3);
+    expect(h.profile.coins()).toBe(3000);
+    expect(h.profile.boosterCount('hammer')).toBe(3);
+    expect(h.profile.boosterCount('freeSwap')).toBe(3);
+    expect(h.profile.boosterCount('prism')).toBe(2);
     expect(h.profile.lives().count).toBe(5);
     expect(h.storage.writes).toBe(writes + 1);
     expect(h.notifications.count).toBe(notes + 1);
-    expect(h.restart().profile.coins()).toBe(1150);
+    expect(h.restart().profile.coins()).toBe(3000);
   });
 
   it('an empty list does nothing', () => {
@@ -585,7 +603,7 @@ describe('subscribers', () => {
     });
     h.profile.addCoins(5);
     h.profile.spendCoins(55);
-    expect(seenInStorage).toEqual([155, 100]);
+    expect(seenInStorage).toEqual([2005, 1950]);
   });
 
   it('every mutating method notifies exactly once', () => {
@@ -729,15 +747,29 @@ describe('reset', () => {
     expect(p.data()).toEqual({
       version: 1,
       levels: {},
-      coins: 150,
+      coins: 2000,
       lives: 5,
       lifeTimer: 0,
-      boosters: { hammer: 3, freeSwap: 3, shuffle: 3, extraMoves: 2, prism: 1, beamNova: 1 },
+      boosters: { hammer: 0, freeSwap: 0, shuffle: 0, extraMoves: 0, prism: 0, beamNova: 0 },
       settings: { sfx: true, music: true, haptics: true, lang: null },
       dailyDay: -1,
       dailyStreak: 0,
       seen: [],
       stats: { played: 0, won: 0, bestCascade: 0, totalScore: 0 },
+      firstDay: Math.floor(T0 / DAY), // the day she first played is not progress,
+      gifted: [],
+      caravan: 0,
+      shop: {
+        tokens: [],
+        owned: [],
+        purchased: false,
+        adDay: -1,
+        rewarded: { extraMoves: 0, freeLife: 0, freeCoins: 0, doubleReward: 0 },
+        interstitials: 0,
+        finished: 0,
+        lastInterstitial: 0,
+        lastRewarded: 0,
+      },
     });
     expect(p.highestUnlocked()).toBe(1);
     expect(p.totalStars()).toBe(0);
@@ -813,7 +845,7 @@ describe('reset', () => {
     h.profile.reset();
     h.profile.addBooster('hammer', 5);
     h.profile.reset();
-    expect(h.profile.boosterCount('hammer')).toBe(3);
-    expect(START_BOOSTERS.hammer).toBe(3);
+    expect(h.profile.boosterCount('hammer')).toBe(0);
+    expect(START_BOOSTERS.hammer).toBe(0);
   });
 });

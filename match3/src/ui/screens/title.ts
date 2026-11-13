@@ -11,7 +11,7 @@ export function createTitleScreen(ui: Ui): Screen {
   const { profile, i18n, art } = ctx;
   const el = kit.el;
 
-  const root = kit.screen('m-title');
+  const root = kit.screen('m-title' + (ui.flags.still ? ' m-still' : ''));
   const backdrop = el('div', { class: 'm-title__bg', 'aria-hidden': 'true' });
   const logoBox = el('div', { class: 'm-title__logo' });
   const theme = ui.world.chapters.length > 0 ? ui.world.chapters[0]!.theme : 'oasis';

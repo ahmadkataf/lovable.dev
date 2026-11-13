@@ -159,14 +159,3 @@ export function scrollFor(y: number, viewport: number, worldHeight: number, anch
   const top = y - viewport * anchor;
   return top < 0 ? 0 : top > max ? max : top;
 }
-
-/** Indices of the sections that intersect [top − margin, bottom + margin]; `tops`/`heights` in px, any order. */
-export function sectionsNear(tops: readonly number[], heights: readonly number[], top: number, bottom: number, margin: number): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < tops.length; i++) {
-    const a = tops[i]!;
-    const b = a + heights[i]!;
-    if (b >= top - margin && a <= bottom + margin) out.push(i);
-  }
-  return out;
-}

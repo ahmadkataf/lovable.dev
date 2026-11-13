@@ -383,7 +383,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           view.beam(x, y, true, color, 1.6, sweep);
           view.beam(x, y, false, color, 1.6, sweep);
         }
-        view.glow(x, y, 1, big ? 4.4 : 3.4, d(300), PAL_WHITE, 0.85);
+        view.glow(x, y, 1, big ? 5 : 4, d(300), color, 0.9);
         view.ring(x, y, 0.4, big ? 4.6 : 3.2, d(T.bigBlast), color, 0.9);
         view.ring(x, y, 0.3, big ? 3.2 : 2.2, d(T.bigBlast), PAL_GOLD, 0.6, d(70));
         view.burst(x, y, PAL_GOLD, 12, 7, SHAPE_SPARK, { size: 0.4, gravity: 0, additive: true, life: 400 });

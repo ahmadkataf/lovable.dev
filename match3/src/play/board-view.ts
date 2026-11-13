@@ -411,10 +411,14 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       const g = tex.getContext('2d') as CanvasRenderingContext2D;
       const c = rgb(palette[i] as string);
       const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-      grad.addColorStop(0, 'rgba(255,255,255,1)');
-      grad.addColorStop(0.18, 'rgba(' + Math.min(255, c[0] + 90) + ',' + Math.min(255, c[1] + 90) + ',' + Math.min(255, c[2] + 90) + ',0.95)');
-      grad.addColorStop(0.5, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',0.42)');
-      grad.addColorStop(1, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',0)');
+      // a soft light: bright only at the very centre, then a long gentle falloff (no flat white disc)
+      const hot = Math.min(255, c[0] + 110) + ',' + Math.min(255, c[1] + 110) + ',' + Math.min(255, c[2] + 110);
+      const col = c[0] + ',' + c[1] + ',' + c[2];
+      grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+      grad.addColorStop(0.1, 'rgba(' + hot + ',0.8)');
+      grad.addColorStop(0.3, 'rgba(' + col + ',0.4)');
+      grad.addColorStop(0.62, 'rgba(' + col + ',0.12)');
+      grad.addColorStop(1, 'rgba(' + col + ',0)');
       g.fillStyle = grad;
       g.fillRect(0, 0, size, size);
       glowTex[i] = tex;
@@ -1330,7 +1334,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       if (b.t < b.sweep) {
         // the two racing heads
         const head = glowOf(PAL_WHITE);
-        const hs = cs * (1.5 + b.thick * 0.5);
+        const hs = cs * (1.3 + b.thick * 0.5);
         ctx.globalAlpha = 1;
         if (b.horizontal) {
           ctx.drawImage(head, cxp - lo * cs - hs / 2, cyp - hs / 2, hs, hs);

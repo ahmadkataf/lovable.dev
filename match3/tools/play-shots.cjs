@@ -145,6 +145,32 @@ const SCENES = {
     await page.context().close();
   },
 
+  /** idle hint (two gems hop toward each other in a glow) and the low-moves numeral */
+  async hint(browser, size, lang, tag) {
+    const page = await open(browser, size, lang, 'level=tiny&seed=3&tut=0&inv=0');
+    await idle(page);
+    await page.waitForTimeout(3250);
+    await freeze(page, true);
+    await shot(page, `hint-${tag}`);
+    await freeze(page, false);
+    await page.context().close();
+    const low = await open(browser, size, lang, 'level=hard&seed=11&tut=0&inv=3');
+    await idle(low);
+    await low.waitForTimeout(1300);
+    await shot(low, `lowmoves-${tag}`);
+    await low.context().close();
+  },
+
+  /** "no more moves — shuffling" banner with the pieces swirling */
+  async shuffle(browser, size, lang, tag) {
+    const page = await open(browser, size, lang, 'level=mix&seed=7&tut=0&inv=3');
+    await idle(page);
+    await page.waitForTimeout(1300);
+    await page.click('[data-booster="shuffle"] button');
+    await frameAt(page, 260, `shuffle-${tag}`);
+    await page.context().close();
+  },
+
   async target(browser, size, lang, tag) {
     const page = await open(browser, size, lang, 'level=mix&seed=7&tut=0&inv=3');
     await idle(page);

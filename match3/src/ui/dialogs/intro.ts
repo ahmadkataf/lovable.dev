@@ -24,12 +24,23 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
   const body = h('div', { class: 'm-intro' });
   const selected: StartBoosters = {};
 
-  // ── moves (+ the "hard level" tag) ──
+  // ── moves, lives (once that system is unlocked) and the "hard level" tag ──
+  const livesText = h('span', { class: 'k-num' });
+  const livesPill = ui.feature('lives') ? h('div', { class: 'm-pill m-pill--lives' }, kit.icon('heart', 22), livesText) : null;
+  function renderLives(): void {
+    if (!livesPill) return;
+    const info = profile.lives();
+    livesText.textContent = info.count + '/' + info.max;
+    livesPill.classList.toggle('m-pill--empty', info.count <= 0);
+    livesPill.setAttribute('aria-label', t('meta.map.aria.lives', { n: info.count }));
+  }
+  renderLives();
   body.appendChild(
     h(
       'div',
       { class: 'm-intro__meta' },
       h('div', { class: 'm-pill' }, kit.icon('moves', 22), h('span', { text: t('meta.intro.moves', { n: level.moves }) })),
+      livesPill,
       level.hard ? h('div', { class: 'm-tag m-tag--hard' }, h('i', { class: 'm-tag__gem' }), h('span', { text: t('meta.intro.hard') })) : null,
     ),
   );
@@ -193,7 +204,10 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
   const playButton = kit.button({ label: t('common.play'), icon: 'play', size: 'lg', block: true, shine: true, onClick: play });
   playButton.dataset.act = 'intro-play';
 
+  // lives come back with time, which the profile does not announce: look once a second
+  const livesTimer = livesPill ? window.setInterval(renderLives, 1000) : 0;
   const unsubscribe = profile.subscribe(() => {
+    renderLives();
     for (const tile of tiles) {
       // a booster that ran out elsewhere cannot stay selected
       if (selected[tile.id] && profile.boosterCount(tile.id) <= 0 && !launched) delete selected[tile.id];
@@ -207,7 +221,10 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
     body,
     buttons: [playButton],
     className: 'm-dialog-intro' + (level.hard ? ' m-dialog-intro--hard' : ''),
-    onClose: () => unsubscribe(),
+    onClose: () => {
+      unsubscribe();
+      if (livesTimer) window.clearInterval(livesTimer);
+    },
   });
   return dialog;
 }

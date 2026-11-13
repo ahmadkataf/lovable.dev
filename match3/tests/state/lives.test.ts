@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createProfile } from '../../src/state/index.ts';
 import { LIFE_REGEN_MS, MAX_LIVES, REFILL_LIVES_PRICE, START_COINS } from '../../src/state/econ.ts';
-import { DAY, HOUR, MINUTE, SECOND, T0, fromSave, harness, rng, sampleSave } from './harness.ts';
+import { DAY, HOUR, SECOND, T0, fromSave, harness, rng, sampleSave } from './harness.ts';
 
 const REGEN = LIFE_REGEN_MS;
+/**
+ * One twentieth of the regeneration interval (90 s of the 30 minutes). The scenarios below are
+ * written in twentieths, so they read the same whatever the interval is.
+ */
+const UNIT = REGEN / 20;
 
 describe('lives: basics', () => {
   it('a new profile has full lives and no countdown', () => {
@@ -12,10 +17,10 @@ describe('lives: basics', () => {
     expect(h.profile.data().lifeTimer).toBe(0);
   });
 
-  it('losing a life from full starts the 20-minute timer', () => {
+  it('losing a life from full starts the 30-minute timer', () => {
     const h = harness();
     expect(h.profile.loseLife()).toBe(true);
-    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 20 * MINUTE });
+    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 20 * UNIT });
     expect(h.profile.data().lifeTimer).toBe(T0);
     expect(h.saved().lives).toBe(4);
     expect(h.saved().lifeTimer).toBe(T0);
@@ -26,8 +31,8 @@ describe('lives: basics', () => {
     h.profile.loseLife();
     h.clock.now += 1;
     expect(h.profile.lives().nextInMs).toBe(REGEN - 1);
-    h.clock.now += 7 * MINUTE;
-    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: REGEN - 1 - 7 * MINUTE });
+    h.clock.now += 7 * UNIT;
+    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: REGEN - 1 - 7 * UNIT });
     h.clock.now = T0 + REGEN - 1;
     expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 1 });
   });
@@ -45,9 +50,9 @@ describe('lives: basics', () => {
   it('losing further lives does not restart the running timer', () => {
     const h = harness();
     h.profile.loseLife();
-    h.clock.now += 12 * MINUTE;
+    h.clock.now += 12 * UNIT;
     h.profile.loseLife();
-    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 8 * MINUTE });
+    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 8 * UNIT });
     expect(h.profile.data().lifeTimer).toBe(T0);
   });
 
@@ -55,8 +60,8 @@ describe('lives: basics', () => {
     const h = harness();
     h.profile.loseLife();
     h.profile.loseLife();
-    h.clock.now += 25 * MINUTE;
-    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 15 * MINUTE });
+    h.clock.now += 25 * UNIT;
+    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 15 * UNIT });
     expect(h.profile.data().lifeTimer).toBe(T0 + REGEN);
   });
 
@@ -75,9 +80,9 @@ describe('lives: basics', () => {
   it('loseLife counts a life that has regenerated in the meantime', () => {
     const h = harness();
     for (let i = 0; i < 5; i++) h.profile.loseLife();
-    h.clock.now += REGEN + 5 * MINUTE;
+    h.clock.now += REGEN + 5 * UNIT;
     expect(h.profile.loseLife()).toBe(true); // the regenerated one
-    expect(h.profile.lives()).toEqual({ count: 0, max: 5, nextInMs: 15 * MINUTE });
+    expect(h.profile.lives()).toEqual({ count: 0, max: 5, nextInMs: 15 * UNIT });
   });
 });
 
@@ -85,18 +90,18 @@ describe('lives: long absences', () => {
   it('grants several lives at once', () => {
     const h = harness();
     for (let i = 0; i < 5; i++) h.profile.loseLife();
-    h.clock.now += 45 * MINUTE;
-    expect(h.profile.lives()).toEqual({ count: 2, max: 5, nextInMs: 15 * MINUTE });
-    h.clock.now += 15 * MINUTE;
-    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 20 * MINUTE });
+    h.clock.now += 45 * UNIT;
+    expect(h.profile.lives()).toEqual({ count: 2, max: 5, nextInMs: 15 * UNIT });
+    h.clock.now += 15 * UNIT;
+    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 20 * UNIT });
   });
 
   it('never exceeds the maximum, however long the absence', () => {
     const h = harness();
     for (let i = 0; i < 5; i++) h.profile.loseLife();
-    h.clock.now += 99 * MINUTE;
-    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 1 * MINUTE });
-    h.clock.now += 1 * MINUTE;
+    h.clock.now += 99 * UNIT;
+    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 1 * UNIT });
+    h.clock.now += 1 * UNIT;
     expect(h.profile.lives()).toEqual({ count: 5, max: 5, nextInMs: 0 });
     h.clock.now += 400 * DAY;
     expect(h.profile.lives()).toEqual({ count: 5, max: 5, nextInMs: 0 });
@@ -122,9 +127,9 @@ describe('lives: long absences', () => {
   it('works across restarts: the absence is measured from the saved timer', () => {
     const h = harness();
     for (let i = 0; i < 4; i++) h.profile.loseLife();
-    h.clock.now += 50 * MINUTE;
+    h.clock.now += 50 * UNIT;
     const again = h.restart();
-    expect(again.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 10 * MINUTE });
+    expect(again.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 10 * UNIT });
     h.clock.now += 5 * HOUR;
     expect(h.restart().profile.lives()).toEqual({ count: 5, max: 5, nextInMs: 0 });
   });
@@ -132,13 +137,13 @@ describe('lives: long absences', () => {
   it('lives regenerated while the app was closed are stored at start, without notifying', () => {
     const save = sampleSave();
     save.lives = 1;
-    save.lifeTimer = T0 - 50 * MINUTE;
+    save.lifeTimer = T0 - 50 * UNIT;
     const h = fromSave(save);
     expect(h.storage.writes).toBe(1);
     expect(h.saved().lives).toBe(3);
-    expect(h.saved().lifeTimer).toBe(T0 - 10 * MINUTE);
+    expect(h.saved().lifeTimer).toBe(T0 - 10 * UNIT);
     expect(h.notifications.count).toBe(0);
-    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 10 * MINUTE });
+    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 10 * UNIT });
     expect(h.storage.writes).toBe(1);
   });
 
@@ -155,7 +160,7 @@ describe('lives: long absences', () => {
   it('data() shows the regenerated lives too', () => {
     const h = harness();
     for (let i = 0; i < 3; i++) h.profile.loseLife();
-    h.clock.now += 41 * MINUTE;
+    h.clock.now += 41 * UNIT;
     expect(h.profile.data().lives).toBe(4);
     expect(h.profile.data().lifeTimer).toBe(T0 + 2 * REGEN);
   });
@@ -178,7 +183,7 @@ describe('lives: regeneration is silent', () => {
     const h = harness();
     h.profile.loseLife();
     h.profile.loseLife();
-    h.clock.now += REGEN + MINUTE;
+    h.clock.now += REGEN + UNIT;
     h.profile.lives();
     expect(h.saved().lives).toBe(4);
     expect(h.saved().lifeTimer).toBe(T0 + REGEN);
@@ -188,7 +193,7 @@ describe('lives: regeneration is silent', () => {
     const h = harness();
     h.profile.loseLife();
     const writes = h.storage.writes;
-    h.clock.now += 5 * MINUTE;
+    h.clock.now += 5 * UNIT;
     h.profile.lives();
     h.profile.data();
     h.profile.lives();
@@ -197,14 +202,14 @@ describe('lives: regeneration is silent', () => {
 });
 
 describe('lives: refill', () => {
-  it('costs 120 coins, fills up and stops the timer', () => {
+  it('costs 900 coins, fills up and stops the timer', () => {
     const h = harness();
     for (let i = 0; i < 5; i++) h.profile.loseLife();
     expect(h.profile.refillLives()).toBe(true);
     expect(h.profile.coins()).toBe(START_COINS - REFILL_LIVES_PRICE);
     expect(h.profile.lives()).toEqual({ count: 5, max: 5, nextInMs: 0 });
     expect(h.saved().lifeTimer).toBe(0);
-    expect(h.saved().coins).toBe(30);
+    expect(h.saved().coins).toBe(1100);
   });
 
   it('is refused when lives are already full (no charge)', () => {
@@ -226,10 +231,10 @@ describe('lives: refill', () => {
 
   it('is refused without enough coins', () => {
     const h = harness();
-    h.profile.spendCoins(START_COINS - REFILL_LIVES_PRICE + 1); // 119 left
+    h.profile.spendCoins(START_COINS - REFILL_LIVES_PRICE + 1); // 899 left
     h.profile.loseLife();
     expect(h.profile.refillLives()).toBe(false);
-    expect(h.profile.coins()).toBe(119);
+    expect(h.profile.coins()).toBe(899);
     expect(h.profile.lives().count).toBe(4);
     h.profile.addCoins(1);
     expect(h.profile.refillLives()).toBe(true);
@@ -257,9 +262,9 @@ describe('lives: rewards', () => {
   it('a lives reward with an amount adds that many and leaves the timer running', () => {
     const h = harness();
     for (let i = 0; i < 5; i++) h.profile.loseLife();
-    h.clock.now += 8 * MINUTE;
+    h.clock.now += 8 * UNIT;
     h.profile.grant([{ kind: 'lives', amount: 1 }]);
-    expect(h.profile.lives()).toEqual({ count: 1, max: 5, nextInMs: 12 * MINUTE });
+    expect(h.profile.lives()).toEqual({ count: 1, max: 5, nextInMs: 12 * UNIT });
     h.profile.grant([{ kind: 'lives', amount: 2 }]);
     expect(h.profile.lives().count).toBe(3);
   });
@@ -293,8 +298,8 @@ describe('lives: a clock that jumps backwards', () => {
     const h = harness();
     h.profile.loseLife();
     h.profile.loseLife();
-    h.clock.now += 10 * MINUTE;
-    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 10 * MINUTE });
+    h.clock.now += 10 * UNIT;
+    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 10 * UNIT });
 
     h.clock.now = T0 - 3 * HOUR; // the clock is now before the timer started
     const info = h.profile.lives();
@@ -317,9 +322,9 @@ describe('lives: a clock that jumps backwards', () => {
   it('a small backwards correction inside the interval only delays the life', () => {
     const h = harness();
     h.profile.loseLife();
-    h.clock.now += 15 * MINUTE;
-    h.clock.now -= 5 * MINUTE; // still after the timer start
-    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 10 * MINUTE });
+    h.clock.now += 15 * UNIT;
+    h.clock.now -= 5 * UNIT; // still after the timer start
+    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 10 * UNIT });
   });
 
   it('a save whose timer lies in the future is clamped at load, and stays clamped across restarts', () => {
@@ -330,9 +335,9 @@ describe('lives: a clock that jumps backwards', () => {
     expect(h.profile.lives()).toEqual({ count: 1, max: 5, nextInMs: REGEN });
     // The corrected timer was stored, so restarting later continues the wait instead of restarting it.
     expect(h.saved().lifeTimer).toBe(T0);
-    h.clock.now += 12 * MINUTE;
-    expect(h.restart().profile.lives()).toEqual({ count: 1, max: 5, nextInMs: 8 * MINUTE });
-    h.clock.now += 8 * MINUTE;
+    h.clock.now += 12 * UNIT;
+    expect(h.restart().profile.lives()).toEqual({ count: 1, max: 5, nextInMs: 8 * UNIT });
+    h.clock.now += 8 * UNIT;
     expect(h.restart().profile.lives()).toEqual({ count: 2, max: 5, nextInMs: REGEN });
   });
 
@@ -351,10 +356,10 @@ describe('lives: a clock that jumps backwards', () => {
     save.lifeTimer = T0 + HOUR; // ahead of the clock
     const h = fromSave(save);
     h.storage.json = JSON.stringify(save); // as if the correction made at load had not been stored
-    h.clock.now += MINUTE;
+    h.clock.now += UNIT;
     const again = h.restart();
     expect(again.profile.loseLife()).toBe(false);
-    expect(again.saved().lifeTimer).toBe(T0 + MINUTE);
+    expect(again.saved().lifeTimer).toBe(T0 + UNIT);
     expect(again.notifications.count).toBe(0);
   });
 
@@ -410,18 +415,18 @@ describe('lives: a broken clock', () => {
       levelCount: 10,
     });
     profile.loseLife();
-    now += 5 * MINUTE;
-    expect(profile.lives().nextInMs).toBe(15 * MINUTE);
+    now += 5 * UNIT;
+    expect(profile.lives().nextInMs).toBe(15 * UNIT);
     for (const broken of ['nan', 'throw', 'inf'] as const) {
       mode = broken;
       // The last good time is reused: same answer, no exception.
-      expect(profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 15 * MINUTE });
+      expect(profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 15 * UNIT });
       expect(profile.loseLife()).toBe(true);
       expect(() => profile.daily()).not.toThrow();
       profile.grant([{ kind: 'lives', amount: 1 }]);
     }
     mode = 'ok';
-    now += 15 * MINUTE;
+    now += 15 * UNIT;
     expect(profile.lives().count).toBe(5);
   });
 
@@ -449,7 +454,7 @@ describe('lives: invariants under random play and clock changes', () => {
       for (let step = 0; step < 2000; step++) {
         const roll = random();
         if (roll < 0.45) {
-          const dt = Math.floor(random() * 50 * MINUTE);
+          const dt = Math.floor(random() * 50 * UNIT);
           h.clock.now += dt;
           forward += dt;
         } else if (roll < 0.55) {
@@ -489,7 +494,7 @@ describe('lives: invariants under random play and clock changes', () => {
     const h = harness();
     for (let step = 0; step < 300; step++) {
       if (random() < 0.5) h.profile.loseLife();
-      h.clock.now += Math.floor(random() * 30 * MINUTE) + SECOND;
+      h.clock.now += Math.floor(random() * 30 * UNIT) + SECOND;
       const live = h.profile.lives();
       const reloaded = h.restart().profile.lives();
       expect(reloaded).toEqual(live);

@@ -21,6 +21,7 @@ describe('persistence: round trip', () => {
     const p = h.profile;
     p.addCoins(1234);
     p.buyBooster('prism');
+    p.addBooster('shuffle', 3);
     p.takeBooster('shuffle');
     p.addBooster('beamNova', 4);
     p.recordAttempt();
@@ -38,14 +39,15 @@ describe('persistence: round trip', () => {
     const before = JSON.parse(JSON.stringify(p.data())) as SaveData;
     const again = h.restart();
     expect(again.profile.data()).toEqual(before);
-    expect(again.profile.coins()).toBe(START_COINS + 1234 - 120 + 50 + 30 + 50);
+    // + 1234 added − 800 for the prism + 50 and 30 for the two wins + 100 for the daily reward
+    expect(again.profile.coins()).toBe(START_COINS + 1234 - 800 + 50 + 30 + 100);
     expect(again.profile.boosterCount('prism')).toBe(START_BOOSTERS.prism + 1);
-    expect(again.profile.boosterCount('shuffle')).toBe(START_BOOSTERS.shuffle - 1);
+    expect(again.profile.boosterCount('shuffle')).toBe(START_BOOSTERS.shuffle + 2);
     expect(again.profile.boosterCount('beamNova')).toBe(START_BOOSTERS.beamNova + 4);
     expect(again.profile.record(1)).toEqual({ stars: 3, best: 5200 });
     expect(again.profile.record(2)).toEqual({ stars: 1, best: 900 });
     expect(again.profile.highestUnlocked()).toBe(3);
-    expect(again.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 17 * MINUTE });
+    expect(again.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 27 * MINUTE });
     expect(again.profile.daily()).toMatchObject({ canClaim: false, streak: 1 });
     expect(again.profile.settings()).toEqual({ sfx: true, music: false, haptics: true, lang: 'ar' });
     expect(again.profile.hasSeen('tut.beam')).toBe(true);
@@ -70,10 +72,13 @@ describe('persistence: round trip', () => {
     const saved = h.saved();
     expect(saved.version).toBe(1);
     expect(Object.keys(saved).sort()).toEqual(
-      ['boosters', 'coins', 'dailyDay', 'dailyStreak', 'levels', 'lifeTimer', 'lives', 'seen', 'settings', 'stats', 'version'].sort(),
+      ['boosters', 'caravan', 'coins', 'dailyDay', 'dailyStreak', 'firstDay', 'gifted', 'levels', 'lifeTimer', 'lives', 'seen', 'settings', 'shop', 'stats', 'version'].sort(),
+    );
+    expect(Object.keys(saved.shop).sort()).toEqual(
+      ['adDay', 'finished', 'interstitials', 'lastInterstitial', 'lastRewarded', 'owned', 'purchased', 'rewarded', 'tokens'].sort(),
     );
     expect(typeof h.storage.json).toBe('string');
-    expect(h.storage.json!.length).toBeLessThan(600); // "saves are tiny"
+    expect(h.storage.json!.length).toBeLessThan(700); // "saves are tiny"
   });
 
   it('a valid save is loaded exactly as it is', () => {
@@ -268,7 +273,7 @@ describe('persistence: field-by-field repair', () => {
     expect(run(T0 - HOUR, 5).lifeTimer).toBe(0); // full lives: no timer
     expect(run('soon', 5).lifeTimer).toBe(0);
     // a valid old timer regenerates lives as usual
-    const old = run(T0 - 45 * MINUTE, 1);
+    const old = run(T0 - 65 * MINUTE, 1);
     expect(old.lives).toBe(3);
     expect(old.lifeTimer).toBe(T0 - 5 * MINUTE);
   });
@@ -498,6 +503,7 @@ describe('persistence: field-by-field repair', () => {
       coins: 0,
       boosters: { ...START_BOOSTERS, hammer: 0 },
       seen: ['tip'],
+      firstDay: Math.floor(T0 / DAY), // stamped by the first save
     });
     expect(h.restart().profile.data()).toEqual(h.saved());
   });

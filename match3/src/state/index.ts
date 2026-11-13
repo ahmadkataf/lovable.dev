@@ -21,23 +21,39 @@
  *    repaired one by one (see `repairSave`).
  *  - `data()` and `settings()` return the live objects (the same ones for the profile's whole life,
  *    reset() included): read them, never write to them.
+ *  - The profile also implements the extensions of ./extensions.ts: booster unlocks and their gifts,
+ *    feature gating, the Caravan, and the storage the monetisation module needs (`ProfileShop`).
+ *    Gating is information for the screens — `buyBooster`, `claimDaily` & co. do not enforce it.
+ *  - reset() wipes the player's progress but never what belongs to her real-money purchases
+ *    (granted purchase tokens, owned entitlements) nor the ad counters and the first-play day.
  */
+import type { StartBoosters } from '../engine/types.ts';
 import type {
   BoosterId,
   DailyStatus,
   LevelRecord,
   LevelResultSummary,
   LivesInfo,
-  ProfileApi,
   Reward,
+  RewardedPlacement,
   SaveData,
   Settings,
+  ShopSave,
 } from './types.ts';
-import { ALL_BOOSTERS } from './types.ts';
+import { ALL_BOOSTERS, REWARDED_PLACEMENTS } from './types.ts';
+import type { AdsToday, FeatureId, FullProfile } from './extensions.ts';
 import {
   BOOSTER_PRICES,
+  BOOSTER_UNLOCK_GIFT,
+  BOOSTER_UNLOCK_LEVEL,
+  BOOSTER_UNLOCK_ORDER,
+  CARAVAN_BEAM_NOVA_WINS,
+  CARAVAN_EXTRA_MOVES_WINS,
+  CARAVAN_PRISM_WINS,
   DAILY_CYCLE,
   DAILY_CYCLE_DAYS,
+  DAILY_UNLOCK_AFTER_DAYS,
+  FEATURE_UNLOCK_LEVEL,
   LIFE_REGEN_MS,
   MAX_BOOSTER_COUNT,
   MAX_COINS,
@@ -45,10 +61,13 @@ import {
   REFILL_LIVES_PRICE,
   START_BOOSTERS,
   START_COINS,
+  continuePriceOrNull,
+  dailyRewardsFor,
   levelReward,
 } from './econ.ts';
 
 export * from './econ.ts';
+export type { AdsToday, FeatureId, FullProfile, ProfileExtensions, ProfileShop } from './extensions.ts';
 
 export interface ProfileDeps {
   /** Raw save string, or null when nothing was saved yet. */
@@ -63,6 +82,11 @@ export interface ProfileDeps {
    * Defaults to `localDayNumber` (the device's time zone). Injectable for tests.
    */
   dayNumber?(ms: number): number;
+  /**
+   * Whether a level is marked hard (LevelDef.hard): its first clear pays double. Defaults to "no".
+   * Asked at the moment a win is recorded.
+   */
+  isHardLevel?(levelId: number): boolean;
 }
 
 // ───────────────────────────── calendar helpers ─────────────────────────────
@@ -115,6 +139,15 @@ const MAX_SEEN_ID_LENGTH = 1_024;
  * even in the worst case (every character escaped in JSON) — storage layers may refuse more.
  */
 const MAX_SEEN_CHARS = 60_000;
+/** Granted purchase tokens remembered (the newest stay). */
+export const MAX_PURCHASE_TOKENS = 200;
+/** Longest purchase token the profile accepts; the stores' real ones are far shorter. */
+const MAX_TOKEN_LENGTH = 4_096;
+/** Tokens up to this length are remembered verbatim, longer ones as a digest. */
+const RAW_TOKEN_LENGTH = 40;
+const MAX_TOKEN_KEY_LENGTH = 64;
+const MAX_OWNED = 16;
+const MAX_AD_COUNT = 9_999;
 /** What the profile's clock reads until the injected one has produced a usable value. */
 const NO_CLOCK = 0;
 
@@ -148,7 +181,75 @@ export function freshSave(): SaveData {
     dailyStreak: 0,
     seen: [],
     stats: { played: 0, won: 0, bestCascade: 0, totalScore: 0 },
+    firstDay: -1,
+    gifted: [],
+    caravan: 0,
+    shop: freshShop(),
   };
+}
+
+/** The monetisation section of a profile that never bought or watched anything. */
+export function freshShop(): ShopSave {
+  return {
+    tokens: [],
+    owned: [],
+    purchased: false,
+    adDay: -1,
+    rewarded: { extraMoves: 0, freeLife: 0, freeCoins: 0, doubleReward: 0 },
+    interstitials: 0,
+    finished: 0,
+    lastInterstitial: 0,
+    lastRewarded: 0,
+  };
+}
+
+// ───────────────────────────── purchase tokens ─────────────────────────────
+
+/** 128-bit non-cryptographic digest (four chained 32-bit mixers) as 32 hex digits. Stable for ever: it is stored. */
+function digest128(text: string): string {
+  let h1 = 1779033703;
+  let h2 = 3144134277;
+  let h3 = 1013904242;
+  let h4 = 2773480762;
+  for (let i = 0; i < text.length; i++) {
+    const k = text.charCodeAt(i);
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+  }
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+  h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+  h3 = Math.imul(h1 ^ (h3 >>> 19), 951274213);
+  h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+  h1 ^= h2 ^ h3 ^ h4;
+  h2 ^= h1;
+  h3 ^= h1;
+  h4 ^= h1;
+  let out = '';
+  for (const h of [h1, h2, h3, h4]) out += ('0000000' + (h >>> 0).toString(16)).slice(-8);
+  return out;
+}
+
+/**
+ * The key under which a purchase token is remembered in the save, or null when the value cannot be
+ * a token. Short tokens are kept verbatim; long ones (the stores' real tokens are hundreds of
+ * characters) as `#<length>.<digest>`, so 200 of them stay a few kilobytes in a save that is
+ * rewritten on every change.
+ */
+export function purchaseKey(token: unknown): string | null {
+  if (typeof token !== 'string' || token.length === 0 || token.length > MAX_TOKEN_LENGTH) return null;
+  if (token.length <= RAW_TOKEN_LENGTH && token.charCodeAt(0) !== 35 /* '#' marks a digest */) return token;
+  return '#' + token.length.toString(36) + '.' + digest128(token);
+}
+
+/** Product ids as the stores allow them: lower-case letters, digits, '_' and '.'. */
+function isEntitlementId(id: unknown): id is string {
+  return typeof id === 'string' && /^[a-z0-9][a-z0-9_.]{0,39}$/.test(id);
+}
+
+function isPlacement(p: unknown): p is RewardedPlacement {
+  return typeof p === 'string' && (REWARDED_PLACEMENTS as readonly string[]).indexOf(p) >= 0;
 }
 
 function repairLevels(v: unknown): Record<string, LevelRecord> {
@@ -219,6 +320,52 @@ function repairStats(v: unknown): SaveData['stats'] {
   };
 }
 
+function repairGifted(v: unknown): BoosterId[] {
+  const out: BoosterId[] = [];
+  if (!Array.isArray(v)) return out;
+  for (let i = 0; i < v.length && out.length < ALL_BOOSTERS.length; i++) {
+    const id: unknown = v[i];
+    if (isBooster(id) && out.indexOf(id) < 0) out.push(id);
+  }
+  return out;
+}
+
+/** Unique strings accepted by `ok`, in order; when there are more than `max`, the LAST `max` stay. */
+function repairStrings(v: unknown, ok: (s: unknown) => boolean, max: number): string[] {
+  const out: string[] = [];
+  if (!Array.isArray(v)) return out;
+  const known = new Set<string>();
+  // Newest first, so that a flood of entries cannot push the newest out before the cap applies.
+  for (let i = v.length - 1; i >= 0 && out.length < max; i--) {
+    const s: unknown = v[i];
+    if (!ok(s) || known.has(s as string)) continue;
+    known.add(s as string);
+    out.push(s as string);
+  }
+  return out.reverse();
+}
+
+function isTokenKey(s: unknown): boolean {
+  return typeof s === 'string' && s.length > 0 && s.length <= MAX_TOKEN_KEY_LENGTH;
+}
+
+function repairShop(v: unknown): ShopSave {
+  const shop = freshShop();
+  if (!isObject(v)) return shop;
+  shop.tokens = repairStrings(v.tokens, isTokenKey, MAX_PURCHASE_TOKENS);
+  shop.owned = repairStrings(v.owned, isEntitlementId, MAX_OWNED);
+  // Sticky and self-evident: whoever holds a granted token or an entitlement has paid.
+  shop.purchased = v.purchased === true || shop.tokens.length > 0 || shop.owned.length > 0;
+  shop.adDay = int(v.adDay, -1, MAX_DAY, -1);
+  const counts = isObject(v.rewarded) ? v.rewarded : {};
+  for (const p of REWARDED_PLACEMENTS) shop.rewarded[p] = int(counts[p], 0, MAX_AD_COUNT, 0);
+  shop.interstitials = int(v.interstitials, 0, MAX_AD_COUNT, 0);
+  shop.finished = int(v.finished, 0, MAX_COUNTER, 0);
+  shop.lastInterstitial = int(v.lastInterstitial, 0, MAX_TIME, 0);
+  shop.lastRewarded = int(v.lastRewarded, 0, MAX_TIME, 0);
+  return shop;
+}
+
 /**
  * Turn any parsed JSON value into a valid SaveData without ever throwing.
  * Not an object ⇒ a fresh profile. Otherwise every field is checked on its own: a missing or
@@ -255,6 +402,10 @@ function repairObject(raw: unknown): SaveData {
     dailyStreak,
     seen: repairSeen(raw.seen),
     stats: repairStats(raw.stats),
+    firstDay: int(raw.firstDay, -1, MAX_DAY, -1),
+    gifted: repairGifted(raw.gifted),
+    caravan: int(raw.caravan, 0, MAX_STREAK, 0),
+    shop: repairShop(raw.shop),
   };
 }
 
@@ -280,9 +431,10 @@ export function parseSave(json: string | null | undefined): SaveData {
 
 // ───────────────────────────── the profile ─────────────────────────────
 
-export function createProfile(deps: ProfileDeps): ProfileApi {
+export function createProfile(deps: ProfileDeps): FullProfile {
   const levelCount = int(deps.levelCount, 1, MAX_LEVEL_ID, 1);
   const dayOf = typeof deps.dayNumber === 'function' ? deps.dayNumber : localDayNumber;
+  const hardOf = typeof deps.isHardLevel === 'function' ? deps.isHardLevel : null;
   const listeners: { fn: () => void }[] = [];
 
   let lastClock = NO_CLOCK;
@@ -310,12 +462,35 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
     raw = null;
   }
   const data: SaveData = parseSave(raw);
+  /** Whether the most recent save reached the storage function (see `ProfileShop.lastSaveOk`). */
+  let saveOk = true;
+
+  /**
+   * Local-calendar day of the instant `t`, or NaN when there is no usable clock or calendar.
+   * Days before the epoch are folded into day 0 (a stored day can never look like "never", -1).
+   */
+  function dayAt(t: number): number {
+    if (t === NO_CLOCK) return NaN;
+    try {
+      const day = Math.max(0, Math.floor(dayOf(t)));
+      return isFinite(day) ? Math.min(MAX_DAY, day) : NaN;
+    } catch {
+      return NaN;
+    }
+  }
 
   function persist(): void {
+    // The first change that is saved marks the day the player started (see SaveData.firstDay).
+    if (data.firstDay < 0) {
+      const today = dayAt(clock());
+      if (today === today) data.firstDay = today;
+    }
     try {
       deps.save(JSON.stringify(data));
+      saveOk = true;
     } catch {
       // Storage full or unavailable: keep playing from memory, the next save may succeed.
+      saveOk = false;
     }
   }
 
@@ -457,18 +632,12 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
   }
 
   function dailyState(t: number): DailyState {
-    let today: number;
-    try {
-      // Days before the epoch are folded into day 0, so a claim day can never look like "never claimed" (-1).
-      today = Math.max(0, Math.floor(dayOf(t)));
-    } catch {
-      today = NaN;
-    }
+    const today = dayAt(t);
     const last = data.dailyDay;
     const streak = data.dailyStreak;
     const claimedSlot = streak > 0 ? (streak - 1) % DAILY_CYCLE_DAYS : 0;
     // No usable calendar or clock: nothing can be claimed (and nothing is lost) until there is one.
-    if (!isFinite(today) || t === NO_CLOCK) return { canClaim: false, cycleDay: claimedSlot, streak, today: last, nextStreak: streak };
+    if (today !== today) return { canClaim: false, cycleDay: claimedSlot, streak, today: last, nextStreak: streak };
     if (last < 0) return { canClaim: true, cycleDay: 0, streak: 0, today, nextStreak: 1 };
     // Same day — or an earlier one, when the device clock was moved back: nothing to claim.
     if (today <= last) return { canClaim: false, cycleDay: claimedSlot, streak, today, nextStreak: streak };
@@ -479,16 +648,55 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
     return { canClaim: true, cycleDay: 0, streak: 0, today, nextStreak: 1 };
   }
 
-  function copyRewards(rewards: readonly Reward[]): Reward[] {
-    return rewards.map((r) => ({ ...r }));
+  // ── unlocks, gating, Caravan ──
+
+  function reached(level: number): boolean {
+    return Math.min(levelCount, clearedTop() + 1) >= level;
+  }
+
+  function boosterOpen(id: BoosterId): boolean {
+    return isBooster(id) && reached(BOOSTER_UNLOCK_LEVEL[id]);
+  }
+
+  /** The cycle day's rewards as this player gets them (locked boosters are paid in coins). */
+  function dailyRewards(cycleDay: number): Reward[] {
+    return dailyRewardsFor(DAILY_CYCLE[cycleDay]!, boosterOpen);
+  }
+
+  function isHard(levelId: number): boolean {
+    if (!hardOf) return false;
+    try {
+      return hardOf(levelId) === true;
+    } catch {
+      return false;
+    }
+  }
+
+  // ── monetisation bookkeeping ──
+
+  /** Start today's ad counters when the local day has moved on (never back: see the header on clocks). */
+  function rollAdDay(t: number): void {
+    const shop = data.shop;
+    const today = dayAt(t);
+    if (today !== today || today <= shop.adDay) return;
+    shop.adDay = today;
+    for (const p of REWARDED_PLACEMENTS) shop.rewarded[p] = 0;
+    shop.interstitials = 0;
   }
 
   // Reconcile the loaded lives with the clock right away, and store the result if it differs:
   // a timer that had to be restarted (clock moved backwards) must not restart again at every
   // launch. A fresh or already-normalised profile writes nothing here.
-  readLives(clock());
+  {
+    const t = clock();
+    readLives(t);
+    // Nobody started playing in the future: a first-play day ahead of today (the device clock was
+    // wrong back then) is pulled back, in memory; the next save stores it.
+    const today = dayAt(t);
+    if (today === today && data.firstDay > today) data.firstDay = today;
+  }
 
-  const api: ProfileApi = {
+  const api: FullProfile = {
     data(): Readonly<SaveData> {
       readLives(clock());
       return data;
@@ -524,7 +732,10 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
         if (data.lives >= MAX_LIVES) data.lifeTimer = t; // dropping from full starts the timer
         data.lives -= 1;
       }
-      finish(ok, synced);
+      // A failed or abandoned level sends the Caravan home, whether or not a life was left to take.
+      const hadCaravan = data.caravan > 0;
+      data.caravan = 0;
+      finish(ok || hadCaravan, synced);
       return ok;
     },
 
@@ -627,10 +838,12 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
       const key = String(levelId);
       const prev = data.levels[key];
       const prevStars = prev ? prev.stars : 0;
+      // Judged before this win is written: the win that unlocks the Caravan is not yet part of it.
+      const caravanOn = reached(FEATURE_UNLOCK_LEVEL.caravan);
       const summary: LevelResultSummary = {
         firstClear: !prev,
         newStars: Math.max(0, won - prevStars),
-        coinsEarned: levelReward(prevStars, won),
+        coinsEarned: levelReward(prevStars, won, isHard(levelId)),
         // The first score on a level is its best by definition; later ones must beat it.
         newBest: !prev || points > prev.best,
       };
@@ -639,6 +852,8 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
         best: prev ? Math.max(prev.best, points) : points,
       };
       addCoinsRaw(summary.coinsEarned);
+      // Only a first clear moves the Caravan on: replaying cleared levels cannot farm it.
+      if (!prev && caravanOn) data.caravan = Math.min(MAX_STREAK, data.caravan + 1);
       const s = data.stats;
       s.won = Math.min(MAX_COUNTER, s.won + 1);
       s.totalScore = Math.min(MAX_TOTAL_SCORE, s.totalScore + points);
@@ -656,14 +871,14 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
 
     daily(): DailyStatus {
       const s = dailyState(clock());
-      return { canClaim: s.canClaim, cycleDay: s.cycleDay, streak: s.streak, cycle: DAILY_CYCLE.map(copyRewards) };
+      return { canClaim: s.canClaim, cycleDay: s.cycleDay, streak: s.streak, cycle: DAILY_CYCLE.map((_, i) => dailyRewards(i)) };
     },
 
     claimDaily(): Reward[] | null {
       const t = clock();
       const s = dailyState(t);
       if (!s.canClaim) return null;
-      const rewards = copyRewards(DAILY_CYCLE[s.cycleDay]!);
+      const rewards = dailyRewards(s.cycleDay);
       syncLives(t); // a reward may hold lives; the commit below stores the synced pair as well
       data.dailyDay = s.today;
       data.dailyStreak = s.nextStreak;
@@ -708,10 +923,160 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
     reset(): void {
       // Progress, coins, boosters, lives, daily streak, tips and stats start over. The player's
       // device preferences (language, sound, music, vibration) are not progress and stay as they are.
+      // What was paid for with real money (tokens, entitlements), the ad counters and the day the
+      // player first played are not progress either: a reset must never undo a purchase record.
       const fresh = freshSave();
       fresh.settings = data.settings;
+      fresh.shop = data.shop;
+      fresh.firstDay = data.firstDay;
       Object.assign(data, fresh); // in place: objects handed out by data() / settings() stay valid
       commit();
+    },
+
+    // ── extensions: unlocks, gating, Caravan (./extensions.ts) ──
+
+    boosterUnlocked(id: BoosterId): boolean {
+      return boosterOpen(id);
+    },
+
+    claimUnlocks(): { id: BoosterId; amount: number }[] {
+      const out: { id: BoosterId; amount: number }[] = [];
+      for (const id of BOOSTER_UNLOCK_ORDER) {
+        if (!boosterOpen(id) || data.gifted.indexOf(id) >= 0) continue;
+        const amount = BOOSTER_UNLOCK_GIFT[id];
+        data.gifted.push(id);
+        addBoosterRaw(id, amount);
+        out.push({ id, amount });
+      }
+      if (out.length > 0) commit();
+      return out;
+    },
+
+    featureUnlocked(feature: FeatureId): boolean {
+      if (feature === 'daily') {
+        const today = dayAt(clock());
+        if (today !== today) return false;
+        // Before the first save there is no first day yet: today is the first day.
+        const first = data.firstDay < 0 ? today : data.firstDay;
+        return today - first >= DAILY_UNLOCK_AFTER_DAYS;
+      }
+      const level = Object.prototype.hasOwnProperty.call(FEATURE_UNLOCK_LEVEL, feature) ? FEATURE_UNLOCK_LEVEL[feature] : NaN;
+      return typeof level === 'number' && reached(level); // an unknown feature is never unlocked
+    },
+
+    caravan(): number {
+      return reached(FEATURE_UNLOCK_LEVEL.caravan) ? data.caravan : 0;
+    },
+
+    caravanBoosters(): StartBoosters {
+      const wins = api.caravan();
+      const out: StartBoosters = {};
+      if (wins >= CARAVAN_BEAM_NOVA_WINS) out.beamNova = true;
+      if (wins >= CARAVAN_PRISM_WINS) out.prism = true;
+      if (wins >= CARAVAN_EXTRA_MOVES_WINS) out.extraMoves = true;
+      return out;
+    },
+
+    addLife(): boolean {
+      const synced = syncLives(clock());
+      const ok = addLives(1);
+      finish(ok, synced);
+      return ok;
+    },
+
+    continuePrice(n: number): number | null {
+      return continuePriceOrNull(n);
+    },
+
+    // ── extensions: monetisation bookkeeping (./extensions.ts, rules in src/monetize) ──
+
+    shop(): Readonly<ShopSave> {
+      return data.shop;
+    },
+
+    lastSaveOk(): boolean {
+      return saveOk;
+    },
+
+    purchaseGranted(token: string): boolean {
+      const key = purchaseKey(token);
+      return key !== null && data.shop.tokens.indexOf(key) >= 0;
+    },
+
+    grantPurchase(token: string, rewards: Reward[], entitlement?: string | null): boolean {
+      const shop = data.shop;
+      const key = purchaseKey(token);
+      if (key === null || shop.tokens.indexOf(key) >= 0) return false;
+      syncLives(clock()); // a reward may hold lives; the commit below stores the synced pair as well
+      if (Array.isArray(rewards)) for (const r of rewards) applyReward(r);
+      shop.tokens.push(key);
+      if (shop.tokens.length > MAX_PURCHASE_TOKENS) shop.tokens.splice(0, shop.tokens.length - MAX_PURCHASE_TOKENS);
+      if (isEntitlementId(entitlement) && shop.owned.indexOf(entitlement) < 0 && shop.owned.length < MAX_OWNED) shop.owned.push(entitlement);
+      shop.purchased = true;
+      commit();
+      return true;
+    },
+
+    setEntitlement(id: string, owned: boolean): boolean {
+      const shop = data.shop;
+      if (!isEntitlementId(id)) return false;
+      const at = shop.owned.indexOf(id);
+      if (owned === true) {
+        if (at >= 0 || shop.owned.length >= MAX_OWNED) return false;
+        shop.owned.push(id);
+        shop.purchased = true;
+      } else {
+        if (at < 0) return false;
+        shop.owned.splice(at, 1);
+      }
+      commit();
+      return true;
+    },
+
+    adsToday(): AdsToday {
+      const shop = data.shop;
+      const today = dayAt(clock());
+      const stale = today === today && today > shop.adDay; // counters of an earlier day
+      const rewarded = { extraMoves: 0, freeLife: 0, freeCoins: 0, doubleReward: 0 };
+      let total = 0;
+      if (!stale) {
+        for (const p of REWARDED_PLACEMENTS) {
+          rewarded[p] = shop.rewarded[p];
+          total += shop.rewarded[p];
+        }
+      }
+      return { rewarded, rewardedTotal: total, interstitials: stale ? 0 : shop.interstitials };
+    },
+
+    noteRewarded(placement: RewardedPlacement, earned: boolean): void {
+      const shop = data.shop;
+      const t = clock();
+      rollAdDay(t);
+      if (earned === true && isPlacement(placement)) shop.rewarded[placement] = Math.min(MAX_AD_COUNT, shop.rewarded[placement] + 1);
+      if (t !== NO_CLOCK) shop.lastRewarded = t;
+      commit();
+    },
+
+    noteInterstitial(): void {
+      const shop = data.shop;
+      const t = clock();
+      rollAdDay(t);
+      shop.interstitials = Math.min(MAX_AD_COUNT, shop.interstitials + 1);
+      shop.finished = 0;
+      if (t !== NO_CLOCK) shop.lastInterstitial = t;
+      commit();
+    },
+
+    noteLevelFinished(): number {
+      const shop = data.shop;
+      shop.finished = Math.min(MAX_COUNTER, shop.finished + 1);
+      commit();
+      return shop.finished;
+    },
+
+    daysSinceFirstPlay(): number {
+      const today = dayAt(clock());
+      return today === today && data.firstDay >= 0 ? Math.max(0, today - data.firstDay) : 0;
     },
   };
 

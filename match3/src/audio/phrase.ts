@@ -148,7 +148,7 @@ export const TRACK_STYLES: Record<MusicTrack, TrackStyle> = {
     leadVel: 0.82,
   },
   level: {
-    bpm: 104,
+    bpm: 108,
     gain: 1,
     cellWeights: [1, 2.5, 3, 3, 3, 3, 2, 2, 1.5, 1, 2, 0.4],
     formWeights: [3.5, 2.5, 3, 0.9],

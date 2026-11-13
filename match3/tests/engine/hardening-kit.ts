@@ -1842,3 +1842,97 @@ export function playAudited(level: LevelDef, seed: number, botSeed: number, stat
   }
   return { log, transcript: JSON.stringify(results), game, turns, accepted };
 }
+
+// ───────────────────────────── audited hand-built games ─────────────────────────────
+
+/**
+ * A game with a Referee attached from its first snapshot: every call made through it is audited
+ * (transcript, hits, scores, counters, queries) on top of whatever the test itself asserts.
+ */
+export class Audit {
+  readonly game: Game;
+  readonly referee: Referee;
+  /** Every call made so far (for replaying the game on a fresh engine). */
+  readonly calls: Call[] = [];
+
+  constructor(game: Game, o: RefereeOptions = { handBuilt: true, looseColors: true }) {
+    this.game = game;
+    this.referee = new Referee(game.level, game.snapshot(), o);
+  }
+
+  get snap(): Snapshot {
+    return this.game.snapshot();
+  }
+
+  run(call: Call): TurnResult {
+    const before = this.game.snapshot();
+    const res = perform(this.game, call);
+    this.calls.push(call);
+    this.referee.check(before, call, res, this.game);
+    return res;
+  }
+
+  swap(a: Pos, b: Pos): TurnResult {
+    return this.run({ op: 'swap', a, b });
+  }
+
+  hammer(where: Pos): TurnResult {
+    return this.run({ op: 'hammer', at: where });
+  }
+
+  freeSwap(a: Pos, b: Pos): TurnResult {
+    return this.run({ op: 'freeSwap', a, b });
+  }
+
+  shuffle(): TurnResult {
+    return this.run({ op: 'shuffle' });
+  }
+
+  addMoves(n: number): TurnResult {
+    return this.run({ op: 'addMoves', n });
+  }
+
+  endBonus(): TurnResult {
+    return this.run({ op: 'endBonus' });
+  }
+}
+
+/** `build()` + `Audit` in one go. */
+export function audit(rows: string[], o: BuildOpts = {}): Audit {
+  return new Audit(build(rows, o));
+}
+
+export type ClearStep = Extract<Step, { type: 'clear' }>;
+export type FallStep = Extract<Step, { type: 'fall' }>;
+export type ActivateStep = Extract<Step, { type: 'activate' }>;
+
+export const clearsOf = (res: TurnResult): ClearStep[] => stepsOf(res.steps, 'clear');
+
+/** "c,r:cause:result" of every hit of a clear step, in transcript order. */
+export const hitList = (step: ClearStep): string[] => step.hits.map((h) => `${h.at.c},${h.at.r}:${h.cause}:${h.result}`);
+
+/** Sorted "c,r" keys of the hits of a clear step (optionally only those with a given result / cause). */
+export function hitCells(step: ClearStep, only?: { cause?: HitCause; result?: Hit['result'] }): string[] {
+  return step.hits
+    .filter((h) => (only?.cause === undefined || h.cause === only.cause) && (only?.result === undefined || h.result === only.result))
+    .map((h) => posKey(h.at))
+    .sort();
+}
+
+/** Sorted "c,r" keys from a compact list like "0,1 2,1 3,1". */
+export const cellsOf = (text: string): string[] => text.trim().split(/\s+/).filter((t) => t.length > 0).sort();
+
+/**
+ * Try seeds 1..`tries` until `quiet(result)` holds for the first call — used where a test needs a
+ * transcript without accidental matches among the randomly coloured refill gems. Throws when no
+ * seed qualifies, so a test can never silently skip its assertions.
+ */
+export function quietRun(rows: string[], o: BuildOpts, call: Call, quiet: (res: TurnResult) => boolean, tries = 300): { t: Audit; res: TurnResult; seed: number } {
+  for (let seed = 1; seed <= tries; seed++) {
+    const probe = build(rows, { ...o, seed });
+    if (!quiet(perform(probe, call))) continue;
+    const t = new Audit(build(rows, { ...o, seed }));
+    return { t, res: t.run(call), seed };
+  }
+  throw new Error(`quietRun: no seed in 1..${tries} gives the transcript shape the test needs`);
+}

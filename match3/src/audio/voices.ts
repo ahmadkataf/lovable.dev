@@ -47,8 +47,11 @@ export class Voice {
   private end: number;
   private nodes: AudioNode[] = [];
   private sources: AudioScheduledSourceNode[] = [];
+  /** Stop time of each source, in step with `sources`. */
+  private stops: number[] = [];
   private running = 0;
   private released = false;
+  private fading = false;
   private noiseCount = 0;
   private census: VoiceCensus;
   private group: VoiceGroup | null;
@@ -74,6 +77,16 @@ export class Voice {
   /** Seconds from the voice's start until its last source stops. */
   get duration(): number {
     return this.end - this.t0;
+  }
+
+  /** Context time at which the last source of the voice stops. */
+  get endTime(): number {
+    return this.end;
+  }
+
+  /** True once the voice has given its nodes back (ended, cut or killed). */
+  get done(): boolean {
+    return this.released;
   }
 
   /**
@@ -103,6 +116,7 @@ export class Voice {
   run(src: AudioScheduledSourceNode, start: number, stop: number, offset?: number): void {
     this.track(src);
     this.sources.push(src);
+    this.stops.push(stop);
     this.running++;
     src.onended = () => {
       src.onended = null;
@@ -131,7 +145,46 @@ export class Voice {
     this.census.nodes -= nodes.length;
     nodes.length = 0;
     this.sources.length = 0;
+    this.stops.length = 0;
     if (this.group) this.group.delete(this);
+  }
+
+  /**
+   * Take the voice away without a click: from context time `at` its output fades to nothing
+   * over `fade` seconds, then every source is stopped — also those that would only have
+   * started later. A voice that has not begun to sound at `at` is simply removed. This is how
+   * a voice is stolen when too many effects want to sound at once; it works on a live context
+   * and, with a future `at`, in an offline render.
+   */
+  fadeOut(at: number, fade: number = 0.012): void {
+    if (this.released || this.fading) return;
+    if (at <= this.t0) {
+      this.kill();
+      return;
+    }
+    this.fading = true;
+    const f = Math.max(0.002, fade);
+    const g = this.out.gain;
+    try {
+      const level = g.value;
+      g.cancelScheduledValues(at);
+      g.setValueAtTime(level, at);
+      g.linearRampToValueAtTime(0, at + f);
+    } catch {
+      /* the stop below still ends the voice */
+    }
+    const stopAt = at + f + 0.003;
+    const sources = this.sources;
+    for (let i = 0; i < sources.length; i++) {
+      if (this.stops[i] <= stopAt) continue;
+      try {
+        sources[i].stop(stopAt);
+        this.stops[i] = stopAt;
+      } catch {
+        /* already ended */
+      }
+    }
+    if (stopAt < this.end) this.end = stopAt;
   }
 
   /**
@@ -230,11 +283,14 @@ export function tone(v: Voice, o: ToneOpts): void {
 }
 
 export interface FmOpts {
-  /** Carrier frequency (Hz), optional glide target reached at the end. */
+  /** Carrier frequency (Hz), optional glide target reached after `glide` s (default: `dur`). */
   f: number;
   f2?: number;
-  /** Modulator frequency as a multiple of the carrier. */
+  glide?: number;
+  /** Modulator frequency as a multiple of the carrier … */
   ratio: number;
+  /** … of this carrier frequency (default: `f`; give the settled pitch when `f` glides). */
+  modOf?: number;
   /** Modulation index at the start (peak deviation = index × modulator frequency) … */
   index: number;
   /** … decaying to this index after `modDur` s (default: 60 % of `dur`). */
@@ -249,16 +305,16 @@ export interface FmOpts {
 
 /**
  * Two-operator FM tone. A modulation index that dies away quickly gives a struck or plucked
- * attack over a pure body — the basis of the bell, chime and clink sounds.
+ * attack over a pure body — the basis of the bell, chime, pop and clink sounds.
  */
 export function fm(v: Voice, o: FmOpts): void {
   const ctx = v.ctx;
   const t = v.t0 + (o.at || 0);
   const carrier = ctx.createOscillator();
   carrier.frequency.setValueAtTime(o.f, t);
-  if (o.f2 !== undefined && o.f2 !== o.f) carrier.frequency.exponentialRampToValueAtTime(Math.max(1, o.f2), t + o.dur);
+  if (o.f2 !== undefined && o.f2 !== o.f) carrier.frequency.exponentialRampToValueAtTime(Math.max(1, o.f2), t + (o.glide || o.dur));
   const mod = ctx.createOscillator();
-  const fmod = o.f * o.ratio;
+  const fmod = (o.modOf === undefined ? o.f : o.modOf) * o.ratio;
   mod.frequency.value = fmod;
   const depth = v.keep(ctx.createGain());
   const d0 = Math.max(0.01, o.index * fmod);

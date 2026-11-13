@@ -5,26 +5,62 @@
  * All pitched material uses notes of D Hijaz (scale.ts), so effects sit inside the music's
  * key. The designs are this game's own; nothing is sampled and nothing quotes an existing
  * sound or tune.
+ *
+ * The mix is a ladder of loudness tiers (docs/STRATEGY.md, audio-01): every sound belongs to
+ * a tier, and its `gain` is tuned by measurement (tools/audio-check.cjs, `--calibrate`) so
+ * that its sample peak at the output is the tier's level — interface taps quietest, result
+ * jingles loudest, the music under all of them.
  */
 import type { SfxName, SfxOptions } from './types.ts';
 import { clamp } from './rng.ts';
-import { PRAISE_MIDI, matchStepIndex, matchStepMidi, midiToFreq, praiseNoteCount, starStepMidi, stepInRange } from './scale.ts';
+import { matchStepIndex, matchStepMidi, matchStepSparkles, midiToFreq, praiseMotif, starStepMidi, stepInRange } from './scale.ts';
 import { Voice, dum, filter, fm, ka, noise, pluck, tek, tone, type VoiceGroup } from './voices.ts';
 
 /**
- * Loudness class. 'ui' covers interface taps and the constant small sounds of handling gems
- * (select, swap, land): deliberately quiet. 'game' sounds share one loudness; jingles are
- * 'game' sounds that may run long.
+ * Loudness tier, quietest first:
+ *   ui      interface taps and pop-ups
+ *   soft    the constant small sounds of the board settling (land, hint)
+ *   handle  picking up and moving a gem (select, swap, invalid)
+ *   clear   gems clearing — the 'match' ladder — and coin ticks
+ *   board   blockers and everything else that happens on the board
+ *   special the blasts of special pieces and boosters
+ *   big     double blasts, praise and reached goals
+ *   jingle  results and rewards
  */
+export type SfxTier = 'ui' | 'soft' | 'handle' | 'clear' | 'board' | 'special' | 'big' | 'jingle';
+
+/** Tiers from quietest to loudest; the position is the tier's rank when voices are stolen. */
+export const SFX_TIERS: readonly SfxTier[] = ['ui', 'soft', 'handle', 'clear', 'board', 'special', 'big', 'jingle'];
+
+/** Peak level of each tier at the output, dB relative to full scale. */
+export const SFX_TIER_PEAK_DB: Record<SfxTier, number> = {
+  ui: -18,
+  soft: -16,
+  handle: -14,
+  clear: -12,
+  board: -10,
+  special: -8,
+  big: -6,
+  jingle: -5,
+};
+
+/** Coarse class kept for the lab page: the three quiet tiers are 'ui', jingles are 'jingle'. */
 export type SfxClass = 'ui' | 'game' | 'jingle';
 
+/** Different takes of a sound that is heard again and again ('match'): detune and attack. */
+export const MATCH_VARIANTS: readonly { cents: number; attack: number }[] = [
+  { cents: 0, attack: 0.004 },
+  { cents: 6, attack: 0.006 },
+  { cents: -6, attack: 0.008 },
+];
+
 interface SfxDef {
-  /** Output level, tuned by measurement (tools/audio-check.cjs) so effects are balanced. */
+  /** Voice gain; brings the recipe's peak to the tier's level. Set by `audio-check --calibrate`. */
   gain: number;
-  cls: SfxClass;
-  /** Result jingles and warnings: never dropped just because many gem sounds are playing. */
-  priority?: boolean;
-  build(v: Voice, step: number | undefined): void;
+  tier: SfxTier;
+  /** Number of round-robin takes (default 1). */
+  variants?: number;
+  build(v: Voice, step: number | undefined, variant: number): void;
 }
 
 const hz = midiToFreq;
@@ -52,6 +88,7 @@ const G6 = 91;
 const A6 = 93;
 const C7 = 96;
 const D7 = 98;
+const Fs7 = 102;
 
 /** Struck chime: pure body with a brief metallic "tine" at the attack. */
 function chime(v: Voice, midi: number, at: number, dur: number, peak: number, shimmer: number = 0.2): void {
@@ -65,27 +102,53 @@ function bell(v: Voice, midi: number, at: number, dur: number, peak: number): vo
   fm(v, { f: hz(midi), ratio: 3.5, index: 0.8, indexEnd: 0.04, modDur: dur * 0.5, at, dur, peak, attack: 0.002 });
 }
 
+/**
+ * The weight of a blast: a sine that drops fast through the 150–400 Hz range a phone speaker
+ * can still play, with a triangle an octave above so the hit is felt on small speakers too.
+ */
+function thump(v: Voice, at: number, from: number, to: number, dur: number, peak: number): void {
+  tone(v, { f: from, f2: to, glide: dur * 0.35, at, dur, peak, attack: 0.002 });
+  tone(v, { type: 'triangle', f: from * 2, f2: to * 2, glide: dur * 0.3, at, dur: dur * 0.5, peak: peak * 0.34, attack: 0.002 });
+}
+
+/** A soft chord of triangles through a low-pass that opens a little: warmth under a jingle. */
+function bloom(v: Voice, midis: readonly number[], at: number, dur: number, peak: number, attack: number = 0.04): void {
+  const lp = filter(v, 'lowpass', 1400, 0.6, { f2: 3200, at, dur: dur * 0.5 });
+  for (let k = 0; k < midis.length; k++) {
+    tone(v, { type: 'triangle', f: hz(midis[k]), at, dur, peak, attack, hold: dur * 0.25, to: lp });
+  }
+}
+
+/** High, quick sine twinkles, one after another. */
+function glitter(v: Voice, midis: readonly number[], at: number, spacing: number, peak: number, dur: number = 0.28): void {
+  for (let k = 0; k < midis.length; k++) {
+    tone(v, { f: hz(midis[k]), at: at + k * spacing, dur, peak, attack: 0.004 });
+  }
+}
+
 const SFX: Record<SfxName, SfxDef> = {
   // ── interface ──────────────────────────────────────────────────────────
   button: {
-    gain: 0.6,
-    cls: 'ui',
+    gain: 0.36,
+    tier: 'ui',
     build(v) {
       tone(v, { f: 620, f2: 440, glide: 0.04, dur: 0.07, peak: 0.5, attack: 0.002 });
+      tone(v, { type: 'triangle', f: 1240, f2: 880, glide: 0.03, dur: 0.035, peak: 0.12, attack: 0.001 });
       noise(v, { type: 'bandpass', f: 2600, q: 1.2, dur: 0.02, peak: 0.25, attack: 0.001 });
     },
   },
   popupOpen: {
-    gain: 0.77,
-    cls: 'ui',
+    gain: 0.36,
+    tier: 'ui',
     build(v) {
-      tone(v, { f: 330, f2: 660, glide: 0.09, dur: 0.14, peak: 0.45, attack: 0.012 });
-      noise(v, { type: 'bandpass', f: 900, f2: 2600, q: 1.5, dur: 0.12, peak: 0.15, attack: 0.05 });
+      tone(v, { f: 330, f2: 660, glide: 0.09, dur: 0.14, peak: 0.45, attack: 0.008 });
+      tone(v, { type: 'triangle', f: 660, f2: 1320, glide: 0.09, dur: 0.1, peak: 0.08, attack: 0.008 });
+      noise(v, { type: 'bandpass', f: 900, f2: 2600, q: 1.5, dur: 0.12, peak: 0.15, attack: 0.04 });
     },
   },
   popupClose: {
-    gain: 0.6,
-    cls: 'ui',
+    gain: 0.36,
+    tier: 'ui',
     build(v) {
       tone(v, { f: 620, f2: 310, glide: 0.08, dur: 0.12, peak: 0.45, attack: 0.008 });
       noise(v, { type: 'bandpass', f: 2400, f2: 900, q: 1.5, dur: 0.1, peak: 0.12, attack: 0.02 });
@@ -94,24 +157,27 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── moving gems ────────────────────────────────────────────────────────
   select: {
-    gain: 0.64,
-    cls: 'ui',
+    gain: 0.46,
+    tier: 'handle',
     build(v) {
+      // A small bright "pick": a rising fifth with a glint on top.
       tone(v, { type: 'triangle', f: hz(D5), f2: hz(A5), glide: 0.06, dur: 0.12, peak: 0.5, attack: 0.004 });
       tone(v, { f: hz(A6), at: 0.03, dur: 0.06, peak: 0.1, attack: 0.004 });
     },
   },
   swap: {
-    gain: 0.83,
-    cls: 'ui',
+    gain: 0.5,
+    tier: 'handle',
     build(v) {
-      noise(v, { type: 'bandpass', f: 500, f2: 2400, q: 1.4, dur: 0.2, peak: 1.3, attack: 0.07 });
-      tone(v, { f: 300, f2: 520, glide: 0.14, dur: 0.18, peak: 0.25, attack: 0.05 });
+      // A quick "fwip": the tone speaks at once, the air sweeps up behind it.
+      tone(v, { f: 300, f2: 560, glide: 0.11, dur: 0.16, peak: 0.5, attack: 0.006 });
+      tone(v, { type: 'triangle', f: 600, f2: 1120, glide: 0.11, dur: 0.1, peak: 0.1, attack: 0.006 });
+      noise(v, { type: 'bandpass', f: 700, f2: 2800, q: 1.3, dur: 0.17, peak: 0.6, attack: 0.008 });
     },
   },
   invalid: {
-    gain: 1.24,
-    cls: 'game',
+    gain: 0.6,
+    tier: 'handle',
     build(v) {
       // Two dull, slightly buzzy bumps stepping down: "uh-uh".
       const lp = filter(v, 'lowpass', 1500, 0.7);
@@ -122,8 +188,8 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   land: {
-    gain: 0.8,
-    cls: 'ui',
+    gain: 0.3,
+    tier: 'soft',
     build(v) {
       // A soft tap. The body sits high enough to be heard on a phone speaker.
       tone(v, { type: 'triangle', f: 330, f2: 190, glide: 0.05, dur: 0.08, peak: 0.5, attack: 0.002 });
@@ -131,33 +197,67 @@ const SFX: Record<SfxName, SfxDef> = {
       noise(v, { type: 'bandpass', f: 1500, q: 0.8, dur: 0.03, peak: 0.6, attack: 0.001 });
     },
   },
+  hint: {
+    gain: 0.4,
+    tier: 'soft',
+    build(v) {
+      // "Over here": two soft notes, a fourth apart, the second left to ring a little.
+      tone(v, { f: hz(A5), dur: 0.15, peak: 0.4, attack: 0.008 });
+      tone(v, { f: hz(D6), at: 0.11, dur: 0.22, peak: 0.42, attack: 0.008 });
+      tone(v, { type: 'triangle', f: hz(D5), at: 0.11, dur: 0.16, peak: 0.1, attack: 0.01 });
+    },
+  },
 
   // ── clears ─────────────────────────────────────────────────────────────
   match: {
-    gain: 0.68,
-    cls: 'game',
-    build(v, step) {
-      // A chime that climbs D F♯ G A C through two octaves with the cascade number.
-      const midi = matchStepMidi(step);
+    gain: 0.4,
+    tier: 'clear',
+    variants: MATCH_VARIANTS.length,
+    build(v, step, variant) {
+      // A gem pops: a woody pluck that chirps up into its note, a glassy octave above it and
+      // a tick of air at the very front. The note climbs the cascade ladder (scale.ts).
+      const take = MATCH_VARIANTS[((variant % MATCH_VARIANTS.length) + MATCH_VARIANTS.length) % MATCH_VARIANTS.length];
       const rung = matchStepIndex(step);
-      chime(v, midi, 0, 0.34, 0.6, 0.2 + rung * 0.012);
-      // From the second octave on, a faint third harmonic adds sparkle.
-      if (rung >= 5) tone(v, { f: hz(midi) * 3, at: 0.035, dur: 0.14, peak: 0.06, attack: 0.003 });
+      const f = hz(matchStepMidi(step)) * Math.pow(2, take.cents / 1200);
+      fm(v, { f: f * 0.89, f2: f, glide: 0.016, ratio: 2, modOf: f, index: 1.05, indexEnd: 0.02, modDur: 0.05, dur: 0.21, peak: 0.6, attack: take.attack });
+      tone(v, { f: f * 2, dur: 0.13, peak: 0.2 + rung * 0.004, attack: take.attack });
+      // The low rungs get a third harmonic so a phone speaker has something to hold on to.
+      if (rung < 5) tone(v, { f: f * 3, dur: 0.07, peak: 0.1 - rung * 0.012, attack: take.attack });
+      tone(v, { f: f * 4, dur: 0.045, peak: 0.07, attack: 0.002 });
+      noise(v, { type: 'bandpass', f: 3800, q: 1, dur: 0.014, peak: 0.16, attack: 0.001 });
+      // Beyond the top of the ladder the note holds and a sparkle layer joins: 2× and 3×, −12 dB.
+      if (matchStepSparkles(step)) {
+        tone(v, { f: f * 2, at: 0.03, dur: 0.19, peak: 0.15, attack: 0.004 });
+        tone(v, { f: f * 3, at: 0.045, dur: 0.17, peak: 0.15, attack: 0.004 });
+      }
     },
   },
-  sand: {
-    gain: 0.57,
-    cls: 'game',
+  coin: {
+    gain: 0.45,
+    tier: 'clear',
     build(v) {
-      // A short hiss of grains.
-      noise(v, { type: 'bandpass', f: 4200, f2: 2600, q: 0.9, dur: 0.16, peak: 1.4, attack: 0.012 });
-      noise(v, { type: 'highpass', f: 6000, q: 0.7, at: 0.05, dur: 0.12, peak: 0.7, attack: 0.02 });
-      tone(v, { f: 520, f2: 380, dur: 0.07, peak: 0.12, attack: 0.004 });
+      // One struck metal ring with shimmering overtones.
+      fm(v, { f: hz(Fs6), ratio: 2.76, index: 1, indexEnd: 0.1, modDur: 0.12, dur: 0.22, peak: 0.45, attack: 0.001 });
+      tone(v, { f: hz(Fs6) * 2, dur: 0.14, peak: 0.12, attack: 0.002 });
+      tone(v, { type: 'triangle', f: hz(Fs5), dur: 0.08, peak: 0.1, attack: 0.002 });
+      noise(v, { type: 'bandpass', f: 5200, q: 1, dur: 0.02, peak: 0.18, attack: 0.001 });
+    },
+  },
+
+  // ── blockers and the board ─────────────────────────────────────────────
+  sand: {
+    gain: 0.5,
+    tier: 'board',
+    build(v) {
+      // A soft "pff" of grains: mid-band hiss that settles, with a little air above it.
+      noise(v, { type: 'bandpass', f: 2300, f2: 1300, q: 0.8, dur: 0.17, peak: 1.3, attack: 0.01 });
+      noise(v, { type: 'bandpass', f: 4300, q: 1.2, at: 0.03, dur: 0.11, peak: 0.45, attack: 0.02 });
+      tone(v, { f: 480, f2: 340, dur: 0.08, peak: 0.2, attack: 0.004 });
     },
   },
   stone: {
-    gain: 0.84,
-    cls: 'game',
+    gain: 0.6,
+    tier: 'board',
     build(v) {
       // A knock on rock: pitched tock, grit, and a little weight underneath.
       tone(v, { f: 640, f2: 420, glide: 0.05, dur: 0.11, peak: 0.6, attack: 0.001 });
@@ -168,13 +268,13 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   stoneBreak: {
-    gain: 0.92,
-    cls: 'game',
+    gain: 0.6,
+    tier: 'board',
     build(v) {
       // The block gives way: a crack, a thud, and pieces tumbling after it.
       tone(v, { f: 560, f2: 260, glide: 0.08, dur: 0.15, peak: 0.55, attack: 0.001 });
       tone(v, { f: 840, f2: 420, glide: 0.06, dur: 0.1, peak: 0.25, attack: 0.001 });
-      tone(v, { type: 'triangle', f: 160, f2: 62, glide: 0.12, dur: 0.3, peak: 0.3, attack: 0.003 });
+      tone(v, { type: 'triangle', f: 240, f2: 130, glide: 0.1, dur: 0.26, peak: 0.34, attack: 0.003 });
       noise(v, { type: 'bandpass', f: 1300, q: 0.8, dur: 0.1, peak: 0.9, attack: 0.001 });
       const bits = [900, 1700, 1200, 2100];
       const pebbles = [700, 560, 470, 390];
@@ -186,18 +286,19 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   chain: {
-    gain: 1.24,
-    cls: 'game',
+    gain: 0.7,
+    tier: 'board',
     build(v) {
       // Two links knocking: clangorous FM pairs.
       fm(v, { f: 1720, ratio: 1.41, index: 1.7, indexEnd: 0.25, modDur: 0.08, dur: 0.14, peak: 0.35, attack: 0.001 });
       fm(v, { f: 2090, ratio: 1.41, index: 1.7, indexEnd: 0.25, modDur: 0.08, at: 0.075, dur: 0.17, peak: 0.35, attack: 0.001 });
-      noise(v, { type: 'highpass', f: 5000, q: 0.7, dur: 0.03, peak: 0.2, attack: 0.001 });
+      tone(v, { type: 'triangle', f: 430, f2: 320, dur: 0.06, peak: 0.16, attack: 0.002 });
+      noise(v, { type: 'bandpass', f: 4600, q: 1, dur: 0.03, peak: 0.2, attack: 0.001 });
     },
   },
   vine: {
-    gain: 0.92,
-    cls: 'game',
+    gain: 0.6,
+    tier: 'board',
     build(v) {
       // A snip and a rustle of leaves.
       tone(v, { type: 'triangle', f: 740, f2: 260, glide: 0.09, dur: 0.13, peak: 0.5, attack: 0.003 });
@@ -206,8 +307,8 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   vineGrow: {
-    gain: 1.01,
-    cls: 'game',
+    gain: 0.6,
+    tier: 'board',
     build(v) {
       // A creeping semitone rise, D → E♭, with a wobble.
       tone(v, { type: 'triangle', f: hz(D5), f2: hz(Eb5), glide: 0.25, dur: 0.36, peak: 0.4, attack: 0.06, vib: 9, vibDepth: 8 });
@@ -217,20 +318,20 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   lamp: {
-    gain: 0.84,
-    cls: 'game',
+    gain: 0.6,
+    tier: 'board',
     build(v) {
+      // The lamp arrives: two brass bells, the second one warm and ringing.
       bell(v, A5, 0, 0.3, 0.4);
       bell(v, D6, 0.11, 0.48, 0.45);
       tone(v, { type: 'triangle', f: hz(D5), at: 0.11, dur: 0.4, peak: 0.2, attack: 0.01 });
+      tone(v, { type: 'triangle', f: hz(A4), at: 0.11, dur: 0.3, peak: 0.1, attack: 0.02 });
       tone(v, { f: hz(Fs6), at: 0.16, dur: 0.3, peak: 0.08, attack: 0.004 });
     },
   },
-
-  // ── specials ───────────────────────────────────────────────────────────
   createBeam: {
-    gain: 1.72,
-    cls: 'game',
+    gain: 0.8,
+    tier: 'board',
     build(v) {
       // A quick upward zip ending in a glint.
       const lp = filter(v, 'lowpass', 1200, 2, { f2: 5200, dur: 0.2 });
@@ -240,8 +341,8 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   createNova: {
-    gain: 1.11,
-    cls: 'game',
+    gain: 0.6,
+    tier: 'board',
     build(v) {
       // A swelling charge that settles on a bell.
       tone(v, { type: 'triangle', f: hz(A3), f2: hz(A4), glide: 0.22, dur: 0.3, peak: 0.45, attack: 0.16, vib: 14, vibDepth: 6 });
@@ -251,8 +352,8 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   createPrism: {
-    gain: 1.15,
-    cls: 'game',
+    gain: 0.6,
+    tier: 'board',
     build(v) {
       // A run up the scale, each note a small bell; the last one rings.
       const run = [D5, Eb5, Fs5, G5, A5, D6];
@@ -261,66 +362,12 @@ const SFX: Record<SfxName, SfxDef> = {
         fm(v, { f: hz(run[k]), ratio: 2, index: 0.7, indexEnd: 0.02, at: k * 0.04, dur: lastNote ? 0.42 : 0.16, peak: lastNote ? 0.42 : 0.3 });
       }
       tone(v, { f: hz(D7), at: 0.2, dur: 0.36, peak: 0.07, attack: 0.01 });
-      noise(v, { type: 'highpass', f: 6000, q: 0.7, at: 0.05, dur: 0.3, peak: 0.07, attack: 0.15 });
+      noise(v, { type: 'bandpass', f: 5200, q: 0.8, at: 0.05, dur: 0.3, peak: 0.07, attack: 0.15 });
     },
   },
-  beam: {
-    gain: 0.68,
-    cls: 'game',
-    build(v) {
-      // Line blast: noise swept downwards over a falling tone.
-      noise(v, { type: 'bandpass', f: 5200, f2: 420, q: 1.1, dur: 0.34, peak: 1.3, attack: 0.008 });
-      const lp = filter(v, 'lowpass', 2600, 1, { f2: 500, dur: 0.3 });
-      tone(v, { type: 'sawtooth', f: hz(D5), f2: hz(D3), glide: 0.26, dur: 0.32, peak: 0.3, attack: 0.005, to: lp });
-      tone(v, { f: hz(D6), f2: hz(D4), glide: 0.2, dur: 0.24, peak: 0.2, attack: 0.004 });
-    },
-  },
-  nova: {
-    gain: 0.67,
-    cls: 'game',
-    build(v) {
-      // Area blast: a soft boom under a burst of noise that closes down quickly.
-      tone(v, { f: 170, f2: 46, glide: 0.3, dur: 0.48, peak: 0.2, attack: 0.004 });
-      tone(v, { type: 'triangle', f: hz(A4), f2: hz(A3), glide: 0.3, dur: 0.4, peak: 0.5, attack: 0.004 });
-      noise(v, { type: 'lowpass', f: 5000, f2: 400, q: 0.9, dur: 0.44, peak: 0.7, attack: 0.005 });
-      fm(v, { f: hz(D5), f2: hz(D4), ratio: 1.41, index: 1.2, indexEnd: 0.05, dur: 0.36, peak: 0.4 });
-    },
-  },
-  prism: {
-    gain: 1.51,
-    cls: 'game',
-    build(v) {
-      // Rays: a swirl of air with bright notes darting about above a rising tone.
-      noise(v, { type: 'bandpass', f: 900, f2: 7000, q: 2.5, dur: 0.3, peak: 0.25, attack: 0.12 });
-      noise(v, { type: 'bandpass', f: 7000, f2: 1500, q: 2.5, at: 0.25, dur: 0.36, peak: 0.2, attack: 0.02 });
-      const rays = [D6, Fs6, A6, G6, C7, D7, A6];
-      for (let k = 0; k < rays.length; k++) {
-        fm(v, { f: hz(rays[k]), ratio: 2, index: 0.5, at: 0.03 + k * 0.055, dur: 0.2, peak: 0.26 });
-      }
-      tone(v, { type: 'triangle', f: hz(D4), f2: hz(D5), glide: 0.4, dur: 0.55, peak: 0.2, attack: 0.1 });
-    },
-  },
-  bigCombo: {
-    gain: 0.78,
-    cls: 'game',
-    build(v) {
-      // Two specials at once: a bright impact that falls away under a chord that mellows.
-      tone(v, { f: 150, f2: 42, glide: 0.4, dur: 0.7, peak: 0.22, attack: 0.004 });
-      noise(v, { type: 'lowpass', f: 7000, f2: 320, q: 0.9, dur: 0.6, peak: 0.65, attack: 0.005 });
-      noise(v, { type: 'bandpass', f: 4200, f2: 700, q: 1.2, at: 0.04, dur: 0.5, peak: 0.5, attack: 0.03 });
-      const lp = filter(v, 'lowpass', 3600, 1.2, { f2: 480, at: 0.02, dur: 0.55 });
-      const chord = [D4, A4, D5, Fs5];
-      for (let k = 0; k < chord.length; k++) {
-        tone(v, { type: 'sawtooth', f: hz(chord[k]), at: 0.02, dur: 0.66, peak: 0.2, attack: 0.012, to: lp });
-      }
-      bell(v, D5, 0.02, 0.5, 0.36);
-    },
-  },
-
-  // ── tools ──────────────────────────────────────────────────────────────
   shuffle: {
-    gain: 1.37,
-    cls: 'game',
+    gain: 0.7,
+    tier: 'board',
     build(v) {
       const seq = [D5, G5, Eb5, A5, Fs5, C6, A5, D6];
       for (let k = 0; k < seq.length; k++) {
@@ -330,67 +377,9 @@ const SFX: Record<SfxName, SfxDef> = {
       noise(v, { type: 'bandpass', f: 3200, f2: 900, q: 1.2, at: 0.22, dur: 0.26, peak: 0.6, attack: 0.1 });
     },
   },
-  booster: {
-    gain: 1.06,
-    cls: 'game',
-    build(v) {
-      tone(v, { type: 'triangle', f: hz(D4), f2: hz(D6), glide: 0.26, dur: 0.32, peak: 0.4, attack: 0.03 });
-      noise(v, { type: 'bandpass', f: 700, f2: 5000, q: 2, dur: 0.3, peak: 0.2, attack: 0.2 });
-      bell(v, D6, 0.26, 0.26, 0.4);
-      bell(v, A6, 0.3, 0.22, 0.25);
-    },
-  },
-
-  // ── feedback ───────────────────────────────────────────────────────────
-  praise: {
-    gain: 1.04,
-    cls: 'game',
-    build(v, step) {
-      // Sparkle: three to six quick high notes; stronger praise adds notes, air and weight.
-      const level = stepInRange(step, 1, 4, 1);
-      const count = praiseNoteCount(step);
-      for (let k = 0; k < count; k++) {
-        const lastNote = k === count - 1;
-        fm(v, { f: hz(PRAISE_MIDI[k]), ratio: 2, index: 0.5, at: k * 0.05, dur: lastNote ? 0.32 : 0.18, peak: 0.28 });
-      }
-      if (level >= 3) noise(v, { type: 'highpass', f: 7000, q: 0.7, dur: 0.3, peak: 0.05 * level, attack: 0.1 });
-      if (level >= 4) tone(v, { type: 'triangle', f: hz(D5), dur: 0.4, peak: 0.16, attack: 0.02 });
-    },
-  },
-  goalDone: {
-    gain: 1.06,
-    cls: 'game',
-    priority: true,
-    build(v) {
-      const notes = [D5, A5, D6];
-      for (let k = 0; k < notes.length; k++) {
-        chime(v, notes[k], k * 0.09, k === 2 ? 0.36 : 0.18, 0.42, 0.18);
-      }
-      tone(v, { type: 'triangle', f: hz(D4), at: 0.18, dur: 0.3, peak: 0.2, attack: 0.01 });
-    },
-  },
-  star: {
-    gain: 0.81,
-    cls: 'game',
-    priority: true,
-    build(v, step) {
-      // One bright bell per star, each higher than the last, with more glitter.
-      const s = stepInRange(step, 1, 3, 1);
-      const midi = starStepMidi(step);
-      bell(v, midi, 0, 0.45, 0.5);
-      tone(v, { f: hz(midi + 12), at: 0.02, dur: 0.3, peak: 0.14, attack: 0.003 });
-      tone(v, { type: 'triangle', f: hz(midi - 12), dur: 0.25, peak: 0.2, attack: 0.006 });
-      noise(v, { type: 'highpass', f: 7000, q: 0.7, dur: 0.1 + 0.04 * s, peak: 0.1, attack: 0.004 });
-      const glitter = [D7, D7 + 4, D7 + 7];
-      for (let k = 0; k < s; k++) {
-        tone(v, { f: hz(glitter[k]), at: 0.06 + k * 0.045, dur: 0.12, peak: 0.06, attack: 0.003 });
-      }
-    },
-  },
   movesLow: {
-    gain: 1.12,
-    cls: 'game',
-    priority: true,
+    gain: 0.6,
+    tier: 'board',
     build(v) {
       // A gentle nudge: E♭ E♭ D, the scale's leaning tone resolving home.
       const notes = [Eb5, Eb5, D5];
@@ -402,9 +391,8 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   lifeLost: {
-    gain: 1.43,
-    cls: 'game',
-    priority: true,
+    gain: 0.8,
+    tier: 'board',
     build(v) {
       // A falling sigh: A, then E♭ sinking onto D while the tone darkens.
       const lp = filter(v, 'lowpass', 2600, 0.7, { f2: 900, dur: 0.48 });
@@ -414,10 +402,161 @@ const SFX: Record<SfxName, SfxDef> = {
       tone(v, { f: hz(Eb5), f2: hz(D5), glide: 0.25, at: 0.15, dur: 0.32, peak: 0.24, attack: 0.005 });
     },
   },
+
+  // ── specials ───────────────────────────────────────────────────────────
+  beam: {
+    gain: 0.5,
+    tier: 'special',
+    build(v) {
+      // Line blast: a crack, a streak of noise tearing down the line, and a thump of weight.
+      noise(v, { type: 'highpass', f: 2500, q: 0.7, dur: 0.02, peak: 0.5, attack: 0.001 });
+      noise(v, { type: 'bandpass', f: 5200, f2: 420, q: 1.1, dur: 0.34, peak: 1.1, attack: 0.006 });
+      thump(v, 0, 340, 150, 0.26, 0.85);
+      const lp = filter(v, 'lowpass', 2600, 1, { f2: 500, dur: 0.3 });
+      tone(v, { type: 'sawtooth', f: hz(D5), f2: hz(D3), glide: 0.26, dur: 0.32, peak: 0.3, attack: 0.005, to: lp });
+      tone(v, { f: hz(D6), f2: hz(D4), glide: 0.2, dur: 0.24, peak: 0.2, attack: 0.004 });
+    },
+  },
+  nova: {
+    gain: 0.5,
+    tier: 'special',
+    build(v) {
+      // Area blast: a punch you can feel, a burst of air that closes down, a ring that sinks.
+      noise(v, { type: 'bandpass', f: 1800, q: 0.8, dur: 0.03, peak: 0.5, attack: 0.001 });
+      thump(v, 0, 300, 110, 0.44, 0.9);
+      tone(v, { f: 150, f2: 52, glide: 0.3, dur: 0.46, peak: 0.22, attack: 0.004 });
+      tone(v, { type: 'triangle', f: hz(A4), f2: hz(A3), glide: 0.3, dur: 0.4, peak: 0.4, attack: 0.004 });
+      noise(v, { type: 'lowpass', f: 5000, f2: 400, q: 0.9, dur: 0.44, peak: 0.7, attack: 0.005 });
+      fm(v, { f: hz(D5), f2: hz(D4), ratio: 1.41, index: 1.2, indexEnd: 0.05, dur: 0.36, peak: 0.4 });
+    },
+  },
+  prism: {
+    gain: 0.6,
+    tier: 'special',
+    build(v) {
+      // Rays: a soft thud, a swirl of air, bright notes darting about above a rising chord.
+      thump(v, 0, 260, 150, 0.2, 0.5);
+      noise(v, { type: 'bandpass', f: 900, f2: 6000, q: 2.5, dur: 0.3, peak: 0.25, attack: 0.12 });
+      noise(v, { type: 'bandpass', f: 6000, f2: 1500, q: 2.5, at: 0.25, dur: 0.36, peak: 0.2, attack: 0.02 });
+      const rays = [D6, Fs6, A6, G6, C7, D7, A6];
+      for (let k = 0; k < rays.length; k++) {
+        fm(v, { f: hz(rays[k]), ratio: 2, index: 0.5, at: 0.03 + k * 0.055, dur: 0.2, peak: 0.26 });
+      }
+      tone(v, { type: 'triangle', f: hz(D4), f2: hz(D5), glide: 0.4, dur: 0.55, peak: 0.22, attack: 0.08 });
+      tone(v, { type: 'triangle', f: hz(A4), f2: hz(A5), glide: 0.4, dur: 0.55, peak: 0.14, attack: 0.1 });
+      bell(v, D6, 0.42, 0.3, 0.24);
+    },
+  },
+  booster: {
+    gain: 0.7,
+    tier: 'special',
+    build(v) {
+      tone(v, { type: 'triangle', f: hz(D4), f2: hz(D6), glide: 0.26, dur: 0.32, peak: 0.4, attack: 0.03 });
+      noise(v, { type: 'bandpass', f: 700, f2: 5000, q: 2, dur: 0.3, peak: 0.2, attack: 0.2 });
+      bell(v, D6, 0.26, 0.26, 0.4);
+      bell(v, A6, 0.3, 0.22, 0.25);
+      tone(v, { type: 'triangle', f: hz(D5), at: 0.26, dur: 0.2, peak: 0.14, attack: 0.006 });
+    },
+  },
+
+  // ── big moments ────────────────────────────────────────────────────────
+  bigCombo: {
+    gain: 0.6,
+    tier: 'big',
+    build(v) {
+      // Two specials at once: a heavy impact that falls away under a chord that mellows.
+      noise(v, { type: 'highpass', f: 2200, q: 0.7, dur: 0.025, peak: 0.5, attack: 0.001 });
+      thump(v, 0, 320, 105, 0.5, 0.9);
+      tone(v, { f: 150, f2: 46, glide: 0.4, dur: 0.66, peak: 0.22, attack: 0.004 });
+      noise(v, { type: 'lowpass', f: 7000, f2: 320, q: 0.9, dur: 0.6, peak: 0.65, attack: 0.005 });
+      noise(v, { type: 'bandpass', f: 4200, f2: 700, q: 1.2, at: 0.04, dur: 0.5, peak: 0.5, attack: 0.03 });
+      const lp = filter(v, 'lowpass', 3600, 1.2, { f2: 480, at: 0.02, dur: 0.55 });
+      const chord = [D4, A4, D5, Fs5];
+      for (let k = 0; k < chord.length; k++) {
+        tone(v, { type: 'sawtooth', f: hz(chord[k]), at: 0.02, dur: 0.66, peak: 0.2, attack: 0.012, to: lp });
+      }
+      bell(v, D5, 0.02, 0.5, 0.36);
+    },
+  },
+  praise: {
+    gain: 0.8,
+    tier: 'big',
+    build(v, step) {
+      // A rising motif of two to five ladder notes, each a bell with a warm octave under it;
+      // the last note rings, and bigger praise brings a soft chord, glitter and a drum.
+      const level = stepInRange(step, 1, 4, 1);
+      const motif = praiseMotif(step);
+      const spacing = 0.085;
+      const last = motif.length - 1;
+      for (let k = 0; k <= last; k++) {
+        const at = k * spacing;
+        const ring = k === last ? 0.46 : 0.22;
+        chime(v, motif[k], at, ring, k === last ? 0.42 : 0.32, 0.22);
+        tone(v, { type: 'triangle', f: hz(motif[k] - 12), at, dur: ring * 0.7, peak: 0.13, attack: 0.004 });
+      }
+      const land = last * spacing;
+      tone(v, { f: hz(motif[last] + 12), at: land + 0.02, dur: 0.3, peak: 0.07 + 0.015 * level, attack: 0.004 });
+      if (level >= 2) bloom(v, level >= 3 ? [D4, A4, D5] : [D5, A5], land, 0.4, 0.07);
+      if (level >= 3) glitter(v, level >= 4 ? [A6, D7, Fs7] : [A6, D7], land + 0.09, 0.06, 0.06, 0.22);
+      if (level >= 4) dum(v, land, 0.4);
+    },
+  },
+  goalDone: {
+    gain: 0.8,
+    tier: 'big',
+    build(v) {
+      const notes = [D5, A5, D6];
+      for (let k = 0; k < notes.length; k++) {
+        chime(v, notes[k], k * 0.09, k === 2 ? 0.4 : 0.18, 0.42, 0.18);
+      }
+      tone(v, { type: 'triangle', f: hz(D4), at: 0.18, dur: 0.32, peak: 0.2, attack: 0.01 });
+      tone(v, { type: 'triangle', f: hz(A4), at: 0.18, dur: 0.3, peak: 0.12, attack: 0.01 });
+      tek(v, 0.18, 0.4);
+    },
+  },
+  finale: {
+    gain: 0.8,
+    tier: 'big',
+    build(v) {
+      // The bonus begins: the ladder itself runs up in a hurry and lands on a ringing octave.
+      noise(v, { type: 'bandpass', f: 500, f2: 5200, q: 1.5, dur: 0.36, peak: 0.3, attack: 0.26 });
+      const run = [D5, Fs5, G5, A5, C6];
+      for (let k = 0; k < run.length; k++) {
+        const at = k * 0.05;
+        chime(v, run[k], at, 0.16, 0.26, 0.15);
+        pluck(v, { midi: run[k] - 12, at, dur: 0.2, peak: 0.26 });
+      }
+      const land = 0.27;
+      bell(v, D6, land, 0.5, 0.4);
+      bell(v, Fs6, land + 0.03, 0.44, 0.2);
+      bloom(v, [D4, A4, D5], land, 0.5, 0.09);
+      dum(v, land, 0.5);
+      tek(v, land + 0.11, 0.45);
+      glitter(v, [A6, D7], land + 0.12, 0.07, 0.06, 0.24);
+    },
+  },
+
+  // ── results and rewards ────────────────────────────────────────────────
+  star: {
+    gain: 0.9,
+    tier: 'jingle',
+    build(v, step) {
+      // One bright bell per star, each higher than the last, with more glitter.
+      const s = stepInRange(step, 1, 3, 1);
+      const midi = starStepMidi(step);
+      bell(v, midi, 0, 0.45, 0.5);
+      tone(v, { f: hz(midi + 12), at: 0.02, dur: 0.3, peak: 0.14, attack: 0.003 });
+      tone(v, { type: 'triangle', f: hz(midi - 12), dur: 0.25, peak: 0.2, attack: 0.006 });
+      noise(v, { type: 'bandpass', f: 5600, q: 0.8, dur: 0.1 + 0.04 * s, peak: 0.1, attack: 0.004 });
+      const sparks = [D7, D7 + 4, D7 + 7];
+      for (let k = 0; k < s; k++) {
+        tone(v, { f: hz(sparks[k]), at: 0.06 + k * 0.045, dur: 0.12, peak: 0.06, attack: 0.003 });
+      }
+    },
+  },
   levelStart: {
-    gain: 0.87,
-    cls: 'jingle',
-    priority: true,
+    gain: 0.9,
+    tier: 'jingle',
     build(v) {
       dum(v, 0, 0.6);
       const notes = [D4, A4, D5];
@@ -429,22 +568,9 @@ const SFX: Record<SfxName, SfxDef> = {
       tone(v, { f: hz(Fs6), at: 0.27, dur: 0.26, peak: 0.07, attack: 0.004 });
     },
   },
-
-  // ── rewards ────────────────────────────────────────────────────────────
-  coin: {
-    gain: 0.77,
-    cls: 'game',
-    build(v) {
-      // One struck metal ring with shimmering overtones.
-      fm(v, { f: hz(Fs6), ratio: 2.76, index: 1, indexEnd: 0.1, modDur: 0.15, dur: 0.3, peak: 0.45, attack: 0.001 });
-      tone(v, { f: hz(Fs6) * 2, dur: 0.18, peak: 0.12, attack: 0.002 });
-      noise(v, { type: 'highpass', f: 6000, q: 0.7, dur: 0.025, peak: 0.2, attack: 0.001 });
-    },
-  },
   purchase: {
-    gain: 1.2,
-    cls: 'jingle',
-    priority: true,
+    gain: 0.9,
+    tier: 'jingle',
     build(v) {
       // Two metal rings, then a warm chord of confirmation.
       fm(v, { f: hz(Fs6), ratio: 2.76, index: 1, indexEnd: 0.1, modDur: 0.1, dur: 0.16, peak: 0.36, attack: 0.001 });
@@ -458,9 +584,8 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   reward: {
-    gain: 0.87,
-    cls: 'jingle',
-    priority: true,
+    gain: 0.9,
+    tier: 'jingle',
     build(v) {
       // A rising arpeggio that blooms into a held, shimmering fifth.
       const arp = [D5, G5, A5, D6, Fs6];
@@ -472,15 +597,60 @@ const SFX: Record<SfxName, SfxDef> = {
       tone(v, { type: 'triangle', f: hz(D5), at: 0.38, dur: 0.85, peak: 0.16, attack: 0.03 });
       bell(v, D6, 0.4, 0.85, 0.26);
       bell(v, A6, 0.44, 0.8, 0.2);
-      noise(v, { type: 'highpass', f: 7000, q: 0.7, at: 0.36, dur: 0.5, peak: 0.06, attack: 0.1 });
+      noise(v, { type: 'bandpass', f: 5600, q: 0.8, at: 0.36, dur: 0.5, peak: 0.06, attack: 0.1 });
+    },
+  },
+  chest: {
+    gain: 0.9,
+    tier: 'jingle',
+    build(v) {
+      // A latch knocks open, the lid swings up and light spills out as a strummed chord.
+      tone(v, { type: 'triangle', f: 230, f2: 130, glide: 0.05, dur: 0.1, peak: 0.5, attack: 0.002 });
+      noise(v, { type: 'bandpass', f: 950, q: 0.9, dur: 0.05, peak: 0.5, attack: 0.001 });
+      ka(v, 0.07, 0.5);
+      tone(v, { type: 'triangle', f: hz(D4), f2: hz(A4), glide: 0.16, at: 0.1, dur: 0.2, peak: 0.22, attack: 0.05, vib: 11, vibDepth: 5 });
+      noise(v, { type: 'bandpass', f: 600, f2: 3000, q: 1.4, at: 0.1, dur: 0.22, peak: 0.2, attack: 0.14 });
+      const open = 0.26;
+      const chord = [D5, Fs5, A5, D6];
+      for (let k = 0; k < chord.length; k++) {
+        const at = open + k * 0.035;
+        bell(v, chord[k], at, k === chord.length - 1 ? 0.62 : 0.5, 0.3);
+        pluck(v, { midi: chord[k] - 12, at, dur: 0.5, peak: 0.22 });
+      }
+      bloom(v, [D4, A4, D5], open, 0.66, 0.08);
+      glitter(v, [A6, D7, Fs7, D7], open + 0.2, 0.07, 0.06, 0.26);
+      noise(v, { type: 'bandpass', f: 5600, q: 0.8, at: open + 0.05, dur: 0.5, peak: 0.05, attack: 0.12 });
+    },
+  },
+  caravan: {
+    gain: 0.9,
+    tier: 'jingle',
+    build(v) {
+      // The caravan sets off: a walking hand-drum figure under two swinging brass bells.
+      const beat = 0.12;
+      dum(v, 0, 0.6);
+      ka(v, beat, 0.4);
+      tek(v, beat * 2, 0.5);
+      dum(v, beat * 3, 0.5);
+      tek(v, beat * 4, 0.55);
+      const bells = [A5, D6, A5, D6];
+      for (let k = 0; k < bells.length; k++) {
+        fm(v, { f: hz(bells[k]), ratio: 2.76, index: 0.9, indexEnd: 0.08, modDur: 0.1, at: k * beat, dur: 0.2, peak: 0.3, attack: 0.001 });
+        pluck(v, { midi: bells[k] - 24, at: k * beat, dur: 0.24, peak: 0.26 });
+      }
+      const land = beat * 4;
+      bell(v, Fs6, land, 0.55, 0.36);
+      bell(v, D6, land + 0.02, 0.5, 0.2);
+      pluck(v, { midi: D5, at: land, dur: 0.6, peak: 0.3 });
+      bloom(v, [D4, A4], land, 0.5, 0.09);
     },
   },
   win: {
-    gain: 0.97,
-    cls: 'jingle',
-    priority: true,
+    gain: 0.9,
+    tier: 'jingle',
     build(v) {
-      // A short original flourish: up the scale to the octave, a drum roll into a ringing chord.
+      // A short original flourish: up the scale to the octave, a drum roll into a ringing,
+      // strummed chord that blooms and glitters as it fades.
       const line = [D5, Fs5, A5, G5, A5, C6];
       for (let k = 0; k < line.length; k++) {
         const at = k * 0.12;
@@ -490,44 +660,50 @@ const SFX: Record<SfxName, SfxDef> = {
       const land = 0.72;
       pluck(v, { midi: D5, at: land, dur: 0.95, peak: 0.3 });
       bell(v, D6, land, 0.95, 0.32);
+      bell(v, A6, land + 0.05, 0.8, 0.14);
       // The chord is strummed: each string a few milliseconds after the one below.
       const chord = [D4, A4, Fs5];
       for (let k = 0; k < chord.length; k++) pluck(v, { midi: chord[k], at: land + 0.018 * (k + 1), dur: 0.95, peak: 0.2 });
-      tone(v, { type: 'triangle', f: hz(D4), at: land, dur: 0.9, peak: 0.12, attack: 0.03 });
+      bloom(v, [D4, A4, D5, Fs5], land, 0.95, 0.06);
       dum(v, 0, 0.45);
       tek(v, 0.36, 0.45);
       ka(v, 0.6, 0.4);
       ka(v, 0.66, 0.5);
       dum(v, land, 0.5);
-      const glitter = [Fs6, A6, D7];
-      for (let k = 0; k < glitter.length; k++) tone(v, { f: hz(glitter[k]), at: land + 0.2 + k * 0.1, dur: 0.3, peak: 0.07, attack: 0.004 });
+      tek(v, land + 0.24, 0.3);
+      glitter(v, [Fs6, A6, D7, Fs7], land + 0.2, 0.09, 0.06, 0.3);
     },
   },
   lose: {
-    gain: 0.78,
-    cls: 'jingle',
-    priority: true,
+    gain: 0.9,
+    tier: 'jingle',
     build(v) {
-      // A slow walk down to the tonic through the scale's flat second.
+      // A slow walk down to the tonic through the scale's flat second, soft and unhurried.
       const lp = filter(v, 'lowpass', 1300, 0.7);
+      const strings = filter(v, 'lowpass', 2600, 0.6);
       const line = [A4, G4, Fs4, Eb4, D4];
       for (let k = 0; k < line.length; k++) {
         const at = k * 0.26;
         const lastNote = k === line.length - 1;
         const level = 0.5 - k * 0.04;
-        pluck(v, { midi: line[k], at, dur: lastNote ? 0.7 : 0.4, peak: level });
+        pluck(v, { midi: line[k], at, dur: lastNote ? 0.7 : 0.4, peak: level, to: strings });
         tone(v, { type: 'triangle', f: hz(line[k]), at, dur: lastNote ? 0.62 : 0.3, peak: level * 0.5, attack: 0.02, to: lp });
       }
-      dum(v, 1.04, 0.6);
+      tone(v, { type: 'triangle', f: hz(D3), at: 1.04, dur: 0.6, peak: 0.16, attack: 0.03, to: lp });
+      dum(v, 1.04, 0.45);
     },
   },
 };
 
 export const SFX_NAMES: readonly SfxName[] = Object.keys(SFX) as SfxName[];
 
-/** Sounds whose character depends on `opts.step`, with the range of steps that make a difference. */
+/**
+ * Sounds whose character depends on `opts.step`, with the range of steps that make a
+ * difference. For 'match' that is the twelve rungs of the ladder plus one step beyond it,
+ * which holds the top note and adds the sparkle layer.
+ */
 export const SFX_STEPS: { [K in SfxName]?: readonly number[] } = {
-  match: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  match: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
   star: [1, 2, 3],
   praise: [1, 2, 3, 4],
 };
@@ -542,21 +718,48 @@ export function isSfxName(name: unknown): name is SfxName {
   return typeof name === 'string' && Object.prototype.hasOwnProperty.call(SFX, name);
 }
 
-export function sfxClass(name: SfxName): SfxClass {
+/** The loudness tier of a sound ('board' for anything unknown). */
+export function sfxTier(name: SfxName): SfxTier {
   const def = defOf(name);
-  return def ? def.cls : 'game';
+  return def ? def.tier : 'board';
 }
 
-export function isPrioritySfx(name: SfxName): boolean {
+/** Rank of a sound when voices are stolen: the position of its tier, quietest = 0. */
+export function sfxRank(name: SfxName): number {
+  return SFX_TIERS.indexOf(sfxTier(name));
+}
+
+/** The peak level the sound is tuned to at the output, dBFS (at volume 1). */
+export function sfxPeakDb(name: SfxName): number {
+  return SFX_TIER_PEAK_DB[sfxTier(name)];
+}
+
+/** How many round-robin takes a sound has (1 for most). */
+export function sfxVariants(name: SfxName): number {
   const def = defOf(name);
-  return def !== null && def.priority === true;
+  return def && def.variants ? def.variants : 1;
+}
+
+export function sfxClass(name: SfxName): SfxClass {
+  const tier = sfxTier(name);
+  return tier === 'jingle' ? 'jingle' : tier === 'ui' || tier === 'soft' || tier === 'handle' ? 'ui' : 'game';
+}
+
+/** Specials, big moments and jingles: the music makes room for these (see index.ts). */
+export function sfxDucksMusic(name: SfxName): boolean {
+  return sfxRank(name) >= SFX_TIERS.indexOf('special');
+}
+
+/** Result jingles and big moments: the last sounds that would ever be dropped or stolen. */
+export function isPrioritySfx(name: SfxName): boolean {
+  return sfxRank(name) >= SFX_TIERS.indexOf('big');
 }
 
 /**
  * Identity used by the rate limiter: the same name and the same audible step count as the
- * same sound. The step is brought into the range that changes the sound first, so step 12
- * and step 40 of 'match' (both the top note), or a step passed to a sound that ignores it,
- * cannot slip past the limiter as "different" sounds.
+ * same sound. The step is brought into the range that changes the sound first, so step 13
+ * and step 40 of 'match' (both the top note with sparkle), or a step passed to a sound that
+ * ignores it, cannot slip past the limiter as "different" sounds.
  */
 export function sfxKey(name: SfxName, opts?: SfxOptions): string {
   const steps = isSfxName(name) ? SFX_STEPS[name] : undefined;
@@ -568,9 +771,42 @@ export function sfxKey(name: SfxName, opts?: SfxOptions): string {
 }
 
 /**
- * Build one sound effect on `ctx`, feeding `dest`, starting at context time `when`.
- * Returns the sound's duration in seconds. Works on live and offline contexts alike.
+ * Build one sound effect on `ctx`, feeding `dest`, starting at context time `when`, and
+ * return its voice — or null when there is nothing to play (unknown name, zero volume).
+ * `variant` picks the take of a sound that has several (see {@link sfxVariants}).
  * With a `group`, the voice is listed there until it ends (see killVoices).
+ */
+export function startSfx(
+  ctx: BaseAudioContext,
+  dest: AudioNode,
+  name: SfxName,
+  when: number,
+  opts?: SfxOptions,
+  group?: VoiceGroup,
+  variant: number = 0,
+): Voice | null {
+  const def = defOf(name);
+  if (!def) return null;
+  const volume = opts && typeof opts.volume === 'number' && isFinite(opts.volume) ? clamp(opts.volume, 0, 1) : 1;
+  if (volume <= 0) return null;
+  const v = new Voice(ctx, dest, when, def.gain * volume, group);
+  try {
+    def.build(v, opts ? opts.step : undefined, variant | 0);
+  } catch (e) {
+    // A half-built voice must not be left connected.
+    v.kill();
+    throw e;
+  }
+  if (v.duration <= 0) {
+    v.kill();
+    return null;
+  }
+  return v;
+}
+
+/**
+ * Like {@link startSfx}, returning the sound's duration in seconds (0 when nothing plays).
+ * Works on live and offline contexts alike.
  */
 export function renderSfx(
   ctx: BaseAudioContext,
@@ -579,19 +815,8 @@ export function renderSfx(
   when: number,
   opts?: SfxOptions,
   group?: VoiceGroup,
+  variant: number = 0,
 ): number {
-  const def = defOf(name);
-  if (!def) return 0;
-  const volume = opts && typeof opts.volume === 'number' && isFinite(opts.volume) ? clamp(opts.volume, 0, 1) : 1;
-  if (volume <= 0) return 0;
-  const v = new Voice(ctx, dest, when, def.gain * volume, group);
-  try {
-    def.build(v, opts ? opts.step : undefined);
-  } catch (e) {
-    // A half-built voice must not be left connected.
-    v.kill();
-    throw e;
-  }
-  if (v.duration <= 0) v.kill();
-  return v.duration;
+  const v = startSfx(ctx, dest, name, when, opts, group, variant);
+  return v ? v.duration : 0;
 }

@@ -100,17 +100,6 @@ function nowMs(): number {
   return typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now();
 }
 
-/** Moves granted by the rewarded-video continue: from the economy table when it names one, else 3 (DESIGN §7). */
-function adContinueMoves(): number {
-  const table = econ as unknown as Record<string, unknown>;
-  const names = ['AD_CONTINUE_MOVES', 'REWARDED_CONTINUE_MOVES', 'CONTINUE_MOVES_AD', 'CONTINUE_AD_MOVES'];
-  for (let i = 0; i < names.length; i++) {
-    const v = table[names[i] as string];
-    if (typeof v === 'number' && v > 0) return Math.floor(v);
-  }
-  return 3;
-}
-
 export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
   const kit: Kit = (deps && deps.kit) || createKit({ art: ctx.art, audio: ctx.audio, i18n: ctx.i18n, platform: ctx.platform });
   const { i18n, profile } = ctx;
@@ -509,6 +498,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     s.hintPieces.length = 0;
     s.hintPieces.push(a, b);
     view.setHintCells(move.a, move.b);
+    sfx('hint');
     // two hops toward each other
     sched.run(T.hintBounce, (k) => {
       if (my !== hintToken) return;
@@ -821,6 +811,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       }
       s.finaleRunning = true;
       s.finaleStart = nowMs();
+      sfx('finale');
       // whatever happens, the finale is over after 5 s
       const cap = timers.after(rt(T.finaleMax), () => player.finishNow());
       void player.play(res.steps, res.snapshot, { swapCostsMove: false, speed: finaleSpeed, finaleBudget: 2200 }).then(() => {
@@ -951,7 +942,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     const canContinue = snap.canContinue !== false;
     const price = continuePrice(s.continues);
     const coinMoves = econ.CONTINUE_MOVES;
-    const adMoves = adContinueMoves();
+    const adMoves = econ.AD_CONTINUE_MOVES;
     openLose(dialogDeps, {
       goals: snap.goals,
       canContinue,

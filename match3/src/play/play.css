@@ -68,6 +68,10 @@
   position: relative;
   z-index: 2;
   box-sizing: border-box;
+  /* on tablets the header keeps a phone-like proportion instead of stretching edge to edge */
+  justify-self: center;
+  width: 100%;
+  max-width: calc(var(--k-u) * 440);
   padding: calc(var(--k-u) * 2.5);
   margin-bottom: calc(var(--k-u) * 15);
   border-radius: calc(var(--k-u) * 22);
@@ -470,6 +474,7 @@
 
 .pl-land .pl-hud {
   align-self: center;
+  max-width: none;
   margin-bottom: 0;
 }
 

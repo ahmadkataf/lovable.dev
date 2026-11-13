@@ -37,31 +37,44 @@ export function isHijazPitch(midi: number): boolean {
 // ───────────────────────── 'match' ladder ─────────────────────────
 
 /**
- * Scale degrees used by the gem-clear tone: D F♯ G A C. Leaving out E♭ and B♭ removes both
- * semitone steps, so consecutive cascade tones always sound consonant against each other.
+ * The cascade ladder (docs/STRATEGY.md, audio-01): semitones above D4 for cascade steps
+ * 1…12 — D F♯ G A C through two octaves and on to the F♯ above. These are degrees 1, 3, 4, 5
+ * and 7 of D Hijaz, so every step is in tune with the music, and leaving out E♭ and B♭ keeps
+ * the flat second and flat sixth from grinding against the drone.
  */
+export const MATCH_LADDER: readonly number[] = [0, 4, 5, 7, 10, 12, 16, 17, 19, 22, 24, 28];
+
+/** Scale degrees the ladder is made of: D F♯ G A C. */
 export const MATCH_DEGREES: readonly number[] = [0, 2, 3, 4, 6];
 
-/** Step 1 sounds D5. */
-export const MATCH_BASE_MIDI = 74;
+/** Step 1 sounds D4 (293.66 Hz). */
+export const MATCH_BASE_MIDI = TONIC_MIDI;
 
-/** Steps above this keep the top note (D7, two octaves above step 1). */
-export const MATCH_MAX_STEP = 11;
+/** Steps above this hold the top note (F♯6) and gain a sparkle layer instead. */
+export const MATCH_MAX_STEP = MATCH_LADDER.length;
+
+/** A cascade step as a whole number ≥ 1; tolerant of junk input. */
+function wholeStep(step?: number): number {
+  const s = typeof step === 'number' && isFinite(step) ? Math.round(step) : 1;
+  return Math.max(1, s);
+}
 
 /** 0-based rung of the ladder for a cascade step; tolerant of junk input. */
 export function matchStepIndex(step?: number): number {
-  const s = typeof step === 'number' && isFinite(step) ? Math.round(step) : 1;
-  return Math.min(MATCH_MAX_STEP, Math.max(1, s)) - 1;
+  return Math.min(MATCH_MAX_STEP, wholeStep(step)) - 1;
 }
 
 export function matchStepMidi(step?: number): number {
-  const i = matchStepIndex(step);
-  const octave = Math.floor(i / MATCH_DEGREES.length);
-  return MATCH_BASE_MIDI + 12 * octave + HIJAZ[MATCH_DEGREES[i % MATCH_DEGREES.length]];
+  return MATCH_BASE_MIDI + MATCH_LADDER[matchStepIndex(step)];
 }
 
 export function matchStepFreq(step?: number): number {
   return midiToFreq(matchStepMidi(step));
+}
+
+/** Beyond the top of the ladder the note holds and a sparkle layer is added. */
+export function matchStepSparkles(step?: number): boolean {
+  return wholeStep(step) > MATCH_MAX_STEP;
 }
 
 // ───────────────────────── stars / praise ─────────────────────────
@@ -78,10 +91,29 @@ export function starStepMidi(step?: number): number {
   return STAR_MIDI[stepInRange(step, 1, 3, 1) - 1];
 }
 
-/** Sparkle notes for the praise sound, lowest first (D6 F♯6 G6 A6 C7 D7). */
-export const PRAISE_MIDI: readonly number[] = [86, 90, 91, 93, 96, 98];
+/**
+ * Praise motifs for tiers 1…4: two, three, four and five notes of the cascade ladder, each
+ * rising to its last note (A5 D6 · F♯5 A5 D6 · D5 F♯5 A5 D6 · D5 F♯5 A5 D6 F♯6).
+ */
+export const PRAISE_MOTIFS: readonly (readonly number[])[] = [
+  [81, 86],
+  [78, 81, 86],
+  [74, 78, 81, 86],
+  [74, 78, 81, 86, 90],
+];
 
-/** Number of sparkle notes for a praise intensity of 1..4. */
+/** The motif of a praise tier (1..4; junk input gives tier 1). */
+export function praiseMotif(step?: number): readonly number[] {
+  return PRAISE_MOTIFS[stepInRange(step, 1, 4, 1) - 1];
+}
+
+/** Number of notes in the motif of a praise tier: 2, 3, 4, 5. */
 export function praiseNoteCount(step?: number): number {
-  return 2 + stepInRange(step, 1, 4, 1);
+  return praiseMotif(step).length;
+}
+
+/** True when the MIDI note is a rung of the cascade ladder in some octave (D F♯ G A C). */
+export function isLadderPitch(midi: number): boolean {
+  const pc = (((Math.round(midi) - TONIC_MIDI) % 12) + 12) % 12;
+  return pc === 0 || pc === 4 || pc === 5 || pc === 7 || pc === 10;
 }

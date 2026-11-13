@@ -12,32 +12,30 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createProfile, dayNumberAtOffset, fixedOffsetDayNumber, localDayNumber, msUntilNextLocalDay } from '../../src/state/index.ts';
 import type { ProfileApi, Reward, SaveData } from '../../src/state/types.ts';
-import { DAY, HOUR, MINUTE, rng } from './harness.ts';
+import { ALL_BOOSTERS_CLEARED, DAY, HOUR, MINUTE, progressSave, rng } from './harness.ts';
 
 // Thousands of cases per test: quick on an idle machine, but allow for a busy one.
 vi.setConfig({ testTimeout: 60_000 });
 
-// NOTE — which design these numbers are: docs/DESIGN.md §5 was revised by the strategy study while
-// this suite was being written (30-minute lives, 2,000 starting coins, new prices, booster unlocks,
-// a new daily cycle). The profile still implements the previous §5, and so do the numbers below;
-// the revision is implemented by the economy module (see src/state/extensions.ts). When it lands,
-// update the hand-written numbers in this file — the rules being tested do not change.
+/**
+ * Every profile here starts as a player who has every booster unlocked and nothing else: the cycle
+ * is then paid exactly as designed (a still-locked booster would be paid in coins: daily.test.ts).
+ */
+const START_SAVE = JSON.stringify(progressSave(ALL_BOOSTERS_CLEARED));
+
 /** DESIGN §5, written out again by hand (not imported from the implementation). */
 const CYCLE: Reward[][] = [
-  [{ kind: 'coins', amount: 50 }],
+  [{ kind: 'coins', amount: 100 }],
   [{ kind: 'booster', id: 'hammer', amount: 1 }],
-  [{ kind: 'coins', amount: 80 }],
+  [{ kind: 'coins', amount: 150 }],
   [
     { kind: 'booster', id: 'shuffle', amount: 1 },
     { kind: 'booster', id: 'freeSwap', amount: 1 },
   ],
-  [{ kind: 'coins', amount: 120 }],
+  [{ kind: 'coins', amount: 200 }],
+  [{ kind: 'booster', id: 'beamNova', amount: 1 }],
   [
-    { kind: 'booster', id: 'extraMoves', amount: 1 },
-    { kind: 'booster', id: 'beamNova', amount: 1 },
-  ],
-  [
-    { kind: 'coins', amount: 250 },
+    { kind: 'coins', amount: 500 },
     { kind: 'booster', id: 'prism', amount: 1 },
   ],
 ];
@@ -45,8 +43,8 @@ const CYCLE: Reward[][] = [
 class DailyModel {
   last: number | null = null;
   streak = 0;
-  coins = 150;
-  boosters: Record<string, number> = { hammer: 3, freeSwap: 3, shuffle: 3, extraMoves: 2, prism: 1, beamNova: 1 };
+  coins = 2000;
+  boosters: Record<string, number> = { hammer: 0, freeSwap: 0, shuffle: 0, extraMoves: 0, prism: 0, beamNova: 0 };
   claimedDays: number[] = [];
 
   status(today: number): { canClaim: boolean; cycleDay: number; streak: number } {
@@ -134,7 +132,7 @@ function start(storage: World['storage'], now: () => number, dayNumber?: (ms: nu
 function history(seed: number, steps: number, today: (ms: number) => number, dayNumber: ((ms: number) => number) | undefined, travel: (random: () => number) => void): DailyModel {
   const random = rng(seed);
   const clock = { now: Date.UTC(2026, 0, 1) + Math.floor(random() * 300 * DAY) };
-  const storage = { json: null as string | null, writes: 0 };
+  const storage = { json: START_SAVE as string | null, writes: 0 };
   let world = start(storage, () => clock.now, dayNumber);
   const model = new DailyModel();
 
@@ -207,7 +205,7 @@ describe('hardening: daily reward against a reference model (fixed offsets)', ()
   it('long unbroken streaks pay exactly the designed cycle, week after week', () => {
     for (const offset of [-570, 0, 180, 765]) {
       const clock = { now: Date.UTC(2026, 1, 27, 9) };
-      const world = start({ json: null, writes: 0 }, () => clock.now, fixedOffsetDayNumber(offset));
+      const world = start({ json: START_SAVE, writes: 0 }, () => clock.now, fixedOffsetDayNumber(offset));
       const model = new DailyModel();
       const random = rng(offset + 9);
       for (let day = 0; day < 60; day++) {
@@ -219,10 +217,11 @@ describe('hardening: daily reward against a reference model (fixed offsets)', ()
         const midnight = (dayAtOffset(clock.now, offset) + 1) * DAY - offset * MINUTE;
         clock.now = midnight + Math.floor(random() * (DAY - 1));
       }
-      // 60 days = 8 full cycles (500 coins each) + days 1–4 of the ninth (50 + 80).
-      expect(world.profile.coins()).toBe(150 + 8 * 500 + 130);
-      expect(world.profile.boosterCount('prism')).toBe(1 + 8);
-      expect(world.profile.boosterCount('hammer')).toBe(3 + 9);
+      // 60 days = 8 full cycles (950 coins each) + days 1–4 of the ninth (100 + 150).
+      expect(world.profile.coins()).toBe(2000 + 8 * 950 + 250);
+      expect(world.profile.boosterCount('prism')).toBe(8);
+      expect(world.profile.boosterCount('hammer')).toBe(9);
+      expect(world.profile.boosterCount('extraMoves')).toBe(0);
     }
   });
 
@@ -230,7 +229,7 @@ describe('hardening: daily reward against a reference model (fixed offsets)', ()
     // Claim at 23:30 in UTC+3, then land in UTC−5 where it is still the same (or the previous) date.
     const zone = { offset: 180 };
     const clock = { now: Date.UTC(2026, 3, 10, 20, 30) }; // 23:30 local
-    const world = start({ json: null, writes: 0 }, () => clock.now, (ms) => dayNumberAtOffset(ms, zone.offset));
+    const world = start({ json: START_SAVE, writes: 0 }, () => clock.now, (ms) => dayNumberAtOffset(ms, zone.offset));
     expect(world.profile.claimDaily()).toEqual(CYCLE[0]);
     clock.now += HOUR; // 00:30 next day in UTC+3 …
     zone.offset = -300; // … but 16:30 of the claim day in UTC−5
@@ -334,7 +333,7 @@ describe('hardening: daily reward with the built-in local calendar (real time zo
     process.env.TZ = 'Europe/Berlin';
     for (const [y, m, d] of [[2026, 2, 28], [2026, 9, 24]] as const) {
       const clock = { now: new Date(y, m, d, 23, 59, 59).getTime() };
-      const world = start({ json: null, writes: 0 }, () => clock.now);
+      const world = start({ json: START_SAVE, writes: 0 }, () => clock.now);
       expect(world.profile.claimDaily()).toEqual(CYCLE[0]);
       clock.now = new Date(y, m, d + 1, 0, 0, 0).getTime();
       expect(world.profile.claimDaily()).toEqual(CYCLE[1]);

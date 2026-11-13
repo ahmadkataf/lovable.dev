@@ -22,7 +22,6 @@ const table: StringTable = {
     'meta.map.aria.lives': 'Lives: {n}',
     'meta.map.aria.coins': 'Coins: {n}',
     'meta.map.aria.stars': 'Stars: {n}',
-    'meta.map.toCurrent': 'Go to level {n}',
 
     // ── level intro ──
     'meta.intro.hard': 'Hard level',
@@ -151,7 +150,6 @@ const table: StringTable = {
     'meta.map.aria.lives': 'القلوب: {n}',
     'meta.map.aria.coins': 'العملات: {n}',
     'meta.map.aria.stars': 'النجوم: {n}',
-    'meta.map.toCurrent': 'اذهب إلى المرحلة {n}',
 
     // ── level intro ──
     'meta.intro.hard': 'مرحلة صعبة',

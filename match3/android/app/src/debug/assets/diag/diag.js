@@ -180,7 +180,16 @@ function parseInsets(json) {
   return i;
 }
 
+let insetsTimer = 0;
+
 function onInsets() {
+  // Pushes arrive asynchronously: while the bars are still moving, insets() can already be one step
+  // ahead of the push being handled. Compare only once things have been quiet for a moment.
+  clearTimeout(insetsTimer);
+  insetsTimer = setTimeout(checkInsets, 500);
+}
+
+function checkInsets() {
   check('insets', function () {
     const now = B.insets();
     const i = parseInsets(now);

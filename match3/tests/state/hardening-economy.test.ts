@@ -10,28 +10,24 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createProfile } from '../../src/state/index.ts';
-import type { BoosterId, ProfileApi, Reward, SaveData } from '../../src/state/types.ts';
+import type { FullProfile } from '../../src/state/index.ts';
+import type { BoosterId, Reward, SaveData } from '../../src/state/types.ts';
 import { DAY, MINUTE, T0, fromSave, harness, rng, sampleSave } from './harness.ts';
 import type { Harness } from './harness.ts';
 
 // Thousands of cases per test: quick on an idle machine, but allow for a busy one.
 vi.setConfig({ testTimeout: 60_000 });
 
-// NOTE — which design these numbers are: docs/DESIGN.md §5 was revised by the strategy study while
-// this suite was being written (30-minute lives, 2,000 starting coins, new prices, booster unlocks,
-// a new daily cycle). The profile still implements the previous §5, and so do the numbers below;
-// the revision is implemented by the economy module (see src/state/extensions.ts). When it lands,
-// update the hand-written numbers in this file — the rules being tested do not change.
 const IDS: BoosterId[] = ['hammer', 'freeSwap', 'shuffle', 'extraMoves', 'prism', 'beamNova'];
-const PRICE: Record<string, number> = { hammer: 90, freeSwap: 80, shuffle: 60, extraMoves: 70, prism: 120, beamNova: 100 };
-const START: Record<string, number> = { hammer: 3, freeSwap: 3, shuffle: 3, extraMoves: 2, prism: 1, beamNova: 1 };
+const PRICE: Record<string, number> = { hammer: 650, freeSwap: 600, shuffle: 400, extraMoves: 500, prism: 800, beamNova: 650 };
+const START: Record<string, number> = { hammer: 0, freeSwap: 0, shuffle: 0, extraMoves: 0, prism: 0, beamNova: 0 };
 const COIN_CAP = 999_999_999;
 const BOOSTER_CAP = 9_999;
 
 // ───────────────────────────── ledger model ─────────────────────────────
 
 class Ledger {
-  coins = 150;
+  coins = 2000;
   boosters: Record<string, number> = { ...START };
 
   private static whole(n: unknown): number {
@@ -89,7 +85,7 @@ class Ledger {
 }
 
 const ODD_NUMBERS: unknown[] = [
-  0, -0, 1, 2, 5, 59, 60, 61, 90, 119, 120, 150, 500, 15_000, 0.1, 0.99, 1.5, 59.01, -1, -0.5, -150, -1e9,
+  0, -0, 1, 2, 5, 59, 399, 400, 401, 650, 799, 800, 899, 900, 2000, 15_000, 0.1, 0.99, 1.5, 399.01, -1, -0.5, -150, -1e9,
   NaN, Infinity, -Infinity, 1e9, 1e18, 1e300, Number.MAX_VALUE, Number.MIN_VALUE, 2 ** 53,
   '5', '', null, undefined, true, [], [5], {}, { valueOf: () => 5 }, 10n, Symbol('n'),
 ];
@@ -142,7 +138,7 @@ describe('hardening: the economy against a ledger model', () => {
           changed = ledger.add(n)[1];
           same(p.addCoins!(n), undefined, where);
         } else if (roll < 0.38) {
-          const n = random() < 0.5 ? pick(random, ODD_NUMBERS) : Math.floor(random() * 400);
+          const n = random() < 0.5 ? pick(random, ODD_NUMBERS) : Math.floor(random() * 2500);
           const [ok, did] = ledger.spend(n);
           changed = did;
           same(p.spendCoins!(n), ok, where + ' spendCoins');
@@ -202,20 +198,21 @@ describe('hardening: the economy against a ledger model', () => {
       expect(h.profile.coins()).toBe(0);
     }
     // The refill, one coin short and exact.
-    const h = fromSave({ ...sampleSave(), coins: 119, lives: 2, lifeTimer: T0 });
+    const h = fromSave({ ...sampleSave(), coins: 899, lives: 2, lifeTimer: T0 });
     expect(h.profile.refillLives()).toBe(false);
-    expect(h.profile.coins()).toBe(119);
+    expect(h.profile.coins()).toBe(899);
     expect(h.profile.lives().count).toBe(2);
     h.profile.addCoins(1);
     expect(h.profile.refillLives()).toBe(true);
     expect(h.profile.coins()).toBe(0);
     expect(h.profile.lives().count).toBe(5);
-    // The continue prices are charged through spendCoins: 90, then 150, then 240 — all or nothing.
-    const c = fromSave({ ...sampleSave(), coins: 90 + 150 + 239 });
-    expect(c.profile.spendCoins(90)).toBe(true);
-    expect(c.profile.spendCoins(150)).toBe(true);
-    expect(c.profile.spendCoins(240)).toBe(false);
-    expect(c.profile.coins()).toBe(239);
+    // The continue prices are charged through spendCoins: 900, then 1,900, then 2,900 — all or nothing.
+    const c = fromSave({ ...sampleSave(), coins: 900 + 1900 + 2899 });
+    expect([0, 1, 2, 3].map((n) => c.profile.continuePrice(n))).toEqual([900, 1900, 2900, null]);
+    expect(c.profile.spendCoins(c.profile.continuePrice(0)!)).toBe(true);
+    expect(c.profile.spendCoins(c.profile.continuePrice(1)!)).toBe(true);
+    expect(c.profile.spendCoins(c.profile.continuePrice(2)!)).toBe(false);
+    expect(c.profile.coins()).toBe(2899);
   });
 
   it('a purchase at the inventory cap is refused without taking coins', () => {
@@ -251,12 +248,12 @@ describe('hardening: spending and buying are atomic', () => {
       levelCount: 120,
     });
     profile.subscribe(() => snapshots.push(worth(profile.data())));
-    profile.addCoins(850); // 1000 coins
+    profile.addCoins(8000); // 10,000 coins
     const random = rng(8);
     for (let i = 0; i < 400; i++) profile.buyBooster(IDS[Math.floor(random() * IDS.length)]!);
     expect(snapshots.length).toBeGreaterThan(10);
-    for (const total of snapshots) expect(total).toBe(1000);
-    expect(profile.coins()).toBeLessThan(60); // everything affordable was bought
+    for (const total of snapshots) expect(total).toBe(10_000);
+    expect(profile.coins()).toBeLessThan(400); // everything affordable was bought
     expect(profile.coins()).toBeGreaterThanOrEqual(0);
   });
 
@@ -276,12 +273,14 @@ describe('hardening: spending and buying are atomic', () => {
     failing = true;
     expect(profile.buyBooster('prism')).toBe(true);
     expect(profile.spendCoins(30)).toBe(true);
-    expect(worth(profile.data())).toBe(1150 - 30);
-    expect(profile.boosterCount('prism')).toBe(2);
+    expect(worth(profile.data())).toBe(3000 - 30);
+    expect(profile.boosterCount('prism')).toBe(1);
+    expect(profile.lastSaveOk()).toBe(false);
     // Storage still holds the last complete state; the next successful save brings it up to date.
-    expect(worth(JSON.parse(storage.json!) as SaveData)).toBe(1150);
+    expect(worth(JSON.parse(storage.json!) as SaveData)).toBe(3000);
     failing = false;
     profile.addCoins(1);
+    expect(profile.lastSaveOk()).toBe(true);
     expect(JSON.parse(storage.json!)).toEqual(JSON.parse(JSON.stringify(profile.data())));
   });
 
@@ -294,7 +293,7 @@ describe('hardening: spending and buying are atomic', () => {
     });
     h.profile.subscribe(() => {
       // A greedy listener: reacts to every change by buying more (re-entrant mutation).
-      if (reentered < 3 && h.profile.coins() >= 60) {
+      if (reentered < 3 && h.profile.coins() >= 400) {
         reentered += 1;
         h.profile.buyBooster('shuffle');
       }
@@ -307,9 +306,9 @@ describe('hardening: spending and buying are atomic', () => {
       console.error = errors;
     }
     expect(reentered).toBe(3);
-    expect(h.profile.coins()).toBe(1000 - 90 - 3 * 60);
-    expect(h.profile.boosterCount('hammer')).toBe(4);
-    expect(h.profile.boosterCount('shuffle')).toBe(6);
+    expect(h.profile.coins()).toBe(2850 - 650 - 3 * 400);
+    expect(h.profile.boosterCount('hammer')).toBe(1);
+    expect(h.profile.boosterCount('shuffle')).toBe(3);
     expect(h.saved()).toEqual(JSON.parse(JSON.stringify(h.profile.data())));
   });
 
@@ -352,8 +351,8 @@ describe('hardening: spending and buying are atomic', () => {
       }
     });
     expect(h.profile.buyBooster('shuffle')).toBe(true);
-    expect(h.profile.coins()).toBe(150);
-    expect(h.profile.boosterCount('shuffle')).toBe(3);
+    expect(h.profile.coins()).toBe(2000);
+    expect(h.profile.boosterCount('shuffle')).toBe(0);
     expect(h.saved()).toEqual(JSON.parse(JSON.stringify(h.profile.data())));
   });
 });
@@ -364,7 +363,7 @@ describe('hardening: every mutation is stored once and announced once', () => {
   interface Case {
     name: string;
     setup?: (h: Harness) => void;
-    act: (p: ProfileApi) => unknown;
+    act: (p: FullProfile) => unknown;
   }
 
   const CHANGES: Case[] = [
@@ -375,7 +374,7 @@ describe('hardening: every mutation is stored once and announced once', () => {
     { name: 'spendCoins', act: (p) => p.spendCoins(150) },
     { name: 'spendCoins (fraction)', act: (p) => p.spendCoins(0.2) },
     { name: 'addBooster', act: (p) => p.addBooster('prism', 2) },
-    { name: 'takeBooster', act: (p) => p.takeBooster('prism') },
+    { name: 'takeBooster', setup: (h) => h.profile.addBooster('prism', 1), act: (p) => p.takeBooster('prism') },
     { name: 'buyBooster', act: (p) => p.buyBooster('shuffle') },
     { name: 'grant (one)', act: (p) => p.grant([{ kind: 'coins', amount: 1 }]) },
     { name: 'grant (many)', act: (p) => p.grant([{ kind: 'coins', amount: 500 }, { kind: 'booster', id: 'hammer', amount: 3 }, { kind: 'booster', id: 'prism', amount: 2 }, { kind: 'lives' }]) },
@@ -393,21 +392,32 @@ describe('hardening: every mutation is stored once and announced once', () => {
     { name: 'setSetting lang back to device', setup: (h) => h.profile.setSetting('lang', 'en'), act: (p) => p.setSetting('lang', null) },
     { name: 'markSeen', act: (p) => p.markSeen('tut.swap') },
     { name: 'reset (of a played profile)', setup: (h) => { h.profile.recordWin(1, 3, 10, 1); h.profile.loseLife(); }, act: (p) => p.reset() },
+    { name: 'loseLife (no life left, but a Caravan to send home)', setup: (h) => { for (let i = 0; i < 5; i++) h.profile.loseLife(); for (let id = 1; id <= 20; id++) h.profile.recordWin(id, 1, 10, 0); }, act: (p) => p.loseLife() },
+    { name: 'claimUnlocks', setup: (h) => { for (let id = 1; id <= 7; id++) h.profile.recordWin(id, 1, 10, 0); }, act: (p) => p.claimUnlocks() },
+    { name: 'addLife', setup: (h) => h.profile.loseLife(), act: (p) => p.addLife() },
+    { name: 'grantPurchase', act: (p) => p.grantPurchase('token-1', [{ kind: 'coins', amount: 1000 }, { kind: 'booster', id: 'hammer', amount: 3 }], 'starter_pack') },
+    { name: 'grantPurchase (nothing to add but the record)', act: (p) => p.grantPurchase('token-2', [], 'remove_ads') },
+    { name: 'setEntitlement (own)', act: (p) => p.setEntitlement('remove_ads', true) },
+    { name: 'setEntitlement (clear)', setup: (h) => h.profile.setEntitlement('remove_ads', true), act: (p) => p.setEntitlement('remove_ads', false) },
+    { name: 'noteRewarded (earned)', act: (p) => p.noteRewarded('freeCoins', true) },
+    { name: 'noteRewarded (closed early)', act: (p) => p.noteRewarded('freeLife', false) },
+    { name: 'noteInterstitial', act: (p) => p.noteInterstitial() },
+    { name: 'noteLevelFinished', act: (p) => p.noteLevelFinished() },
   ];
 
   const NO_OPS: Case[] = [
     { name: 'loseLife without lives', setup: (h) => { for (let i = 0; i < 5; i++) h.profile.loseLife(); }, act: (p) => p.loseLife() },
     { name: 'refillLives when full', act: (p) => p.refillLives() },
-    { name: 'refillLives without coins', setup: (h) => { h.profile.loseLife(); h.profile.spendCoins(100); }, act: (p) => p.refillLives() },
+    { name: 'refillLives without coins', setup: (h) => { h.profile.loseLife(); h.profile.spendCoins(1101); }, act: (p) => p.refillLives() },
     { name: 'addCoins(0)', act: (p) => p.addCoins(0) },
     { name: 'addCoins(-5)', act: (p) => p.addCoins(-5) },
     { name: 'spendCoins(0)', act: (p) => p.spendCoins(0) },
-    { name: 'spendCoins too much', act: (p) => p.spendCoins(151) },
+    { name: 'spendCoins too much', act: (p) => p.spendCoins(2001) },
     { name: 'spendCoins(-1)', act: (p) => p.spendCoins(-1) },
     { name: 'addBooster(0)', act: (p) => p.addBooster('prism', 0) },
     { name: 'addBooster unknown', act: (p) => p.addBooster('wand' as BoosterId, 1) },
-    { name: 'takeBooster empty', setup: (h) => h.profile.takeBooster('prism'), act: (p) => p.takeBooster('prism') },
-    { name: 'buyBooster too expensive', setup: (h) => h.profile.spendCoins(100), act: (p) => p.buyBooster('shuffle') },
+    { name: 'takeBooster empty', act: (p) => p.takeBooster('prism') },
+    { name: 'buyBooster too expensive', setup: (h) => h.profile.spendCoins(1601), act: (p) => p.buyBooster('shuffle') },
     { name: 'grant([])', act: (p) => p.grant([]) },
     { name: 'grant lives when full', act: (p) => p.grant([{ kind: 'lives' }, { kind: 'lives', amount: 2 }]) },
     { name: 'grant junk only', act: (p) => p.grant([{ kind: 'coins', amount: 0 }, { kind: 'booster', id: 'x' as BoosterId, amount: 1 }]) },
@@ -418,6 +428,15 @@ describe('hardening: every mutation is stored once and announced once', () => {
     { name: 'markSeen again', setup: (h) => h.profile.markSeen('a'), act: (p) => p.markSeen('a') },
     { name: 'markSeen("")', act: (p) => p.markSeen('') },
     { name: 'every getter', act: (p) => [p.data(), p.lives(), p.coins(), p.boosterCount('prism'), p.boosterPrice('prism'), p.highestUnlocked(), p.record(1), p.totalStars(), p.daily(), p.settings(), p.hasSeen('a')] },
+    { name: 'every getter of the extensions', act: (p) => [p.boosterUnlocked('prism'), p.featureUnlocked('daily'), p.featureUnlocked('shop'), p.caravan(), p.caravanBoosters(), p.continuePrice(0), p.shop(), p.lastSaveOk(), p.purchaseGranted('token-1'), p.adsToday(), p.daysSinceFirstPlay()] },
+    { name: 'claimUnlocks with nothing new', act: (p) => p.claimUnlocks() },
+    { name: 'claimUnlocks twice', setup: (h) => { for (let id = 1; id <= 7; id++) h.profile.recordWin(id, 1, 10, 0); h.profile.claimUnlocks(); }, act: (p) => p.claimUnlocks() },
+    { name: 'addLife when full', act: (p) => p.addLife() },
+    { name: 'grantPurchase with a token already granted', setup: (h) => h.profile.grantPurchase('token-1', [{ kind: 'coins', amount: 1000 }]), act: (p) => p.grantPurchase('token-1', [{ kind: 'coins', amount: 1000 }], 'starter_pack') },
+    { name: 'grantPurchase without a usable token', act: (p) => [p.grantPurchase('', [{ kind: 'coins', amount: 1000 }]), p.grantPurchase(null as unknown as string, [{ kind: 'coins', amount: 1000 }]), p.grantPurchase('x'.repeat(5000), [{ kind: 'coins', amount: 1000 }])] },
+    { name: 'setEntitlement already owned', setup: (h) => h.profile.setEntitlement('remove_ads', true), act: (p) => p.setEntitlement('remove_ads', true) },
+    { name: 'setEntitlement clearing what is not owned', act: (p) => p.setEntitlement('remove_ads', false) },
+    { name: 'setEntitlement with a bad id', act: (p) => [p.setEntitlement('', true), p.setEntitlement('Remove Ads', true), p.setEntitlement(null as unknown as string, true)] },
   ];
 
   it.each(CHANGES.map((c) => [c.name, c] as const))('%s', (_name, c) => {
@@ -477,7 +496,7 @@ describe('hardening: progress', () => {
           const stars = Math.max(first, second, third);
           expect(h.profile.record(7)).toEqual({ stars, best: 1001 });
           // However the stars were collected, the level paid 20 + 10 per star in total.
-          expect(h.profile.coins()).toBe(150 + 20 + 10 * stars);
+          expect(h.profile.coins()).toBe(2000 + 20 + 10 * stars);
           expect(h.profile.totalStars()).toBe(stars);
           expect(h.profile.data().stats).toMatchObject({ won: 3, totalScore: 2901 });
         }
@@ -494,7 +513,7 @@ describe('hardening: progress', () => {
       paid += h.profile.recordWin(level, (1 + Math.floor(random() * 3)) as 1 | 2 | 3, Math.floor(random() * 5000), 0).coinsEarned;
     }
     expect(paid).toBe(10 * 50);
-    expect(h.profile.coins()).toBe(150 + 500);
+    expect(h.profile.coins()).toBe(2000 + 500);
     expect(h.profile.totalStars()).toBe(30);
   });
 
@@ -619,9 +638,16 @@ describe('hardening: reset', () => {
     const brandNew = JSON.parse(JSON.stringify(fresh.data())) as Record<string, unknown>;
     delete after.settings;
     delete brandNew.settings;
+    // (…and the day the player first played, which is not progress: a brand-new profile has none yet.)
+    expect(after.firstDay).toBe(Math.floor(T0 / DAY));
+    expect(brandNew.firstDay).toBe(-1);
+    delete after.firstDay;
+    delete brandNew.firstDay;
     expect(after).toEqual(brandNew);
     // …and it behaves like one.
-    expect(h.profile.coins()).toBe(150);
+    expect(h.profile.coins()).toBe(2000);
+    expect(h.profile.caravan()).toBe(0);
+    expect(h.profile.claimUnlocks()).toEqual([]);
     expect(h.profile.lives()).toEqual({ count: 5, max: 5, nextInMs: 0 });
     expect(h.profile.highestUnlocked()).toBe(1);
     expect(h.profile.totalStars()).toBe(0);
@@ -632,7 +658,7 @@ describe('hardening: reset', () => {
     // After a restart too: the wipe reached storage.
     const again = h.restart().profile;
     expect(again.settings().lang).toBe(lang);
-    expect(again.coins()).toBe(150);
+    expect(again.coins()).toBe(2000);
     expect(again.highestUnlocked()).toBe(1);
   });
 
@@ -641,7 +667,7 @@ describe('hardening: reset', () => {
     h.profile.reset();
     expect(h.profile.recordWin(1, 3, 100, 0)).toEqual({ firstClear: true, newStars: 3, coinsEarned: 50, newBest: true });
     expect(h.profile.loseLife()).toBe(true);
-    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 20 * MINUTE });
+    expect(h.profile.lives()).toEqual({ count: 4, max: 5, nextInMs: 30 * MINUTE });
   });
 
   it('resetting twice, or resetting a new profile, stays consistent (and is stored once each time)', () => {
@@ -731,7 +757,23 @@ describe('hardening: markSeen', () => {
       dailyStreak: 1e300,
       seen: Array.from({ length: 300 }, (_, i) => String(i).padEnd(1024, '\u0000')),
       stats: { played: 1e300, won: 1e300, bestCascade: 1e300, totalScore: 1e300 },
+      firstDay: 1e300,
+      gifted: ['hammer', 'freeSwap', 'shuffle', 'extraMoves', 'prism', 'beamNova'],
+      caravan: 1e300,
+      shop: {
+        tokens: Array.from({ length: 500 }, (_, i) => String(i).padEnd(64, '\u0000')),
+        owned: Array.from({ length: 50 }, (_, i) => 'entitlement_' + i),
+        purchased: true,
+        adDay: 1e300,
+        rewarded: { extraMoves: 1e300, freeLife: 1e300, freeCoins: 1e300, doubleReward: 1e300 },
+        interstitials: 1e300,
+        finished: 1e300,
+        lastInterstitial: 1e300,
+        lastRewarded: 1e300,
+      },
     });
+    expect(h.profile.shop().tokens.length).toBe(200);
+    expect(h.profile.shop().owned.length).toBe(16);
     for (let i = 0; i < 100; i++) h.profile.markSeen('\u0001'.repeat(1000) + i);
     h.profile.recordAttempt();
     const bytes = Buffer.byteLength(h.storage.json!, 'utf8');

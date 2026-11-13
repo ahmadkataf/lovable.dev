@@ -9,7 +9,16 @@ import {
 } from '../../src/state/index.ts';
 import { DAILY_CYCLE, START_BOOSTERS, START_COINS } from '../../src/state/econ.ts';
 import type { Reward } from '../../src/state/types.ts';
-import { DAY, HOUR, MINUTE, SECOND, T0, fromSave, harness, rng, sampleSave } from './harness.ts';
+import { ALL_BOOSTERS_CLEARED, DAY, HOUR, MINUTE, SECOND, T0, fromSave, harness as newHarness, rng, sampleSave } from './harness.ts';
+import type { Harness, HarnessOptions } from './harness.ts';
+
+/**
+ * The cycle is tested as designed, i.e. for a player who has every booster unlocked (a booster
+ * that is still locked is paid in coins instead: see "locked boosters" at the end).
+ */
+function harness(options: HarnessOptions = {}): Harness {
+  return newHarness({ cleared: ALL_BOOSTERS_CLEARED, ...options });
+}
 
 /** Midnight (UTC) at the start of the day containing T0. */
 const MIDNIGHT = Math.floor(T0 / DAY) * DAY;
@@ -27,11 +36,11 @@ describe('daily reward: first claim', () => {
   it('claiming grants the reward, saves and notifies once', () => {
     const h = harness();
     const rewards = h.profile.claimDaily();
-    expect(rewards).toEqual([{ kind: 'coins', amount: 50 }]);
-    expect(h.profile.coins()).toBe(START_COINS + 50);
+    expect(rewards).toEqual([{ kind: 'coins', amount: 100 }]);
+    expect(h.profile.coins()).toBe(START_COINS + 100);
     expect(h.notifications.count).toBe(1);
     expect(h.storage.writes).toBe(1);
-    expect(h.saved().coins).toBe(START_COINS + 50);
+    expect(h.saved().coins).toBe(START_COINS + 100);
     expect(h.saved().dailyStreak).toBe(1);
     expect(h.saved().dailyDay).toBe(Math.floor(T0 / DAY));
   });
@@ -44,7 +53,7 @@ describe('daily reward: first claim', () => {
     expect(h.profile.claimDaily()).toBeNull();
     h.clock.now += 3 * HOUR;
     expect(h.profile.claimDaily()).toBeNull();
-    expect(h.profile.coins()).toBe(START_COINS + 50);
+    expect(h.profile.coins()).toBe(START_COINS + 100);
     expect(h.storage.writes).toBe(writes);
     expect(h.notifications.count).toBe(1);
   });
@@ -57,8 +66,8 @@ describe('daily reward: first claim', () => {
     expect(h.profile.daily().cycle).toEqual(DAILY_CYCLE);
     const rewards = h.profile.claimDaily()!;
     (rewards[0] as { amount: number }).amount = 5;
-    expect(DAILY_CYCLE[0]).toEqual([{ kind: 'coins', amount: 50 }]);
-    expect(h.profile.coins()).toBe(START_COINS + 50);
+    expect(DAILY_CYCLE[0]).toEqual([{ kind: 'coins', amount: 100 }]);
+    expect(h.profile.coins()).toBe(START_COINS + 100);
   });
 });
 
@@ -74,13 +83,13 @@ describe('daily reward: the streak', () => {
       h.clock.now += DAY;
     }
     expect(claimed).toEqual(DAILY_CYCLE);
-    // 50 + 80 + 120 + 250 coins; hammer, shuffle, freeSwap, extraMoves, beamNova, prism +1 each
-    expect(h.profile.coins()).toBe(START_COINS + 500);
+    // 100 + 150 + 200 + 500 coins; hammer, shuffle, freeSwap, beamNova, prism +1 each (never extra moves)
+    expect(h.profile.coins()).toBe(START_COINS + 950);
     expect(h.profile.data().boosters).toEqual({
       hammer: START_BOOSTERS.hammer + 1,
       freeSwap: START_BOOSTERS.freeSwap + 1,
       shuffle: START_BOOSTERS.shuffle + 1,
-      extraMoves: START_BOOSTERS.extraMoves + 1,
+      extraMoves: START_BOOSTERS.extraMoves,
       prism: START_BOOSTERS.prism + 1,
       beamNova: START_BOOSTERS.beamNova + 1,
     });
@@ -106,7 +115,7 @@ describe('daily reward: the streak', () => {
       expect(h.profile.claimDaily()).toEqual(DAILY_CYCLE[day % 7]);
       h.clock.now += DAY;
     }
-    expect(h.profile.coins()).toBe(START_COINS + 3 * 500);
+    expect(h.profile.coins()).toBe(START_COINS + 3 * 950);
     expect(h.profile.data().dailyStreak).toBe(21);
   });
 
@@ -247,7 +256,7 @@ describe('daily reward: a clock that jumps backwards', () => {
       expect(h.profile.daily()).toMatchObject({ canClaim: false, cycleDay: 0, streak: 1 });
       expect(h.profile.claimDaily()).toBeNull();
     }
-    expect(h.profile.coins()).toBe(START_COINS + 50);
+    expect(h.profile.coins()).toBe(START_COINS + 100);
     expect(h.notifications.count).toBe(1);
   });
 
@@ -336,7 +345,7 @@ describe('daily reward: robustness', () => {
     expect(h.saved().dailyDay).toBeGreaterThanOrEqual(0);
     expect(h.profile.claimDaily()).toBeNull();
     expect(h.restart().profile.claimDaily()).toBeNull();
-    expect(h.profile.coins()).toBe(START_COINS + 50);
+    expect(h.profile.coins()).toBe(START_COINS + 100);
   });
 
   it('whatever the clock does, each claim happens on a later day than every claim before it', () => {
@@ -443,5 +452,52 @@ describe('calendar helpers', () => {
     expect(h.profile.daily()).toMatchObject({ canClaim: true, cycleDay: 1, streak: 1 });
     h.clock.now -= 1;
     expect(h.profile.daily().canClaim).toBe(false);
+  });
+});
+
+describe('daily reward: locked boosters', () => {
+  it('a new player (nothing unlocked) is shown and paid coins only: 100, 150, 150, 300, 200, 150, 650', () => {
+    const h = newHarness();
+    const coinsOnly = [100, 150, 150, 300, 200, 150, 650].map((amount) => [{ kind: 'coins', amount }]);
+    expect(h.profile.daily().cycle).toEqual(coinsOnly);
+    for (let day = 0; day < 7; day++) {
+      expect(h.profile.claimDaily()).toEqual(coinsOnly[day]);
+      h.clock.now += DAY;
+    }
+    expect(h.profile.coins()).toBe(START_COINS + 1700);
+    expect(h.profile.data().boosters).toEqual(START_BOOSTERS);
+  });
+
+  it('each booster is paid as itself from the moment it unlocks', () => {
+    // reached level 12: beamNova (7), hammer (8) and freeSwap (12) are open; shuffle (16) and prism (14) are not
+    const h = newHarness({ cleared: 11 });
+    expect(h.profile.daily().cycle).toEqual([
+      [{ kind: 'coins', amount: 100 }],
+      [{ kind: 'booster', id: 'hammer', amount: 1 }],
+      [{ kind: 'coins', amount: 150 }],
+      [
+        { kind: 'coins', amount: 150 },
+        { kind: 'booster', id: 'freeSwap', amount: 1 },
+      ],
+      [{ kind: 'coins', amount: 200 }],
+      [{ kind: 'booster', id: 'beamNova', amount: 1 }],
+      [{ kind: 'coins', amount: 650 }],
+    ]);
+    h.profile.claimDaily();
+    h.clock.now += DAY;
+    expect(h.profile.claimDaily()).toEqual([{ kind: 'booster', id: 'hammer', amount: 1 }]);
+    expect(h.profile.boosterCount('hammer')).toBe(1);
+    expect(h.profile.coins()).toBe(START_COINS + 100);
+  });
+
+  it('what is claimed is exactly what the status showed, also across an unlock', () => {
+    const h = newHarness({ cleared: 6 }); // reached level 7: only beamNova
+    h.profile.claimDaily(); // day 1
+    h.clock.now += DAY;
+    expect(h.profile.daily().cycle[1]).toEqual([{ kind: 'coins', amount: 150 }]);
+    h.profile.recordWin(7, 3, 1000, 1); // reaches level 8: the hammer unlocks
+    const shown = h.profile.daily().cycle[1];
+    expect(shown).toEqual([{ kind: 'booster', id: 'hammer', amount: 1 }]);
+    expect(h.profile.claimDaily()).toEqual(shown);
   });
 });

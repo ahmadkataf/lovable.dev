@@ -40,6 +40,50 @@ export interface SaveData {
   /** Ids of tutorials / tips already shown. */
   seen: string[];
   stats: { played: number; won: number; bestCascade: number; totalScore: number };
+  /**
+   * Local-calendar day number of the first day the game was played (stamped with the first change
+   * that is saved); -1 until then. Gates the daily reward and interstitial eligibility. Survives reset().
+   */
+  firstDay: number;
+  /** Boosters whose introduction gift was already given (DESIGN §5), in the order they were given. */
+  gifted: BoosterId[];
+  /** The Caravan: consecutive first-time wins since the last failed or abandoned level. */
+  caravan: number;
+  /** Real-money and ad bookkeeping (src/monetize). Survives reset(). */
+  shop: ShopSave;
+}
+
+/** The rewarded-ad placements that are counted per day (the same names as monetize's AdPlacement). */
+export type RewardedPlacement = 'extraMoves' | 'freeLife' | 'freeCoins' | 'doubleReward';
+
+export const REWARDED_PLACEMENTS: readonly RewardedPlacement[] = ['extraMoves', 'freeLife', 'freeCoins', 'doubleReward'];
+
+/**
+ * Monetisation bookkeeping kept in the save. The rules that read it live in src/monetize; the
+ * profile only stores it safely (see ProfileShop in ./extensions.ts).
+ */
+export interface ShopSave {
+  /**
+   * Keys of the purchase tokens that were already granted, oldest first, at most 200
+   * (see `purchaseKey`: short tokens verbatim, long ones as a fixed-size digest).
+   */
+  tokens: string[];
+  /** Product ids of the entitlements the player owns (remove_ads, starter_pack). */
+  owned: string[];
+  /** True once anything was bought with real money (such players never see an interstitial). */
+  purchased: boolean;
+  /** Local-calendar day number the two per-day counters below belong to; -1 = never counted. */
+  adDay: number;
+  /** Rewarded ads EARNED on `adDay`, per placement. */
+  rewarded: Record<RewardedPlacement, number>;
+  /** Interstitials shown on `adDay`. */
+  interstitials: number;
+  /** Levels finished since the last interstitial. */
+  finished: number;
+  /** Epoch ms at which the last interstitial was shown; 0 = never. */
+  lastInterstitial: number;
+  /** Epoch ms at which the last rewarded ad ended (earned or closed early); 0 = never. */
+  lastRewarded: number;
 }
 
 export type Reward =

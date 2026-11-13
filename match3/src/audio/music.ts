@@ -53,7 +53,7 @@ export interface MusicPlayer {
 }
 
 /** Relative layer levels inside the music mix. */
-export const MUSIC_MIX = { lead: 0.45, pad: 0.075, perc: 1, echo: 0.2 };
+export const MUSIC_MIX = { lead: 0.45, pad: 0.13, perc: 1, echo: 0.2 };
 
 export function createMusicPlayer(
   ctx: BaseAudioContext,

@@ -96,6 +96,11 @@ async function boot(): Promise<void> {
     },
     now: () => Date.now(),
     levelCount: world.levels.length,
+    // a hard level's first clear pays double (docs/DESIGN.md §5)
+    isHardLevel: (levelId: number) => {
+      const level = world.levels[levelId - 1];
+      return !!level && level.id === levelId && level.hard === true;
+    },
   });
 
   // the same platform, with haptics following the player's setting

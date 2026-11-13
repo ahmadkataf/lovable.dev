@@ -224,9 +224,9 @@ describe('hardening: a hostile Android bridge', () => {
       lab({ bridge: { loadSave: () => native, storeSave: (json: string) => void (native = json) } });
       const platform = createPlatform();
       const profile = createProfile({ load: platform.loadSave, save: platform.storeSave, now: Date.now, levelCount: 120 });
-      expect(profile.coins()).toBe(answer === GOOD_SAVE ? 4321 : 150);
+      expect(profile.coins()).toBe(answer === GOOD_SAVE ? 4321 : 2000);
       profile.addCoins(1);
-      expect(createPlatform().loadSave()).toContain('"coins":' + (answer === GOOD_SAVE ? 4322 : 151));
+      expect(createPlatform().loadSave()).toContain('"coins":' + (answer === GOOD_SAVE ? 4322 : 2001));
     }
   });
 
@@ -336,10 +336,10 @@ describe('hardening: localStorage that throws or lies', () => {
     profile.buyBooster('hammer');
     profile.recordWin(1, 3, 1000, 2);
     profile.loseLife();
-    expect(profile.coins()).toBe(150 + 50 - 90 + 50);
+    expect(profile.coins()).toBe(2000 + 50 - 650 + 50); // start + added − one hammer + a 3-star first clear
     // The same page can re-create the profile from what the platform holds.
     const again = createProfile({ load: platform.loadSave, save: platform.storeSave, now: Date.now, levelCount: 120 });
-    expect(again.coins()).toBe(160);
+    expect(again.coins()).toBe(1450);
     expect(again.highestUnlocked()).toBe(2);
   });
 

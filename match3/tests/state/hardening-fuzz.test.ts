@@ -6,7 +6,8 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createProfile, fixedOffsetDayNumber, parseSave, repairSave } from '../../src/state/index.ts';
-import type { BoosterId, ProfileApi, Reward, SaveData } from '../../src/state/types.ts';
+import type { FullProfile } from '../../src/state/index.ts';
+import type { BoosterId, Reward, SaveData } from '../../src/state/types.ts';
 import { MINUTE, T0, rng, sampleSave } from './harness.ts';
 
 // Thousands of cases per test: quick on an idle machine, but allow for a busy one.
@@ -15,8 +16,10 @@ vi.setConfig({ testTimeout: 60_000 });
 // ───────────────────────────── a strict, independent validator ─────────────────────────────
 
 const BOOSTER_IDS = ['hammer', 'freeSwap', 'shuffle', 'extraMoves', 'prism', 'beamNova'];
-const SAVE_KEYS = ['boosters', 'coins', 'dailyDay', 'dailyStreak', 'levels', 'lifeTimer', 'lives', 'seen', 'settings', 'stats', 'version'];
-const LIFE_MS = 20 * MINUTE;
+const SAVE_KEYS = ['boosters', 'caravan', 'coins', 'dailyDay', 'dailyStreak', 'firstDay', 'gifted', 'levels', 'lifeTimer', 'lives', 'seen', 'settings', 'shop', 'stats', 'version'];
+const SHOP_KEYS = ['adDay', 'finished', 'interstitials', 'lastInterstitial', 'lastRewarded', 'owned', 'purchased', 'rewarded', 'tokens'];
+const PLACEMENTS = ['doubleReward', 'extraMoves', 'freeCoins', 'freeLife'];
+const LIFE_MS = 30 * MINUTE;
 
 function isPlain(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
@@ -85,9 +88,38 @@ function saveProblems(d: unknown): string[] {
   if (!isPlain(st) || !sameKeys(st, ['bestCascade', 'played', 'totalScore', 'won'])) out.push('stats shape');
   else for (const key of Object.keys(st)) if (!isCount(st[key])) out.push('stat ' + key);
 
+  if (!isCount(d.firstDay, -1)) out.push('firstDay ' + String(d.firstDay));
+  if (!isCount(d.caravan)) out.push('caravan ' + String(d.caravan));
+  if (!distinctStrings(d.gifted, 6, (id) => BOOSTER_IDS.indexOf(id) >= 0)) out.push('gifted');
+
+  const shop = d.shop;
+  if (!isPlain(shop) || !sameKeys(shop, SHOP_KEYS)) out.push('shop shape');
+  else {
+    if (!distinctStrings(shop.tokens, 200, (t) => t.length > 0 && t.length <= 64)) out.push('shop tokens');
+    if (!distinctStrings(shop.owned, 16, (id) => /^[a-z0-9][a-z0-9_.]{0,39}$/.test(id))) out.push('shop owned');
+    if (typeof shop.purchased !== 'boolean') out.push('shop purchased');
+    // Whoever holds a granted token or an entitlement has paid: the flag can never say otherwise.
+    else if (!shop.purchased && ((shop.tokens as unknown[]).length > 0 || (shop.owned as unknown[]).length > 0)) out.push('paid, but not marked as a purchaser');
+    if (!isCount(shop.adDay, -1)) out.push('shop adDay');
+    if (!isPlain(shop.rewarded) || !sameKeys(shop.rewarded, PLACEMENTS)) out.push('shop rewarded shape');
+    else for (const p of PLACEMENTS) if (!isCount(shop.rewarded[p])) out.push('shop rewarded ' + p);
+    for (const key of ['interstitials', 'finished', 'lastInterstitial', 'lastRewarded']) if (!isCount(shop[key])) out.push('shop ' + key);
+  }
+
   // What is written must be what is read back: no value JSON would silently change.
   if (out.length === 0 && JSON.stringify(JSON.parse(JSON.stringify(d))) !== JSON.stringify(d)) out.push('not JSON-stable');
   return out;
+}
+
+/** An array of at most `max` different strings that all pass `ok`. */
+function distinctStrings(v: unknown, max: number, ok: (s: string) => boolean): boolean {
+  if (!Array.isArray(v) || v.length > max) return false;
+  const known: Record<string, true> = Object.create(null);
+  for (const s of v as unknown[]) {
+    if (typeof s !== 'string' || !ok(s) || known[s]) return false;
+    known[s] = true;
+  }
+  return true;
 }
 
 /** Additional rules that hold once a profile has reconciled the save with the clock `now`. */
@@ -132,14 +164,14 @@ const LONGISH = 'y'.repeat(12_000);
 const NUMBERS = [
   0, -0, 1, -1, 2, 3, 4, 5, 6, 7, 0.5, -0.5, 2.5, 4.999, 1e-7, 5e-324, 99, 120, 121, 9999, 10000, 1e9, 1e10,
   2 ** 31, 2 ** 32, 2 ** 53, 2 ** 53 + 2, -(2 ** 53), 1e21, 1e100, 1.7976931348623157e308, -1.7976931348623157e308,
-  Infinity, -Infinity, T0, T0 - 1, T0 + 1, T0 - 19 * MINUTE, T0 - 20 * MINUTE, T0 - 3 * 60 * MINUTE, T0 + 1e9, 8.64e15, 8.64e15 + 1,
+  Infinity, -Infinity, T0, T0 - 1, T0 + 1, T0 - 19 * MINUTE, T0 - 20 * MINUTE, T0 - 29 * MINUTE, T0 - 30 * MINUTE, T0 - 3 * 60 * MINUTE, T0 + 1e9, 8.64e15, 8.64e15 + 1,
   -1e9, 20_000, 20_522, 20_523, 20_524,
 ];
 
 const STRINGS = [
   '', ' ', '0', '1', '-1', '3', '1e3', '0x10', 'NaN', 'Infinity', 'null', 'true', 'false', 'undefined', '{}', '[]',
   '__proto__', 'constructor', 'prototype', 'toString', 'valueOf', 'hasOwnProperty', 'length', 'en', 'ar', 'AR', 'fr',
-  'hammer', 'tut.swap', '\u0000', '\uD800', '\uFEFF', '\u202E', 'مرحبا', '💎', LONGISH,
+  'hammer', 'tut.swap', 'remove_ads', 'starter_pack', 'tok-1', '#2s.0123456789abcdef0123456789abcdef', '\u0000', '\uD800', '\uFEFF', '\u202E', 'مرحبا', '💎', LONGISH,
 ];
 
 function pick<T>(random: () => number, list: readonly T[]): T {
@@ -162,7 +194,7 @@ function hostile(random: () => number, depth = 0): unknown {
   if (roll < 0.8) return { length: pick(random, NUMBERS), 0: 'a', 1: 'b' };
   const o: Record<string, unknown> = {};
   for (let i = Math.floor(random() * 6); i > 0; i--) {
-    const key = random() < 0.6 ? pick(random, STRINGS) : pick(random, SAVE_KEYS.concat(BOOSTER_IDS, ['stars', 'best', 'sfx', 'lang', 'played']));
+    const key = random() < 0.6 ? pick(random, STRINGS) : pick(random, SAVE_KEYS.concat(BOOSTER_IDS, SHOP_KEYS, PLACEMENTS, ['stars', 'best', 'sfx', 'lang', 'played']));
     if (key === '__proto__') Object.defineProperty(o, key, { value: hostile(random, depth + 1), enumerable: true, writable: true, configurable: true });
     else o[key] = hostile(random, depth + 1);
   }
@@ -185,6 +217,21 @@ function validSave(random: () => number): SaveData {
   save.dailyStreak = save.dailyDay < 0 ? 0 : 1 + Math.floor(random() * 20);
   save.seen = ['tut.swap', 'tut.beam', 'tip.' + Math.floor(random() * 100)];
   save.stats = { played: 40, won: 31, bestCascade: 7, totalScore: 123_456 };
+  save.firstDay = random() < 0.1 ? -1 : 20_523 - Math.floor(random() * 30);
+  save.gifted = (BOOSTER_IDS as BoosterId[]).filter(() => random() < 0.5);
+  save.caravan = Math.floor(random() * 6);
+  const paid = random() < 0.5;
+  save.shop = {
+    tokens: paid ? Array.from({ length: 1 + Math.floor(random() * 4) }, (_, i) => 'token-' + i + '-' + Math.floor(random() * 1e6)) : [],
+    owned: paid && random() < 0.5 ? ['remove_ads'] : [],
+    purchased: paid,
+    adDay: random() < 0.3 ? -1 : 20_523 - Math.floor(random() * 3),
+    rewarded: { extraMoves: Math.floor(random() * 3), freeLife: Math.floor(random() * 4), freeCoins: Math.floor(random() * 4), doubleReward: Math.floor(random() * 3) },
+    interstitials: Math.floor(random() * 6),
+    finished: Math.floor(random() * 5),
+    lastInterstitial: random() < 0.5 ? 0 : T0 - Math.floor(random() * 60 * MINUTE),
+    lastRewarded: random() < 0.5 ? 0 : T0 - Math.floor(random() * 60 * MINUTE),
+  };
   return save;
 }
 
@@ -242,7 +289,7 @@ const REWARDS: Reward[] = [
 ];
 
 /** Call every method of the API once, with ordinary arguments. Returns what was stored last. */
-function exercise(profile: ProfileApi, clock: { now: number }): void {
+function exercise(profile: FullProfile, clock: { now: number }): void {
   profile.lives();
   profile.loseLife();
   clock.now += 7 * MINUTE;
@@ -270,10 +317,33 @@ function exercise(profile: ProfileApi, clock: { now: number }): void {
   profile.setSetting('music', false);
   profile.settings();
   profile.coins();
+  // the extensions
+  for (const id of BOOSTER_IDS) profile.boosterUnlocked(id as BoosterId);
+  profile.claimUnlocks();
+  for (const feature of ['lives', 'shop', 'rewardedAds', 'caravan', 'daily'] as const) profile.featureUnlocked(feature);
+  profile.caravan();
+  profile.caravanBoosters();
+  profile.loseLife();
+  profile.addLife();
+  profile.continuePrice(1);
+  profile.shop();
+  profile.purchaseGranted('token-fuzz');
+  profile.grantPurchase('token-fuzz', REWARDS, 'starter_pack');
+  profile.grantPurchase('token-fuzz', REWARDS, 'starter_pack');
+  profile.grantPurchase('long-token-'.repeat(40), REWARDS);
+  profile.setEntitlement('remove_ads', true);
+  profile.setEntitlement('starter_pack', false);
+  profile.adsToday();
+  profile.noteLevelFinished();
+  profile.noteRewarded('freeCoins', true);
+  profile.noteRewarded('extraMoves', false);
+  profile.noteInterstitial();
+  profile.daysSinceFirstPlay();
+  profile.lastSaveOk();
 }
 
 interface Loaded {
-  profile: ProfileApi;
+  profile: FullProfile;
   clock: { now: number };
   storage: { json: string | null; writes: number };
 }
@@ -311,7 +381,7 @@ function gauntlet(json: string): string[] {
     out.push(...liveProblems(h.profile.data(), h.clock.now).map((p) => 'loaded: ' + p));
     // What a profile shows right after loading is what the pure parser said, except for the lives clockwork.
     const shown = JSON.parse(JSON.stringify(h.profile.data())) as SaveData;
-    for (const key of ['levels', 'coins', 'boosters', 'settings', 'dailyDay', 'dailyStreak', 'seen', 'stats'] as const) {
+    for (const key of ['levels', 'coins', 'boosters', 'settings', 'dailyDay', 'dailyStreak', 'seen', 'stats', 'gifted', 'caravan', 'shop'] as const) {
       if (JSON.stringify(shown[key]) !== JSON.stringify(parsed[key])) out.push('profile and parser disagree on ' + key);
     }
     exercise(h.profile, h.clock);
@@ -353,6 +423,19 @@ describe('hardening: the validator itself', () => {
       ['seen', (s) => (s.seen = ['a', 'a'])],
       ['keys', (s) => (s.extra = 1)],
       ['lang', (s) => ((s.settings as Record<string, unknown>).lang = 'fr')],
+      ['firstDay', (s) => (s.firstDay = -2)],
+      ['caravan', (s) => (s.caravan = 1.5)],
+      ['gifted', (s) => (s.gifted = ['hammer', 'hammer'])],
+      ['gifted id', (s) => (s.gifted = ['wand'])],
+      ['shop', (s) => delete s.shop],
+      ['tokens', (s) => ((s.shop as Record<string, unknown>).tokens = ['a', 'a'])],
+      ['token', (s) => ((s.shop as Record<string, unknown>).tokens = [''])],
+      ['too many tokens', (s) => ((s.shop as Record<string, unknown>).tokens = Array.from({ length: 201 }, (_, i) => 't' + i))],
+      ['owned', (s) => ((s.shop as Record<string, unknown>).owned = ['Remove Ads'])],
+      ['purchased', (s) => ((s.shop as Record<string, unknown>).purchased = false)],
+      ['rewarded', (s) => ((s.shop as Record<string, unknown>).rewarded = { freeCoins: 1 })],
+      ['ad counter', (s) => ((s.shop as Record<string, unknown>).interstitials = -1)],
+      ['ad time', (s) => ((s.shop as Record<string, unknown>).lastRewarded = NaN)],
     ];
     for (const [name, damage] of bad) {
       const save = sampleSave() as unknown as Record<string, unknown>;
@@ -452,15 +535,19 @@ describe('hardening: hand-picked hostile saves', () => {
       '{"stats":{"__proto__":{"won":5}},"seen":{"__proto__":["a"],"length":2,"0":"a","1":"b"}}',
       '{"seen":["__proto__","constructor","toString","hasOwnProperty","valueOf"]}',
       '[{"__proto__":{"polluted":true}}]',
+      '{"shop":{"__proto__":{"purchased":true,"owned":["remove_ads"],"tokens":["t"]},"constructor":{"owned":["remove_ads"]}}}',
+      '{"shop":{"rewarded":{"__proto__":{"freeCoins":3},"constructor":1},"owned":{"__proto__":["remove_ads"],"length":1,"0":"remove_ads"},"tokens":{"length":1,"0":"t"}}}',
+      '{"gifted":{"__proto__":["hammer"],"length":1,"0":"hammer"},"caravan":{"valueOf":3},"firstDay":"3"}',
     ];
     for (const json of docs) {
       expect(gauntlet(json), json).toEqual([]);
       const save = parseSave(json);
       expect(Object.getPrototypeOf(save.levels)).toBe(Object.prototype);
       expect(Object.getPrototypeOf(save.boosters)).toBe(Object.prototype);
-      expect(save.coins).toBe(150);
-      expect(save.boosters.hammer).toBe(3);
+      expect(save.coins).toBe(2000);
+      expect(save.boosters.hammer).toBe(0);
       expect(save.settings.lang).toBeNull();
+      expect(save.shop).toEqual(parseSave(null).shop);
     }
     expectCleanPrototypes();
     // Ids that happen to be property names are ordinary tips.
@@ -477,9 +564,13 @@ describe('hardening: hand-picked hostile saves', () => {
     const json =
       '{"version":1e999,"coins":1e999,"lives":1e999,"lifeTimer":-1e999,"dailyDay":1e999,"dailyStreak":1e999,' +
       '"boosters":{"hammer":1e999,"prism":-1e999,"shuffle":1e-320},"levels":{"3":{"stars":1e999,"best":1e999},"4":{"stars":-1e999,"best":-1e999}},' +
-      '"stats":{"played":1e999,"won":-1e999,"bestCascade":1e999,"totalScore":1e999}}';
+      '"stats":{"played":1e999,"won":-1e999,"bestCascade":1e999,"totalScore":1e999},"firstDay":1e999,"caravan":1e999,' +
+      '"shop":{"adDay":1e999,"rewarded":{"freeCoins":1e999,"freeLife":-1e999},"interstitials":1e999,"finished":1e999,"lastInterstitial":1e999,"lastRewarded":-1e999}}';
     expect(gauntlet(json)).toEqual([]);
     const save = parseSave(json);
+    expect(save.shop.rewarded).toEqual({ extraMoves: 0, freeLife: 0, freeCoins: 9_999, doubleReward: 0 });
+    expect(save.shop.lastRewarded).toBe(0);
+    expect(Number.isSafeInteger(save.shop.lastInterstitial) && Number.isSafeInteger(save.firstDay) && Number.isSafeInteger(save.caravan)).toBe(true);
     expect(save.coins).toBe(999_999_999);
     expect(save.lives).toBe(5);
     expect(save.boosters).toMatchObject({ hammer: 9_999, prism: 0, shuffle: 0 });
@@ -495,12 +586,25 @@ describe('hardening: hand-picked hostile saves', () => {
       boosters: Object.fromEntries(Array.from({ length: 5_000 }, (_, i) => ['b' + i, i])),
       settings: { lang: LONG, sfx: LONG },
       coins: LONG,
+      gifted: Array.from({ length: 50_000 }, () => 'hammer'),
+      shop: {
+        tokens: Array.from({ length: 50_000 }, (_, i) => (i % 3 === 0 ? LONG.slice(0, 5000) : 'token.' + i)),
+        owned: Array.from({ length: 50_000 }, (_, i) => 'product_' + i),
+        rewarded: Object.fromEntries(Array.from({ length: 5_000 }, (_, i) => ['p' + i, i])),
+      },
     };
     const json = JSON.stringify(big);
     expect(gauntlet(json)).toEqual([]);
     const save = parseSave(json);
     expect(save.seen.length).toBeLessThanOrEqual(2_000);
     expect(Object.keys(save.levels).length).toBeLessThanOrEqual(9_999);
+    expect(save.gifted).toEqual(['hammer']);
+    // the newest 200 tokens and the newest 16 entitlements stay, in their order
+    expect(save.shop.tokens.length).toBe(200);
+    expect(save.shop.tokens[199]).toBe('token.49999');
+    expect(save.shop.owned.length).toBe(16);
+    expect(save.shop.owned[15]).toBe('product_49999');
+    expect(save.shop.purchased).toBe(true);
     expect(JSON.stringify(save).length).toBeLessThan(1_000_000);
 
     const deep = '{"levels":'.repeat(3000) + '1' + '}'.repeat(3000);
@@ -520,8 +624,8 @@ describe('hardening: hand-picked hostile saves', () => {
       expect(parseSave(json), JSON.stringify(json.slice(0, 12))).toEqual(sampleSave());
     }
     // …but only one extra layer is unwrapped, and a string that is not a save stays garbage.
-    expect(parseSave(JSON.stringify(JSON.stringify(good))).coins).toBe(150);
-    expect(parseSave(JSON.stringify('hello')).coins).toBe(150);
+    expect(parseSave(JSON.stringify(JSON.stringify(good))).coins).toBe(2000);
+    expect(parseSave(JSON.stringify('hello')).coins).toBe(2000);
   });
 
   it('repairSave never throws, even on things JSON cannot express', () => {
@@ -575,6 +679,10 @@ describe('hardening: hand-picked hostile saves', () => {
     repaired.seen.push('x');
     repaired.settings.sfx = !repaired.settings.sfx;
     repaired.stats.won = 0;
+    repaired.gifted.push('prism');
+    repaired.shop.tokens.push('x');
+    repaired.shop.owned.length = 0;
+    repaired.shop.rewarded.freeCoins = 99;
     expect(source).toEqual(copy);
   });
 
@@ -602,7 +710,7 @@ describe('hardening: hand-picked hostile saves', () => {
         now: () => clock.now,
         levelCount: 120,
       });
-      expect(profile.coins()).toBe(150);
+      expect(profile.coins()).toBe(2000);
       exercise(profile, clock);
       expect(saveProblems(JSON.parse(storage.json))).toEqual([]);
     }

@@ -1,13 +1,14 @@
 /**
  * Additive profile features introduced by the strategy study (docs/DESIGN.md §5, docs/STRATEGY.md):
  * booster unlocks with gifts, feature gating, the Caravan win streak, single-life grants and the
- * continue price ladder. They are implemented inside src/state by the economy module.
+ * continue price ladder — plus the bookkeeping the monetisation module needs (ProfileShop).
+ * All of it is implemented by `createProfile` (src/state/index.ts), which returns a `FullProfile`.
  *
- * Until that lands, every method may be missing at runtime: the app context types the profile as
- * `ProfileApi & Partial<ProfileExtensions>`, so callers write `ctx.profile.caravan?.() ?? 0`.
+ * The app context still types the profile as `ProfileApi & Partial<ProfileExtensions>` (callers
+ * write `ctx.profile.caravan?.() ?? 0`); with the real profile every method is present.
  */
 import type { StartBoosters } from '../engine/types.ts';
-import type { BoosterId } from './types.ts';
+import type { BoosterId, ProfileApi, Reward, RewardedPlacement, ShopSave } from './types.ts';
 
 export type FeatureId =
   /** lives counter shown (L6) */
@@ -30,7 +31,11 @@ export interface ProfileExtensions {
    */
   claimUnlocks(): { id: BoosterId; amount: number }[];
   featureUnlocked(feature: FeatureId): boolean;
-  /** Consecutive wins since the last failed/abandoned level; always 0 before the Caravan unlocks. */
+  /**
+   * Consecutive wins since the last failed/abandoned level; always 0 before the Caravan unlocks.
+   * A win counts when it is the first clear of a level played with the Caravan unlocked (replaying
+   * cleared levels neither adds nor resets); every `loseLife()` resets it.
+   */
   caravan(): number;
   /** The free start boosters the current Caravan grants for the next level (empty object when none). */
   caravanBoosters(): StartBoosters;
@@ -39,3 +44,55 @@ export interface ProfileExtensions {
   /** Coin price of the nth continue within one attempt (n = 0, 1, 2). Returns null when no more continues are allowed. */
   continuePrice(n: number): number | null;
 }
+
+/** What today's ad counters say (all zero on a new local day). */
+export interface AdsToday {
+  /** Rewarded ads earned today, per placement. */
+  rewarded: Record<RewardedPlacement, number>;
+  /** Rewarded ads earned today over all placements. */
+  rewardedTotal: number;
+  /** Interstitials shown today. */
+  interstitials: number;
+}
+
+/**
+ * Storage for the monetisation module (src/monetize), which owns the rules. Every mutation is one
+ * complete save followed by one notification, like the rest of the profile; calls that change
+ * nothing neither save nor notify.
+ */
+export interface ProfileShop {
+  /** The monetisation section of the save (live object: read it, never write to it). */
+  shop(): Readonly<ShopSave>;
+  /**
+   * False while the most recent save could not be written (the storage function threw): what
+   * changed last exists in memory only. A purchase must not be finished with the store then.
+   */
+  lastSaveOk(): boolean;
+  /** True when a purchase with this token was already granted. */
+  purchaseGranted(token: string): boolean;
+  /**
+   * Complete one real-money purchase in ONE save: apply `rewards`, remember the token, mark
+   * `entitlement` (when given) as owned and set the purchased flag. Returns false — and changes
+   * nothing — when the token is unusable or was granted before. Only when this has returned may
+   * the purchase be finished with the store.
+   */
+  grantPurchase(token: string, rewards: Reward[], entitlement?: string | null): boolean;
+  /**
+   * Set or clear ownership of an entitlement WITHOUT granting anything (a restore). Owning one also
+   * sets the purchased flag (which is never cleared). Returns true when ownership changed.
+   */
+  setEntitlement(id: string, owned: boolean): boolean;
+  /** Today's ad counters (zero when the local day has changed since they were written). */
+  adsToday(): AdsToday;
+  /** A rewarded ad ended now: remembers the time, and counts it for today when it was earned. */
+  noteRewarded(placement: RewardedPlacement, earned: boolean): void;
+  /** An interstitial was shown now: remembers the time, counts it for today, restarts the level count. */
+  noteInterstitial(): void;
+  /** One more level was finished. Returns how many were finished since the last interstitial. */
+  noteLevelFinished(): number;
+  /** Whole local calendar days since the first day the game was played (0 on that day, or without a clock). */
+  daysSinceFirstPlay(): number;
+}
+
+/** What `createProfile` returns: the base contract plus every extension. */
+export type FullProfile = ProfileApi & ProfileExtensions & ProfileShop;

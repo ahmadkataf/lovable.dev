@@ -83,6 +83,10 @@ function save(opts) {
     dailyStreak: o.dailyStreak,
     seen: [],
     stats: { played: o.upTo, won: o.upTo, bestCascade: 4, totalScore: o.upTo * 3000 },
+    // a player who started a while ago and has met every booster (no "new booster" pop-ups, daily reward open)
+    firstDay: today - 30,
+    gifted: o.gifted || ['beamNova', 'hammer', 'freeSwap', 'prism', 'shuffle', 'extraMoves'],
+    caravan: o.caravan || 0,
   };
   return Buffer.from(JSON.stringify(data), 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
