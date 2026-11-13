@@ -4,10 +4,10 @@
  *   node tools/levelgen/tune.ts --levels 1-120 --write
  *
  * The layouts, colours and goals are the designer's; this tool only fits the numbers to the
- * casual bot (tools/sim/bot.ts) so that every level lands in its win-rate band (tools/sim/stats.ts):
+ * casual bot (tools/sim/bot.ts) so that every level lands in its pass-rate band (tools/sim/stats.ts):
  *
  *   1. moves — the level is played with a generous move cap; the number of moves each game
- *      needed to reach the goals gives the win rate for every possible move count at once, and
+ *      needed to reach the goals gives the pass rate for every possible move count at once, and
  *      the count closest to the band's target is chosen.
  *      Score-only levels keep the designer's move count; instead the score target is set to the
  *      matching quantile of the scores reached when the moves run out.
@@ -15,7 +15,11 @@
  *      every win reaches (for score-only levels it IS the target), stars[1] the median and
  *      stars[2] the 85th percentile of the winning games' final scores.
  *
- * Options: --levels (range), --games N (default 400), --seed N, --write (patch the data files;
+ * The table also shows what the tool cannot fix: a tuned move count outside the level's window
+ * (the goal is too small or too big for its place — change the goal or the layout), and a long
+ * tail (p90 of the moves needed far above the median: the level is decided by luck).
+ *
+ * Options: --levels (range), --games N (default 1000), --seed N, --write (patch the data files;
  * without it the tool only prints what it would do), --stars-only (keep moves / targets),
  * --target-shift X (aim X points above the band target; negative = harder).
  */
@@ -24,10 +28,10 @@ import { fileURLToPath } from 'node:url';
 import { LEVELS } from '../../src/levels/index.ts';
 import type { LevelDef } from '../../src/engine/index.ts';
 import { runJobs } from '../sim/pool.ts';
-import { bandFlag, bandFor, parseRange, quantile, seedFor, type SimJob } from '../sim/stats.ts';
+import { bandFlag, bandFor, describeGoals, isScoreOnly, movesWindow, parseRange, quantile, seedFor, type SimJob } from '../sim/stats.ts';
 
 /** Moves given to the bot while measuring how many it needs. */
-const MOVE_CAP = 90;
+const MOVE_CAP = 100;
 
 interface Args {
   levels: number[];
@@ -39,7 +43,7 @@ interface Args {
 }
 
 function parseArgs(argv: readonly string[]): Args {
-  const args: Args = { levels: LEVELS.map((l) => l.id), games: 400, seed: 1000, write: false, starsOnly: false, shift: 0 };
+  const args: Args = { levels: LEVELS.map((l) => l.id), games: 1000, seed: 1000, write: false, starsOnly: false, shift: 0 };
   for (let k = 0; k < argv.length; k++) {
     const flag = argv[k]!;
     const value = (): string => {
@@ -58,23 +62,22 @@ function parseArgs(argv: readonly string[]): Args {
   return args;
 }
 
-function isScoreOnly(level: LevelDef): boolean {
-  return level.goals.every((g) => g.kind === 'score');
-}
-
 function roundTo(value: number, step: number): number {
   return Math.round(value / step) * step;
 }
 
-/** The three star thresholds from the final scores of winning games. */
-function starsFrom(level: LevelDef, winScores: readonly number[]): [number, number, number] {
+/**
+ * The three star thresholds from the final scores of winning games: one star for (practically)
+ * every win, two at the median, three at the 85th percentile.
+ */
+export function starsFrom(level: LevelDef, winScores: readonly number[]): [number, number, number] {
   if (winScores.length === 0) return level.stars;
   let s1: number;
   if (isScoreOnly(level)) {
     s1 = (level.goals[0] as { kind: 'score'; target: number }).target;
   } else {
-    // "essentially every win reaches it": just under the lowest scores seen
-    s1 = Math.max(100, Math.floor(quantile(winScores, 0.01) / 100) * 100);
+    // "every win reaches it": just under the lowest scores seen
+    s1 = Math.max(100, Math.floor(quantile(winScores, 0.003) / 100) * 100);
   }
   let s2 = roundTo(quantile(winScores, 0.5), 100);
   let s3 = roundTo(quantile(winScores, 0.85), 100);
@@ -119,19 +122,20 @@ async function main(): Promise<void> {
   if (!args.starsOnly) {
     const jobs: SimJob[] = levels.map((level) =>
       isScoreOnly(level)
-        ? { level: { ...level, goals: [{ kind: 'score', target: 1 }], stars: [1, 2, 3] }, bot: 'casual', games: args.games, seed: seedFor(level.id, args.seed) }
+        ? { level: { ...level, goals: [{ kind: 'score', target: 1 }], stars: [1, 2, 3] }, bot: 'casual', games: args.games, seed: seedFor(level.id, args.seed), moves: level.moves }
         : { level, bot: 'casual', games: args.games, seed: seedFor(level.id, args.seed), moves: MOVE_CAP },
     );
     const results = await runJobs(jobs);
     levels.forEach((level, k) => {
       const res = results[k]!;
       const band = bandFor(level);
-      const want = Math.min(99.7, band.target + args.shift) / 100;
+      const want = Math.min(99.8, band.target + args.shift) / 100;
       const out = tuned[k]!;
       if (isScoreOnly(level)) {
         const target = Math.max(100, Math.floor(quantile(res.endScores, 1 - want) / 50) * 50);
         out.goals = [{ kind: 'score', target }];
         out.stars = [target, target + 1, target + 2];
+        notes[k] = `scores p10 ${quantile(res.endScores, 0.1).toFixed(0)} / p50 ${quantile(res.endScores, 0.5).toFixed(0)}`;
       } else {
         let best = MOVE_CAP;
         let bestGap = Infinity;
@@ -146,14 +150,22 @@ async function main(): Promise<void> {
         }
         out.moves = best;
         const needed = res.winAt.filter((at) => at > 0);
-        notes[k] = `needs p10 ${quantile(needed, 0.1).toFixed(0)} / p50 ${quantile(needed, 0.5).toFixed(0)} / p90 ${quantile(needed, 0.9).toFixed(0)} moves${needed.length < res.games ? `, ${res.games - needed.length} unsolved in ${MOVE_CAP}` : ''}`;
+        const p50 = quantile(needed, 0.5);
+        const p90 = quantile(needed, 0.9);
+        const [lo, hi] = movesWindow(level);
+        const flags: string[] = [];
+        if (best < lo) flags.push(`MOVES<${lo}`);
+        if (best > hi) flags.push(`MOVES>${hi}`);
+        if (p50 > 0 && p90 / p50 > 1.75) flags.push('TAIL');
+        if (needed.length < res.games) flags.push(`${res.games - needed.length} unsolved in ${MOVE_CAP}`);
+        notes[k] = `needs ${quantile(needed, 0.1).toFixed(0)}/${p50.toFixed(0)}/${p90.toFixed(0)} (×${(p50 > 0 ? p90 / p50 : 0).toFixed(2)})${flags.length > 0 ? '  ' + flags.join(' ') : ''}`;
       }
     });
   }
 
   // ── pass 2: verify with fresh seeds and derive the stars ──
   const verify = await runJobs(tuned.map((level) => ({ level, bot: 'casual', games: args.games, seed: seedFor(level.id, args.seed + 1) }) as SimJob));
-  console.log(' lvl  moves        band           win%   stars                    notes');
+  console.log(' lvl  moves     band               pass%  shuf  goals                               notes');
   let flagged = 0;
   tuned.forEach((level, k) => {
     const res = verify[k]!;
@@ -164,7 +176,7 @@ async function main(): Promise<void> {
     const before = levels[k]!;
     const moves = before.moves === level.moves ? `${level.moves}` : `${before.moves}→${level.moves}`;
     console.log(
-      `${String(level.id).padStart(4)}  ${moves.padEnd(11)}  ${bandFor(level).label.padEnd(13)}  ${rate.toFixed(1).padStart(5)}  ${`[${level.stars.join(', ')}]`.padEnd(23)}  ${flag}${flag && notes[k] ? ' · ' : ''}${notes[k]}`,
+      `${String(level.id).padStart(4)}  ${moves.padEnd(8)}  ${bandFor(level).label.padEnd(17)}  ${rate.toFixed(1).padStart(5)}  ${(res.shuffles / res.games).toFixed(2)}  ${describeGoals(level).padEnd(34)}  ${flag}${flag ? ' · ' : ''}${notes[k]}`,
     );
   });
   console.log(`\n${tuned.length - flagged}/${tuned.length} in band · ${((Date.now() - started) / 1000).toFixed(1)} s`);
@@ -188,7 +200,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? (err.stack ?? err.message) : err);
-  process.exit(1);
-});
+// Only when run as a script (the tests import `starsFrom`).
+if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((err) => {
+    console.error(err instanceof Error ? (err.stack ?? err.message) : err);
+    process.exit(1);
+  });
+}

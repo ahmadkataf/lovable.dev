@@ -1,23 +1,32 @@
 /**
  * Shared helpers for the store tools (make-graphics.cjs, make-screenshots.cjs, check-kit.cjs).
- * CommonJS, Node 22, no dependencies.
+ * CommonJS, Node 22, no dependencies besides the project's own Vite and the global Playwright.
  *
- *   startServer(port)            start `npx vite --port <port> --strictPort` in the match3 directory
- *                                (or reuse a dev server that already answers there); returns { base, stop }
+ *   STORE_PORT                   the one port the store tools use for the game's dev server (5189;
+ *                                override with the environment variable STORE_PORT)
+ *   startServer(port)            the game's Vite dev server on `port`, WITHOUT hot reload and file
+ *                                watching (other people edit src/ while a capture runs; a reload in
+ *                                the middle would spoil it). A dev server that already answers on
+ *                                the port (e.g. `npx vite --port 5189 --strictPort`) is reused and
+ *                                left running. Returns { base, stop, reused }.
  *   encodeRgbPng(w, h, rgba)     24-bit PNG (colour type 2, NO alpha channel) from RGBA pixels —
  *                                the format Google Play asks for (feature graphic, screenshots)
  *   decodePng(buffer)            8-bit RGB / RGBA PNG → { width, height, channels, data }
  *   pngInfo(buffer)              IHDR fields without decoding the pixels
  *   toOpaqueRgbPng(buffer)       any 8-bit RGB/RGBA PNG → 24-bit PNG without alpha (flattened on `bg`)
+ *   resizeImage(img, w, h)       Lanczos-3 resampling of a decoded image (used to scale a capture
+ *                                into its frame — scaling is the only thing done to captured pixels)
  */
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const zlib = require('zlib');
-const { spawn } = require('child_process');
 
 /** The match3 directory (tools/store/ → ../..). */
 const ROOT = path.join(__dirname, '..', '..');
+
+/** The dev-server port of the store tools. */
+const STORE_PORT = Number(process.env.STORE_PORT || 5189);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -38,8 +47,10 @@ function ping(url) {
 }
 
 /**
- * Starts the Vite dev server of the game on `port` and waits until it answers.
- * If something already answers on that port it is reused and left running.
+ * The game's dev server on `port`. Started in this process through Vite's own API with hot reload
+ * and file watching switched off, so the whole run sees one consistent version of the game even
+ * while files under src/ are being edited. Stopped by `stop()` (and with the process). If a dev
+ * server already answers on the port it is reused as it is and left running.
  */
 async function startServer(port) {
   const base = 'http://127.0.0.1:' + port + '/';
@@ -47,42 +58,33 @@ async function startServer(port) {
   const probe = base + 'src/app/brand.ts';
   if (await ping(probe)) return { base, stop: async () => undefined, reused: true };
 
-  const child = spawn('npx', ['vite', '--port', String(port), '--strictPort'], {
-    cwd: ROOT,
-    stdio: 'ignore',
-    detached: true, // own process group, so stop() can end npx AND the vite process it starts
-  });
-  let exited = false;
-  child.on('exit', () => {
-    exited = true;
-  });
+  const vite = await import('vite');
+  let server;
+  try {
+    server = await vite.createServer({
+      root: ROOT,
+      logLevel: 'silent',
+      clearScreen: false,
+      server: { host: '127.0.0.1', port, strictPort: true, hmr: false, watch: null },
+    });
+    await server.listen();
+  } catch (err) {
+    if (server) await server.close().catch(() => undefined);
+    throw new Error('the dev server did not start on port ' + port + ' (' + (err && err.message ? err.message : err) + ')');
+  }
   const stop = async () => {
-    if (exited) return;
-    try {
-      process.kill(-child.pid, 'SIGTERM');
-    } catch (_err) {
-      try {
-        child.kill('SIGTERM');
-      } catch (_err2) {
-        // already gone
-      }
-    }
-    for (let i = 0; i < 40 && !exited; i++) await sleep(50);
-    if (!exited) {
-      try {
-        process.kill(-child.pid, 'SIGKILL');
-      } catch (_err) {
-        // already gone
-      }
+    await server.close().catch(() => undefined);
+    for (let i = 0; i < 40; i++) {
+      if (!(await ping(probe))) return;
+      await sleep(100);
     }
   };
   for (let i = 0; i < 120; i++) {
-    await sleep(250);
-    if (exited) throw new Error('the dev server exited at once — is port ' + port + ' taken? (npx vite --port ' + port + ' --strictPort)');
     if (await ping(probe)) return { base, stop, reused: false };
+    await sleep(250);
   }
   await stop();
-  throw new Error('the dev server did not start on port ' + port);
+  throw new Error('the dev server did not answer on port ' + port);
 }
 
 // ───────────────────────────── PNG ─────────────────────────────
@@ -232,4 +234,74 @@ function writeFile(file, data) {
   fs.writeFileSync(file, data);
 }
 
-module.exports = { ROOT, sleep, ping, startServer, pngInfo, decodePng, encodeRgbPng, toOpaqueRgbPng, writeFile };
+// ───────────────────────────── resampling ─────────────────────────────
+
+function lanczos(x) {
+  if (x === 0) return 1;
+  if (x <= -3 || x >= 3) return 0;
+  const px = Math.PI * x;
+  return (3 * Math.sin(px) * Math.sin(px / 3)) / (px * px);
+}
+
+/** Per output sample: first source index and normalised weights (Lanczos-3, widened when shrinking). */
+function resampleTable(srcN, dstN) {
+  const scale = dstN / srcN;
+  const support = scale < 1 ? 3 / scale : 3;
+  const table = new Array(dstN);
+  for (let i = 0; i < dstN; i++) {
+    const centre = (i + 0.5) / scale - 0.5;
+    const lo = Math.max(0, Math.ceil(centre - support));
+    const hi = Math.min(srcN - 1, Math.floor(centre + support));
+    const w = new Float64Array(hi - lo + 1);
+    let sum = 0;
+    for (let k = lo; k <= hi; k++) {
+      const v = lanczos(scale < 1 ? (k - centre) * scale : k - centre);
+      w[k - lo] = v;
+      sum += v;
+    }
+    for (let k = 0; k < w.length; k++) w[k] /= sum;
+    table[i] = { lo, w };
+  }
+  return table;
+}
+
+/**
+ * Scales a decoded image ({ width, height, channels, data }) to w×h with a Lanczos-3 filter.
+ * Returns an image with the same number of channels. An image that already has the size is
+ * returned unchanged.
+ */
+function resizeImage(img, w, h) {
+  if (img.width === w && img.height === h) return img;
+  const ch = img.channels;
+  const xs = resampleTable(img.width, w);
+  const ys = resampleTable(img.height, h);
+  // horizontal pass into floats
+  const mid = new Float32Array(w * img.height * ch);
+  for (let y = 0; y < img.height; y++) {
+    const row = y * img.width * ch;
+    const out = y * w * ch;
+    for (let x = 0; x < w; x++) {
+      const t = xs[x];
+      for (let c = 0; c < ch; c++) {
+        let acc = 0;
+        for (let k = 0; k < t.w.length; k++) acc += img.data[row + (t.lo + k) * ch + c] * t.w[k];
+        mid[out + x * ch + c] = acc;
+      }
+    }
+  }
+  // vertical pass
+  const data = Buffer.alloc(w * h * ch);
+  for (let y = 0; y < h; y++) {
+    const t = ys[y];
+    for (let x = 0; x < w; x++) {
+      for (let c = 0; c < ch; c++) {
+        let acc = 0;
+        for (let k = 0; k < t.w.length; k++) acc += mid[(t.lo + k) * w * ch + x * ch + c] * t.w[k];
+        data[(y * w + x) * ch + c] = acc < 0 ? 0 : acc > 255 ? 255 : Math.round(acc);
+      }
+    }
+  }
+  return { width: w, height: h, channels: ch, data };
+}
+
+module.exports = { ROOT, STORE_PORT, sleep, ping, startServer, pngInfo, decodePng, encodeRgbPng, toOpaqueRgbPng, resizeImage, writeFile };

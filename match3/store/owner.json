@@ -4,7 +4,24 @@
   "privacyPolicyUrl": "https://zumurud-privacy.almutafawiqin.workers.dev/",
   "applicationId": "com.zumurud.game",
   "defaultLanguage": "en-US",
-  "additionalLanguages": ["ar"],
+  "additionalLanguages": [
+    "ar"
+  ],
   "category": "Games > Puzzle",
-  "notes": "Privacy policy is served by a Cloudflare Worker named zumurud-privacy on the owner's Cloudflare account; its source is store/privacy/index.html."
+  "notes": "Privacy policy is served by a Cloudflare Worker named zumurud-privacy on the owner's Cloudflare account; its source is store/privacy/index.html.",
+  "developerWebsite": "https://zumurud-privacy.almutafawiqin.workers.dev/",
+  "appAdsTxtUrl": "https://zumurud-privacy.almutafawiqin.workers.dev/app-ads.txt",
+  "admob": {
+    "appId": "ca-app-pub-2987896644184673~9664559333",
+    "rewardedUnit": {
+      "name": "zumurud_rewarded",
+      "id": "ca-app-pub-2987896644184673/1706178262"
+    },
+    "interstitialUnit": {
+      "name": "zumurud_interstitial",
+      "id": "ca-app-pub-2987896644184673/1378875206"
+    },
+    "publisherId": "pub-2987896644184673",
+    "rule": "Real ids in release builds only; debug builds use Google sample ids."
+  }
 }

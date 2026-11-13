@@ -98,6 +98,20 @@ export const THREE_STAR_RANGE: readonly [number, number] = [10, 25];
 export const CONTINUE_MOVES = 5;
 export const AD_MOVES = 3;
 
+/**
+ * How many moves a level may have, by where it sits (docs/STRATEGY.md gives 30–38 / 25–30 / 20–27
+ * and 20–24 for hard levels; these windows keep that shape but leave the designer some room —
+ * a level far outside its window needs a bigger or smaller goal, not just more or fewer moves).
+ */
+export function movesWindow(level: LevelDef): readonly [min: number, max: number] {
+  if (level.id <= 5) return [12, 24];
+  if (level.id <= 10) return [16, 30];
+  if (level.hard === true) return [18, 28];
+  if (level.id <= 20) return [18, 36];
+  if (level.id <= 100) return [20, 32];
+  return [18, 30];
+}
+
 // ───────────────────────────── jobs ─────────────────────────────
 
 export interface SimJob {

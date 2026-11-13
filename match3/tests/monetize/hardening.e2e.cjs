@@ -251,12 +251,14 @@ async function androidJourney(browser) {
   await emit({ type: 'ads', canRequestAds: true, rewardedReady: true, interstitialReady: true, privacyOptionsRequired: false });
   const before = await coins(page);
 
-  // DEFECT (fixed): the wrapper's storeSave keeps nothing and does not throw
+  // DEFECT (fixed): the wrapper holds a save, and then its storeSave keeps nothing — without throwing
+  await page.evaluate(() => window.__app.profile.markSeen('e2e.played-a-bit'));
+  check('the wrapper holds a save of its own', await page.evaluate(() => window.__save.length > 0 && JSON.parse(window.__save).shop.tokens.length === 0));
   await page.evaluate(() => (window.__dropSaves = true));
   await start(page, 'mega', "window.__app.store.buy('coins_mega')");
   await emit({ type: 'purchase', id: 'coins_mega', state: 'purchased', token: 'GPA.9999-MEGA' });
   check('a purchase arrives while the wrapper’s storage is failing: the buyer is told, the coins are there', (await result(page, 'mega')) === 'purchased' && (await coins(page)) === before + 70000);
-  check('…but the save did not reach the wrapper', await page.evaluate(() => window.__save === '' || JSON.parse(window.__save).shop.tokens.length === 0));
+  check('…the save did not reach the wrapper (only the mirror copy in the WebView has it)', await page.evaluate(() => JSON.parse(window.__save).shop.tokens.length === 0 && JSON.parse(window.localStorage.getItem('match3.save.v1')).shop.tokens.length === 1));
   check('…so the purchase is NOT finished (it would be consumed and lost at the next start)', (await finishes()).length === 0, await finishes());
   await emit({ type: 'purchase', id: 'coins_mega', state: 'purchased', token: 'GPA.9999-MEGA' });
   check('delivered again: still not finished, not granted twice', (await finishes()).length === 0 && (await coins(page)) === before + 70000);

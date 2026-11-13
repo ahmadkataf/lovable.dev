@@ -290,10 +290,24 @@ async function boardClip(page, margin) {
  * Freeze the game, start something, then advance the game clock by hand and capture every step.
  * Returns the game time at which the board was idle again (ms after the trigger), or -1.
  */
+/**
+ * CSS animations and transitions (banners, the praise word, dialogs, the stars) do not follow the
+ * game clock: hold them and move them on by hand, by the same amount.
+ */
+function stepCss(page, ms) {
+  return page.evaluate((dt) => {
+    for (const a of document.getAnimations()) {
+      if (a.playState === 'running') a.pause();
+      if (a.playState === 'paused') a.currentTime = (Number(a.currentTime) || 0) + dt;
+    }
+  }, ms);
+}
+
 async function sequence(browser, page, name, trigger, opts) {
-  const o = Object.assign({ frames: 12, step: 50, lead: 0, cols: 6, full: false, margin: 26 }, opts || {});
+  const o = Object.assign({ frames: 12, step: 50, lead: 0, cols: 6, full: false, margin: 26, css: true }, opts || {});
   await freeze(page, true);
-  await trigger();
+  if (trigger) await trigger();
+  if (o.css) await stepCss(page, 0);
   const clip = o.full ? undefined : await boardClip(page, o.margin);
   const files = [];
   const labels = [];
@@ -301,7 +315,16 @@ async function sequence(browser, page, name, trigger, opts) {
   let idleAt = -1;
   for (let i = 0; i < o.frames; i++) {
     const dt = i === 0 ? o.lead : o.step;
-    if (dt > 0) await page.evaluate((ms) => window.__play.advance(ms), dt);
+    if (dt > 0) {
+      // in slices, so that what the game starts on the way (a banner, a dialog) is caught early
+      let left = dt;
+      while (left > 0) {
+        const slice = Math.min(left, 34);
+        await page.evaluate((ms) => window.__play.advance(ms), slice);
+        if (o.css) await stepCss(page, slice);
+        left -= slice;
+      }
+    }
     t += dt;
     const file = path.join(FRAMES, `${name}-${String(i).padStart(2, '0')}.png`);
     await page.screenshot({ path: file, clip });
@@ -486,16 +509,12 @@ const FRAME_SCENES = {
   /** level start: the pieces drop in under the goal banner */
   async start(browser) {
     const page = await open(browser, SIZES[0], 'en', 'level=mix&seed=7&tut=0&inv=3');
-    const files = [];
-    const labels = [];
-    const t0 = Date.now();
-    for (let i = 0; i < 12; i++) {
-      const file = path.join(FRAMES, `start-${String(i).padStart(2, '0')}.png`);
-      await page.screenshot({ path: file });
-      files.push(file);
-      labels.push(`start · ~${Date.now() - t0} ms`);
-    }
-    await sheet(browser, 'start', files, labels, 6);
+    await idle(page);
+    await page.evaluate(() => {
+      window.__demo.pause(true);
+      window.__demo.start('mix');
+    });
+    await sequence(browser, page, 'start', null, { frames: 18, step: 90, cols: 6, full: true });
     await page.context().close();
   },
 
@@ -515,7 +534,7 @@ const FRAME_SCENES = {
     await page.context().close();
   },
 
-  /** the end-of-level finale: moves fly into the board, the specials go off */
+  /** the end-of-level finale: the banner, moves fly into the board, the specials go off, the dialog */
   async finale(browser) {
     const page = await open(browser, SIZES[0], 'en', 'level=easy&seed=11&tut=0&inv=0&ads=1');
     await idle(page);
@@ -527,93 +546,56 @@ const FRAME_SCENES = {
       await page.waitForTimeout(30);
     }
     await page.waitForFunction(() => window.__play.state() === 'finale', null, { timeout: 30000 });
-    // the banner, in real time
-    const files = [];
-    const labels = [];
-    const t0 = Date.now();
-    for (let i = 0; i < 6; i++) {
-      const file = path.join(FRAMES, `finale-${String(i).padStart(2, '0')}.png`);
-      await page.screenshot({ path: file });
-      files.push(file);
-      labels.push(`finale banner · ~${Date.now() - t0} ms`);
-    }
-    await page.waitForFunction(() => window.__play.info().flyers > 0 || window.__play.state() !== 'finale', null, { timeout: 10000 });
-    // then the flights and blasts, frame by frame
-    await freeze(page, true);
-    let t = 0;
-    for (let i = 6; i < 30; i++) {
-      await page.evaluate((ms) => window.__play.advance(ms), 90);
-      t += 90;
-      const file = path.join(FRAMES, `finale-${String(i).padStart(2, '0')}.png`);
-      await page.screenshot({ path: file });
-      files.push(file);
-      labels.push(`finale · +${t} ms`);
-    }
-    await sheet(browser, 'finale', files, labels, 6);
-    await freeze(page, false);
+    await sequence(browser, page, 'finale', null, { frames: 36, step: 120, cols: 6, full: true });
     await page.context().close();
   },
 
-  /** the win dialog: the stars slam in one by one, the score counts up (real time) */
+  /** the win dialog: the stars slam in one by one, the coins pop in */
   async stars(browser) {
-    const page = await open(browser, SIZES[0], 'en', 'level=easy&seed=11&tut=0&inv=0&fast=1&ads=1');
+    const page = await open(browser, SIZES[0], 'en', 'level=easy&seed=11&tut=0&inv=0&ads=1');
     await idle(page);
-    await playHints(page, 40);
-    await page.waitForFunction(() => window.__play.state() === 'finale', null, { timeout: 20000 });
-    await page.evaluate(() => window.__play.finish());
-    await page.waitForSelector('.k-dialog[data-pl="win"]', { timeout: 8000 });
-    const files = [];
-    const labels = [];
-    const t0 = Date.now();
-    for (let i = 0; i < 24; i++) {
-      const file = path.join(FRAMES, `stars-${String(i).padStart(2, '0')}.png`);
-      await page.screenshot({ path: file });
-      files.push(file);
-      labels.push(`win dialog · ~${Date.now() - t0} ms`);
+    for (let i = 0; i < 60 && (await H.state(page)) === 'play'; i++) {
+      await H.settled(page);
+      if ((await H.state(page)) !== 'play') break;
+      const m = await page.evaluate(() => window.__play.hint());
+      await page.evaluate((mv) => window.__play.swap(mv.a, mv.b), m);
+      await page.waitForTimeout(30);
     }
-    await sheet(browser, 'stars', files, labels, 8);
+    await page.waitForFunction(() => window.__play.state() === 'finale', null, { timeout: 30000 });
+    await page.waitForFunction(() => window.__play.info().flyers > 0, null, { timeout: 10000 });
+    await page.evaluate(() => {
+      window.__demo.pause(true);
+      window.__play.finish();
+    });
+    await page.waitForSelector('.k-dialog[data-pl="win"]', { timeout: 8000 });
+    await sequence(browser, page, 'stars', null, { frames: 24, step: 70, cols: 8, full: true });
     await page.context().close();
   },
 
-  /** out of moves: the board dims, the dialog comes */
+  /** out of moves: the numeral turns red, the board dims, the dialog comes */
   async lose(browser) {
     const page = await open(browser, SIZES[0], 'en', 'level=hard&seed=11&tut=0&inv=0&ads=1&coins=2000');
     await idle(page);
     await playHints(page, 2);
     await idle(page);
     const m = await page.evaluate(() => window.__play.hint());
-    await page.evaluate((mv) => window.__play.swap(mv.a, mv.b), m);
-    await page.waitForFunction(() => window.__play.state() === 'lost', null, { timeout: 20000 });
-    const files = [];
-    const labels = [];
-    const t0 = Date.now();
-    for (let i = 0; i < 12; i++) {
-      const file = path.join(FRAMES, `lose-${String(i).padStart(2, '0')}.png`);
-      await page.screenshot({ path: file });
-      files.push(file);
-      labels.push(`lose · ~${Date.now() - t0} ms`);
-    }
-    await sheet(browser, 'lose', files, labels, 6);
+    await sequence(browser, page, 'lose', () => page.evaluate((mv) => window.__play.swap(mv.a, mv.b), m), { frames: 18, step: 100, cols: 6, full: true });
     await page.context().close();
   },
 
-  /** the praise word after a big move (real time: it is a CSS animation) */
+  /** the praise word after a big move */
   async praise(browser) {
     const page = await open(browser, SIZES[0], 'en', 'level=combo&seed=5&tut=0&inv=9');
     await idle(page);
     await page.waitForTimeout(900);
+    await freeze(page, true);
     await page.evaluate(() => window.__play.swap({ c: 4, r: 3 }, { c: 5, r: 3 }));
-    await page.waitForSelector('.pl-praise', { timeout: 20000 });
-    const files = [];
-    const labels = [];
-    const t0 = Date.now();
-    for (let i = 0; i < 18; i++) {
-      const file = path.join(FRAMES, `praise-${String(i).padStart(2, '0')}.png`);
-      await page.screenshot({ path: file });
-      files.push(file);
-      labels.push(`praise · ~${Date.now() - t0} ms`);
+    // run the whole turn by hand, then watch the word
+    for (let i = 0; i < 400; i++) {
+      if (await page.evaluate(() => !!document.querySelector('.pl-praise'))) break;
+      await page.evaluate(() => window.__play.advance(50));
     }
-    await sheet(browser, 'praise', files, labels, 6);
+    await sequence(browser, page, 'praise', null, { frames: 18, step: 80, cols: 6, full: true });
     await page.context().close();
   },
 };

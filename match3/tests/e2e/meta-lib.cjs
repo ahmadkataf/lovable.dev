@@ -221,7 +221,8 @@ function createRunner(fileTag) {
   /**
    * Open the game in a fresh browser context. `query` = URL flags (debug=1 is added),
    * opts: { context: {…playwright context options}, init: fn, initArg, clock: epochMs | Date (installs
-   * a fake clock BEFORE the page loads — drive it with page.clock), path, wait: false to skip the boot wait }.
+   * a fake clock BEFORE the page loads — drive it with page.clock), before(page, context): runs before the
+   * navigation (routes, listeners), waitUntil (default 'load'), wait: false to skip the boot wait }.
    */
   run.open = async (browser, query, opts) => {
     const o = opts || {};
@@ -237,7 +238,7 @@ function createRunner(fileTag) {
     run.watch(page);
     if (o.clock !== undefined) await page.clock.install({ time: o.clock });
     if (o.before) await o.before(page, context);
-    await page.goto(url(query), { waitUntil: 'load' });
+    await page.goto(url(query), { waitUntil: o.waitUntil || 'load' });
     if (o.wait !== false) {
       await page.waitForFunction(() => window.__booted === true && !!window.__app, null, { timeout: 30000 });
       if (o.clock !== undefined) await page.clock.runFor(300);
@@ -344,8 +345,14 @@ async function waitDialogs(page, n) {
   await sleep(380); // the kit ignores backdrop taps / double activations for a moment after opening
 }
 
+/** The Back button: the wrapper's hook when the page runs with an Android bridge, else the Escape key. */
 async function back(page) {
-  await page.keyboard.press('Escape');
+  const native = await page.evaluate(() => {
+    if (!window.AndroidBridge || !window.__native || typeof window.__native.back !== 'function') return false;
+    window.__native.back();
+    return true;
+  });
+  if (!native) await page.keyboard.press('Escape');
   await sleep(330);
 }
 

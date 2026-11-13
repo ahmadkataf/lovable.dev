@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createProfile, fixedOffsetDayNumber } from '../../src/state/index.ts';
 import type { FullProfile } from '../../src/state/index.ts';
 import type { PlatformApi } from '../../src/platform/types.ts';
+import { createPlatform } from '../../src/platform/index.ts';
 import { createFakeBridge, createStore } from '../../src/monetize/index.ts';
 import type { FakePurchaseChoice, FakeStorage, FakeUi, StoreDeps, StoreMode } from '../../src/monetize/index.ts';
 import type { FullStoreApi, ProductId, StoreEvent } from '../../src/monetize/types.ts';
@@ -137,6 +138,166 @@ describe('the test store cannot be reached inside the app', () => {
   });
 });
 
+// ───────────────────────────── Android: the real platform module underneath ─────────────────────────────
+
+describe('the Android store on the real platform module (the wiring of src/main.ts)', () => {
+  /** A pretend wrapper: its own save, and switches for the ways its storage can fail. */
+  function wrapper(initialSave: string = ''): {
+    win: Record<string, unknown>;
+    state: { save: string; dropWrites: boolean; throwOnWrite: boolean; emptyReads: boolean; throwOnRead: boolean };
+    mirror: { text: string | null; failing: boolean };
+    finishes: string[];
+    start(): { profile: FullProfile; store: FullStoreApi; emit(event: Record<string, unknown>): void };
+  } {
+    const state = { save: initialSave, dropWrites: false, throwOnWrite: false, emptyReads: false, throwOnRead: false };
+    const mirror = { text: null as string | null, failing: false };
+    const finishes: string[] = [];
+    const native: Record<string, unknown> = {};
+    const bridge = {
+      loadSave: (): string => {
+        if (state.throwOnRead) throw new Error('Java exception');
+        return state.emptyReads ? '' : state.save;
+      },
+      storeSave: (json: string): void => {
+        if (state.throwOnWrite) throw new Error('Java exception');
+        if (!state.dropWrites) state.save = json;
+      },
+      haptic: () => {},
+      setAtRoot: () => {},
+      info: () => '{"versionName":"1.0.0","versionCode":1,"locale":"en-US"}',
+      rate: () => {},
+      storeCaps: () => '{"billing":true,"ads":false}',
+      iapQuery: () => {},
+      iapBuy: () => {},
+      iapFinish: (token: string) => void finishes.push(token),
+      iapRestore: () => {},
+      adShowRewarded: () => {},
+      adShowInterstitial: () => {},
+      adPrivacyOptions: () => {},
+    };
+    const localStorage = {
+      getItem: (): string | null => {
+        if (mirror.failing) throw new Error('storage disabled');
+        return mirror.text;
+      },
+      setItem: (_key: string, value: string): void => {
+        if (mirror.failing) throw new Error('quota');
+        mirror.text = value;
+      },
+    };
+    const win: Record<string, unknown> = { AndroidBridge: bridge, __native: native, localStorage, location: { search: '', hostname: 'appassets.androidplatform.net' }, navigator: { language: 'en-US', userAgent: WEBVIEW } };
+    return {
+      win,
+      state,
+      mirror,
+      finishes,
+      start: () => {
+        vi.stubGlobal('window', win);
+        const device = createPlatform();
+        expect(device.info().platform).toBe('android');
+        const player = createProfile({ load: () => device.loadSave(), save: (json) => device.storeSave(json), now: () => T0, levelCount: 120, dayNumber: fixedOffsetDayNumber(0) });
+        const store = createStore({ profile: player, platform: device, now: () => T0 });
+        const emit = (event: Record<string, unknown>): void => (win.__native as { store(json: string): void }).store(JSON.stringify(event));
+        return { profile: player, store, emit };
+      },
+    };
+  }
+  const bought = (token: string): Record<string, unknown> => ({ type: 'purchase', id: 'coins_large', state: 'purchased', token });
+  const inWrapper = (w: { state: { save: string } }, token: string): boolean => w.state.save.length > 0 && (JSON.parse(w.state.save) as { shop: { tokens: string[] } }).shop.tokens.indexOf(token) >= 0;
+
+  it('a healthy wrapper: saved through the bridge, found in the wrapper’s copy, then finished', () => {
+    const w = wrapper();
+    const app = w.start();
+    app.emit(bought('GPA.1'));
+    expect(app.profile.coins()).toBe(14_000);
+    expect(inWrapper(w, 'GPA.1')).toBe(true);
+    expect(w.finishes).toEqual(['GPA.1']);
+  });
+
+  it('DEFECT: the wrapper has a save and silently drops the new one — the mirror copy in the WebView must not vouch for the purchase', () => {
+    const w = wrapper();
+    const app = w.start();
+    app.profile.markSeen('played-a-bit'); // the wrapper holds a save of its own now
+    expect(w.state.save.length).toBeGreaterThan(0);
+    w.state.dropWrites = true;
+    app.emit(bought('GPA.1'));
+    expect(app.profile.coins()).toBe(14_000);
+    expect(JSON.parse(w.mirror.text!).shop.tokens).toEqual(['GPA.1']); // the mirror did get it…
+    expect(inWrapper(w, 'GPA.1')).toBe(false); // …the wrapper did not
+    expect(w.finishes).toEqual([]); // so: not finished
+    // what the next launch would really load is the wrapper's older copy: the purchase must still be deliverable
+    const next = w.start();
+    expect(next.profile.coins()).toBe(2_000);
+    w.state.dropWrites = false;
+    next.emit(bought('GPA.1'));
+    expect(next.profile.coins()).toBe(14_000);
+    expect(inWrapper(w, 'GPA.1')).toBe(true);
+    expect(w.finishes).toEqual(['GPA.1']);
+  });
+
+  it('the same when the wrapper’s storeSave throws', () => {
+    const w = wrapper();
+    const app = w.start();
+    app.profile.markSeen('played-a-bit');
+    w.state.throwOnWrite = true;
+    app.emit(bought('GPA.1'));
+    expect(w.finishes).toEqual([]);
+    w.state.throwOnWrite = false;
+    app.emit(bought('GPA.1'));
+    expect(w.finishes).toEqual([]); // nothing was saved since
+    app.profile.markSeen('x');
+    app.emit(bought('GPA.1'));
+    expect(w.finishes).toEqual(['GPA.1']);
+    expect(app.profile.coins()).toBe(14_000);
+  });
+
+  it('a double failure — the write is dropped AND the wrapper answers the read-back with nothing: not finished either', () => {
+    const w = wrapper();
+    const app = w.start();
+    app.profile.markSeen('played-a-bit');
+    w.state.dropWrites = true;
+    w.state.emptyReads = true; // the platform now falls back to the mirror, which has the purchase…
+    app.emit(bought('GPA.1'));
+    expect(JSON.parse(w.mirror.text!).shop.tokens).toEqual(['GPA.1']);
+    expect(w.finishes).toEqual([]); // …but a wrapper that HAD a save and now shows none proves nothing
+    w.state.emptyReads = false;
+    w.state.throwOnRead = true;
+    app.emit(bought('GPA.1'));
+    expect(w.finishes).toEqual([]);
+    w.state.throwOnRead = false;
+    w.state.dropWrites = false;
+    app.profile.markSeen('y');
+    app.emit(bought('GPA.1'));
+    expect(w.finishes).toEqual(['GPA.1']);
+  });
+
+  it('a wrapper that never stored anything: the mirror IS the save — finished, and still there after a restart', () => {
+    const w = wrapper();
+    w.state.dropWrites = true; // from the very first launch
+    const app = w.start();
+    app.emit(bought('GPA.1'));
+    expect(w.state.save).toBe('');
+    expect(w.finishes).toEqual(['GPA.1']);
+    const next = w.start(); // the next launch loads the mirror
+    expect(next.profile.coins()).toBe(14_000);
+    next.emit(bought('GPA.1'));
+    expect(next.profile.coins()).toBe(14_000);
+  });
+
+  it('neither the wrapper nor the mirror keeps the save: granted in memory, never finished', () => {
+    const w = wrapper();
+    w.state.dropWrites = true;
+    w.mirror.failing = true;
+    const app = w.start();
+    app.emit(bought('GPA.1'));
+    app.emit(bought('GPA.1'));
+    expect(app.profile.coins()).toBe(14_000);
+    expect(w.finishes).toEqual([]);
+    const next = w.start();
+    expect(next.profile.coins()).toBe(2_000); // nothing survived — and nothing was consumed
+  });
+});
+
 // ───────────────────────────── the test store under random use ─────────────────────────────
 
 const GRANT: Record<string, number> = { coins_small: 1000, coins_medium: 5500, coins_large: 12000, coins_xl: 26000, coins_mega: 70000, starter_pack: 4000, remove_ads: 0 };
@@ -201,7 +362,8 @@ describe('the test store under random use', () => {
         } else if (r < 0.55) {
           void book.track('restore', store.restore());
         } else if (r < 0.65) {
-          void book.track('ad', random() < 0.5 ? store.showRewarded('freeCoins') : store.maybeShowInterstitial());
+          if (random() < 0.5) void book.track('ad', store.showRewarded('freeCoins'));
+          else void book.track('ad', store.maybeShowInterstitial());
         } else if (r < 0.8) {
           disk.mode = pick(['ok', 'ok', 'throws', 'silent'] as const);
         } else if (r < 0.92) {

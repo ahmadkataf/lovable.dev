@@ -69,6 +69,13 @@ export interface CoreDeps {
    * inside the page).
    */
   buyResumeGraceMs?: number | null;
+  /**
+   * A second, independent proof that the grant of a purchase is stored, asked for in addition to
+   * `profile.purchaseSaved(token)` before the purchase is finished. The Android store looks into
+   * the wrapper's own copy of the save with it (see ./index.ts). Anything but `true` — a throw
+   * included — means "not proven": the purchase stays unfinished and is delivered again.
+   */
+  alsoSaved?(token: string): boolean;
 }
 
 export interface CoreStore extends FullStoreApi {
@@ -277,7 +284,7 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
   function finish(token: string): void {
     let saved = false;
     try {
-      saved = profile.purchaseSaved(token) === true;
+      saved = profile.purchaseSaved(token) === true && (typeof deps.alsoSaved !== 'function' || deps.alsoSaved(token) === true);
     } catch (err) {
       log('cannot check the save', err);
     }

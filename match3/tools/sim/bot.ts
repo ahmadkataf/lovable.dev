@@ -6,9 +6,10 @@
  *   novice  a brand-new player: half the moves are random, the other half the best-looking one
  *   casual  an average casual player: looks at what each move does *immediately* (the match it
  *           makes and what the specials in it reach — no cascades, no planning), ranks the moves
- *           by goal progress first, then specials / combos, then gems cleared. Plays the
- *           best-looking move 60 % of the time, one of the four best-looking 28 % of the time,
- *           and any move at all 12 % of the time (a slip of attention)
+ *           by goal progress first, then specials / combos, then matches right beside the goal,
+ *           then gems cleared; equally good moves in random order. Plays the best-looking move
+ *           60 % of the time, one of the four best-looking 28 % of the time, and any move at all
+ *           12 % of the time (a slip of attention)
  *   expert  a strong, attentive player: tries every move on copies of the game and scores the
  *           position it leads to against the goals, plus what the best follow-up would be worth.
  *           The copies are RE-SEEDED before the move is tried, so the expert sees how the board
@@ -78,6 +79,8 @@ interface View {
   mark: Uint8Array;
   /** scratch: 1 = the cell is emptied by the move being evaluated */
   gone: Uint8Array;
+  /** 1 = the cell is on or right next to something the unmet goals still need (see `markNear`) */
+  near: Uint8Array;
 }
 
 const NO_COLOR = 9;
@@ -97,6 +100,7 @@ function makeView(snap: Snapshot): View {
     exit: new Uint8Array(n),
     mark: new Uint8Array(n),
     gone: new Uint8Array(n),
+    near: new Uint8Array(n),
   };
   for (let i = 0; i < n; i++) {
     const cell = snap.cells[i]!;
@@ -121,6 +125,8 @@ interface MoveValue {
   goal: number;
   /** specials created or combined */
   special: number;
+  /** cells emptied right beside what the goals still need (no progress yet, but it stirs the right spot) */
+  near: number;
   /** cells hit */
   cleared: number;
 }
@@ -165,6 +171,29 @@ function wantsOf(goals: readonly GoalProgress[]): Wants {
     }
   }
   return w;
+}
+
+/**
+ * Mark the neighbourhood of everything the unmet goals still need: sand, stones, vines and chains
+ * that are goals, and the cells a lamp still has to sink through. A player who cannot make
+ * progress right now works next to the goal, not at the far end of the board.
+ */
+function markNear(v: View, w: Wants): void {
+  const { cols, rows, n, near } = v;
+  near.fill(0);
+  const around = (i: number): void => {
+    const c0 = i % cols;
+    const r0 = (i - c0) / cols;
+    for (let r = Math.max(0, r0 - 1); r <= Math.min(rows - 1, r0 + 1); r++) {
+      for (let c = Math.max(0, c0 - 1); c <= Math.min(cols - 1, c0 + 1); c++) near[r * cols + c] = 1;
+    }
+  };
+  for (let i = 0; i < n; i++) {
+    if (v.exists[i] === 0) continue;
+    const kind = v.kind[i]!;
+    if ((w.sand >= 1 && v.sand[i]! > 0) || (w.stone >= 1 && kind === K_STONE) || (w.vine > 1 && kind === K_VINE) || (w.chain >= 1 && v.chained[i] === 1)) around(i);
+    if (w.lamp > 0 && kind === K_LAMP) for (let q = i + cols; q < n; q += cols) if (v.exists[q] === 1) around(q);
+  }
 }
 
 const SPECIAL_BEAM = 1.5;
@@ -396,7 +425,9 @@ function evaluate(v: View, w: Wants, i: number, j: number): MoveValue {
   // Undo the scratch changes (newest first, so every stone gets back the layers it started with).
   for (let b = hpBackup.length - 2; b >= 0; b -= 2) v.hp[hpBackup[b]!] = hpBackup[b + 1]!;
   if (swapped) swapCells(v, i, j);
-  return { goal, special, cleared };
+  let near = 0;
+  for (let k = 0; k < n; k++) if (gone[k] === 1 && v.near[k] === 1) near++;
+  return { goal, special, near, cleared };
 }
 
 function swapCells(v: View, i: number, j: number): void {
@@ -414,9 +445,12 @@ function swapCells(v: View, i: number, j: number): void {
   v.hp[j] = t;
 }
 
-/** One number for ranking: goals first, then specials / combos, then gems cleared. */
+/** Weight of one cell emptied right beside the goal (a real goal unit weighs 100, a beam 18). */
+const NEAR_WEIGHT = 4;
+
+/** One number for ranking: goals first, then specials / combos, then working near the goal, then gems cleared. */
 function rank(value: MoveValue): number {
-  return value.goal * 100 + value.special * 12 + value.cleared;
+  return value.goal * 100 + value.special * 12 + value.near * NEAR_WEIGHT + value.cleared;
 }
 
 interface Rated {
@@ -433,6 +467,7 @@ function rateMoves(snap: Snapshot, moves: readonly Move[], rng?: Rng): Rated[] {
   if (moves.length === 0) return [];
   const view = makeView(snap);
   const wants = wantsOf(snap.goals);
+  markNear(view, wants);
   const cols = view.cols;
   const out: Rated[] = [];
   for (const move of moves) {
@@ -459,7 +494,9 @@ function rateMoves(snap: Snapshot, moves: readonly Move[], rng?: Rng): Rated[] {
 /** The first-sight value of one move, as the casual player ranks it (exported for the tests). */
 export function firstSightValue(snap: Snapshot, move: Move): number {
   const view = makeView(snap);
-  return rank(evaluate(view, wantsOf(snap.goals), move.a.r * view.cols + move.a.c, move.b.r * view.cols + move.b.c));
+  const wants = wantsOf(snap.goals);
+  markNear(view, wants);
+  return rank(evaluate(view, wants, move.a.r * view.cols + move.a.c, move.b.r * view.cols + move.b.c));
 }
 
 // ───────────────────────────── the bots ─────────────────────────────
@@ -467,13 +504,13 @@ export function firstSightValue(snap: Snapshot, move: Move): number {
 /** Probability that the casual player spots (and plays) the best-looking move. */
 export const CASUAL_BEST = 0.6;
 /** Probability that the casual player's attention slips and any valid move is played. */
-export const CASUAL_SLIP = Number(process.env.SIM_SLIP ?? 0.12); // TEMP
+export const CASUAL_SLIP = 0.12;
 /** Otherwise the casual player plays one of this many best-looking moves at random. */
 export const CASUAL_TOP = 4;
 /** Probability that the novice plays a random move instead of the best-looking one. */
 export const NOVICE_RANDOM = 0.5;
 /** Futures the expert samples for every move it considers. */
-export const EXPERT_SAMPLES = Number(process.env.SIM_SAMPLES ?? 2); // TEMP
+export const EXPERT_SAMPLES = 2;
 
 function randomBot(rng: Rng): Bot {
   return {

@@ -19,6 +19,7 @@
 import type { PlatformApi } from '../platform/types.ts';
 import type { FullProfile } from '../state/extensions.ts';
 import type { ProfileApi } from '../state/types.ts';
+import { parseSave, purchaseKey } from '../state/index.ts';
 import type { FullStoreApi, MonetizeBridge } from './types.ts';
 import { createCoreStore } from './store.ts';
 import type { CoreStore } from './store.ts';
@@ -141,8 +142,57 @@ function isDevServer(): boolean {
   }
 }
 
+/**
+ * "Is the grant of this purchase in the WRAPPER's own storage?" — asked on top of the profile's own
+ * read-back before a purchase is finished. The platform keeps a mirror copy of the save in the
+ * WebView and reads it when the wrapper has nothing; that is right for playing on, but a mirror
+ * must not vouch for a purchase while the wrapper holds a save of its own (the next launch would
+ * load the wrapper's — older — copy, and the purchase would be gone). So:
+ *  - the wrapper hands out a save: the token must be in it;
+ *  - the wrapper hands out nothing: accepted only if it was never seen to hold a save in this
+ *    session (a wrapper that never stored anything is a wrapper whose save lives in the mirror);
+ *  - the wrapper cannot be asked: not proven.
+ * Whether the wrapper holds a save is looked at when the store starts and after the profile's
+ * saves, until one is seen.
+ */
+function wrapperHolds(bridge: Record<string, unknown>, profile: FullProfile): (token: string) => boolean {
+  const ask = (): string | null => {
+    if (typeof bridge.loadSave !== 'function') return null;
+    const raw: unknown = (bridge as { loadSave(): unknown }).loadSave(); // called ON the bridge: injected objects insist
+    return typeof raw === 'string' && raw.length > 0 ? raw : null;
+  };
+  let hadSave = false;
+  const look = (): void => {
+    try {
+      if (ask() !== null) hadSave = true;
+    } catch {
+      // cannot be asked right now
+    }
+  };
+  look();
+  if (!hadSave) {
+    const stop = profile.subscribe(() => {
+      look();
+      if (hadSave) stop();
+    });
+  }
+  return (token: string): boolean => {
+    let raw: string | null;
+    try {
+      raw = ask();
+    } catch {
+      return false;
+    }
+    if (raw === null) return !hadSave;
+    hadSave = true;
+    const key = purchaseKey(token);
+    return key !== null && parseSave(raw).shop.tokens.indexOf(key) >= 0;
+  };
+}
+
 function startAndroid(win: Window, bridge: MonetizeBridge, deps: StoreDeps, profile: FullProfile): FullStoreApi {
-  const core = createCoreStore({ profile, platform: deps.platform, now: clockOf(deps), bridge });
+  const alsoSaved = wrapperHolds(bridge as unknown as Record<string, unknown>, profile);
+  const core = createCoreStore({ profile, platform: deps.platform, now: clockOf(deps), bridge, alsoSaved });
   // `window.__native` is shared with the platform module, which created it: add our hook to it.
   try {
     let hooks = win.__native as unknown as Record<string, unknown> | undefined;

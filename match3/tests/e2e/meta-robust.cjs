@@ -131,7 +131,8 @@ async function tests(browser) {
     await r.context.close();
     // never answered: the first paint waits a moment, then goes ahead
     t0 = Date.now();
-    r = await open(browser, { fakestore: '0', save: saveParam(MID) }, { before: (page) => page.route(/\.woff2?(\?|$)/, () => undefined) });
+    // (the page's load event never comes while a font request hangs: do not wait for it)
+    r = await open(browser, { fakestore: '0', save: saveParam(MID) }, { waitUntil: 'commit', before: (page) => page.route(/\.woff2?(\?|$)/, () => undefined) });
     const took = Date.now() - t0;
     ok(took < 7000, 'font files hanging: the title is up after ' + took + ' ms (it waits 2.5 s at most)');
     eq((await state(r.page)).screen, 'title', 'on the title');
