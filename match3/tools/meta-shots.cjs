@@ -17,8 +17,10 @@
  * deviceScaleFactor 2.
  *
  * Runs on the real 120 levels with every feature unlocked (?gate=off); the store scenes use the test
- * store of src/monetize (?fakestore=1). Starts its own dev server on port 5185 (META_PORT) without
- * hot reload — or uses the one that is already running there.
+ * store of src/monetize (?fakestore=1). Serves a production build of the current sources on port
+ * 5185 (META_PORT) — pages load much faster than from the dev server, and it is what ships — with
+ * the debug switches on (?debug=1). META_DEV=1 uses the dev server instead (the one that is already
+ * running on the port, or its own without hot reload).
  */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -311,7 +313,15 @@ async function main() {
   const filters = args.filter((a) => a.indexOf('--') !== 0);
   const sizeFilter = (process.env.META_SIZES || '').split(',').filter(Boolean);
   const langFilter = (process.env.META_LANGS || '').split(',').filter(Boolean);
-  const server = sheetsOnly ? null : await L.quietDevServer();
+  let server = null;
+  if (!sheetsOnly) {
+    const running = await L.get(L.BASE);
+    if (process.env.META_DEV === '1' || (running && running.status === 200)) server = await L.quietDevServer();
+    else {
+      server = await L.previewServer();
+      console.log('build: ' + server.buildLog);
+    }
+  }
   fs.mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch();
   const problems = [];
