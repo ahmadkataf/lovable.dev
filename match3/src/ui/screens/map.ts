@@ -7,7 +7,7 @@
  * Top bar: lives · coins · stars · settings. Bottom tray: Home · Shop · Daily gift.
  */
 import type { ChapterTheme } from '../../art/types.ts';
-import { focusLevel, levelById, nodeState } from '../helpers.ts';
+import { compactNumber, focusLevel, levelById, nodeState } from '../helpers.ts';
 import type { NodeState } from '../helpers.ts';
 import type { Chip, KitButton } from '../kit/index.ts';
 import { BANNER_LIFT, METRICS, litCount, naturalHeight, nodePos, scrollFor, smoothPieces, spanCount, trailPoints } from '../map/layout.ts';
@@ -179,11 +179,44 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   });
   settingsButton.dataset.act = 'settings';
 
-  const topBar = h(
-    'header',
-    { class: 'm-top' },
-    h('div', { class: 'm-top__panel' }, livesChip ? livesChip.el : null, coinsChip.el, starsChip.el, h('span', { class: 'm-top__gap' }), settingsButton),
-  );
+  const topPanel = h('div', { class: 'm-top__panel' }, livesChip ? livesChip.el : null, coinsChip.el, starsChip.el, h('span', { class: 'm-top__gap' }), settingsButton);
+  const topBar = h('header', { class: 'm-top' }, topPanel);
+
+  /**
+   * The top bar holds whatever the numbers grow to. When the counters do not fit side by side
+   * (a narrow phone, six-digit coins, a countdown) it first tightens its spacing, then writes the
+   * coins in short ("987K"), and as the last resort leaves the star counter out.
+   */
+  let coinsCompact = false;
+  const coinText = (n: number): string => (coinsCompact ? compactNumber(n, i18n.num) : i18n.num(n));
+
+  function topBarClipped(): boolean {
+    const texts = topPanel.querySelectorAll<HTMLElement>('.k-chip__text');
+    for (let i = 0; i < texts.length; i++) {
+      const el = texts[i]!;
+      if (el.offsetParent !== null && el.scrollWidth > el.clientWidth + 1) return true;
+    }
+    return false;
+  }
+
+  /** Lay the bar out for the values it has to show (`coins` = the amount the counter will end on). */
+  function fitTopBar(coins: number): void {
+    const before = coinsChip.el.querySelector('.k-chip__text');
+    const shown = before ? before.textContent : null;
+    topPanel.classList.remove('m-top__panel--tight', 'm-top__panel--nostars');
+    coinsCompact = false;
+    coinsChip.set(coinText(coins), false);
+    if (topBarClipped()) {
+      topPanel.classList.add('m-top__panel--tight');
+      if (topBarClipped()) {
+        coinsCompact = true;
+        coinsChip.set(coinText(coins), false);
+        if (topBarClipped()) topPanel.classList.add('m-top__panel--nostars');
+      }
+    }
+    // a counter that is still counting keeps the value it shows
+    if (shown !== null && shown !== coinText(coins) && coinTween !== 0) coinsChip.set(shown, false);
+  }
 
   // ───────────────────────────── bottom tray ─────────────────────────────
 
@@ -585,6 +618,8 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     }
     updateAlive();
     placeMarker(false);
+    refreshLives();
+    fitTopBar(shownCoins);
   }
 
   // ───────────────────────────── interaction ─────────────────────────────
@@ -643,6 +678,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   // ───────────────────────────── live values ─────────────────────────────
 
   let coinTween = 0;
+  let livesShownFull: boolean | null = null;
 
   function refreshCoins(): void {
     const target = profile.coins();
@@ -651,17 +687,24 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     shownCoins = target;
     coinsChip.el.setAttribute('aria-label', ui.t('meta.map.aria.coins', { n: target }));
     window.cancelAnimationFrame(coinTween);
+    coinTween = 0;
+    // room is made for the number the counter will end on, before it starts counting
+    fitTopBar(target);
     if (kit.reducedMotion() || paused) {
-      coinsChip.set(i18n.num(target));
+      coinsChip.set(coinText(target));
       return;
     }
+    coinsChip.set(coinText(from), false);
     const t0 = performance.now();
     const step = (now: number): void => {
       const p = Math.min(1, (now - t0) / 600);
       const eased = 1 - Math.pow(1 - p, 3);
-      coinsChip.set(i18n.num(Math.round(from + (target - from) * eased)), false);
+      coinsChip.set(coinText(Math.round(from + (target - from) * eased)), false);
       if (p < 1 && !disposed) coinTween = window.requestAnimationFrame(step);
-      else coinsChip.bump();
+      else {
+        coinTween = 0;
+        coinsChip.bump();
+      }
     };
     coinTween = window.requestAnimationFrame(step);
   }
@@ -671,7 +714,14 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     if (!livesChip || !livesCount) return 0;
     const info = profile.lives();
     const text = info.count >= info.max ? ui.t('common.full') : i18n.clock(info.nextInMs);
+    const full = info.count >= info.max;
     livesChip.set(text, false);
+    if (full !== livesShownFull) {
+      // "Full" and a countdown differ in width: the bar is laid out again
+      const first = livesShownFull === null;
+      livesShownFull = full;
+      if (!first) fitTopBar(shownCoins);
+    }
     if (livesCount.textContent !== String(info.count)) {
       const first = livesCount.textContent === '';
       livesCount.textContent = String(info.count);
@@ -703,6 +753,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       shownStars = stars;
       starsChip.set(i18n.num(stars));
       starsChip.el.setAttribute('aria-label', ui.t('meta.map.aria.stars', { n: stars }));
+      fitTopBar(shownCoins);
     }
     if (!celebrating) {
       const frontier = profile.highestUnlocked();

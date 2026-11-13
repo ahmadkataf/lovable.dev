@@ -179,6 +179,26 @@ export function rewardedLeft(store: StoreApi, placement: AdPlacement): number | 
   return null;
 }
 
+// ───────────────────────────── numbers ─────────────────────────────
+
+/**
+ * A large count in little room: 12,850 → "12.8K", 987,654 → "987K", 1,234,567 → "1.2M",
+ * 123,456,789 → "123M". Rounded DOWN (a balance must never look bigger than it is); below 10,000
+ * the number is written in full with `num`.
+ */
+export function compactNumber(n: number, num: (n: number) => string): string {
+  if (!(n >= 10000)) return num(n > 0 ? Math.floor(n) : 0);
+  const unit = n >= 1e6 ? 1e6 : 1e3;
+  const suffix = n >= 1e6 ? 'M' : 'K';
+  const scaled = n / unit;
+  // one decimal while the number has one or two digits before the point
+  if (scaled < 100) {
+    const tenths = Math.floor(scaled * 10);
+    return (tenths % 10 === 0 ? String(tenths / 10) : (tenths / 10).toFixed(1)) + suffix;
+  }
+  return num(Math.floor(scaled)) + suffix;
+}
+
 // ───────────────────────────── levels ─────────────────────────────
 
 /** A level by id from a list where index 0 = level 1 (ids are checked, not assumed). */

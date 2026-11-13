@@ -193,24 +193,91 @@ function encodeRgbPng(width, height, pixels, channels, bg) {
   const back = bg || [0x14, 0x12, 0x3a];
   if (pixels.length !== width * height * ch) throw new Error('pixel buffer size does not match ' + width + '×' + height + '×' + ch);
   const stride = width * 3;
-  const raw = Buffer.alloc((stride + 1) * height);
-  for (let y = 0; y < height; y++) {
-    let o = y * (stride + 1);
-    raw[o++] = 0; // filter: none
-    let i = y * width * ch;
-    for (let x = 0; x < width; x++, i += ch) {
-      const a = ch === 4 ? pixels[i + 3] : 255;
-      if (a === 255) {
-        raw[o++] = pixels[i];
-        raw[o++] = pixels[i + 1];
-        raw[o++] = pixels[i + 2];
-      } else {
-        const t = a / 255;
-        raw[o++] = Math.round(pixels[i] * t + back[0] * (1 - t));
-        raw[o++] = Math.round(pixels[i + 1] * t + back[1] * (1 - t));
-        raw[o++] = Math.round(pixels[i + 2] * t + back[2] * (1 - t));
-      }
+  // flatten to RGB first
+  const rgb = Buffer.alloc(stride * height);
+  for (let i = 0, o = 0, n = width * height; i < n * ch; i += ch) {
+    const a = ch === 4 ? pixels[i + 3] : 255;
+    if (a === 255) {
+      rgb[o++] = pixels[i];
+      rgb[o++] = pixels[i + 1];
+      rgb[o++] = pixels[i + 2];
+    } else {
+      const t = a / 255;
+      rgb[o++] = Math.round(pixels[i] * t + back[0] * (1 - t));
+      rgb[o++] = Math.round(pixels[i + 1] * t + back[1] * (1 - t));
+      rgb[o++] = Math.round(pixels[i + 2] * t + back[2] * (1 - t));
     }
+  }
+  // per row: the PNG filter (none, sub, up, average, Paeth) with the smallest sum of absolute values
+  const raw = Buffer.alloc((stride + 1) * height);
+  const src = new Uint8Array(rgb.buffer, rgb.byteOffset, rgb.length);
+  const t1 = new Uint8Array(stride);
+  const t2 = new Uint8Array(stride);
+  const t3 = new Uint8Array(stride);
+  const t4 = new Uint8Array(stride);
+  const zero = new Uint8Array(stride);
+  for (let y = 0; y < height; y++) {
+    const row = y * stride;
+    const cur = src.subarray(row, row + stride);
+    const prev = y > 0 ? src.subarray(row - stride, row) : zero;
+    let s0 = 0;
+    let s1 = 0;
+    let s2 = 0;
+    let s3 = 0;
+    let s4 = 0;
+    for (let x = 0; x < stride; x++) {
+      const v = cur[x];
+      const b = prev[x];
+      let a = 0;
+      let c = 0;
+      if (x >= 3) {
+        a = cur[x - 3];
+        c = prev[x - 3];
+      }
+      const p = a + b - c;
+      const pa = p > a ? p - a : a - p;
+      const pb = p > b ? p - b : b - p;
+      const pc = p > c ? p - c : c - p;
+      const paeth = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      const f1 = (v - a) & 0xff;
+      const f2 = (v - b) & 0xff;
+      const f3 = (v - ((a + b) >> 1)) & 0xff;
+      const f4 = (v - paeth) & 0xff;
+      t1[x] = f1;
+      t2[x] = f2;
+      t3[x] = f3;
+      t4[x] = f4;
+      s0 += v < 128 ? v : 256 - v;
+      s1 += f1 < 128 ? f1 : 256 - f1;
+      s2 += f2 < 128 ? f2 : 256 - f2;
+      s3 += f3 < 128 ? f3 : 256 - f3;
+      s4 += f4 < 128 ? f4 : 256 - f4;
+    }
+    let filter = 0;
+    let best = s0;
+    let pick = cur;
+    if (s1 < best) {
+      filter = 1;
+      best = s1;
+      pick = t1;
+    }
+    if (s2 < best) {
+      filter = 2;
+      best = s2;
+      pick = t2;
+    }
+    if (s3 < best) {
+      filter = 3;
+      best = s3;
+      pick = t3;
+    }
+    if (s4 < best) {
+      filter = 4;
+      pick = t4;
+    }
+    const o = y * (stride + 1);
+    raw[o] = filter;
+    raw.set(pick, o + 1);
   }
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
@@ -220,7 +287,7 @@ function encodeRgbPng(width, height, pixels, channels, bg) {
   ihdr[10] = 0;
   ihdr[11] = 0;
   ihdr[12] = 0;
-  return Buffer.concat([PNG_SIGNATURE, chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+  return Buffer.concat([PNG_SIGNATURE, chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 6 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
 /** Any 8-bit RGB/RGBA PNG → 24-bit PNG without an alpha channel. */

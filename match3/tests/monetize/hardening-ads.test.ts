@@ -269,6 +269,12 @@ describe('property: the ad rules follow the reference model through whole lives 
     expect(sum.days).toBeGreaterThan(1_000);
   }, 120_000);
 
+  // A soak for whoever changes the ad rules: ADS_SOAK=1000 npx vitest run tests/monetize/hardening-ads.test.ts
+  const soak = typeof process !== 'undefined' ? Math.floor(Number(process.env.ADS_SOAK)) || 0 : 0;
+  it.skipIf(soak <= 0)('soak: ADS_SOAK more lives × 500 steps on fresh seeds', async () => {
+    for (let i = 0; i < soak; i++) await life(50_000 + i, 500);
+  }, 3_600_000);
+
   it('a clock that jumps backwards never brings an ad forward: the waiting times hold in real elapsed time', async () => {
     for (let seed = 1; seed <= 40; seed++) {
       const rand = rng(seed * 7919);

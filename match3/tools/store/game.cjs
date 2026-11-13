@@ -117,7 +117,7 @@ async function openGame(browser, opts) {
   const tag = opts.tag || '';
   if (opts.problems) {
     page.on('console', (msg) => {
-      if (msg.type() === 'error') opts.problems.push(tag + ' [console] ' + msg.text());
+      if (msg.type() === 'error') opts.problems.push(tag + ' [console] ' + msg.text().slice(0, 300));
     });
     page.on('pageerror', (err) => opts.problems.push(tag + ' [exception] ' + err.message));
   }
@@ -384,26 +384,34 @@ async function playMove(page, move) {
 
 const setPaused = (page, on) => page.evaluate((v) => window.__app.shell.setPaused(v), on);
 
+/** The play screen's own clock: milliseconds its frame loop has run (test hook `perf()`). */
+const gameClock = (page) => page.evaluate(() => window.__play.perf().frames > 0 ? window.__play.perf().meanInterval * window.__play.perf().frames : 0);
+
 /**
- * Genuine frames of a running effect. `trigger` starts it (a move); then, `count` times: let the
+ * Genuine frames of a running effect. `trigger` starts it (a move); then, again and again: let the
  * game run for `step` ms of real time, hold it (the app's own pause, as when a phone call comes
- * in), take the screenshot, let it run on. Nothing is stepped by hand: canvas and HUD animate
- * together exactly as on a device. Returns [{ png, t }] with t = ms of running time since the trigger.
+ * in), take the screenshot, let it run on — until the game's own clock has moved `until` ms past
+ * the trigger (or `max` frames were taken). Nothing is stepped by hand: canvas and HUD animate
+ * together exactly as on a device. Returns [{ png, t, g }]: t = real ms the game ran since the
+ * trigger, g = ms on the game's own frame clock (the two differ when the machine is busy).
  */
 async function burst(page, trigger, opts) {
-  const o = Object.assign({ lead: 150, step: 60, count: 14 }, opts || {});
+  const o = Object.assign({ lead: 150, step: 50, until: 1400, max: 60 }, opts || {});
   const frames = [];
+  const g0 = await gameClock(page);
   await trigger();
   let t = 0;
-  for (let i = 0; i < o.count; i++) {
+  for (let i = 0; i < o.max; i++) {
     const wait = i === 0 ? o.lead : o.step;
     const t0 = Date.now();
     await sleep(wait);
     await setPaused(page, true);
     t += Date.now() - t0;
+    const g = Math.round((await gameClock(page)) - g0);
     const png = await page.screenshot({ type: 'png' });
-    frames.push({ png, t });
+    frames.push({ png, t, g });
     await setPaused(page, false);
+    if (g >= o.until) break;
   }
   return frames;
 }

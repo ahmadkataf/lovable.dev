@@ -11,6 +11,7 @@ import {
   boosterList,
   coinPackArt,
   coinsIn,
+  compactNumber,
   focusLevel,
   goalIcon,
   goalText,
@@ -138,6 +139,35 @@ describe('ads', () => {
       },
     } as unknown as StoreApi;
     expect(rewardedLeft(broken, 'freeCoins')).toBe(null);
+  });
+});
+
+describe('numbers in little room', () => {
+  it('writes large counts in short, rounded down', () => {
+    const num = en.num;
+    expect(compactNumber(0, num)).toBe('0');
+    expect(compactNumber(9999, num)).toBe('9,999');
+    expect(compactNumber(10000, num)).toBe('10K');
+    expect(compactNumber(12850, num)).toBe('12.8K');
+    expect(compactNumber(99999, num)).toBe('99.9K');
+    expect(compactNumber(100000, num)).toBe('100K');
+    expect(compactNumber(987654, num)).toBe('987K');
+    expect(compactNumber(999999, num)).toBe('999K');
+    expect(compactNumber(1000000, num)).toBe('1M');
+    expect(compactNumber(1234567, num)).toBe('1.2M');
+    expect(compactNumber(12345678, num)).toBe('12.3M');
+    expect(compactNumber(123456789, num)).toBe('123M');
+    expect(compactNumber(999999999, num)).toBe('999M');
+    expect(compactNumber(-5, num)).toBe('0');
+    expect(compactNumber(NaN, num)).toBe('0');
+    // never longer than five characters, never more than the real amount
+    for (const n of [10000, 54321, 99999, 100000, 555555, 999999, 1000000, 7654321, 99999999, 999999999]) {
+      const text = compactNumber(n, num);
+      expect(text.length).toBeLessThanOrEqual(5);
+      const value = parseFloat(text) * (text.endsWith('M') ? 1e6 : 1e3);
+      expect(value).toBeLessThanOrEqual(n);
+      expect(value).toBeGreaterThan(n * 0.89);
+    }
   });
 });
 

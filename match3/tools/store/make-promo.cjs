@@ -96,13 +96,13 @@ const COPY = {
   ar: {
     dir: 'rtl',
     A: { hook: ['طابِق الجواهر', 'وأضِئ الليل'] },
-    B: { hook: ['ستة عوالم.', '120 مرحلة.'] },
-    C: { labels: ['شعاع.', 'نوفا.', 'منشور.'] },
+    B: { hook: ['ستة عوالم', '120 مرحلة'] },
+    C: { labels: ['شعاع', 'نوفا', 'منشور'] },
     store: 'متوفّرة على Google Play',
     alt: {
       A: 'لوحة جواهر في لعبة زمرد لحظة انطلاق شعاع ونوفا معًا في تقاطع من الضوء. النص: طابِق الجواهر وأضِئ الليل.',
-      B: 'فصول خريطة المراحل الستة في لعبة زمرد متجاورة، من الواحة إلى سماء النجوم. النص: ستة عوالم. 120 مرحلة.',
-      C: 'ثلاث لقطات مقرّبة من لوحة زمرد: شعاع يمسح صفًّا، ونوفا تنفجر، ومنشور يزيل لونًا كاملًا. النص: شعاع. نوفا. منشور.',
+      B: 'فصول خريطة المراحل الستة في لعبة زمرد متجاورة، من الواحة إلى سماء النجوم. النص: ستة عوالم، 120 مرحلة.',
+      C: 'ثلاث لقطات مقرّبة من لوحة زمرد: شعاع يمسح صفًّا، ونوفا تنفجر، ومنشور يزيل لونًا كاملًا. النص: شعاع، نوفا، منشور.',
     },
   },
 };
@@ -115,16 +115,21 @@ const PLAY_VIEW = { w: 600, h: 1066, dsf: 3 };
 const BOOSTERS = { prism: true, beamNova: true };
 
 /**
- * A scene = a level, a seed, the move to play and the instant to take (ms after the move).
- * `want` describes the scene for the seed search (see findSeed in the page): `combo` = the two
- * swapped pieces are a beam and a nova next to each other near the middle of the board, with the
- * prism outside the blast; `single` = the move fires exactly one special of that kind.
+ * A scene = which level, a seed, the move to play and the instant to take (ms after the move).
+ * The level is chosen by what it contains, not by its number, because the level order is still
+ * being tuned: `pick: 'rich'` = the 8×8 level with lamps, chains and stones and nothing else in the
+ * way (today level 78, in the Palace chapter); `pick: 'plain'` = the 8×8 level of nothing but gems
+ * in six colours (today level 50, in the Bazaar chapter; it comes with two beams and a nova of its own). `prefer` is the level / seed / move the
+ * frames were chosen with; when it no longer gives the scene, the game's own engine searches
+ * another seed (see probeScene). The backdrop of the image is the chapter that level belongs to.
+ * `want`: 'combo' = a beam and a nova side by side in the middle of the board are swapped, the
+ * prism stands outside the blast; 'single' = the move fires exactly one special of that kind.
  */
 const SCENES = {
-  hero: { level: 78, seed: 3765, a: { c: 3, r: 4 }, b: { c: 4, r: 4 }, at: 512, want: { type: 'combo' } },
-  beam: { level: 51, seed: 899, a: { c: 4, r: 4 }, b: { c: 4, r: 5 }, at: 592, want: { type: 'single', fx: 'beamH' }, focus: { c: 3, r: 4 } },
-  nova: { level: 51, seed: 13, a: { c: 3, r: 3 }, b: { c: 4, r: 3 }, at: 560, want: { type: 'single', fx: 'nova' }, focus: { c: 4, r: 4 } },
-  prism: { level: 51, seed: 3495, a: { c: 4, r: 2 }, b: { c: 4, r: 3 }, at: 560, want: { type: 'single', fx: 'prism' }, focus: { c: 4, r: 3 } },
+  hero: { pick: 'rich', prefer: { level: 78, seed: 3765, a: { c: 3, r: 4 }, b: { c: 4, r: 4 } }, at: 512, want: { type: 'combo' } },
+  beam: { pick: 'plain', prefer: { level: 50, seed: 899, a: { c: 4, r: 4 }, b: { c: 4, r: 5 } }, at: 592, want: { type: 'single', fx: 'beamH' } },
+  nova: { pick: 'plain', prefer: { level: 50, seed: 13, a: { c: 3, r: 3 }, b: { c: 4, r: 3 } }, at: 560, want: { type: 'single', fx: 'nova' } },
+  prism: { pick: 'plain', prefer: { level: 50, seed: 3495, a: { c: 4, r: 2 }, b: { c: 4, r: 3 } }, at: 560, want: { type: 'single', fx: 'prism' } },
 };
 
 /** Map tiles: CSS size of the part of the map that is kept (between the top bar and the tray). */
@@ -234,19 +239,42 @@ async function openGame(browser, base, o) {
   return { context, page };
 }
 
-/** Runs in a page of the dev server: does this seed give the scene? (the game's own engine decides) */
+/**
+ * Runs in a page of the dev server: which level, seed and move give the scene? The game's own
+ * level data and engine decide; nothing is assumed about level numbers.
+ */
 async function probeScene(arg) {
-  const { LEVELS } = await import('/src/levels/index.ts');
+  const { LEVELS, chapterOf } = await import('/src/levels/index.ts');
   const { Game } = await import('/src/engine/index.ts');
-  const level = LEVELS[arg.level - 1];
-  if (!level) return { ok: false, why: 'no level ' + arg.level };
   const isBeam = (k) => k === 'beamH' || k === 'beamV';
+  const count = (level, chars) => {
+    let n = 0;
+    for (const row of level.pieces) for (const ch of row) if (chars.indexOf(ch) >= 0) n++;
+    return n;
+  };
+  const sand = (level) => (level.floor ? level.floor.join('').replace(/0/g, '').length : 0);
+  /** How well a level suits the scene; the best one is used. */
+  function score(level) {
+    if (level.tutorial !== undefined) return -100; // a tip would open over the board
+    const square = level.cols === 8 && level.rows === 8 ? 4 : level.cols === level.rows ? 2 : 0;
+    const lamps = count(level, 'L');
+    const chains = count(level, 'c');
+    const stones = count(level, '123');
+    const vines = count(level, 'v');
+    const holes = count(level, '_');
+    const placed = count(level, 'HVNP');
+    if (arg.pick === 'rich') {
+      return square + (lamps >= 2 ? 3 : 0) + (chains >= 2 ? 2 : 0) + (stones >= 2 ? 2 : 0) - (vines ? 3 : 0) - (holes ? 3 : 0) - (sand(level) ? 1 : 0) - (placed ? 2 : 0) - (level.colors < 5 ? 2 : 0);
+    }
+    // special pieces the level itself puts on the board are welcome here: more of them to see
+    return square + (level.colors === 6 ? 3 : level.colors === 5 ? 1 : 0) - 2 * Math.min(6, lamps + chains + stones + vines + holes) - (sand(level) ? 2 : 0);
+  }
   const pieceAt = (s, p) => {
     const cell = s.cells[p.r * s.cols + p.c];
     return cell && cell.piece ? cell.piece : null;
   };
-  /** Returns the move for this seed, or null. `fixed` = the move must be this one. */
-  function tryIt(seed, fixed) {
+  /** The move for this level and seed, or null. `fixed` = the move must be this one. */
+  function tryIt(level, seed, fixed) {
     const g0 = new Game(level, { seed, boosters: arg.boosters });
     const s = g0.snapshot();
     const cx = (s.cols - 1) / 2;
@@ -265,7 +293,8 @@ async function probeScene(arg) {
             if (Math.max(Math.abs(b.c - cx), Math.abs(b.r - cy)) > 0.5) continue;
             if (!prism || Math.abs(prism.c - b.c) <= 1 || Math.abs(prism.r - b.r) <= 1) continue;
             if (fixed && (a.c !== fixed.a.c || a.r !== fixed.a.r || b.c !== fixed.b.c || b.r !== fixed.b.r)) continue;
-            return { a: { c: a.c, r: a.r }, b: { c: b.c, r: b.r }, focus: { c: b.c, r: b.r } };
+            if (!g0.canSwap({ c: a.c, r: a.r }, { c: b.c, r: b.r })) continue;
+            return { a: { c: a.c, r: a.r }, b: { c: b.c, r: b.r }, focus: { c: b.c, r: b.r }, color: -1 };
           }
         }
       }
@@ -286,35 +315,46 @@ async function probeScene(arg) {
       if (total !== 1 || acts[0].fx[0].kind !== arg.want.fx) continue;
       const firstFall = turn.steps.findIndex((x) => x.type === 'fall');
       if (firstFall >= 0 && turn.steps.indexOf(acts[0]) > firstFall) continue;
-      const at = acts[0].fx[0].at;
-      if (Math.max(Math.abs(at.c - cx), Math.abs(at.r - cy)) > 0.5) continue;
-      return { a: m.a, b: m.b, focus: { c: at.c, r: at.r } };
+      const fx = acts[0].fx[0];
+      if (Math.max(Math.abs(fx.at.c - cx), Math.abs(fx.at.r - cy)) > 0.5) continue;
+      // a prism should have plenty to clear, or the picture is thin
+      if (arg.want.fx === 'prism' && fx.targets.length < 12) continue;
+      return { a: m.a, b: m.b, focus: { c: fx.at.c, r: fx.at.r }, color: fx.color };
     }
     return null;
   }
-  const first = tryIt(arg.seed, { a: arg.a, b: arg.b });
-  if (first) return { ok: true, seed: arg.seed, a: first.a, b: first.b, focus: first.focus, searched: false };
-  for (let seed = 1; seed <= 20000; seed++) {
-    const hit = tryIt(seed, null);
-    if (hit) return { ok: true, seed, a: hit.a, b: hit.b, focus: hit.focus, searched: true };
+  const ranked = LEVELS.map((level) => ({ level, score: score(level) })).sort((x, y) => y.score - x.score || x.level.id - y.level.id);
+  const best = ranked[0].score;
+  const done = (level, seed, hit, searched) => ({ ok: true, level: level.id, theme: chapterOf(level.id).theme, cols: level.cols, rows: level.rows, seed, a: hit.a, b: hit.b, focus: hit.focus, color: hit.color, searched });
+  // the frames were chosen with this level, seed and move: keep them while they still hold
+  const preferred = ranked.find((x) => x.level.id === arg.prefer.level);
+  if (preferred && preferred.score === best) {
+    const hit = tryIt(preferred.level, arg.prefer.seed, { a: arg.prefer.a, b: arg.prefer.b });
+    if (hit) return done(preferred.level, arg.prefer.seed, hit, false);
   }
-  return { ok: false, why: 'no seed up to 20000 gives the scene' };
+  for (const entry of ranked.slice(0, 8)) {
+    for (let seed = 1; seed <= 12000; seed++) {
+      const hit = tryIt(entry.level, seed, null);
+      if (hit) return done(entry.level, seed, hit, true);
+    }
+  }
+  return { ok: false, why: 'no level and seed give the scene' };
 }
 
 /** One board scene from the real game → { png, meta }. */
 async function captureBoard(browser, base, name, scene, stagePage) {
-  const found = await stagePage.evaluate(probeScene, { level: scene.level, seed: scene.seed, a: scene.a, b: scene.b, want: scene.want, boosters: BOOSTERS });
-  if (!found.ok) throw new Error('scene "' + name + '" (level ' + scene.level + '): ' + found.why);
-  if (found.searched) console.log('  note: scene "' + name + '": seed ' + scene.seed + ' no longer gives it (level data changed) — using seed ' + found.seed);
+  const found = await stagePage.evaluate(probeScene, { pick: scene.pick, prefer: scene.prefer, want: scene.want, boosters: BOOSTERS });
+  if (!found.ok) throw new Error('scene "' + name + '": ' + found.why);
+  if (found.searched) console.log('  note: scene "' + name + '": level ' + scene.prefer.level + ' with seed ' + scene.prefer.seed + ' no longer gives it (the level data changed) — using level ' + found.level + ', seed ' + found.seed + '. LOOK at the result.');
   const { context, page } = await openGame(browser, base, { lang: 'en', w: PLAY_VIEW.w, h: PLAY_VIEW.h, dsf: PLAY_VIEW.dsf, tag: name, query: { seed: String(found.seed) } });
   try {
-    await page.evaluate(([n, b]) => window.__app.ctx.nav.toPlay(n, b), [scene.level, BOOSTERS]);
+    await page.evaluate(([n, b]) => window.__app.ctx.nav.toPlay(n, b), [found.level, BOOSTERS]);
     let ready = false;
     for (let i = 0; i < 150 && !ready; i++) {
       await page.clock.runFor(100);
       ready = await page.evaluate(() => !!window.__play && window.__play.state() === 'play' && window.__play.isIdle() && !document.querySelector('.k-overlay'));
     }
-    if (!ready) throw new Error('scene "' + name + '": level ' + scene.level + ' did not become playable');
+    if (!ready) throw new Error('scene "' + name + '": level ' + found.level + ' did not become playable');
     // where the board sits in the canvas: the frame is opaque, its soft shadow is not
     const geo = await page.evaluate(() => {
       const c = document.querySelector('.pl-board');
@@ -352,7 +392,7 @@ async function captureBoard(browser, base, name, scene, stagePage) {
     if (accepted === false) throw new Error('scene "' + name + '": the game refused the move');
     await page.clock.runFor(scene.at);
     const url = await page.evaluate(() => document.querySelector('.pl-board').toDataURL('image/png'));
-    const meta = Object.assign({ level: scene.level, seed: found.seed, move: { a: found.a, b: found.b }, at: scene.at, focus: scene.focus && !found.searched ? scene.focus : found.focus }, geo);
+    const meta = Object.assign({ level: found.level, theme: found.theme, seed: found.seed, move: { a: found.a, b: found.b }, at: scene.at, focus: found.focus, color: found.color }, geo);
     return { png: Buffer.from(url.split(',')[1], 'base64'), meta };
   } finally {
     await context.close();
@@ -411,7 +451,7 @@ const STAGE_HTML =
  *
  *   lock   logo lockup: emblem + wordmark. mode 'h' side by side (h = emblem diameter), 'v' stacked
  *          (d = emblem diameter). `ax` is the anchor: the centre (align 'center') or the start edge.
- *   hook   lines of the hook: top `y`, anchor `ax`, widest line `w`, largest font size `max`
+ *   hook   lines of the hook: top `y`, anchor `ax`, widest line `w`, room `h`, largest font size `max`
  *   store  the "Available on Google Play" text line: anchor, centre line `cy`, font size
  *   gems   decoration: [sprite key, x, y, size, rotation°]
  *
@@ -420,24 +460,24 @@ const STAGE_HTML =
  */
 const LAYOUT = {
   A: {
-    theme: 'palace',
+    theme: 'palace', // used only if the capture does not name its chapter
     square: {
-      lock: { mode: 'h', ax: 540, align: 'center', y: 30, h: 104 },
-      hook: { ax: 540, align: 'center', y: 150, w: 960, max: 100 },
-      board: { cx: 540, y: 380, size: 610 },
-      store: { ax: 540, align: 'center', cy: 1038, size: 31 },
+      lock: { mode: 'h', ax: 540, align: 'center', y: 28, h: 104 },
+      hook: { ax: 540, align: 'center', y: 144, w: 960, h: 216, max: 100 },
+      board: { cx: 540, y: 372, size: 624 },
+      store: { ax: 540, align: 'center', cy: 1042, size: 31 },
       gems: [
-        ['gem0', 96, 520, 132, -14],
-        ['gem3', 986, 470, 118, 12],
+        ['gem0', 100, 520, 132, -14],
+        ['gem3', 984, 470, 118, 12],
         ['nova4', 104, 838, 150, 10],
-        ['gem1', 992, 800, 140, -10],
-        ['gem2', 150, 690, 76, 18],
-        ['gem5', 944, 640, 78, -16],
+        ['gem1', 988, 800, 140, -10],
+        ['gem2', 152, 690, 72, 18],
+        ['gem5', 940, 640, 74, -16],
       ],
     },
     portrait: {
       lock: { mode: 'h', ax: 540, align: 'center', y: 40, h: 116 },
-      hook: { ax: 540, align: 'center', y: 178, w: 980, max: 116 },
+      hook: { ax: 540, align: 'center', y: 176, w: 980, h: 252, max: 116 },
       board: { cx: 540, y: 448, size: 800 },
       store: { ax: 540, align: 'center', cy: 1306, size: 33 },
       gems: [
@@ -449,22 +489,20 @@ const LAYOUT = {
     },
     story: {
       lock: { mode: 'h', ax: 540, align: 'center', y: 284, h: 116 },
-      hook: { ax: 540, align: 'center', y: 420, w: 930, max: 112 },
-      store: { ax: 540, align: 'center', cy: 690, size: 33 },
-      board: { cx: 540, y: 742, size: 830 },
+      hook: { ax: 540, align: 'center', y: 418, w: 930, h: 236, max: 112 },
+      store: { ax: 540, align: 'center', cy: 696, size: 33 },
+      board: { cx: 540, y: 756, size: 830 },
       gems: [
-        ['gem3', 150, 150, 150, -12],
-        ['prism', 905, 170, 170, 10],
-        ['gem0', 120, 1700, 190, -12],
-        ['nova1', 420, 1760, 170, 8],
-        ['beamH5', 700, 1700, 180, -6],
-        ['gem4', 960, 1770, 170, 14],
+        ['gem0', 120, 1716, 190, -12],
+        ['nova1', 420, 1776, 170, 8],
+        ['beamH5', 700, 1716, 180, -6],
+        ['gem4', 960, 1786, 170, 14],
       ],
     },
     landscape: {
-      lock: { mode: 'h', ax: 56, align: 'start', y: 96, h: 96 },
-      hook: { ax: 56, align: 'start', y: 222, w: 520, max: 84 },
-      store: { ax: 56, align: 'start', cy: 470, size: 27 },
+      lock: { mode: 'h', ax: 56, align: 'start', y: 92, h: 96 },
+      hook: { ax: 56, align: 'start', y: 216, w: 520, h: 196, max: 84 },
+      store: { ax: 56, align: 'start', cy: 470, size: 27, ornaments: 'end' },
       board: { cx: 884, y: 44, size: 540 },
       gems: [
         ['gem0', 560, 560, 96, -14],
@@ -475,36 +513,36 @@ const LAYOUT = {
   B: {
     theme: 'stars',
     square: {
-      lock: { mode: 'h', ax: 540, align: 'center', y: 30, h: 104 },
-      hook: { ax: 540, align: 'center', y: 150, w: 960, max: 100 },
-      tiles: { x: 40, y: 384, cols: 3, rows: 2, w: 320, h: 300, gap: 20, kind: 'grid', stagger: 0 },
+      lock: { mode: 'h', ax: 540, align: 'center', y: 28, h: 104 },
+      hook: { ax: 540, align: 'center', y: 144, w: 960, h: 216, max: 100 },
+      tiles: { x: 40, y: 380, cols: 3, rows: 2, w: 320, h: 302, gap: 20, kind: 'grid', stagger: 0 },
       store: { ax: 540, align: 'center', cy: 1042, size: 31 },
     },
     portrait: {
       lock: { mode: 'h', ax: 540, align: 'center', y: 40, h: 116 },
-      hook: { ax: 540, align: 'center', y: 178, w: 980, max: 116 },
+      hook: { ax: 540, align: 'center', y: 176, w: 980, h: 252, max: 116 },
       tiles: { x: 40, y: 446, cols: 3, rows: 2, w: 320, h: 404, gap: 20, kind: 'tall', stagger: 0 },
       store: { ax: 540, align: 'center', cy: 1308, size: 33 },
     },
     story: {
       lock: { mode: 'h', ax: 540, align: 'center', y: 284, h: 116 },
-      hook: { ax: 540, align: 'center', y: 420, w: 930, max: 112 },
-      store: { ax: 540, align: 'center', cy: 690, size: 33 },
-      tiles: { x: 65, y: 748, cols: 3, rows: 2, w: 303, h: 396, gap: 20.5, kind: 'tall', stagger: 0 },
+      hook: { ax: 540, align: 'center', y: 418, w: 930, h: 236, max: 112 },
+      store: { ax: 540, align: 'center', cy: 696, size: 33 },
+      tiles: { x: 65, y: 756, cols: 3, rows: 2, w: 303, h: 396, gap: 20.5, kind: 'tall', stagger: 0 },
     },
     landscape: {
-      lock: { mode: 'h', ax: 48, align: 'start', y: 34, h: 92 },
-      hook: { ax: 1152, align: 'end', y: 22, w: 640, max: 60 },
-      store: { ax: 1152, align: 'end', cy: 176, size: 25, ornaments: 'start' },
+      lock: { mode: 'h', ax: 48, align: 'start', y: 40, h: 92 },
+      hook: { ax: 1152, align: 'end', y: 20, w: 640, h: 136, max: 60 },
+      store: { ax: 1152, align: 'end', cy: 178, size: 25, ornaments: 'start' },
       tiles: { x: 40, y: 212, cols: 6, rows: 1, w: 173.33, h: 380, gap: 16, kind: 'strip', stagger: 14 },
     },
   },
   C: {
-    theme: 'bazaar',
+    theme: 'bazaar', // used only if the capture does not name its chapter
     square: {
       lock: { mode: 'h', ax: 540, align: 'center', y: 34, h: 108 },
-      lenses: { d: 384, centres: [[212, 482], [540, 482], [868, 482]], label: { dy: 306, max: 92, w: 300 }, badge: 0.36 },
-      store: { ax: 540, align: 'center', cy: 1040, size: 31 },
+      lenses: { d: 328, centres: [[194, 470], [540, 470], [886, 470]], label: { dy: 300, max: 92, w: 300 }, badge: 0.4, row: true },
+      store: { ax: 540, align: 'center', cy: 1042, size: 31 },
       gems: [
         ['gem2', 90, 965, 120, -12],
         ['gem4', 992, 968, 116, 14],
@@ -517,21 +555,20 @@ const LAYOUT = {
     },
     story: {
       lock: { mode: 'h', ax: 540, align: 'center', y: 284, h: 116 },
-      lenses: { d: 300, centres: [[250, 600], [830, 880], [250, 1160]], label: { side: 560, max: 124, w: 440 }, badge: 0.38 },
-      store: { ax: 760, align: 'center', cy: 1016, size: 30, hidden: true },
-      storeAlt: { ax: 540, align: 'center', cy: 440, size: 31 },
+      store: { ax: 540, align: 'center', cy: 440, size: 31 },
+      lenses: { d: 340, centres: [[262, 650], [818, 925], [262, 1200]], label: { side: 556, max: 128, w: 460 }, badge: 0.38 },
       gems: [
-        ['beamH5', 190, 1560, 250, -8],
-        ['prism', 540, 1640, 320, 6],
-        ['nova1', 890, 1560, 250, 10],
-        ['gem2', 330, 1800, 150, 14],
-        ['gem0', 760, 1810, 150, -12],
+        ['beamH5', 190, 1590, 240, -8],
+        ['prism', 540, 1660, 310, 6],
+        ['nova1', 890, 1590, 240, 10],
+        ['gem2', 330, 1820, 150, 14],
+        ['gem0', 760, 1830, 150, -12],
       ],
     },
     landscape: {
       lock: { mode: 'v', ax: 196, align: 'center', y: 96, d: 190 },
-      lenses: { d: 250, centres: [[520, 232], [790, 232], [1060, 232]], label: { dy: 196, max: 62, w: 240 }, badge: 0.38 },
-      store: { ax: 790, align: 'center', cy: 560, size: 26 },
+      lenses: { d: 250, centres: [[520, 222], [790, 222], [1060, 222]], label: { dy: 222, max: 62, w: 240 }, badge: 0.4, row: true },
+      store: { ax: 790, align: 'center', cy: 566, size: 26 },
     },
   },
 };
@@ -815,19 +852,25 @@ async function setupStage(opts) {
     g.restore();
     return Math.min(maxSize, Math.floor((maxW / widest) * 100));
   }
-  /** The hook: first line cream, the rest gold. Returns { top, bottom }. */
+  /** The hook: first line cream, the rest gold. Fitted to its width `w` and its room `h`. */
   function drawHook(st, H, lines) {
-    const size = fitSize(st, lines, '800', H.w, H.max);
-    const lead = size * (st.lang === 'ar' ? 1.2 : 1.02);
+    const ar = st.lang === 'ar';
+    // one line of Arabic stands taller (alif, lam) and hangs lower (waw, kasra) than Latin capitals
+    const up = ar ? 0.92 : 0.8;
+    const lead = ar ? 1.2 : 1.02;
+    const down = ar ? 0.46 : 0.26;
+    const tall = up + lead * (lines.length - 1) + down;
+    let size = fitSize(st, lines, '800', H.w, H.max);
+    if (H.h) size = Math.min(size, Math.floor(H.h / tall));
     const x = st.mx(H.ax);
     const align = st.side(H.align);
-    // first baseline: the Arabic letters stand taller above their line than the Latin capitals
-    let y = H.y + size * (st.lang === 'ar' ? 0.92 : 0.8);
+    // centred in its room
+    let y = H.y + (H.h ? (H.h - tall * size) / 2 : 0) + size * up;
     lines.forEach((line, i) => {
       drawLine(st, line, x, y, size, { align, tone: i === 0 ? 'cream' : 'gold', what: 'hook' });
-      y += lead;
+      y += size * lead;
     });
-    return { top: H.y, bottom: y - lead + size * 0.3, size };
+    return size;
   }
 
   /** "Available on Google Play": plain text in the game's font between two small gold ornaments. */
@@ -856,12 +899,13 @@ async function setupStage(opts) {
       g.fill();
       g.restore();
     };
+    // ornaments on both sides, or only on the reading-start / reading-end side of the text
     const which = T.ornaments || 'both';
     const startIsLeft = !st.rtl;
-    const drawLeft = which === 'both' || (which === 'start') === startIsLeft;
-    const drawRight = which === 'both' || (which === 'start') !== startIsLeft;
-    if (drawLeft) orn(box.x - gapW, box.x - gapW - rule);
-    if (drawRight) orn(box.x + box.w + gapW, box.x + box.w + gapW + rule);
+    const left = which === 'both' || (which === 'start') === startIsLeft;
+    const right = which === 'both' || (which === 'start') !== startIsLeft;
+    if (left) orn(box.x - gapW, box.x - gapW - rule);
+    if (right) orn(box.x + box.w + gapW, box.x + box.w + gapW + rule);
   }
 
   // ── concept A: the hero board ──
@@ -869,7 +913,7 @@ async function setupStage(opts) {
     const g = st.g;
     const L = opts.layout.A[job.shape];
     const copy = job.copy;
-    paintBackdrop(st, opts.layout.A.theme);
+    paintBackdrop(st, meta.hero.theme || opts.layout.A.theme);
     const cap = meta.hero;
     const B = L.board;
     const bx = st.mx(B.cx) - B.size / 2;
@@ -887,16 +931,16 @@ async function setupStage(opts) {
       g.fillStyle = gr;
       g.fillRect(0, 0, st.DW, st.DH);
     } else {
-      const top = job.shape === 'story' ? 180 : 0;
-      veil(st, 0, top, st.DW, B.y + 60 - top, job.shape === 'story' ? 0.5 : 0.56);
-      if (job.shape === 'story') {
-        // fade the veil in from the top instead of starting with an edge
-        const gr = g.createLinearGradient(0, 0, 0, top + 4);
-        gr.addColorStop(0, 'rgba(16,13,48,0.18)');
-        gr.addColorStop(1, 'rgba(16,13,48,0.5)');
-        g.fillStyle = gr;
-        g.fillRect(0, 0, st.DW, top + 1);
-      }
+      // strongest behind the lettering, gone at the top edge (story) and under the board's top
+      const from = job.shape === 'story' ? 0 : -200;
+      const to = B.y + 90;
+      const gr = g.createLinearGradient(0, from, 0, to);
+      gr.addColorStop(0, 'rgba(16,13,48,0)');
+      gr.addColorStop(0.42, 'rgba(16,13,48,0.5)');
+      gr.addColorStop(0.8, 'rgba(16,13,48,0.44)');
+      gr.addColorStop(1, 'rgba(16,13,48,0)');
+      g.fillStyle = gr;
+      g.fillRect(0, 0, st.DW, to);
     }
     const halo = g.createRadialGradient(cx, cy, B.size * 0.2, cx, cy, B.size * 0.86);
     halo.addColorStop(0, 'rgba(150,190,255,0.42)');
@@ -1051,7 +1095,7 @@ async function setupStage(opts) {
     g.restore();
     // the piece itself, as the game draws it, on the rim
     const bs = d * badgeScale;
-    const ang = badgeSide > 0 ? Math.PI * 0.25 : Math.PI * 0.75;
+    const ang = badgeSide === 0 ? Math.PI * 0.5 : badgeSide > 0 ? Math.PI * 0.25 : Math.PI * 0.75;
     const bx = cx + Math.cos(ang) * r * 0.98;
     const by = cy + Math.sin(ang) * r * 0.98;
     const px = Math.round(bs * st.S * st.k);
@@ -1065,14 +1109,17 @@ async function setupStage(opts) {
   function drawC(st, job) {
     const g = st.g;
     const L = opts.layout.C[job.shape];
-    paintBackdrop(st, opts.layout.C.theme);
-    g.fillStyle = 'rgba(16,10,46,0.3)';
+    paintBackdrop(st, meta.beam.theme || opts.layout.C.theme);
+    // the lanterns keep their light: only a thin shade overall, a little more behind the logo
+    g.fillStyle = 'rgba(16,10,46,0.14)';
     g.fillRect(0, 0, st.DW, st.DH);
-    if (job.shape !== 'landscape') veil(st, 0, 0, st.DW, L.lock.y + L.lock.h + 160, 0.5);
+    if (job.shape !== 'landscape') veil(st, 0, 0, st.DW, L.lock.y + L.lock.h + 120, 0.34);
     drawGems(st, L.gems);
 
     const order = ['beam', 'nova', 'prism'];
-    const badges = { beam: 'beamH' + opts.badge.beam, nova: 'nova' + opts.badge.nova, prism: 'prism' };
+    // the badge on each lens is the very piece that fires in it
+    const tint = (c, fallback) => (typeof c === 'number' && c >= 0 && c <= 5 ? c : fallback);
+    const badges = { beam: 'beamH' + tint(meta.beam.color, 5), nova: 'nova' + tint(meta.nova.color, 1), prism: 'prism' };
     const cells = { beam: 4.3, nova: 4.6, prism: 4.9 };
     const Z = L.lenses;
     const zig = Z.label.side !== undefined;
@@ -1080,8 +1127,8 @@ async function setupStage(opts) {
       const name = order[i];
       const cx = st.mx(Z.centres[i][0]);
       const cy = Z.centres[i][1];
-      // the piece badge sits on the outer, lower side of its lens
-      const outer = zig ? (cx < st.DW / 2 ? -1 : 1) : i === 0 ? (st.rtl ? 1 : -1) : i === 2 ? (st.rtl ? -1 : 1) : st.rtl ? -1 : 1;
+      // the piece badge: under a lens of a row, on the outer lower side of a lens of the zig-zag
+      const outer = Z.row ? 0 : cx < st.DW / 2 ? -1 : 1;
       drawLens(st, name, cx, cy, Z.d, cells[name], badges[name], Z.badge, outer);
       const text = job.copy.C.labels[i];
       const size = fitSize(st, job.copy.C.labels, '800', Z.label.w, Z.label.max);
@@ -1094,7 +1141,7 @@ async function setupStage(opts) {
       }
     }
     drawLockup(st, L.lock);
-    drawStore(st, L.storeAlt || L.store, job.copy.store);
+    drawStore(st, L.store, job.copy.store);
   }
 
   function finish(st, job) {
@@ -1494,9 +1541,7 @@ async function main() {
 
       // ── compose ──
       const sample = LANGS.map((l) => [COPY[l].A.hook.join(' '), COPY[l].B.hook.join(' '), COPY[l].C.labels.join(' '), COPY[l].store].join(' ')).join(' ');
-      // the colour of the pieces that fire in the beam and nova scenes (their badge shows the same piece)
-      const badge = { beam: 5, nova: 1 };
-      await stage.evaluate(setupStage, { images: Object.keys(captures), meta, layout: LAYOUT, sample, badge });
+      await stage.evaluate(setupStage, { images: Object.keys(captures), meta, layout: LAYOUT, sample });
       for (const job of jobs) {
         const res = await stage.evaluate((j) => window.__promo.render(j), {
           concept: job.concept.id,

@@ -50,7 +50,28 @@ export function createTitleScreen(ui: Ui): Screen {
   });
   settingsButton.dataset.act = 'settings';
 
+  // a few stars that twinkle in the sky above the logo (positions in % of the screen, size, delay)
+  const sparkles = el('div', { class: 'm-title__sparkles', 'aria-hidden': 'true' });
+  const SPARKLES: readonly (readonly [number, number, number, number])[] = [
+    [13, 11, 16, 0],
+    [72, 7, 12, 1.3],
+    [31, 24, 10, 2.2],
+    [90, 27, 15, 0.7],
+    [7, 36, 11, 2.9],
+    [58, 17, 9, 3.6],
+    [45, 5, 13, 1.9],
+  ];
+  for (const [x, y, size, delay] of SPARKLES) {
+    const star = el('i');
+    star.style.left = x + '%';
+    star.style.top = y + '%';
+    star.style.width = star.style.height = 'calc(var(--k-u) * ' + size + ')';
+    star.style.animationDelay = delay + 's';
+    sparkles.appendChild(star);
+  }
+
   root.appendChild(backdrop);
+  root.appendChild(sparkles);
   root.appendChild(el('div', { class: 'm-title__top' }, settingsButton));
   root.appendChild(el('div', { class: 'm-title__mid' }, logoBox));
   root.appendChild(el('div', { class: 'm-title__bottom' }, playButton));

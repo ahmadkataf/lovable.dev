@@ -503,7 +503,8 @@ async function tests(browser) {
       eq(await coinsOf(page), coins, label + ': coins');
       eq(JSON.stringify(await inventory(page)), JSON.stringify(Object.assign({}, NO_BOOSTERS, boosters)), label + ': boosters');
       eq(await page.evaluate(() => window.__app.profile.daily().canClaim), false, label + ': cannot be claimed again today');
-      eq(await page.locator('[data-act="daily-claim"]').count(), 0, label + ': the Claim button is gone');
+      eq(await page.locator('[data-act="daily-claim"]:visible').count(), 0, label + ': the Claim button is gone');
+      ok(await page.locator('[data-act="daily-done"]').isVisible(), label + ': Done takes its place');
       ok(await page.locator('.m-daily__wait').isVisible(), label + ': the dialog counts down to the next day');
     };
     // day 1 is offered by itself on reaching the map

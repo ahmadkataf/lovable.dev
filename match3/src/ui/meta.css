@@ -91,6 +91,44 @@
   background: linear-gradient(180deg, rgba(20, 18, 58, 0) 0%, rgba(20, 18, 58, 0.5) 100%);
 }
 
+/* stars that twinkle above the logo */
+.m-title__sparkles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.m-title__sparkles i {
+  position: absolute;
+  background: radial-gradient(circle, #ffffff 0%, #fff3c4 45%, #ffd666 100%);
+  -webkit-clip-path: polygon(50% 0%, 59% 41%, 100% 50%, 59% 59%, 50% 100%, 41% 59%, 0% 50%, 41% 41%);
+  clip-path: polygon(50% 0%, 59% 41%, 100% 50%, 59% 59%, 50% 100%, 41% 59%, 0% 50%, 41% 41%);
+  opacity: 0;
+  animation: m-twinkle 4.2s ease-in-out infinite;
+}
+
+@keyframes m-twinkle {
+  0%,
+  55%,
+  100% {
+    opacity: 0;
+    transform: scale(0.3) rotate(0deg);
+  }
+  25% {
+    opacity: 0.95;
+    transform: scale(1) rotate(18deg);
+  }
+}
+
+.m-still .m-title__sparkles i {
+  animation: none;
+  opacity: 0.8;
+}
+
 .m-title__top {
   position: relative;
   align-self: stretch;
@@ -924,6 +962,43 @@
   filter: grayscale(0.85) brightness(0.8);
 }
 
+/* the counters do not fit side by side: closer together, smaller icons (see fitTopBar in map.ts) */
+.m-top__panel--tight .m-chip {
+  margin-inline-end: calc(var(--k-u) * 2);
+  font-size: calc(var(--k-u) * 14.5);
+}
+
+.m-top__panel--tight .m-chip .k-chip__icon {
+  width: calc(var(--k-u) * 28) !important;
+  height: calc(var(--k-u) * 28) !important;
+  margin-inline-end: calc(var(--k-u) * 3);
+}
+
+.m-top__panel--tight .m-chip .k-chip__in {
+  padding-inline-end: calc(var(--k-u) * 7);
+}
+
+.m-top__panel--tight .m-chip.k-chip--plus .k-chip__in {
+  padding-inline-end: calc(var(--k-u) * 4);
+}
+
+.m-top__panel--tight .m-chip .k-chip__plus {
+  margin-inline-start: calc(var(--k-u) * 3);
+}
+
+.m-top__panel--tight .m-chip__count {
+  width: calc(var(--k-u) * 28);
+  font-size: calc(var(--k-u) * 14);
+}
+
+.m-top__panel--tight .m-chip--lives .k-chip__text {
+  min-width: calc(var(--k-u) * 34);
+}
+
+.m-top__panel--nostars .m-chip--stars {
+  display: none;
+}
+
 /* during the win celebration a tap on the bars only skips it */
 .m-map--busy .m-top__panel,
 .m-map--busy .m-tray__panel {
@@ -1403,6 +1478,7 @@
 
 .m-caravan__free {
   min-width: 0;
+  margin-inline-end: calc(var(--k-u) * 2);
   color: var(--k-cream);
   font-size: calc(var(--k-u) * 12.5);
   font-weight: 700;
@@ -1446,6 +1522,30 @@
 
 .m-lives__heart--empty .k-icon {
   filter: grayscale(0.9) brightness(0.75);
+}
+
+/* a heart that has lives in it beats */
+.m-lives__heart .k-icon {
+  animation: m-beat 1.5s ease-in-out infinite;
+}
+
+.m-lives__heart--empty .k-icon,
+.m-still .m-lives__heart .k-icon {
+  animation: none;
+}
+
+@keyframes m-beat {
+  0%,
+  36%,
+  100% {
+    transform: scale(1);
+  }
+  12% {
+    transform: scale(1.09);
+  }
+  24% {
+    transform: scale(0.98);
+  }
 }
 
 .m-lives__count {
@@ -1612,6 +1712,17 @@
 .m-brow .k-offer__art {
   width: calc(var(--k-u) * 54);
   height: calc(var(--k-u) * 54);
+  margin-inline-end: calc(var(--k-u) * 8);
+}
+
+/* room for the longest booster names on one line, also on the narrowest phone */
+.m-brow .k-offer__texts {
+  margin-inline-end: calc(var(--k-u) * 6);
+}
+
+.m-brow .k-offer__action > .k-btn {
+  min-width: calc(var(--k-u) * 76);
+  --k-btn-px: calc(var(--k-u) * 10);
 }
 
 .m-brow .k-offer__title {
@@ -1781,6 +1892,11 @@
   font-weight: 800;
 }
 
+.m-still .m-day--today,
+.m-still .m-unlock__rays {
+  animation: none;
+}
+
 @keyframes m-today {
   0%,
   100% {
@@ -1872,7 +1988,11 @@
 .m-daily__wait {
   display: flex;
   justify-content: center;
-  margin-bottom: calc(var(--k-u) * 10);
+}
+
+/* the footer holds Claim or Done, never both: the one on display needs no gap above it */
+.m-dialog-daily .k-dialog__foot > .k-btn + .k-btn {
+  margin-top: 0;
 }
 
 /* ───────────────────────────── new booster ───────────────────────────── */
@@ -2032,6 +2152,7 @@
 @media (prefers-reduced-motion: reduce) {
   .m-screen--in,
   .m-title__logoimg,
+  .m-lives__heart .k-icon,
   .m-node--current .m-node__halo,
   .m-node--current .m-node__face,
   .m-marker__bob,
@@ -2039,5 +2160,10 @@
   .m-day--today,
   .m-unlock__rays {
     animation: none;
+  }
+
+  .m-title__sparkles i {
+    animation: none;
+    opacity: 0.8;
   }
 }

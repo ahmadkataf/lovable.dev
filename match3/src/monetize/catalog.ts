@@ -123,9 +123,10 @@ export const BUY_WATCHDOG_MS = 600_000;
 export const BUY_RESUME_GRACE_MS = 30_000;
 /**
  * A restore that gets no answer resolves after this long. Longer than the wrapper may take to
- * answer when it first has to connect to the store (it gives a connection 20 s).
+ * answer when it first has to connect to the store (it gives a connection 30 s; see
+ * CONNECT_TIMEOUT_MS in android/…/BillingController.kt — keep this one above it).
  */
-export const RESTORE_WATCHDOG_MS = 30_000;
+export const RESTORE_WATCHDOG_MS = 45_000;
 /** After the store's list of owned products arrives, unfinished purchases may follow for this long. */
 export const RESTORE_SETTLE_MS = 400;
 /** The privacy-options form is considered closed after this long without news. */

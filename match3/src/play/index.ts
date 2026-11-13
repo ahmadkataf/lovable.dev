@@ -213,15 +213,37 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
 
   // ───────────────────────────── frame loop ─────────────────────────────
 
+  /** Make sure a frame is coming. Exactly one is ever pending, however often this is called. */
   function kick(): void {
     if (raf !== 0 || frozen !== 0 || !session) return;
+    // Asked for from inside a frame (a tween that ended started the next one): the frame itself
+    // decides at its end. Requesting here as well would queue a second callback for the same
+    // tick — and every callback redraws the whole canvas.
+    if (inFrame) {
+      wantFrame = true;
+      return;
+    }
     lastTs = nowMs();
     raf = requestAnimationFrame(frame);
   }
 
+  let inFrame = false;
+  let wantFrame = false;
+
   function frame(ts: number): void {
     raf = 0;
     if (frozen !== 0 || !session) return;
+    inFrame = true;
+    wantFrame = false;
+    try {
+      frameBody(ts);
+    } finally {
+      inFrame = false;
+    }
+    if (frozen === 0 && session && raf === 0 && (wantFrame || sched.active() || view.animating() || view.dirty())) raf = requestAnimationFrame(frame);
+  }
+
+  function frameBody(ts: number): void {
     let dt = ts - lastTs;
     lastTs = ts;
     if (!(dt > 0)) dt = 0;
@@ -251,6 +273,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
         if (!perf.lowEnd && perf.slowWindows >= 2) {
           perf.lowEnd = true;
           view.setLowEnd(true);
+          relayout();
         }
         perf.winFrames = 0;
         perf.winTotal = 0;
@@ -263,8 +286,6 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
 
     if (debug) work.total += nowMs() - t0;
     if (debug) work.frames++;
-
-    if (sched.active() || view.animating() || view.dirty()) raf = requestAnimationFrame(frame);
   }
 
   let schedWasActive = false;

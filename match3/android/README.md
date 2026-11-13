@@ -110,8 +110,10 @@ connections and frames to other origins. The diagnostics page proves all three o
   Nothing is requested from ad servers before consent allows it.
 - Where Google Play or the network is missing, every request is still answered: an empty product
   list, `purchase → unavailable`, `adResult → failed` — the game simply hides its offers.
-- Keep **multi-quantity purchases switched off** for the coin packs in Play Console unless the game
-  honours the `quantity` field of the purchase event.
+- A purchase of several units at once (Play Console's optional multi-quantity setting, off by
+  default) arrives as one purchase event with `quantity`; the game multiplies the pack by it.
+- Purchases are verified by Google Play on the device only; there is no server check (a server is
+  optional hardening, see `docs/research/billing.md`).
 
 ## Test on an emulator or device
 

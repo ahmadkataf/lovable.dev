@@ -297,12 +297,15 @@ async function fuzz(seed: number, steps: number, withResets: boolean): Promise<S
     const complete = isRecord(events[0]) && events[0].complete === true;
     const seenBefore: Record<string, number> = {};
     for (const id of ENTITLEMENTS) seenBefore[id] = purchasedSeen[id] || 0;
+    // what the account holds at the moment the listing is made (a listener may buy something
+    // while the listing is being delivered: that purchase is not part of this listing)
+    const paidAtListing = ENTITLEMENTS.filter(ownedByAccount);
     for (const ev of events) deliver(ev);
     // right after a whole listing: everything the account has paid for is owned…
     for (const id of ENTITLEMENTS) {
-      if (ownedByAccount(id)) {
-        if (!cur.store.owns(id as 'remove_ads')) fail(id + ' is paid for, but not owned after a full listing');
-      } else if (complete && !boughtThisSession.has(id) && (purchasedSeen[id] || 0) === seenBefore[id] && cur.store.owns(id as 'remove_ads')) {
+      if (paidAtListing.indexOf(id) >= 0) {
+        if (ownedByAccount(id) && !cur.store.owns(id as 'remove_ads')) fail(id + ' is paid for, but not owned after a full listing');
+      } else if (!ownedByAccount(id) && complete && !boughtThisSession.has(id) && (purchasedSeen[id] || 0) === seenBefore[id] && cur.store.owns(id as 'remove_ads')) {
         // …and a complete listing leaves nothing that the account does not have (unless a stale
         // 'purchased' event of a refunded purchase slipped in behind it, through a listener)
         fail(id + ' still owned after a complete listing that does not have it');
@@ -746,6 +749,9 @@ describe('fuzz: a hostile world around the store, an honest ledger beside it', (
   // A soak for whoever changes the money path: FUZZ_SOAK=400 npx vitest run tests/monetize/hardening-fuzz.test.ts
   const soak = typeof process !== 'undefined' ? Math.floor(Number(process.env.FUZZ_SOAK)) || 0 : 0;
   it.skipIf(soak <= 0)('soak: FUZZ_SOAK more runs × 700 steps on fresh seeds', async () => {
-    for (let i = 0; i < soak; i++) await fuzz(20_000 + i, 700, i % 3 === 0);
+    for (let i = 0; i < soak; i++) {
+      await fuzz(20_000 + i, 700, i % 3 === 0);
+      vi.clearAllMocks(); // the silenced console keeps every logged error otherwise: gigabytes in a long soak
+    }
   }, 3_600_000);
 });

@@ -162,7 +162,7 @@ const table: StringTable = {
     'meta.caravan.name': 'القافلة',
     'meta.caravan.brings': 'مجانًا:',
     'meta.caravan.hint': 'فُز تباعًا لتحصل على معزّزات مجانية.',
-    'meta.caravan.wins': '{n, plural, one {فوز واحد متتالٍ} two {فوزان متتاليان} few {{n} انتصارات متتالية} other {{n} فوزًا متتاليًا}}',
+    'meta.caravan.wins': '{n, plural, one {فوز واحد} two {فوزان متتاليان} few {{n} انتصارات متتالية} other {{n} فوزًا متتاليًا}}',
 
     // ── lives ──
     'meta.lives.outTitle': 'نفدت القلوب',

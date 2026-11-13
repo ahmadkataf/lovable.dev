@@ -60,6 +60,11 @@ COMPONENT="$PKG/com.zumurud.game.MainActivity"
 OUT="$ROOT/shots/android"
 PREFIX="$OUT/${SMOKE_NAME:-smoke}-$FLAVOUR-$VARIANT${MODE:+-$MODE}"
 LOG="$PREFIX.log"
+# No device, no test — and the results of the previous run stay where they are.
+if [ "$(adb get-state 2>/dev/null | tr -d '\r')" != "device" ]; then
+  echo "emu-smoke: no device '$SERIAL' is connected (adb devices) — start the emulator or plug in a phone" >&2
+  exit 2
+fi
 mkdir -p "$OUT"
 rm -f "$PREFIX"-[0-9][0-9]-*.png "$LOG"
 shot_no=0

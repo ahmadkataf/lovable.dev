@@ -54,7 +54,7 @@ const SCENES = [
     level: { chapters: [2], prefer: [28], plain: true },
     caravan: 3,
     plan: { wish: 'cross', depth: 2, min: 100, seeds: 80 },
-    burst: { lead: 250, step: 45, count: 24 },
+    burst: { lead: 200, step: 45, until: 1500 },
     what: 'Gameplay: two special pieces swapped — a big combo',
   },
   {
@@ -65,7 +65,7 @@ const SCENES = [
     level: { chapters: [3], prefer: [51], plain: true },
     caravan: 3,
     plan: { wish: 'beam', depth: 2, min: 90, seeds: 80 },
-    burst: { lead: 250, step: 45, count: 24 },
+    burst: { lead: 200, step: 45, until: 1500 },
     what: 'Gameplay: a beam fires along its line',
   },
   {
@@ -216,8 +216,8 @@ const FINALS = [
  * caption band.
  */
 const LAYOUT = {
-  /** width of the scaled capture / W */
-  shot: 0.8334,
+  /** width of the scaled capture / W, per device class */
+  shot: { phone: 0.8222, tablet7: 0.79, tablet10: 0.79 },
   /** gap between the frame and the lower edge / W */
   bottom: 0.0296,
   /** corner radius of the capture / W */

@@ -72,6 +72,10 @@ const MAX_PARTICLES = 160;
 /** How far the board frame reaches beyond the cells, as a share of a cell (frame + dark outline). */
 const FRAME_SHARE = 0.125;
 const DPR_CAP = 3;
+/** Additive light drawn per frame at most, in board areas (see draw()). */
+const LIGHT_BUDGET = 3.5;
+/** low-end mode: at most two device pixels per CSS pixel (a 3x screen then fills 44 % of the pixels) */
+const DPR_CAP_LOW = 2;
 const FONT = '"Baloo Bhaijaan 2 Variable", "Baloo Bhaijaan 2", system-ui, sans-serif';
 
 interface BeamFx {
@@ -92,6 +96,8 @@ interface BeamFx {
   emit: number;
   /** overall brightness (side beams of a wide blast are dimmer than the middle one) */
   alpha: number;
+  /** one of many firing at once: drawn without its wide halo (fill-rate) */
+  lite: boolean;
 }
 
 interface RingFx {
@@ -234,7 +240,7 @@ export interface BoardView {
 
   // effects (cell coordinates)
   burst(x: number, y: number, color: number, count: number, speed: number, shape: number, opts?: BurstOpts): void;
-  beam(x: number, y: number, horizontal: boolean, color: number, thick: number, sweep: number, alpha?: number): void;
+  beam(x: number, y: number, horizontal: boolean, color: number, thick: number, sweep: number, alpha?: number, lite?: boolean): void;
   ring(x: number, y: number, r0: number, r1: number, dur: number, color: number, alpha?: number, delay?: number): void;
   /** A four-point star of light, `size` cells across at its largest. */
   flare(x: number, y: number, size: number, dur: number, alpha?: number, delay?: number, rot?: number): void;
@@ -257,6 +263,7 @@ export interface BoardView {
   setHand(a: Pos | null, b: Pos | null): void;
   setTargeting(on: boolean): void;
   setReducedEffects(on: boolean): void;
+  /** Fewer particles and a canvas of at most 2x (applied by the next layout()). */
   setLowEnd(on: boolean): void;
 
   /** Advance effects and particles by `dt` ms of game time. */
@@ -404,6 +411,9 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   let raysImg: HTMLCanvasElement | null = null;
   let frameGlow: HTMLCanvasElement | null = null;
   let frameGlowDirty = true;
+  /** the strips of `frameGlow` that hold light (x, y, w, h each): only those are blitted */
+  let frameStrips = new Float32Array(0);
+  let frameStripCount = 0;
   let warmed = false;
   const glowTex: (HTMLCanvasElement | null)[] = [];
   const streakTex: (HTMLCanvasElement | null)[] = [];
@@ -434,6 +444,8 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   const pAdd = new Uint8Array(MAX_PARTICLES);
   let pCount = 0;
   let particleCap: number = FEEDBACK.maxParticles;
+  /** device-pixel ratio the canvas may use at most (lowered in low-end mode: fewer pixels to fill) */
+  let dprCap = DPR_CAP;
 
   // ── effects ──
   const beams: BeamFx[] = [];
@@ -852,6 +864,33 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     outline(g, m, 0, radius);
     g.fill();
     g.globalCompositeOperation = 'source-over';
+    // One strip along every free side of every cell: blitting only these (instead of the whole
+    // board-sized texture, most of it empty) keeps a frame pulse to a fraction of the fill.
+    const deep = Math.min(m, Math.ceil(frame + cs * 0.3));
+    const need = nCols * nRows * 4 * 4;
+    if (frameStrips.length < need) frameStrips = new Float32Array(need);
+    let n = 0;
+    const add = (x: number, y: number, sw: number, sh: number): void => {
+      frameStrips[n++] = x;
+      frameStrips[n++] = y;
+      frameStrips[n++] = sw;
+      frameStrips[n++] = sh;
+    };
+    for (let r = 0; r < nRows; r++) {
+      for (let c = 0; c < nCols; c++) {
+        if (!cellExists[idx(c, r)]) continue;
+        const x = m + c * cs;
+        const y = m + r * cs;
+        // corners belong to the horizontal strips (extended sideways where the neighbour side is free too)
+        const l = !has(c - 1, r) ? deep : 0;
+        const rr = !has(c + 1, r) ? deep : 0;
+        if (!has(c, r - 1)) add(x - l, y - deep, cs + l + rr, deep);
+        if (!has(c, r + 1)) add(x - l, y + cs, cs + l + rr, deep);
+        if (l > 0) add(x - deep, y, deep, cs);
+        if (rr > 0) add(x + cs, y, deep, cs);
+      }
+    }
+    frameStripCount = n / 4;
     return frameGlow;
   }
 
@@ -1127,7 +1166,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     } catch {
       ratio = 1;
     }
-    dpr = cappedDpr(ratio, DPR_CAP);
+    dpr = cappedDpr(ratio, dprCap);
     const w = Math.max(1, Math.round(stageW * dpr));
     const h = Math.max(1, Math.round(stageH * dpr));
     if (canvas.width !== w) canvas.width = w;
@@ -1295,28 +1334,39 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     }
   }
 
-  function beam(x: number, y: number, horizontal: boolean, color: number, thick: number, sweep: number, alpha?: number): void {
+  // Fill-rate guard: every light effect is a big blended quad. When a board full of specials goes
+  // off at once, the lists stop growing at these sizes (the newest requests are dropped — by then
+  // the screen is saturated with light anyway).
+  const MAX_BEAMS = 24;
+  const MAX_RINGS = 16;
+  const MAX_GLOWS = 36;
+  const MAX_FLARES = 28;
+  const MAX_TILES = 200;
+
+  function beam(x: number, y: number, horizontal: boolean, color: number, thick: number, sweep: number, alpha?: number, lite?: boolean): void {
+    if (beams.length >= MAX_BEAMS) return;
     const lo = horizontal ? x : y;
     const hi = horizontal ? nCols - x : nRows - y;
-    beams.push({ x, y, horizontal, t: 0, sweep, dur: sweep + 160, color, thick, lo: lo + 0.3, hi: hi + 0.3, emit: 0, alpha: alpha === undefined ? 1 : alpha });
+    beams.push({ x, y, horizontal, t: 0, sweep, dur: sweep + 160, color, thick, lo: lo + 0.3, hi: hi + 0.3, emit: 0, alpha: alpha === undefined ? 1 : alpha, lite: !!lite || beams.length >= 6 });
   }
 
   function ring(x: number, y: number, r0: number, r1: number, dur: number, color: number, alpha?: number, delay?: number): void {
-    if (reduced && r1 > 3) return;
+    if ((reduced && r1 > 3) || rings.length >= MAX_RINGS) return;
     rings.push({ x, y, t: 0, dur, r0, r1, color, alpha: alpha === undefined ? 1 : alpha, delay: delay || 0 });
   }
 
   function flare(x: number, y: number, size: number, dur: number, alpha?: number, delay?: number, rot?: number): void {
+    if (flares.length >= MAX_FLARES) return;
     flares.push({ x, y, t: 0, dur, delay: delay || 0, s0: size * 0.35, s1: size, alpha: alpha === undefined ? 1 : alpha, rot: rot || 0, spin: 0.5, rays: false });
   }
 
   function raysFx(x: number, y: number, s0: number, s1: number, dur: number, alpha?: number, delay?: number): void {
-    if (reduced && s1 > 4) return;
+    if ((reduced && s1 > 4) || flares.length >= MAX_FLARES) return;
     flares.push({ x, y, t: 0, dur, delay: delay || 0, s0, s1, alpha: alpha === undefined ? 1 : alpha, rot: rnd() * 6.283, spin: 0.35, rays: true });
   }
 
   function tileFlash(c: number, r: number, dur: number, color: number, alpha?: number, delay?: number): void {
-    if (c < 0 || r < 0 || c >= nCols || r >= nRows || cellExists[idx(c, r)] !== 1) return;
+    if (c < 0 || r < 0 || c >= nCols || r >= nRows || cellExists[idx(c, r)] !== 1 || tiles.length >= MAX_TILES) return;
     tiles.push({ c, r, t: 0, dur, delay: delay || 0, color, alpha: alpha === undefined ? 0.8 : alpha });
   }
 
@@ -1329,6 +1379,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   }
 
   function glow(x: number, y: number, s0: number, s1: number, dur: number, color: number, alpha?: number, delay?: number): void {
+    if (glows.length >= MAX_GLOWS) return;
     glows.push({ x, y, t: 0, dur, delay: delay || 0, s0, s1, alpha: alpha === undefined ? 1 : alpha, color });
   }
 
@@ -1690,7 +1741,15 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
         if (tex) {
           const k = 1 - pulseT / pulseDur;
           ctx.globalAlpha = pulseAlpha * k * k;
-          ctx.drawImage(tex, bx - floorMargin, by - floorMargin);
+          const fx0 = bx - floorMargin;
+          const fy0 = by - floorMargin;
+          for (let q = 0; q < frameStripCount; q++) {
+            const sx = frameStrips[q * 4] as number;
+            const sy = frameStrips[q * 4 + 1] as number;
+            const sw = frameStrips[q * 4 + 2] as number;
+            const sh = frameStrips[q * 4 + 3] as number;
+            ctx.drawImage(tex, sx, sy, sw, sh, fx0 + sx, fy0 + sy, sw, sh);
+          }
         }
       }
       for (let k = 0; k < tiles.length; k++) {
@@ -1762,12 +1821,21 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     // ── additive light ──
     ctx.globalCompositeOperation = 'lighter';
 
+    // Fill-rate budget: light is drawn as big blended quads, and a board full of specials going
+    // off at once would ask for dozens of board-sized ones in a single frame. Past the budget (so
+    // many board areas of light) the rest of this frame's glows, rings and flares are left out —
+    // the picture is saturated by then. Beams and tile flashes always draw.
+    const budget = nCols * nRows * cs * cs * LIGHT_BUDGET;
+    let spent = 0;
+
     for (let k = 0; k < glows.length; k++) {
       const g = glows[k] as GlowFx;
       const t = g.t - g.delay;
       if (t < 0) continue;
       const p = t / g.dur;
       const s = (g.s0 + (g.s1 - g.s0) * (1 - (1 - p) * (1 - p))) * cs;
+      if (spent > budget) break;
+      spent += s * s;
       ctx.globalAlpha = g.alpha * (1 - p * p);
       ctx.drawImage(glowOf(g.color), bx + g.x * cs - s / 2, by + g.y * cs - s / 2, s, s);
     }
@@ -1793,26 +1861,32 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       const ox = b.horizontal ? cxp : 0;
       const oy = b.horizontal ? cyp : 0;
       // 1. a lens of coloured light around the whole beam (thick in the middle, pointed at the ends)
-      ctx.globalAlpha = 0.5 * fade * b.alpha;
-      ctx.drawImage(glowOf(b.color), ox + mid - len * 0.56, oy - thick * 1.3, len * 1.12, thick * 2.6);
+      if (!b.lite && b.alpha >= 1) {
+        ctx.globalAlpha = 0.5 * fade;
+        ctx.drawImage(glowOf(b.color), ox + mid - len * 0.56, oy - thick * 0.85, len * 1.12, thick * 1.7);
+      }
       // 2. the streak itself
       ctx.globalAlpha = (sweeping ? 1 : fade) * b.alpha;
       ctx.drawImage(streakOf(b.color), ox - lo * cs - cs * 0.25, oy - thick / 2, len + cs * 0.5, thick);
       // 3. a white-hot hairline that outlives the streak
-      ctx.globalAlpha = (sweeping ? 0.8 : fade * fade) * b.alpha;
-      ctx.drawImage(streakOf(PAL_GOLD), ox - lo * cs - cs * 0.1, oy - thick * 0.11, len + cs * 0.2, thick * 0.22);
+      if (!b.lite) {
+        ctx.globalAlpha = (sweeping ? 0.8 : fade * fade) * b.alpha;
+        ctx.drawImage(streakOf(PAL_GOLD), ox - lo * cs - cs * 0.1, oy - thick * 0.11, len + cs * 0.2, thick * 0.22);
+      }
       if (sweeping) {
         // the two racing heads: a star flare each (they fade in as they leave the firing cell, so
         // crossing beams do not pile up into a white blot at the centre)
         const head = flareTexture();
-        const hs = cs * (1.7 + b.thick * 0.7) * (0.85 + 0.15 * Math.sin(b.t * 0.05));
+        const hs = cs * (b.lite ? 1.5 : 1.7 + b.thick * 0.7) * (0.85 + 0.15 * Math.sin(b.t * 0.05));
         ctx.globalAlpha = (p < 0.25 ? p / 0.25 : 1) * b.alpha;
         ctx.drawImage(head, ox - lo * cs - hs / 2, oy - hs / 2, hs, hs);
         ctx.drawImage(head, ox + hi * cs - hs / 2, oy - hs / 2, hs, hs);
-        const hg = glowOf(PAL_WHITE);
-        const gs = hs * 0.55;
-        ctx.drawImage(hg, ox - lo * cs - gs / 2, oy - gs / 2, gs, gs);
-        ctx.drawImage(hg, ox + hi * cs - gs / 2, oy - gs / 2, gs, gs);
+        if (!b.lite) {
+          const hg = glowOf(PAL_WHITE);
+          const gs = hs * 0.55;
+          ctx.drawImage(hg, ox - lo * cs - gs / 2, oy - gs / 2, gs, gs);
+          ctx.drawImage(hg, ox + hi * cs - gs / 2, oy - gs / 2, gs, gs);
+        }
       }
       if (!b.horizontal) ctx.setTransform(1, 0, 0, 1, offX, offY);
     }
@@ -1824,6 +1898,8 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       const p = t / r.dur;
       const e = 1 - (1 - p) * (1 - p) * (1 - p);
       const rad = (r.r0 + (r.r1 - r.r0) * e) * cs;
+      if (spent > budget) break;
+      spent += rad * rad * 4;
       ctx.globalAlpha = r.alpha * (1 - p) * (1 - p * 0.4);
       ctx.drawImage(ringOf(r.color), bx + r.x * cs - rad, by + r.y * cs - rad, rad * 2, rad * 2);
     }
@@ -1836,6 +1912,8 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       const p = t / f.dur;
       const e = 1 - (1 - p) * (1 - p);
       const size = (f.s0 + (f.s1 - f.s0) * e) * cs;
+      if (spent > budget) break;
+      spent += size * size;
       // flares: full at once, then out; ray bursts: a short rise first
       ctx.globalAlpha = f.alpha * (f.rays ? (p < 0.15 ? p / 0.15 : 1 - (p - 0.15) / 0.85) : 1 - p * p);
       const rot = f.rot + f.spin * p;
@@ -2037,6 +2115,8 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     },
     setLowEnd(on) {
       particleCap = on ? FEEDBACK.maxParticlesLow : FEEDBACK.maxParticles;
+      // takes effect at the next layout()
+      dprCap = on ? DPR_CAP_LOW : DPR_CAP;
     },
     step,
     draw,

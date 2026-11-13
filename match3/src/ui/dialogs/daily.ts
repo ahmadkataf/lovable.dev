@@ -1,11 +1,16 @@
 /**
  * Daily reward: the 7-day strip (past days ticked, today highlighted, the rest dimmed) with the
  * reward icons, and a Claim button that grants today's reward and shows what was received.
+ * Once claimed, the dialog counts down to the next local midnight — and turns to the new day's
+ * reward by itself when midnight passes while it is open.
  */
 import { msUntilNextLocalDay } from '../../state/index.ts';
 import type { DailyStatus, Reward } from '../../state/types.ts';
 import { rewardView } from '../helpers.ts';
 import type { Ui } from '../types.ts';
+
+/** How long Done ignores presses after it has taken Claim's place. */
+const DONE_ARM_MS = 450;
 
 export function openDailyDialog(ui: Ui): Promise<void> {
   const { kit, ctx } = ui;
@@ -15,10 +20,13 @@ export function openDailyDialog(ui: Ui): Promise<void> {
 
   const strip = h('div', { class: 'm-daily__strip' });
   const result = h('div', { class: 'm-daily__result' });
-  const foot = h('div', { class: 'm-daily__foot' });
-  const body = h('div', { class: 'm-daily' }, strip, result, kit.text(t('meta.daily.hint'), 'k-text--center k-text--muted k-text--sm'), foot);
+  const hint = kit.text(t('meta.daily.hint'), 'k-text--center k-text--muted k-text--sm m-daily__hint');
   const waitClock = h('span', { class: 'k-num' });
+  const wait = h('div', { class: 'm-daily__wait' }, h('span', { class: 'k-countdown' }, kit.icon('calendar', 20), h('span', { class: 'k-countdown__label', text: t('meta.daily.next') }), waitClock));
+  const body = h('div', { class: 'm-daily' }, strip, result, hint, wait);
   let justClaimed = -1;
+  /** Done answers only from this moment on (see claimNow). */
+  let doneArmedAt = 0;
 
   function rewardNode(reward: Reward, size: number): HTMLElement {
     const view = rewardView(t, i18n.num, reward);
@@ -60,62 +68,57 @@ export function openDailyDialog(ui: Ui): Promise<void> {
     }
   }
 
-  function renderFoot(s: DailyStatus): void {
-    kit.clear(foot);
-    if (s.canClaim) {
-      const claim = kit.button({
-        label: t('common.claim'),
-        icon: 'gift',
-        size: 'lg',
-        block: true,
-        shine: true,
-        silent: true,
-        onClick: () => {
-          const day = status().cycleDay;
-          let got: Reward[] | null = null;
-          try {
-            got = profile.claimDaily();
-          } catch (err) {
-            console.error('[daily] claim failed', err);
-          }
-          if (!got) {
-            render();
-            return;
-          }
-          justClaimed = day;
-          try {
-            audio.sfx('reward');
-            platform.haptic('success');
-          } catch {
-            // feedback is a nicety
-          }
-          kit.clear(result);
-          result.appendChild(h('div', { class: 'm-daily__got', text: t('meta.daily.received') }));
-          result.appendChild(
-            h(
-              'div',
-              { class: 'm-daily__gotrow' },
-              got.map((r) => {
-                const view = rewardView(t, i18n.num, r);
-                return h('span', { class: 'm-daily__gotitem' }, kit.icon(view.icon, 30), h('span', { text: view.text }));
-              }),
-            ),
-          );
-          result.classList.add('m-daily__result--on');
-          render();
-        },
-      });
-      claim.dataset.act = 'daily-claim';
-      foot.appendChild(claim);
-    } else {
-      // the time to the next local midnight, kept current by the ticker below
-      waitClock.textContent = i18n.clock(msUntilNextLocalDay(Date.now()));
-      foot.appendChild(h('div', { class: 'm-daily__wait' }, h('span', { class: 'k-countdown' }, kit.icon('calendar', 20), h('span', { class: 'k-countdown__label', text: t('meta.daily.next') }), waitClock)));
-      const ok = kit.button({ label: t('common.done'), variant: 'secondary', block: true, onClick: () => dialog.close() });
-      ok.dataset.act = 'daily-done';
-      foot.appendChild(ok);
+  function claimNow(): void {
+    const day = status().cycleDay;
+    let got: Reward[] | null = null;
+    try {
+      got = profile.claimDaily();
+    } catch (err) {
+      console.error('[daily] claim failed', err);
     }
+    if (!got) {
+      render();
+      return;
+    }
+    justClaimed = day;
+    try {
+      audio.sfx('reward');
+      platform.haptic('success');
+    } catch {
+      // feedback is a nicety
+    }
+    kit.clear(result);
+    result.appendChild(h('div', { class: 'm-daily__got', text: t('meta.daily.received') }));
+    result.appendChild(
+      h(
+        'div',
+        { class: 'm-daily__gotrow' },
+        got.map((r) => {
+          const view = rewardView(t, i18n.num, r);
+          return h('span', { class: 'm-daily__gotitem' }, kit.icon(view.icon, 30), h('span', { text: view.text }));
+        }),
+      ),
+    );
+    result.classList.add('m-daily__result--on');
+    // Done now stands where Claim was: the second tap of a double tap on Claim must not close the dialog
+    doneArmedAt = Date.now() + DONE_ARM_MS;
+    render();
   }
+
+  // The dialog's footer always holds the one button that applies: Claim, or Done once claimed.
+  const claimButton = kit.button({ label: t('common.claim'), icon: 'gift', size: 'lg', shine: true, silent: true, onClick: claimNow });
+  claimButton.dataset.act = 'daily-claim';
+  const doneButton = kit.button({
+    label: t('common.done'),
+    variant: 'secondary',
+    onClick: () => {
+      const now = Date.now();
+      // (a clock that was set back must not lock the button)
+      if (now < doneArmedAt && doneArmedAt - now <= DONE_ARM_MS) return;
+      dialog.close();
+    },
+  });
+  doneButton.dataset.act = 'daily-done';
 
   let shownCanClaim: boolean | null = null;
 
@@ -123,7 +126,12 @@ export function openDailyDialog(ui: Ui): Promise<void> {
     const s = status();
     shownCanClaim = s.canClaim;
     renderStrip(s);
-    renderFoot(s);
+    claimButton.classList.toggle('m-hidden', !s.canClaim);
+    doneButton.classList.toggle('m-hidden', s.canClaim);
+    wait.classList.toggle('m-hidden', s.canClaim);
+    // right after claiming, "you received …" stands where the hint was
+    hint.classList.toggle('m-hidden', !s.canClaim && result.classList.contains('m-daily__result--on'));
+    if (!s.canClaim) waitClock.textContent = i18n.clock(msUntilNextLocalDay(Date.now()));
   }
 
   /**
@@ -153,6 +161,8 @@ export function openDailyDialog(ui: Ui): Promise<void> {
     title: t('meta.daily.title'),
     icon: 'gift',
     body,
+    buttons: [doneButton, claimButton],
+    buttonLayout: 'column',
     className: 'm-dialog-daily',
     onClose: () => stopTicker(),
   });

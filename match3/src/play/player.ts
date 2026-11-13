@@ -378,7 +378,14 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     }
   }
 
-  function launch(fx: Fx): void {
+  /**
+   * `crowd`: how many effects fire in the same instant. Light is expensive (every glow is a big
+   * blended quad): one special gets the full show, a board full of them shares it.
+   */
+  function launch(fx: Fx, crowd: number, index: number): void {
+    const lite = crowd > 3;
+    /** in a crowd only the first few get their shock-wave ring (the lit tiles show every blast's reach) */
+    const ringed = !lite || index < 3;
     const cols = view.cols();
     const rows = view.rows();
     const ac = fx.at.c;
@@ -397,16 +404,18 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
       case 'beamV': {
         // a lance of light: a star flashes where it fires, two heads race to the board's edges
         const horizontal = fx.kind === 'beamH';
-        view.beam(x, y, horizontal, color, 1.2, sweep);
-        view.glow(x, y, 0.8, 2.8, d(240), PAL_WHITE, 0.95);
-        view.flare(x, y, 3.4, d(300), 1, 0, horizontal ? 0 : Math.PI / 2);
-        view.ring(x, y, 0.3, 1.3, d(240), color, 0.8);
-        view.burst(x, y, PAL_GOLD, 6, 5, SHAPE_SPARK, { size: 0.36, gravity: 0, additive: true, life: 360 });
+        view.beam(x, y, horizontal, color, 1.2, sweep, 1, lite);
+        view.flare(x, y, lite ? 2.2 : 3.4, d(300), 1, 0, horizontal ? 0 : Math.PI / 2);
+        if (!lite) {
+          view.glow(x, y, 0.8, 2.8, d(240), PAL_WHITE, 0.95);
+          view.ring(x, y, 0.3, 1.3, d(240), color, 0.8);
+          view.burst(x, y, PAL_GOLD, 6, 5, SHAPE_SPARK, { size: 0.36, gravity: 0, additive: true, life: 360 });
+        }
         for (let i = 0; i < targets.length; i++) {
           const t = targets[i] as Pos;
           arrive(t.c, t.r, horizontal ? hTime(t) : vTime(t));
         }
-        lightTiles(targets, color, 0.7);
+        lightTiles(targets, color, lite ? 0.5 : 0.7);
         view.framePulse(0.55, 380);
         view.shake(FEEDBACK.shakeSmall, T.shakeSmall);
         break;
@@ -425,9 +434,9 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           view.beam(x, y, true, color, 1.6, sweep);
           view.beam(x, y, false, color, 1.6, sweep);
         }
-        view.glow(x, y, 1, big ? 5 : 4, d(300), color, 0.8);
-        view.rays(x, y, 1.4, big ? 8.5 : 6.5, d(T.bigBlast), 0.85);
-        view.flare(x, y, big ? 5.5 : 4.4, d(340), 1);
+        view.glow(x, y, 1, big ? 4.4 : 3.6, d(300), color, 0.8);
+        if (!lite) view.rays(x, y, 1.4, big ? 6.4 : 5.2, d(T.bigBlast), 0.85);
+        view.flare(x, y, big ? 5 : 4, d(340), 1);
         view.ring(x, y, 0.4, big ? 4.6 : 3.2, d(T.bigBlast), color, 0.95);
         view.burst(x, y, PAL_GOLD, 12, 7, SHAPE_SPARK, { size: 0.4, gravity: 0, additive: true, life: 400 });
         for (let i = 0; i < targets.length; i++) {
@@ -452,12 +461,14 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
         const big = fx.kind === 'bigNova';
         const radius = big ? 4.6 : 2.9;
         const dur = d(big ? T.bigBlast : T.novaBlast);
-        view.glow(x, y, 1, big ? radius * 1.15 : radius * 1.5, dur * 0.9, PAL_WHITE, big ? 0.85 : 0.95);
-        view.rays(x, y, 1.2, radius * 2.5, dur, big ? 0.95 : 0.85);
-        view.flare(x, y, big ? 5 : 3.6, dur * 0.9, 1);
-        view.ring(x, y, 0.3, radius, dur, color, 1);
-        view.burst(x, y, color, big ? 20 : 12, big ? 9 : 6.5, SHAPE_CHUNK, { size: 0.3, gravity: 5, life: 400 });
-        view.burst(x, y, PAL_GOLD, big ? 10 : 6, big ? 8 : 5.5, SHAPE_SPARK, { size: 0.38, gravity: 0, additive: true, life: 380 });
+        if (!lite) {
+          view.glow(x, y, 1, big ? radius * 0.9 : radius * 1.2, dur * 0.9, PAL_WHITE, big ? 0.85 : 0.95);
+          view.rays(x, y, 1.2, radius * 1.9, dur, big ? 0.95 : 0.85);
+        }
+        view.flare(x, y, lite ? 2.4 : big ? 5 : 3.6, dur * 0.9, 1);
+        if (ringed) view.ring(x, y, 0.3, radius, dur, color, lite ? 0.85 : 1);
+        view.burst(x, y, color, lite ? 5 : big ? 20 : 12, big ? 9 : 6.5, SHAPE_CHUNK, { size: 0.3, gravity: 5, life: 400 });
+        if (!lite) view.burst(x, y, PAL_GOLD, big ? 10 : 6, big ? 8 : 5.5, SHAPE_SPARK, { size: 0.38, gravity: 0, additive: true, life: 380 });
         if (big) {
           view.ring(x, y, 0.5, radius * 1.25, dur * 1.2, PAL_GOLD, 0.7, dur * 0.3);
           flashOnce(0.22);
@@ -467,7 +478,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           const t = targets[i] as Pos;
           arrive(t.c, t.r, ringTime(Math.hypot(t.c - ac, t.r - ar), radius, dur));
         }
-        lightTiles(targets, color, 0.75);
+        lightTiles(targets, color, lite ? 0.55 : 0.75);
         view.framePulse(big ? 1 : 0.6, big ? 520 : 400);
         view.shake(big ? FEEDBACK.shakeBig : FEEDBACK.shakeSmall, big ? T.shakeBig : T.shakeSmall);
         break;
@@ -475,8 +486,8 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
       case 'prism': {
         // the prism sends a comet of light to every gem of the colour, one after the other
         const flight = d(T.prismFlight);
-        view.glow(x, y, 1, 3.4, d(360), PAL_WHITE, 1);
-        view.rays(x, y, 1, 4.2, d(420), 0.9);
+        view.glow(x, y, 1, lite ? 2.2 : 3.2, d(360), PAL_WHITE, 1);
+        if (!lite) view.rays(x, y, 1, 3.8, d(420), 0.9);
         view.flare(x, y, 3.2, d(360), 1);
         view.ring(x, y, 0.3, 1.8, d(300), color, 0.9);
         for (let i = 0; i < targets.length; i++) {
@@ -484,7 +495,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           const delay = d(prismRayDelay(i, targets.length));
           const rayColor = fx.color >= 0 ? fx.color : i % 6;
           view.ray(x, y, t.c + 0.5, t.r + 0.5, flight, delay, rayColor);
-          view.flare(t.c + 0.5, t.r + 0.5, 1.5, 200, 0.95, delay + flight);
+          if (targets.length <= 14 || i % 2 === 0) view.flare(t.c + 0.5, t.r + 0.5, 1.5, 200, 0.95, delay + flight);
           arrive(t.c, t.r, delay + flight);
         }
         lightTiles(targets, color, 0.7);
@@ -502,8 +513,8 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           if (dist > radius) radius = dist;
         }
         radius += 0.8;
-        view.glow(x, y, 1, 4.2, dur * 0.7, PAL_WHITE, 0.9);
-        view.rays(x, y, 1.5, radius * 2.4, dur * 0.9, 1);
+        view.glow(x, y, 1, 4, dur * 0.7, PAL_WHITE, 0.9);
+        view.rays(x, y, 1.5, radius * 1.5, dur * 0.9, 1);
         view.flare(x, y, 6, dur * 0.7, 1);
         view.ring(x, y, 0.4, radius, dur, PAL_GOLD, 1);
         for (let k = 0; k < 6; k++) view.burst(x, y, k, 4, 9, SHAPE_SHARD, { size: 0.3, gravity: 2, life: 400 });
@@ -636,7 +647,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     let sound: SfxName | null = null;
     for (let i = 0; i < step.fx.length; i++) {
       const fx = step.fx[i] as Fx;
-      launch(fx);
+      launch(fx, step.fx.length, i);
       const cell = cellIndex(fx.at.c, fx.at.r);
       const vp = armed.get(cell);
       if (vp) {

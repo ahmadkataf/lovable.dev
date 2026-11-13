@@ -545,7 +545,7 @@ describe('events out of order', () => {
     expect(book.open()).toEqual(['r']);
     await vi.advanceTimersByTimeAsync(SECOND);
     expect(book.values('r')).toEqual([0]);
-    expect(RESTORE_WATCHDOG_MS).toBeGreaterThan(20 * SECOND); // the wrapper may need 20 s to connect before it can answer
+    expect(RESTORE_WATCHDOG_MS).toBeGreaterThan(30 * SECOND); // the wrapper may need 30 s to connect before it can answer
     // a stale 'purchased' of an old token while a NEW purchase of the same pack is open
     void book.track('b', session.store.buy('coins_small'));
     session.send(purchased('coins_small', 'mine'));

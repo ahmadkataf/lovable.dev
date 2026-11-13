@@ -118,6 +118,14 @@ export function createShell(deps: ShellDeps): Shell {
 
   const stage = kit.el('div', { class: 'm-stage' });
   root.appendChild(stage);
+  // ?still=1 (screenshots): no endless animation anywhere, in screens and dialogs alike
+  if (flags.still) {
+    try {
+      document.documentElement.classList.add('k-still', 'm-still');
+    } catch {
+      // no document element: nothing to hold still
+    }
+  }
 
   let kind: ScreenKind | null = null;
   let active: Screen | null = null;
