@@ -763,13 +763,14 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       raysImg = makeCanvas(size, size);
       const g = raysImg.getContext('2d') as CanvasRenderingContext2D;
       const m = size / 2;
-      const grad = g.createRadialGradient(m, m, 0, m, m, m);
+      // (a gradient lives in the coordinate space it is used in: centre it on the origin, after the translate)
+      g.translate(m, m);
+      const grad = g.createRadialGradient(0, 0, 0, 0, 0, m);
       grad.addColorStop(0, 'rgba(255,255,255,0.95)');
       grad.addColorStop(0.25, 'rgba(255,244,205,0.6)');
       grad.addColorStop(0.7, 'rgba(255,224,150,0.18)');
       grad.addColorStop(1, 'rgba(255,220,140,0)');
       g.fillStyle = grad;
-      g.translate(m, m);
       const n = 16;
       for (let k = 0; k < n; k++) {
         const len = m * (k % 2 === 0 ? 1 : 0.62) * (k % 4 === 1 ? 0.85 : 1);

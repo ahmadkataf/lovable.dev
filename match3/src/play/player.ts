@@ -83,6 +83,8 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
   const armed = new Map<number, VPiece>();
   let lastSwapB: Pos | null = null;
   let lastFlash = -1e9;
+  /** how long a score label lives (shorter during the finale, where many go up at once) */
+  let popupLife: number = T.scorePopup;
 
   function d(ms: number): number {
     const s = speed();
@@ -693,10 +695,22 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     // a chain in full swing: the frame of the board glows brighter with every step
     if (hasMatch && step.cascade >= 2) view.framePulse(Math.min(1, 0.25 + 0.15 * step.cascade), 340);
     if (step.score > 0) host.addScore(step.score);
-    for (let i = 0; i < step.popups.length; i++) {
+    // score labels: when a wave earns many at once only the largest are written out (the header
+    // counts every point anyway) — a board covered in numbers reads as noise
+    let least = 0;
+    if (step.popups.length > FEEDBACK.maxPopups) {
+      const values: number[] = [];
+      for (let i = 0; i < step.popups.length; i++) values.push((step.popups[i] as { value: number }).value);
+      values.sort((p, q) => q - p);
+      least = values[FEEDBACK.maxPopups - 1] as number;
+    }
+    let shown = 0;
+    for (let i = 0; i < step.popups.length && shown < FEEDBACK.maxPopups; i++) {
       const p = step.popups[i] as { at: Pos; value: number };
+      if (p.value < least) continue;
+      shown++;
       const delay = arrival.get(cellIndex(p.at.c, p.at.r)) || 0;
-      view.popup(p.at.c + 0.5, p.at.r + 0.35, p.value, T.scorePopup, T.scorePopupFade, delay + d(T.popGrow), p.value >= 300 || step.cascade >= 3);
+      view.popup(p.at.c + 0.5, p.at.r + 0.35, p.value, popupLife, Math.min(T.scorePopupFade, popupLife * 0.4), delay + d(T.popGrow), p.value >= 300 || step.cascade >= 3);
     }
     for (let i = 0; i < step.created.length; i++) {
       const made = step.created[i] as CreatedSpecial;
@@ -867,7 +881,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
         last = host.flyMove(x, y, flight).then(() => {
           const vp = view.piece(change.piece.id);
           if (vp) morphPop(vp, change.piece, x, y);
-          view.popup(x, y - 0.3, Math.round(each), T.scorePopup, T.scorePopupFade, 0, false);
+          view.popup(x, y - 0.3, Math.round(each), 380, 160, 0, false);
           host.addScore(Math.round(each));
           host.sfx('createBeam', { volume: 0.6 });
         });
@@ -1091,6 +1105,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
       const my = ++token;
       speed = opts.speed || one;
       finaleBudget = opts.finaleBudget || 2400;
+      popupLife = opts.finaleBudget ? 460 : T.scorePopup;
       return new Promise<void>((resolve) => {
         current = { resolve, snapshot };
         host.kick();

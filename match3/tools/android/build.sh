@@ -5,16 +5,18 @@
 #                          [--skip-web] [-- extra gradle arguments]
 #
 #     debug     debuggable APK with the diagnostics page          → zumurud-<version>-<flavour>-debug.apk
+#               (the ads flavour's debug build always shows Google's test ads, never real ones)
 #     release   R8-optimised APK for testing on a device          → zumurud-<version>-<flavour>.apk
 #     bundle    Android App Bundle, the file Google Play wants    → zumurud-<version>-<flavour>.aab
 #     all       release + bundle (default)
 #
 #   --flavor plain   purchases (Google Play Billing), no ad SDK                      (default)
-#   --flavor ads     purchases + AdMob ads. Needs the three AdMob ids: ADMOB_APP_ID, ADMOB_REWARDED_ID,
-#                    ADMOB_INTERSTITIAL_ID as environment variables, in android/admob.properties
-#                    (see admob.properties.example) or as -P properties after "--".
-#   --allow-test-ads build the ads flavour without those ids: Google's sample ids, test ads only.
-#                    The files are named "…-TESTADS" and must never be uploaded.
+#   --flavor ads     purchases + AdMob ads. A release needs the three AdMob ids: ADMOB_APP_ID,
+#                    ADMOB_REWARDED_ID, ADMOB_INTERSTITIAL_ID as environment variables, in
+#                    android/admob.properties (see admob.properties.example) or as -P properties after "--".
+#   --allow-test-ads build a release of the ads flavour with Google's sample ids instead (test ads
+#                    only), whether or not real ids are configured — for trying a release build on
+#                    a device. The files are named "…-TESTADS" and must never be uploaded.
 #   --skip-web       reuse the existing ../dist instead of running `npm run build`
 #
 # Results are copied to android/out/. Version and application id come from android/gradle.properties
@@ -59,7 +61,7 @@ case "$flavour" in
 esac
 if [ "$allow_test_ads" -eq 1 ]; then
   [ "$flavour" = "ads" ] || { echo "build.sh: --allow-test-ads only makes sense with --flavor ads" >&2; exit 2; }
-  gradle_args+=("-PallowTestAds=true")
+  gradle_args+=("-PuseSampleAdIds=true" "-PallowTestAds=true")
 fi
 
 if [ -z "${ANDROID_HOME:-}" ] && [ -z "${ANDROID_SDK_ROOT:-}" ] && [ ! -f "$ANDROID/local.properties" ]; then
@@ -124,7 +126,6 @@ ads="$(value ads)"
 [ -n "$version" ] || { echo "build.sh: could not read the version from Gradle" >&2; exit 1; }
 suffix=""
 if [ "$flavour" = "ads" ] && [ "$ads" != "real-ids" ]; then suffix="$suffix-TESTADS"; fi
-debug_suffix="$suffix"
 if [ "$signing" != "upload-key" ]; then suffix="$suffix-DEBUGSIGNED"; fi
 
 mkdir -p "$OUT"
@@ -135,7 +136,7 @@ copy() { # copy <source> <target name>
 }
 echo "── outputs"
 case "$what" in
-  debug) copy "app/build/outputs/apk/$flavour/debug/app-$flavour-debug.apk" "zumurud-$version-$flavour$debug_suffix-debug.apk" ;;
+  debug) copy "app/build/outputs/apk/$flavour/debug/app-$flavour-debug.apk" "zumurud-$version-$flavour-debug.apk" ;;
 esac
 case "$what" in
   release|all) copy "app/build/outputs/apk/$flavour/release/app-$flavour-release.apk" "zumurud-$version-$flavour$suffix.apk" ;;
@@ -145,10 +146,12 @@ case "$what" in
 esac
 
 echo "   applicationId $(value applicationId), versionCode $(value versionCode), targetSdk $(value targetSdk), flavour $flavour, signing: $signing"
-if [ "$flavour" = "ads" ] && [ "$ads" != "real-ids" ]; then
+if [ "$flavour" = "ads" ] && [ "$what" = "debug" ]; then
+  echo "   (debug builds of the ads flavour always use Google's sample ad ids: test ads only)"
+elif [ "$flavour" = "ads" ] && [ "$ads" != "real-ids" ]; then
   echo
-  echo "   NOTE: no AdMob ids are configured: these files use Google's SAMPLE ids and show test ads only."
-  echo "         NEVER UPLOAD them. Set ADMOB_APP_ID, ADMOB_REWARDED_ID and ADMOB_INTERSTITIAL_ID for a real build."
+  echo "   NOTE: these files use Google's SAMPLE ad ids and show test ads only. NEVER UPLOAD them."
+  echo "         A real build needs ADMOB_APP_ID, ADMOB_REWARDED_ID and ADMOB_INTERSTITIAL_ID and no --allow-test-ads."
 fi
 if [ "$signing" != "upload-key" ] && [ "$what" != "debug" ]; then
   echo

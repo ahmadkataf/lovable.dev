@@ -4,12 +4,14 @@
 #
 # Flavour:
 #   plain  purchases only (Google Play Billing), no ad SDK
-#   ads    purchases + AdMob ads. Needs three repository VARIABLES (Settings → Secrets and variables →
-#          Actions → Variables); they are not secrets:
+#   ads    purchases + AdMob ads. Needs the three AdMob ids (they are not secrets), as repository
+#          VARIABLES (Settings → Secrets and variables → Actions → Variables):
 #            ADMOB_APP_ID           ca-app-pub-0000000000000000~0000000000
 #            ADMOB_REWARDED_ID      ca-app-pub-0000000000000000/0000000000
 #            ADMOB_INTERSTITIAL_ID  ca-app-pub-0000000000000000/0000000000
-#          Without them the ads flavour is refused (it would ship test ads).
+#          A variable wins over the same name in match3/android/admob.properties, which is used for
+#          any id that has no variable. With an id in neither place the ads flavour is refused
+#          (it would ship test ads).
 #
 # Signing uses the upload key from the repository SECRETS:
 #   ZUMURUD_KEYSTORE_BASE64    the upload keystore file, base64-encoded (base64 -w0 upload.jks)
@@ -76,12 +78,15 @@ jobs:
             ''|*[!0-9A-Za-z._-]*) echo "::error::version_name may only contain letters, digits, dots, dashes and underscores."; exit 1 ;;
           esac
           if [ "$FLAVOUR" = "ads" ]; then
+            # Each id: the repository variable, or else the same name in android/admob.properties.
             missing=""
-            [ -n "$ADMOB_APP_ID" ] || missing="$missing ADMOB_APP_ID"
-            [ -n "$ADMOB_REWARDED_ID" ] || missing="$missing ADMOB_REWARDED_ID"
-            [ -n "$ADMOB_INTERSTITIAL_ID" ] || missing="$missing ADMOB_INTERSTITIAL_ID"
+            for name in ADMOB_APP_ID ADMOB_REWARDED_ID ADMOB_INTERSTITIAL_ID; do
+              if [ -z "$(printenv "$name" || true)" ] && ! grep -Eq "^[[:space:]]*$name[[:space:]]*=[[:space:]]*[^[:space:]]" android/admob.properties 2>/dev/null; then
+                missing="$missing $name"
+              fi
+            done
             if [ -n "$missing" ]; then
-              echo "::error::The ads flavour needs the repository variables$missing (Settings → Secrets and variables → Actions → Variables). Without them the app would ship test ads only."
+              echo "::error::The ads flavour needs the AdMob ids:$missing missing. Set them as repository variables (Settings → Secrets and variables → Actions → Variables) or in match3/android/admob.properties. Without them the app would ship test ads only."
               exit 1
             fi
           fi

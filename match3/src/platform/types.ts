@@ -47,6 +47,12 @@ export interface PlatformApi {
 export interface AndroidBridge extends Partial<MonetizeBridge> {
   /** "" when nothing saved. */
   loadSave(): string;
+  /**
+   * Keep `json` as the save. After it returns, `loadSave()` must hand out exactly this text — the
+   * game reads it back before it finishes a real-money purchase (src/monetize), and takes a
+   * different answer as "the save was not stored". Before the wrapper consumes or acknowledges a
+   * purchase (`iapFinish`) the text must also be on disk, not merely queued for writing.
+   */
   storeSave(json: string): void;
   haptic(kind: string): void;
   setAtRoot(atRoot: boolean): void;

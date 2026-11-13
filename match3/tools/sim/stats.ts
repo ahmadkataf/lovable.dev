@@ -105,6 +105,7 @@ export const AD_MOVES = 3;
  */
 export function movesWindow(level: LevelDef): readonly [min: number, max: number] {
   if (level.id <= 5) return [12, 24];
+  if (level.tutorial !== undefined) return [12, 30];
   if (level.id <= 10) return [16, 30];
   if (level.hard === true) return [18, 28];
   if (level.id <= 20) return [18, 36];

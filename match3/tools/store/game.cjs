@@ -15,7 +15,9 @@
  *   makeSave(opts)                    a save for a player who has cleared levels 1..reached
  *   openGame(browser, opts)           a page with the game booted            → page
  *   startLevel(page, level, picks)    map → level intro → (tap boosters) → Play, as a player does
+ *   pickLevels(page, want)            the shipped levels that fit a scene, best first
  *   planMoment(page, spec)            look ahead with the game's own engine for a move worth showing
+ *   planWin(page, spec)               a line of play (the engine's own hints) that wins the level
  *   burst(page, trigger, opts)        genuine frames of the running effect   → [{ png, t }]
  */
 const { sleep } = require('./lib.cjs');
@@ -30,24 +32,29 @@ function dayNumber(ms) {
 
 const TIP_IDS = ['match', 'collect', 'beam', 'nova', 'prism', 'combo', 'sand', 'sand2', 'stone', 'lamp', 'chain', 'vine'];
 
-/** Stars of an already cleared level: a believable mix (about half 3★, a third 2★, the rest 1★). */
+/** Stars of an already cleared level: a believable mix (two in three 3★, the rest mostly 2★). */
+const STAR_CYCLE = [3, 3, 2, 3, 3, 1, 3, 2, 3, 3, 2, 3];
 function starsFor(level) {
-  const v = (level * 37 + ((level * level) % 11) * 5) % 20;
-  return v < 10 ? 3 : v < 17 ? 2 : 1;
+  return STAR_CYCLE[(level - 1) % STAR_CYCLE.length];
 }
 
+/** The level a booster appears at, with its introduction gift (src/state/econ.ts, docs/DESIGN.md §5). */
+const BOOSTER_UNLOCK = { beamNova: 7, hammer: 8, freeSwap: 12, prism: 14, shuffle: 16, extraMoves: 19 };
+const BOOSTER_ORDER = ['beamNova', 'hammer', 'freeSwap', 'prism', 'shuffle', 'extraMoves'];
+/** What a player who uses a booster now and then still holds. */
+const BOOSTER_STOCK = { hammer: 3, freeSwap: 2, shuffle: 2, extraMoves: 2, prism: 2, beamNova: 2 };
+
 /**
- * A save for a player in mid-journey (field names: src/state/types.ts SaveData):
- * levels 1..reached cleared with mixed stars, every tip seen, every booster introduced.
+ * A save for a player in mid-journey (field names: src/state/types.ts SaveData): levels 1..reached
+ * cleared with mixed stars, every tip seen, and exactly the boosters such a player has met.
  *   reached       last cleared level (the next one is the player's current level)
  *   coins, lives  balance and lives (5 = full)
- *   boosters      inventory
  *   caravan       wins in a row (the Caravan streak)
  *   daily         'claimed' (today's gift already taken — nothing pops up) or 'ready' (a gift waits)
  *   dailyStreak   days claimed in a row before today
  */
 function makeSave(opts) {
-  const o = Object.assign({ reached: 46, coins: 3450, lives: 5, boosters: {}, caravan: 0, daily: 'claimed', dailyStreak: 3 }, opts || {});
+  const o = Object.assign({ reached: 46, coins: 3450, lives: 5, caravan: 0, daily: 'claimed', dailyStreak: 3 }, opts || {});
   const now = Date.now();
   const today = dayNumber(now);
   const levels = {};
@@ -57,21 +64,29 @@ function makeSave(opts) {
     levels[i] = { stars, best: 3000 + ((i * 373) % 4000) + stars * 1500 };
     total += levels[i].best;
   }
+  const boosters = {};
+  const gifted = [];
+  for (const id of BOOSTER_ORDER) {
+    const met = o.reached + 1 >= BOOSTER_UNLOCK[id];
+    boosters[id] = met ? BOOSTER_STOCK[id] : 0;
+    if (met) gifted.push(id);
+  }
   return {
     version: 1,
     levels,
     coins: o.coins,
     lives: o.lives,
     lifeTimer: o.lives >= 5 ? 0 : now - 400000,
-    boosters: Object.assign({ hammer: 3, freeSwap: 2, shuffle: 2, extraMoves: 2, prism: 2, beamNova: 2 }, o.boosters),
+    boosters,
     settings: { sfx: true, music: true, haptics: true, lang: null },
     dailyDay: o.daily === 'ready' ? today - 1 : today,
     dailyStreak: o.dailyStreak,
     seen: TIP_IDS.map((id) => 'tut.' + id),
     stats: { played: o.reached + 9, won: o.reached, bestCascade: 6, totalScore: total },
     firstDay: today - 30,
-    gifted: ['beamNova', 'hammer', 'freeSwap', 'prism', 'shuffle', 'extraMoves'],
-    caravan: o.caravan,
+    gifted,
+    // the streak only exists once the Caravan has been met (level 20)
+    caravan: o.reached + 1 >= 20 ? o.caravan : 0,
   };
 }
 
@@ -180,15 +195,19 @@ async function planMoment(page, spec) {
     const isSpecial = (k) => k === 'beamH' || k === 'beamV' || k === 'nova' || k === 'prism';
 
     function stats(result, before) {
-      const out = { fx: {}, fxCount: 0, cascades: 0, pieces: 0, created: 0, firstFx: [], status: result.snapshot.status, specialsLeft: 0, cells: before.cells.length };
+      const out = { fx: {}, fxCount: 0, cascades: 0, pieces: 0, created: 0, firstFx: [], early: false, status: result.snapshot.status, specialsLeft: 0, cells: before.cells.length };
       let firstActivate = true;
+      let fell = false;
       for (const step of result.steps) {
+        if (step.type === 'fall') fell = true;
         if (step.type === 'activate') {
           for (const fx of step.fx) {
             out.fx[fx.kind] = (out.fx[fx.kind] || 0) + 1;
             out.fxCount++;
             if (firstActivate) out.firstFx.push(fx.kind);
           }
+          // the special goes off with the move itself, not somewhere down a cascade
+          if (firstActivate) out.early = !fell;
           firstActivate = false;
         } else if (step.type === 'transform' && step.reason === 'prismCombo') {
           out.fx.prismCombo = (out.fx.prismCombo || 0) + 1;
@@ -210,7 +229,7 @@ async function planMoment(page, spec) {
       let v = -1;
       if (wish === 'beam') {
         // a single beam opens the move (not a swap combo), and it sets off other specials
-        if (st.firstFx.length === 1 && (st.firstFx[0] === 'beamH' || st.firstFx[0] === 'beamV') && !n('cross') && !n('bigCross') && !n('prismAll') && !n('prismCombo')) {
+        if (st.early && st.firstFx.length === 1 && (st.firstFx[0] === 'beamH' || st.firstFx[0] === 'beamV') && !n('cross') && !n('bigCross') && !n('prismAll') && !n('prismCombo')) {
           v = 20 + 14 * Math.min(4, st.fxCount - 1) + Math.min(30, st.pieces) + 4 * Math.min(3, st.specialsLeft);
         }
       } else if (wish === 'cross') {
@@ -253,6 +272,83 @@ async function planMoment(page, spec) {
       };
       visit(root, []);
       if (best && best.score >= s.min) return best;
+    }
+    return best;
+  }, spec);
+}
+
+/**
+ * The shipped levels that fit a scene's wish (shots-config.cjs `level`), best first. Runs in the
+ * page, on the game's own level list. → [{ id, chapter, theme, cols, rows, kinds: [...] }]
+ */
+async function pickLevels(page, want) {
+  return page.evaluate((w) => {
+    const world = window.__app.world;
+    const out = [];
+    const chapters = w.chapters || [1, 2, 3, 4, 5, 6];
+    for (const level of world.levels) {
+      const chapter = world.chapters.find((c) => level.id >= c.from && level.id <= c.to);
+      if (!chapter || chapters.indexOf(chapter.index + 1) < 0) continue;
+      if (w.from && level.id < w.from) continue;
+      const pieces = level.pieces.join('');
+      const floor = (level.floor || []).join('');
+      const kinds = [];
+      if (/[123]/.test(pieces)) kinds.push('stone');
+      if (/c/.test(pieces)) kinds.push('chain');
+      if (/v/.test(pieces)) kinds.push('vine');
+      if (/L/.test(pieces) || level.lamps) kinds.push('lamp');
+      if (/[12]/.test(floor)) kinds.push('sand');
+      if (w.plain && kinds.length > 0) continue;
+      if (w.need && !w.need.every((k) => kinds.indexOf(k) >= 0)) continue;
+      const preferred = (w.prefer || []).indexOf(level.id);
+      out.push({
+        id: level.id,
+        chapter: chapter.index + 1,
+        theme: chapter.theme,
+        cols: level.cols,
+        rows: level.rows,
+        kinds,
+        order: [chapters.indexOf(chapter.index + 1), preferred >= 0 ? preferred : 999, w.rich ? -kinds.length : 0, Math.abs(level.cols - 8), level.id],
+      });
+    }
+    out.sort((a, b) => {
+      for (let i = 0; i < a.order.length; i++) if (a.order[i] !== b.order[i]) return a.order[i] - b.order[i];
+      return 0;
+    });
+    return out;
+  }, want);
+}
+
+/**
+ * Plays a level through with the game's own engine, always taking the engine's own hint (the move
+ * the game would point out to the player), for each seed in turn, and returns the first line of
+ * play that wins with three stars — or the best one found. The moves are then really played.
+ *   → { seed, moves, stars, score, movesLeft }
+ */
+async function planWin(page, spec) {
+  return page.evaluate(async (s) => {
+    const { Game } = await import('/src/engine/index.ts');
+    const level = window.__app.world.levels[s.level - 1];
+    if (!level || level.id !== s.level) throw new Error('level ' + s.level + ' is not in the shipped level list');
+    let best = null;
+    for (const seed of s.seeds) {
+      const game = new Game(level, { seed, boosters: s.boosters });
+      const moves = [];
+      let status = 'playing';
+      for (let i = 0; i < 80 && status === 'playing'; i++) {
+        const move = game.hint();
+        if (!move) break;
+        const result = game.swap(move.a, move.b);
+        if (!result.accepted) break;
+        moves.push(move);
+        status = result.snapshot.status;
+      }
+      if (status !== 'won') continue;
+      const movesLeft = game.snapshot().movesLeft;
+      const end = game.endBonus().snapshot;
+      const cand = { seed, moves, stars: end.stars, score: end.score, movesLeft };
+      if (!best || cand.stars > best.stars || (cand.stars === best.stars && cand.moves.length < best.moves.length)) best = cand;
+      if (cand.stars === 3) return cand;
     }
     return best;
   }, spec);
@@ -323,7 +419,9 @@ module.exports = {
   goto,
   waitPlayable,
   startLevel,
+  pickLevels,
   planMoment,
+  planWin,
   boardMatches,
   playMove,
   setPaused,

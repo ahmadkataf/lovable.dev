@@ -8,10 +8,14 @@
  *    grant goes through `profile.grantPurchase`, which refuses a token it has seen before and
  *    writes rewards + token + ownership in ONE save.
  *  - `bridge.iapFinish(token)` is called only when that save is known to be in storage: the profile
- *    reads its save back and finds the token in it (`profile.purchaseSaved`). That a save function
- *    returned without throwing is not enough — the platform's never throws. The same check guards
- *    every later finish of a token the store delivers again (its earlier finish was lost). A
- *    purchase whose grant is not in storage stays unfinished: the store delivers it again.
+ *    reads its save back and finds the token in it (`profile.purchaseSaved`) — and, inside the
+ *    Android wrapper, the wrapper's own copy of the save holds it too (`CoreDeps.alsoSaved`). That
+ *    a save function returned without throwing is not enough: the platform's never throws. The
+ *    same checks guard every later finish of a token the store delivers again (its earlier finish
+ *    was lost). A purchase whose grant is not in storage stays unfinished: the store delivers it
+ *    again, at the latest with the next start.
+ *  - Several units bought in one purchase (the event's optional `quantity`) are one token and one
+ *    grant of that many units.
  *  - The promise returned by `buy()` is only a convenience for the screen that started the purchase.
  *    Grants never depend on it: a purchase that completes later (pending payments, a result that
  *    arrives after a restart) is granted by its event all the same.
@@ -22,8 +26,14 @@
  *    answer of a successful query.
  *
  * Ads: the store keeps the books (daily counts, the time of the last full-screen ad) in the
- * profile; the CALLER applies every reward. Only one full-screen ad at a time; every promise
- * resolves — a watchdog answers for a bridge that never does.
+ * profile; the CALLER applies every reward. Only one full-screen ad at a time. Where the books
+ * cannot know (an ad that covered the game and never reported back; no usable clock; a clock that
+ * was set back) they err towards FEWER ads, never more.
+ *
+ * Every promise resolves, whatever the bridge does or fails to do: a purchase that is still open
+ * when the app returns from the store's screen is answered after BUY_RESUME_GRACE_MS (and in any
+ * case after BUY_WATCHDOG_MS), an ad after AD_WATCHDOG_MS in front, AD_RESUME_GRACE_MS after a
+ * return, AD_AWAY_WATCHDOG_MS if the return is never reported.
  *
  * Nothing in here throws, whatever the bridge sends or a listener does.
  */

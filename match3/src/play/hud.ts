@@ -263,30 +263,38 @@ export function createHud(deps: HudDeps): Hud {
     const g = c.getContext('2d');
     if (!g) return c;
     const m = c.width / 2;
-    const grad = g.createRadialGradient(m, m, 0, m, m, m);
-    grad.addColorStop(0, 'rgba(255,246,220,0.95)');
-    grad.addColorStop(0.45, 'rgba(245,201,90,0.55)');
-    grad.addColorStop(1, 'rgba(245,201,90,0)');
-    g.fillStyle = grad;
+    // (gradients live in the coordinate space they are used in: everything is drawn round the origin)
     g.translate(m, m);
-    const half = m * 0.62;
-    for (let i = 0; i < 2; i++) {
-      g.rotate(i === 0 ? 0 : Math.PI / 4);
-      g.fillRect(-half, -half, half * 2, half * 2);
-    }
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    // thin rays
-    g.translate(m, m);
-    g.fillStyle = 'rgba(255,240,190,0.5)';
-    for (let i = 0; i < 8; i++) {
-      g.rotate(Math.PI / 4);
+    // long and short rays, alternating
+    const light = g.createRadialGradient(0, 0, 0, 0, 0, m);
+    light.addColorStop(0, 'rgba(255,255,255,0.95)');
+    light.addColorStop(0.4, 'rgba(255,236,170,0.7)');
+    light.addColorStop(1, 'rgba(245,201,90,0)');
+    g.fillStyle = light;
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const len = m * (i % 2 === 0 ? 1 : 0.7);
+      const half = (Math.PI / n) * (i % 2 === 0 ? 0.42 : 0.3);
       g.beginPath();
-      g.moveTo(0, -m);
-      g.lineTo(m * 0.05, -m * 0.4);
-      g.lineTo(-m * 0.05, -m * 0.4);
+      g.moveTo(0, 0);
+      g.lineTo(Math.cos(-half) * len, Math.sin(-half) * len);
+      g.lineTo(Math.cos(half) * len, Math.sin(half) * len);
       g.closePath();
       g.fill();
+      g.rotate((Math.PI * 2) / n);
     }
+    // the eight-pointed star itself: two overlapped squares of soft gold light
+    const grad = g.createRadialGradient(0, 0, 0, 0, 0, m * 0.9);
+    grad.addColorStop(0, 'rgba(255,246,220,0.95)');
+    grad.addColorStop(0.5, 'rgba(245,201,90,0.6)');
+    grad.addColorStop(1, 'rgba(245,201,90,0)');
+    g.fillStyle = grad;
+    const half = m * 0.5;
+    for (let i = 0; i < 2; i++) {
+      g.fillRect(-half, -half, half * 2, half * 2);
+      g.rotate(Math.PI / 4);
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
     return c;
   }
 

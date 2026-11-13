@@ -70,8 +70,12 @@ val uploadKey = findUploadKey()
 
 // ───────────────────────── AdMob ids ("ads" flavour) ─────────────────────────
 // ADMOB_APP_ID, ADMOB_REWARDED_ID, ADMOB_INTERSTITIAL_ID: -P, environment, android/admob.properties
-// or gradle.properties. None of them set → Google's public SAMPLE ids, which only ever show test
-// ads: fine for development, and a release build of that kind is refused unless -PallowTestAds=true.
+// or gradle.properties.
+//   - RELEASE builds use them. None of them set (or -PuseSampleAdIds=true) → Google's public
+//     SAMPLE ids, which only ever show test ads; such a release is refused unless
+//     -PallowTestAds=true says it is a test build that will never be uploaded.
+//   - DEBUG builds always use the sample ids, whatever is configured: real ads must never be
+//     requested while developing (the owner's rule in admob.properties, and AdMob's own).
 
 class AdMobIds(val appId: String, val rewardedId: String, val interstitialId: String, val test: Boolean, val problem: String?)
 
@@ -85,6 +89,8 @@ val sampleAdMobIds = AdMobIds(
 )
 
 fun findAdMobIds(): AdMobIds {
+    // -PuseSampleAdIds=true: a release build for the test bench, with test ads although real ids exist.
+    if (optionalSetting("useSampleAdIds").equals("true", ignoreCase = true)) return sampleAdMobIds
     val names = listOf("ADMOB_APP_ID", "ADMOB_REWARDED_ID", "ADMOB_INTERSTITIAL_ID")
     val values = names.map { optionalSetting(it) }
     if (values.all { it == null }) return sampleAdMobIds
@@ -109,6 +115,7 @@ fun findAdMobIds(): AdMobIds {
     return AdMobIds(app, rewarded, interstitial, test, null)
 }
 
+/** What release builds of the ads flavour carry; debug builds always carry [sampleAdMobIds]. */
 val adMob = findAdMobIds()
 val allowTestAds = optionalSetting("allowTestAds").equals("true", ignoreCase = true)
 
@@ -165,7 +172,8 @@ android {
         create("ads") {
             dimension = "ads"
             // The consent SDK reads the AdMob app id from the manifest (src/ads/AndroidManifest.xml).
-            manifestPlaceholders["admobAppId"] = adMob.appId
+            // Sample id here; release variants replace it with the configured one (onVariants below).
+            manifestPlaceholders["admobAppId"] = sampleAdMobIds.appId
         }
     }
 
@@ -288,15 +296,18 @@ androidComponents {
         if (variant.productFlavors.any { (dimension, flavour) -> dimension == "ads" && flavour == "ads" }) {
             fun text(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
             val debuggable = variant.buildType == "debug"
+            // Debug builds never carry real ad ids.
+            val ids = if (debuggable) sampleAdMobIds else adMob
+            variant.manifestPlaceholders.put("admobAppId", ids.appId)
             val fields = variant.buildConfigFields
                 ?: throw GradleException("BuildConfig generation is switched off: the ads flavour needs it")
-            fields.put("ADMOB_APP_ID", BuildConfigField("String", text(adMob.appId), "AdMob app id"))
-            fields.put("ADMOB_REWARDED_ID", BuildConfigField("String", text(adMob.rewardedId), "rewarded ad unit"))
-            fields.put("ADMOB_INTERSTITIAL_ID", BuildConfigField("String", text(adMob.interstitialId), "interstitial ad unit"))
-            fields.put("ADS_TEST", BuildConfigField("boolean", adMob.test.toString(), "true = Google's sample ids: test ads only"))
+            fields.put("ADMOB_APP_ID", BuildConfigField("String", text(ids.appId), "AdMob app id"))
+            fields.put("ADMOB_REWARDED_ID", BuildConfigField("String", text(ids.rewardedId), "rewarded ad unit"))
+            fields.put("ADMOB_INTERSTITIAL_ID", BuildConfigField("String", text(ids.interstitialId), "interstitial ad unit"))
+            fields.put("ADS_TEST", BuildConfigField("boolean", ids.test.toString(), "true = Google's sample ids: test ads only"))
             fields.put(
                 "ADS_DIAG_FORCE_INIT",
-                BuildConfigField("boolean", (adsDiagForceInit && adMob.test).toString(), "verification builds only"),
+                BuildConfigField("boolean", (adsDiagForceInit && ids.test).toString(), "verification builds only"),
             )
             // Test devices and the pretended consent region exist in debug builds only.
             fields.put("ADS_TEST_DEVICE_IDS", BuildConfigField("String", text(if (debuggable) adsTestDevices else ""), "debug only"))
@@ -325,30 +336,43 @@ if (uploadKey == null) {
 gradle.taskGraph.whenReady {
     val mine = allTasks.filter { it.project == project }
     // Every task of an ads variant carries the flavour in its name (compileAdsDebugKotlin, bundleAdsRelease…).
-    val buildsAds = mine.any { Regex("[a-z]\\w*Ads(Debug|Release)\\w*").matches(it.name) }
-    if (!buildsAds) return@whenReady
+    val buildsAdsDebug = mine.any { Regex("[a-z]\\w*AdsDebug\\w*").matches(it.name) }
+    val buildsAdsRelease = mine.any { Regex("[a-z]\\w*AdsRelease\\w*").matches(it.name) }
+    if (!buildsAdsDebug && !buildsAdsRelease) return@whenReady
     adMob.problem?.let { throw GradleException("$it\n(-P, environment, android/admob.properties or gradle.properties.)") }
-    if (adsDiagForceInit && !adMob.test) {
-        throw GradleException("-PadsDiagForceInit=true is for verification builds with Google's sample ad ids only; remove it or remove the real AdMob ids.")
+    if (adsDiagForceInit && buildsAdsRelease && !adMob.test) {
+        throw GradleException(
+            "-PadsDiagForceInit=true is for verification builds with Google's sample ad ids only: " +
+                "add -PuseSampleAdIds=true -PallowTestAds=true, or drop it.",
+        )
     }
-    if (!adMob.test) return@whenReady
 
     // The tasks that package a release APK or bundle of the ads flavour.
     val packagesAdsRelease = mine.any { Regex("package\\w*AdsRelease(Bundle)?|sign\\w*AdsReleaseBundle").matches(it.name) }
-    if (packagesAdsRelease && !allowTestAds) {
+    if (packagesAdsRelease && adMob.test && !allowTestAds) {
+        val why = if (optionalSetting("useSampleAdIds") != null) "-PuseSampleAdIds=true was given" else "the ads flavour has no AdMob ids"
         throw GradleException(
-            "The ads flavour has no AdMob ids, so this release would ship Google's SAMPLE ids and show test ads only.\n" +
+            "This release would ship Google's SAMPLE ad ids and show test ads only ($why).\n" +
                 "Set ADMOB_APP_ID, ADMOB_REWARDED_ID and ADMOB_INTERSTITIAL_ID (-P, environment, android/admob.properties\n" +
                 "or gradle.properties) — or, for a test build that must never be uploaded, add -PallowTestAds=true.",
         )
     }
-    logger.warn(
-        "\n" + "!".repeat(78) + "\n" +
-            "!! TEST ADS: no AdMob ids are configured, the ads flavour uses Google's SAMPLE ids.\n" +
-            "!! It shows test ads only and earns nothing — NOT FOR GOOGLE PLAY.\n" +
-            (if (adsDiagForceInit) "!! adsDiagForceInit: the ad SDK starts WITHOUT a consent answer — test bench only.\n" else "") +
-            "!".repeat(78) + "\n",
-    )
+    val forced = if (adsDiagForceInit) "!! adsDiagForceInit: the ad SDK starts WITHOUT a consent answer — test bench only.\n" else ""
+    if (adMob.test) {
+        logger.warn(
+            "\n" + "!".repeat(78) + "\n" +
+                "!! TEST ADS: " + (if (optionalSetting("useSampleAdIds") != null) "-PuseSampleAdIds=true" else "no AdMob ids are configured") +
+                ", the ads flavour uses Google's SAMPLE ids.\n" +
+                "!! It shows test ads only and earns nothing — NOT FOR GOOGLE PLAY.\n" +
+                forced +
+                "!".repeat(78) + "\n",
+        )
+    } else if (buildsAdsDebug) {
+        logger.warn(
+            "\nNOTE: debug builds of the ads flavour always use Google's SAMPLE ad ids (test ads only); " +
+                "the configured AdMob ids go into release builds.\n" + forced,
+        )
+    }
 }
 
 // Machine-readable summary for tools/android/build.sh.

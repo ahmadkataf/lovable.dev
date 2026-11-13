@@ -27,11 +27,15 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { LEVELS } from '../../src/levels/index.ts';
 import type { LevelDef } from '../../src/engine/index.ts';
+import type { BotKind } from '../sim/bot.ts';
 import { runJobs } from '../sim/pool.ts';
 import { bandFlag, bandFor, describeGoals, isScoreOnly, movesWindow, parseRange, quantile, seedFor, type SimJob } from '../sim/stats.ts';
 
 /** Moves given to the bot while measuring how many it needs. */
 const MOVE_CAP = 100;
+/** Levels 1..FIRST_LEVELS are fitted to the random bot, which must win this share of its games. */
+const FIRST_LEVELS = 5;
+const RANDOM_TARGET = 0.997;
 
 interface Args {
   levels: number[];
@@ -120,16 +124,18 @@ async function main(): Promise<void> {
   const tuned: LevelDef[] = levels.map((l) => ({ ...l, goals: l.goals.map((g) => ({ ...g })), stars: [l.stars[0], l.stars[1], l.stars[2]] }));
   const notes: string[] = levels.map(() => '');
   if (!args.starsOnly) {
+    // The first five levels are fitted to the random bot: even aimless swapping must win them.
+    const botFor = (level: LevelDef): BotKind => (level.id <= FIRST_LEVELS ? 'random' : 'casual');
     const jobs: SimJob[] = levels.map((level) =>
       isScoreOnly(level)
-        ? { level: { ...level, goals: [{ kind: 'score', target: 1 }], stars: [1, 2, 3] }, bot: 'casual', games: args.games, seed: seedFor(level.id, args.seed), moves: level.moves }
-        : { level, bot: 'casual', games: args.games, seed: seedFor(level.id, args.seed), moves: MOVE_CAP },
+        ? { level: { ...level, goals: [{ kind: 'score', target: 1 }], stars: [1, 2, 3] }, bot: botFor(level), games: args.games, seed: seedFor(level.id, args.seed), moves: level.moves }
+        : { level, bot: botFor(level), games: args.games, seed: seedFor(level.id, args.seed), moves: MOVE_CAP },
     );
     const results = await runJobs(jobs);
     levels.forEach((level, k) => {
       const res = results[k]!;
       const band = bandFor(level);
-      const want = Math.min(99.8, band.target + args.shift) / 100;
+      const want = level.id <= FIRST_LEVELS ? RANDOM_TARGET : Math.min(99.8, band.target + args.shift) / 100;
       const out = tuned[k]!;
       if (isScoreOnly(level)) {
         const target = Math.max(100, Math.floor(quantile(res.endScores, 1 - want) / 50) * 50);

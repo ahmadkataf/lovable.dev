@@ -19,10 +19,10 @@ running in (`{"billing":true,"ads":false|true}`).
 ```sh
 tools/android/build.sh                          # plain: web build + lint + release APK + App Bundle → android/out/
 tools/android/build.sh all --flavor ads         # the same with ads (needs the AdMob ids, below)
-tools/android/build.sh debug --flavor ads       # debuggable APK with the diagnostics page
+tools/android/build.sh debug --flavor ads       # debuggable APK with the diagnostics page (always test ads)
 tools/android/build.sh bundle                   # only the .aab (the file Google Play wants)
 tools/android/build.sh all --skip-web           # reuse the existing ../dist
-tools/android/build.sh all --flavor ads --allow-test-ads   # ads flavour with Google's sample ids: test ads, never upload
+tools/android/build.sh all --flavor ads --allow-test-ads   # a release with Google's sample ad ids: test ads, never upload
 ```
 
 Needs JDK 17+ and the Android SDK (`ANDROID_HOME`, platform `android-37.0`). Always build through
@@ -37,7 +37,7 @@ Gradle tasks carry the flavour in their name: `:app:assemblePlainDebug`, `:app:b
 | `VERSION_NAME` | `1.0.0` | `-PVERSION_NAME=…` or environment |
 | `TARGET_SDK` | `36` | `-PTARGET_SDK=…` or environment |
 | `WEB_DIST` | `../dist` | `-PWEB_DIST=/path` or environment |
-| `ADMOB_APP_ID`, `ADMOB_REWARDED_ID`, `ADMOB_INTERSTITIAL_ID` | none (→ Google's sample ids) | `-P…`, environment, or `android/admob.properties` |
+| `ADMOB_APP_ID`, `ADMOB_REWARDED_ID`, `ADMOB_INTERSTITIAL_ID` | `android/admob.properties` | `-P…` or environment (both win over the file) |
 
 Output names say what a file is: `zumurud-<version>-<flavour>[-TESTADS][-DEBUGSIGNED].aab|.apk`.
 Only a file with neither suffix is fit for Google Play.
@@ -58,12 +58,16 @@ Three ids, none of them secret: the app id (with a `~`) and one rewarded and one
 unit (each with a `/`). Give them as environment variables, as `-P` properties or in
 `android/admob.properties` (see `admob.properties.example`).
 
-- All three missing → Google's public **sample ids**: the app shows test ads only, `BuildConfig.ADS_TEST`
-  is true and Gradle prints a loud `TEST ADS` warning. Debug builds work like that out of the box.
-  A **release** build (`assembleAdsRelease`, `bundleAdsRelease`) is refused unless `-PallowTestAds=true`
-  is given — so a build with test ads cannot be uploaded by accident.
-- Only some of them, or one that does not look like an AdMob id → the build stops and says which.
-- Debug builds only: `ADS_TEST_DEVICE_IDS` (comma-separated device ids that always get test ads) and
+- **Release** builds carry these ids. **Debug** builds never do: they always use Google's public
+  **sample ids** (test ads only, `BuildConfig.ADS_TEST` is true), so real ads are never requested
+  while developing.
+- All three missing → a release of the ads flavour would ship the sample ids, so
+  `assembleAdsRelease` / `bundleAdsRelease` are refused with a message that says so.
+- To try a release build on a device with test ads: `--allow-test-ads` (Gradle:
+  `-PuseSampleAdIds=true -PallowTestAds=true`). Gradle prints a loud `TEST ADS` warning and the
+  files are named `…-TESTADS` — a build with test ads cannot be uploaded by accident.
+- Only some of the three, or one that does not look like an AdMob id → the build stops and says which.
+- Debug builds only: `ADS_TEST_DEVICE_IDS` (comma-separated test device ids) and
   `UMP_DEBUG_GEOGRAPHY` (`EEA`, `REGULATED_US_STATE`, `OTHER`) to see the consent form anywhere.
 
 Before the first release with ads: create the consent messages in AdMob → Privacy & messaging
@@ -113,7 +117,7 @@ connections and frames to other origins. The diagnostics page proves all three o
 
 ```sh
 tools/android/emu-smoke.sh android/out/zumurud-1.0.0-plain-debug.apk diag   # every wrapper feature, must end "fail=0 wait=0"
-tools/android/emu-smoke.sh android/out/zumurud-1.0.0-ads-TESTADS-debug.apk diag
+tools/android/emu-smoke.sh android/out/zumurud-1.0.0-ads-debug.apk diag
 tools/android/emu-smoke.sh android/out/zumurud-1.0.0-plain-DEBUGSIGNED.apk  # the real game: loads, survives Home/return, clean log
 ```
 
@@ -131,7 +135,7 @@ run the same script in `diagcontent` mode:
 ```sh
 cd android
 ./gradlew :app:assemblePlainRelease -PWEB_DIST=app/src/debug/assets/diag
-./gradlew :app:assembleAdsRelease -PallowTestAds=true -PWEB_DIST=app/src/debug/assets/diag
+./gradlew :app:assembleAdsRelease -PuseSampleAdIds=true -PallowTestAds=true -PWEB_DIST=app/src/debug/assets/diag
 ../tools/android/emu-smoke.sh app/build/outputs/apk/plain/release/app-plain-release.apk diagcontent
 ```
 

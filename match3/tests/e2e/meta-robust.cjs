@@ -199,6 +199,9 @@ async function tests(browser) {
       // progress lives on in memory: a purchase with coins works and sticks for the session
       await page.evaluate(() => window.__app.goto('map'));
       await waitScreen(page, 'map');
+      await sleep(900); // with every feature on, a fresh profile is offered its first daily reward
+      await page.evaluate(() => window.__app.kit.closeAll());
+      await page.waitForSelector('.k-overlay', { state: 'detached', timeout: 3000 });
       await tap(page, '[data-act="shop"]');
       await page.waitForSelector('.m-dialog-shop', { timeout: 5000 });
       await sleep(420);
@@ -531,6 +534,8 @@ async function tests(browser) {
     await sleep(700);
     eq((await state(page)).dialogs, 1, 'title: a double tap on settings opens one dialog');
     await back(page);
+    await waitDialogs(page, 0);
+    await page.waitForSelector('.k-overlay', { state: 'detached', timeout: 3000 }); // a closed dialog shields taps for a moment
     await doubleTap('[data-act="play"]');
     await waitScreen(page, 'map');
     await sleep(400);

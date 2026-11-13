@@ -31,8 +31,15 @@
   animation: m-screen-in 240ms var(--k-ease-out) both;
 }
 
-.m-screen--out {
-  pointer-events: none;
+/*
+ * The screen that is leaving, and the one that has just arrived (for a moment: see ARM_MS in
+ * index.ts), take no pointer input — including their parts that switch pointer events back on.
+ */
+.m-screen--out,
+.m-screen--out *,
+.m-screen--arming,
+.m-screen--arming * {
+  pointer-events: none !important;
 }
 
 @keyframes m-screen-in {

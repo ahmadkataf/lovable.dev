@@ -121,8 +121,11 @@ export const BUY_WATCHDOG_MS = 600_000;
  * the store and list the purchases (it does so on every return).
  */
 export const BUY_RESUME_GRACE_MS = 30_000;
-/** A restore that gets no answer resolves after this long. */
-export const RESTORE_WATCHDOG_MS = 15_000;
+/**
+ * A restore that gets no answer resolves after this long. Longer than the wrapper may take to
+ * answer when it first has to connect to the store (it gives a connection 20 s).
+ */
+export const RESTORE_WATCHDOG_MS = 30_000;
 /** After the store's list of owned products arrives, unfinished purchases may follow for this long. */
 export const RESTORE_SETTLE_MS = 400;
 /** The privacy-options form is considered closed after this long without news. */

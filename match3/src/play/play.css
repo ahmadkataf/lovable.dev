@@ -942,10 +942,75 @@
   justify-content: center;
 }
 
-/* stars slam in: from large and bright down onto their seat, with a little rebound */
-.pl-win .k-stars--animate .k-star.k-on .k-on-icon {
+/* a slow wheel of light behind the stars once the last one has landed (brighter for three) */
+.pl-win__halo {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pl-win__stars--lit .pl-win__halo {
+  opacity: 0.22;
+  animation: pl-halo-in 420ms var(--k-ease-out) both, pl-spin 14s linear 420ms infinite;
+}
+
+.pl-win__stars--lit.pl-win__stars--2 .pl-win__halo {
+  opacity: 0.32;
+}
+
+.pl-win__stars--lit.pl-win__stars--3 .pl-win__halo {
+  opacity: 0.5;
+}
+
+.pl-win__stars .k-stars {
+  position: relative;
+}
+
+.pl-win__stars.pl-thump .k-stars {
+  animation: pl-thump 220ms var(--k-ease-out);
+}
+
+/* a star slams in: from large and bright down onto its seat, with a little rebound */
+.pl-win .k-star {
+  position: relative;
+}
+
+.pl-win .k-star.pl-star-in .k-on-icon {
   animation: pl-star-slam 420ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
-  animation-delay: calc(var(--k-i) * 300ms + 220ms);
+}
+
+.pl-star-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.pl-star-rays {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  opacity: 0;
+  animation: pl-star-rays 520ms var(--k-ease-out) 140ms both;
+}
+
+.pl-star-spark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--k-u) * 9);
+  height: calc(var(--k-u) * 9);
+  margin: calc(var(--k-u) * -4.5) 0 0 calc(var(--k-u) * -4.5);
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, #fff3c4 35%, rgba(255, 201, 74, 0.8) 55%, rgba(255, 180, 60, 0) 72%);
+  opacity: 0;
+  animation: pl-star-spark 560ms var(--k-ease-out) 150ms both;
 }
 
 .pl-win__score {
@@ -1003,6 +1068,15 @@
 
 .pl-win__coins.pl-bump {
   animation: pl-chain-bump 320ms var(--k-ease-back);
+}
+
+/* the coins wait for the stars, then pop in */
+.pl-win__coins--wait {
+  opacity: 0;
+}
+
+.pl-win__coins--in {
+  animation: pl-pop 320ms var(--k-ease-back) both;
 }
 
 .pl-win__coinsn {
@@ -1174,6 +1248,55 @@
   }
 }
 
+@keyframes pl-thump {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.06) translateY(calc(var(--k-u) * 2));
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pl-halo-in {
+  0% {
+    transform: scale(0.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pl-star-rays {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.15) rotate(40deg);
+  }
+}
+
+@keyframes pl-star-spark {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(0) scale(0.3);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(var(--d)) scale(1);
+  }
+}
+
 @keyframes pl-star-slam {
   0% {
     opacity: 0;
@@ -1194,7 +1317,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pl-moves--low .pl-moves__n,
-  .pl-praise__spark {
+  .pl-praise__spark,
+  .pl-win__stars--lit .pl-win__halo,
+  .pl-win .k-star.pl-star-in .k-on-icon,
+  .pl-win__stars.pl-thump .k-stars,
+  .pl-win__coins--in {
     animation: none;
   }
 }

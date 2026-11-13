@@ -1,14 +1,16 @@
 /**
- * Chapter 4 — Palace (levels 61–80). Every mechanic is in play; six colours are common and the
- * blockers come in several layers.
+ * Chapter 4 — Palace (levels 61–80). Combinations of everything learned so far.
+ * Hard levels: 69 and 79, each followed by a breather.
  *
- * Layouts, colours and goals are designed by hand. `moves`, score targets and `stars` are fitted
- * by `node tools/levelgen/tune.ts` — change a layout, then run the tuner again.
+ * Layouts, colours and goals are designed by hand. `moves` and `stars` (and the target of a
+ * score-only level) are fitted by `node tools/levelgen/tune.ts` — change a layout, then run the
+ * tuner again. The comment above each level is its brief: tier, idea, intended feel.
+ * Piece / floor notation: see `LevelDef` in src/engine/types.ts.
  */
 import type { LevelDef } from '../../engine/types.ts';
 
 export const CHAPTER_4: readonly LevelDef[] = [
-  // The dome: a domed board with sand along its outline and across its base.
+  // [normal] The dome: a domed board with sand along its outline and across its base.
   {
     id: 61, cols: 9, rows: 8, colors: 5, moves: 28,
     pieces: [
@@ -34,7 +36,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
     goals: [{ kind: 'sand' }],
     stars: [6700, 12600, 18600],
   },
-  // The star lattice: thick stones on every second crossing, six colours.
+  // [normal] The star lattice: thick stones on every second crossing, six colours.
   {
     id: 62, cols: 9, rows: 9, colors: 6, moves: 20,
     pieces: [
@@ -48,10 +50,13 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '.........',
       '.........',
     ],
-    goals: [{ kind: 'stone' }, { kind: 'color', color: 5, target: 22 }],
+    goals: [
+      { kind: 'stone' },
+      { kind: 'color', color: 5, target: 22 },
+    ],
     stars: [4000, 7900, 11100],
   },
-  // The procession: three lamps walk down a tall hall between four pillars of stone.
+  // [build-up] The procession: three lamps walk down a tall hall between four pillars of stone.
   {
     id: 63, cols: 7, rows: 8, colors: 5, moves: 28,
     pieces: [
@@ -64,11 +69,11 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '.......',
       '.......',
     ],
-    lamps: { total: 3, maxOnBoard: 3, everyMoves: 1 },
     goals: [{ kind: 'lamp', target: 3 }],
+    lamps: { total: 3, maxOnBoard: 3, everyMoves: 1 },
     stars: [8400, 13800, 19100],
   },
-  // The chained mosaic: a chequered square — chained gems on deep sand, free ones on shallow.
+  // [spike] The chained mosaic: a chequered square — chained gems on deep sand, free ones on shallow.
   {
     id: 64, cols: 8, rows: 8, colors: 6, moves: 29,
     pieces: [
@@ -91,10 +96,13 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '00000000',
       '00000000',
     ],
-    goals: [{ kind: 'sand' }, { kind: 'chain' }],
+    goals: [
+      { kind: 'sand' },
+      { kind: 'chain' },
+    ],
     stars: [4800, 9400, 12100],
   },
-  // Ivy corners: vines have taken all four corners.
+  // [breather] Ivy corners: vines have taken all four corners.
   {
     id: 65, cols: 8, rows: 8, colors: 5, moves: 19,
     pieces: [
@@ -107,10 +115,13 @@ export const CHAPTER_4: readonly LevelDef[] = [
       'v......v',
       'vv....vv',
     ],
-    goals: [{ kind: 'vine' }, { kind: 'color', color: 0, target: 34 }],
+    goals: [
+      { kind: 'vine' },
+      { kind: 'color', color: 0, target: 34 },
+    ],
     stars: [4600, 10500, 14600],
   },
-  // The throne room: a row of stone seals off a sandy floor.
+  // [normal] The throne room: a row of stone seals off a sandy floor.
   {
     id: 66, cols: 8, rows: 8, colors: 5, moves: 22,
     pieces: [
@@ -133,27 +144,43 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '01111110',
       '02222220',
     ],
-    goals: [{ kind: 'sand' }, { kind: 'stone' }],
+    goals: [
+      { kind: 'sand' },
+      { kind: 'stone' },
+    ],
     stars: [6500, 12900, 18500],
   },
-  // The colonnade: two rows of pillars on a big six-colour board. Points only.
+  // [normal] The courtyard garden: a square path of sand with vines on two sides; amethysts to gather.
   {
-    id: 67, cols: 9, rows: 9, colors: 6, moves: 24,
+    id: 67, cols: 8, rows: 8, colors: 6, moves: 22,
     pieces: [
-      '.........',
-      '.........',
-      '._._._._.',
-      '.........',
-      '.........',
-      '.........',
-      '._._._._.',
-      '.........',
-      '.........',
+      '........',
+      '........',
+      '........',
+      '..v..v..',
+      '..v..v..',
+      '........',
+      '........',
+      '........',
     ],
-    goals: [{ kind: 'score', target: 3350 }],
-    stars: [3350, 5000, 7300],
+    floor: [
+      '00000000',
+      '00000000',
+      '00111100',
+      '00100100',
+      '00100100',
+      '00111100',
+      '00000000',
+      '00000000',
+    ],
+    goals: [
+      { kind: 'vine' },
+      { kind: 'sand' },
+      { kind: 'color', color: 4, target: 22 },
+    ],
+    stars: [4300, 7600, 10000],
   },
-  // Garden lanterns: lamps on chained gems, a patch of vines spreading in the middle.
+  // [build-up] Garden lanterns: lamps on chained gems, a patch of vines spreading in the middle.
   {
     id: 68, cols: 8, rows: 8, colors: 5, moves: 29,
     pieces: [
@@ -166,12 +193,36 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '........',
       '........',
     ],
-    goals: [{ kind: 'lamp', target: 2 }, { kind: 'vine' }],
+    goals: [
+      { kind: 'lamp', target: 2 },
+      { kind: 'vine' },
+    ],
     stars: [9400, 16500, 22100],
   },
-  // The jewel box: a small board buried in sand, deep in the middle.
+  // [hard] The sealed hall: thick stones in the corners of a vine-covered square.
   {
-    id: 69, cols: 6, rows: 6, colors: 5, moves: 24,
+    id: 69, cols: 8, rows: 8, colors: 6, moves: 20,
+    hard: true,
+    pieces: [
+      '........',
+      '........',
+      '..3vv3..',
+      '..v..v..',
+      '..v..v..',
+      '..3vv3..',
+      '........',
+      '........',
+    ],
+    goals: [
+      { kind: 'stone' },
+      { kind: 'vine' },
+      { kind: 'color', color: 2, target: 20 },
+    ],
+    stars: [3200, 6500, 8500],
+  },
+  // [breather] The jewel box: a small board buried in sand, deep in the middle.
+  {
+    id: 70, cols: 6, rows: 6, colors: 5, moves: 24,
     pieces: [
       '......',
       '......',
@@ -191,24 +242,7 @@ export const CHAPTER_4: readonly LevelDef[] = [
     goals: [{ kind: 'sand' }],
     stars: [5600, 9500, 12100],
   },
-  // The sealed hall: thick stones in the corners of a vine-covered square.
-  {
-    id: 70, cols: 8, rows: 8, colors: 6, moves: 20,
-    hard: true,
-    pieces: [
-      '........',
-      '........',
-      '..3vv3..',
-      '..v..v..',
-      '..v..v..',
-      '..3vv3..',
-      '........',
-      '........',
-    ],
-    goals: [{ kind: 'stone' }, { kind: 'vine' }, { kind: 'color', color: 2, target: 20 }],
-    stars: [3200, 6500, 8500],
-  },
-  // Twin towers: two tall towers and a low bridge of deep sand between them.
+  // [normal] Twin towers: two tall towers and a low bridge of deep sand between them.
   {
     id: 71, cols: 9, rows: 9, colors: 5, moves: 23,
     pieces: [
@@ -233,26 +267,31 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '000222000',
       '000222000',
     ],
-    goals: [{ kind: 'sand' }, { kind: 'color', color: 1, target: 24 }],
+    goals: [
+      { kind: 'sand' },
+      { kind: 'color', color: 1, target: 24 },
+    ],
     stars: [4800, 8800, 12200],
   },
-  // Royal colours: an open diamond of chained gems, two colours to gather out of six.
+  // [normal] Caged lanterns: two lamps, each boxed in by chained gems.
   {
-    id: 72, cols: 8, rows: 8, colors: 6, moves: 29,
+    id: 72, cols: 7, rows: 7, colors: 5, moves: 20,
     pieces: [
-      '........',
-      '........',
-      '..c..c..',
-      '.c....c.',
-      '.c....c.',
-      '..c..c..',
-      '........',
-      '........',
+      '.......',
+      '.cLcLc.',
+      '..c.c..',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
     ],
-    goals: [{ kind: 'chain' }, { kind: 'color', color: 1, target: 16 }, { kind: 'color', color: 3, target: 16 }],
-    stars: [4300, 8600, 11600],
+    goals: [
+      { kind: 'lamp', target: 2 },
+      { kind: 'chain' },
+    ],
+    stars: [4900, 8900, 12400],
   },
-  // The corridors: two inner walls divide the hall; sand fills the middle corridor and the passage below.
+  // [build-up] The corridors: two inner walls divide the hall; sand fills the middle corridor and the passage below.
   {
     id: 73, cols: 9, rows: 8, colors: 5, moves: 24,
     pieces: [
@@ -278,25 +317,9 @@ export const CHAPTER_4: readonly LevelDef[] = [
     goals: [{ kind: 'sand' }],
     stars: [4700, 9100, 12400],
   },
-  // Caged lanterns: two lamps, each boxed in by chained gems.
+  // [spike] Stone shafts: three lamps, each with two thick stones in its column.
   {
-    id: 74, cols: 7, rows: 7, colors: 5, moves: 20,
-    pieces: [
-      '.......',
-      '.cLcLc.',
-      '..c.c..',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-    ],
-    goals: [{ kind: 'lamp', target: 2 }, { kind: 'chain' }],
-    stars: [4900, 8900, 12400],
-  },
-  // Stone shafts: three lamps, each with two thick stones in its column.
-  {
-    id: 75, cols: 7, rows: 8, colors: 5, moves: 28,
-    hard: true,
+    id: 74, cols: 7, rows: 8, colors: 5, moves: 28,
     pieces: [
       'L..L..L',
       '.......',
@@ -310,7 +333,27 @@ export const CHAPTER_4: readonly LevelDef[] = [
     goals: [{ kind: 'lamp', target: 3 }],
     stars: [9000, 15300, 20100],
   },
-  // The overgrown baths: a sandy basin, deep in the middle, vines at its corners.
+  // [breather] Royal colours: an open diamond of chained gems, two colours to gather out of six.
+  {
+    id: 75, cols: 8, rows: 8, colors: 6, moves: 29,
+    pieces: [
+      '........',
+      '........',
+      '..c..c..',
+      '.c....c.',
+      '.c....c.',
+      '..c..c..',
+      '........',
+      '........',
+    ],
+    goals: [
+      { kind: 'chain' },
+      { kind: 'color', color: 1, target: 16 },
+      { kind: 'color', color: 3, target: 16 },
+    ],
+    stars: [4300, 8600, 11600],
+  },
+  // [normal] The overgrown baths: a sandy basin, deep in the middle, vines at its corners.
   {
     id: 76, cols: 8, rows: 8, colors: 6, moves: 30,
     pieces: [
@@ -333,10 +376,13 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '01111110',
       '00000000',
     ],
-    goals: [{ kind: 'sand' }, { kind: 'vine' }],
+    goals: [
+      { kind: 'sand' },
+      { kind: 'vine' },
+    ],
     stars: [6800, 10700, 13500],
   },
-  // The rose window: a round board with a rosette of stones; two colours out of six.
+  // [normal] The rose window: a round board with a rosette of stones; two colours out of six.
   {
     id: 77, cols: 9, rows: 9, colors: 6, moves: 23,
     pieces: [
@@ -350,10 +396,14 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '__.....__',
       '___...___',
     ],
-    goals: [{ kind: 'stone' }, { kind: 'color', color: 0, target: 20 }, { kind: 'color', color: 5, target: 20 }],
+    goals: [
+      { kind: 'stone' },
+      { kind: 'color', color: 0, target: 20 },
+      { kind: 'color', color: 5, target: 20 },
+    ],
     stars: [3400, 6400, 8800],
   },
-  // The dungeon: lamps behind chains, with stones scattered along the way down.
+  // [build-up] The dungeon: lamps behind chains, with stones scattered along the way down.
   {
     id: 78, cols: 8, rows: 8, colors: 5, moves: 22,
     pieces: [
@@ -366,38 +416,16 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '........',
       '........',
     ],
-    goals: [{ kind: 'lamp', target: 2 }, { kind: 'chain' }, { kind: 'stone' }],
+    goals: [
+      { kind: 'lamp', target: 2 },
+      { kind: 'chain' },
+      { kind: 'stone' },
+    ],
     stars: [6200, 12900, 18000],
   },
-  // The courtyard garden: a square path of sand with vines on two sides; amethysts to gather.
+  // [hard] The throne: lamps on chains, a block of stone on deep sand, vines waiting at the sides.
   {
-    id: 79, cols: 8, rows: 8, colors: 6, moves: 22,
-    pieces: [
-      '........',
-      '........',
-      '........',
-      '..v..v..',
-      '..v..v..',
-      '........',
-      '........',
-      '........',
-    ],
-    floor: [
-      '00000000',
-      '00000000',
-      '00111100',
-      '00100100',
-      '00100100',
-      '00111100',
-      '00000000',
-      '00000000',
-    ],
-    goals: [{ kind: 'vine' }, { kind: 'sand' }, { kind: 'color', color: 4, target: 22 }],
-    stars: [4300, 7600, 10000],
-  },
-  // The throne: lamps on chains, a block of stone on deep sand, vines waiting at the sides.
-  {
-    id: 80, cols: 9, rows: 9, colors: 5, moves: 16,
+    id: 79, cols: 9, rows: 9, colors: 5, moves: 16,
     hard: true,
     pieces: [
       '..L...L..',
@@ -421,7 +449,28 @@ export const CHAPTER_4: readonly LevelDef[] = [
       '000000000',
       '000000000',
     ],
-    goals: [{ kind: 'lamp', target: 2 }, { kind: 'stone' }, { kind: 'sand' }],
+    goals: [
+      { kind: 'lamp', target: 2 },
+      { kind: 'stone' },
+      { kind: 'sand' },
+    ],
     stars: [8600, 15800, 22400],
+  },
+  // [breather] The colonnade: two rows of pillars on a big six-colour board. Points only.
+  {
+    id: 80, cols: 9, rows: 9, colors: 6, moves: 24,
+    pieces: [
+      '.........',
+      '.........',
+      '._._._._.',
+      '.........',
+      '.........',
+      '.........',
+      '._._._._.',
+      '.........',
+      '.........',
+    ],
+    goals: [{ kind: 'score', target: 3350 }],
+    stars: [3350, 5000, 7300],
   },
 ];

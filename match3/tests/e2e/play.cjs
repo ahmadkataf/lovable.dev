@@ -503,10 +503,11 @@ async function hardening(browser) {
   }
   await waitState(page, 'finale');
   ok((await save(page)).levels[String(lvl)], 'the win is in the profile the moment the level is won (before the finale plays)');
-  await page.waitForFunction(() => window.__play.info().flyers > 0, null, { timeout: 10000 });
+  await page.waitForFunction(() => window.__play.info().finale && window.__play.info().flyers > 0, null, { timeout: 10000 });
   await page.mouse.click(180, 420);
-  await waitState(page, 'won', 8000);
+  eq(await H.state(page), 'won', 'a tap during the end bonus skips it at once');
   eq(await page.evaluate(() => window.__play.info().flyers), 0, 'no spark is left in flight after skipping the finale');
+  eq(await page.evaluate(() => window.__play.model().pieces.filter((p) => p.dying).length), 0, 'the board jumped to its final state');
 
   // ── while a rewarded video is asked for, the dialog cannot be left; the reward is paid once ──
   await page.waitForSelector('.k-dialog[data-pl="win"]:not(.pl-locked)', { timeout: 5000 });

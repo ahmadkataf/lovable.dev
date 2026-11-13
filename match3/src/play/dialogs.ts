@@ -195,6 +195,63 @@ export function openBuyBooster(
 
 // ───────────────────────────── win ─────────────────────────────
 
+/** A burst of gold rays on a transparent canvas, `size` design units across (behind a star as it lands). */
+function raysCanvas(kit: Kit, size: number, className: string): HTMLCanvasElement {
+  const px = Math.round(size * kit.unit());
+  let ratio = 1;
+  try {
+    ratio = Math.min(2, window.devicePixelRatio || 1);
+  } catch {
+    ratio = 1;
+  }
+  const c = kit.el('canvas', { class: className, 'aria-hidden': 'true' });
+  c.width = Math.max(2, Math.round(px * ratio));
+  c.height = c.width;
+  c.style.width = px + 'px';
+  c.style.height = px + 'px';
+  c.style.margin = -px / 2 + 'px 0 0 ' + -px / 2 + 'px';
+  const g = c.getContext('2d');
+  if (!g) return c;
+  const m = c.width / 2;
+  // (a gradient lives in the coordinate space it is used in: centre it on the origin, after the translate)
+  g.translate(m, m);
+  const grad = g.createRadialGradient(0, 0, 0, 0, 0, m);
+  grad.addColorStop(0, 'rgba(255,246,205,1)');
+  grad.addColorStop(0.35, 'rgba(255,226,140,0.95)');
+  grad.addColorStop(0.75, 'rgba(245,190,80,0.55)');
+  grad.addColorStop(1, 'rgba(245,190,80,0)');
+  g.fillStyle = grad;
+  const n = 12;
+  for (let k = 0; k < n; k++) {
+    const len = m * (k % 2 === 0 ? 1 : 0.7);
+    const half = (Math.PI / n) * (k % 2 === 0 ? 0.5 : 0.36);
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(Math.cos(-half) * len, Math.sin(-half) * len);
+    g.lineTo(Math.cos(half) * len, Math.sin(half) * len);
+    g.closePath();
+    g.fill();
+    g.rotate((Math.PI * 2) / n);
+  }
+  return c;
+}
+
+/** A star lands: it slams onto its seat, rays flash behind it, sparks fly off. */
+function landStar(kit: Kit, star: HTMLElement, index: number): void {
+  star.classList.add('pl-star-in');
+  if (kit.reducedMotion()) return;
+  const burst = kit.el('span', { class: 'pl-star-burst', 'aria-hidden': 'true' }, raysCanvas(kit, 132, 'pl-star-rays'));
+  const sparks = 10;
+  for (let k = 0; k < sparks; k++) {
+    const spark = kit.el('i', { class: 'pl-star-spark' });
+    // evenly round the star, every second one flying further
+    spark.style.setProperty('--a', Math.round((360 / sparks) * k + index * 17) + 'deg');
+    spark.style.setProperty('--d', 'calc(var(--k-u) * ' + (k % 2 === 0 ? -58 : -40) + ')');
+    burst.appendChild(spark);
+  }
+  star.insertBefore(burst, star.firstChild);
+}
+
 export interface WinOptions {
   stars: 1 | 2 | 3;
   score: number;
@@ -213,11 +270,12 @@ export function openWin(deps: DialogDeps, opts: WinOptions): DialogHandle<void> 
   const row = kit.starRow(0, { size: 54, animate: false, sound: false });
   const scoreN = kit.el('span', { class: 'pl-win__scoren k-num' }, '0');
   const coinsN = kit.el('span', { class: 'pl-win__coinsn' }, '‎+' + i18n.num(opts.coins));
-  const coinsRow = kit.el('div', { class: 'pl-win__coins', 'aria-label': i18n.t('play.win.coins', { n: opts.coins }) }, kit.icon('coin', 26), coinsN);
+  const coinsRow = kit.el('div', { class: 'pl-win__coins pl-win__coins--wait', 'aria-label': i18n.t('play.win.coins', { n: opts.coins }) }, kit.icon('coin', 26), coinsN);
+  const starsBox = kit.el('div', { class: 'pl-win__stars' }, raysCanvas(kit, 236, 'pl-win__halo'), row.el);
   const body = kit.el(
     'div',
     { class: 'pl-dlg pl-win' },
-    kit.el('div', { class: 'pl-win__stars' }, row.el),
+    starsBox,
     kit.el('div', { class: 'pl-win__score' }, kit.el('span', { class: 'pl-win__scorecap' }, i18n.t('common.score')), scoreN, opts.newBest ? kit.el('span', { class: 'pl-win__best' }, i18n.t('play.win.newBest')) : null),
     opts.coins > 0 ? coinsRow : null,
   );
@@ -279,17 +337,28 @@ export function openWin(deps: DialogDeps, opts: WinOptions): DialogHandle<void> 
   tag(dialog, 'win');
   lockButtons(deps, dialog);
 
-  // stars slam in one by one, then the score counts up
+  // the stars slam in one by one (rays, sparks, a thump of the whole row), the score counts up,
+  // then the coins pop in
   for (let i = 1; i <= opts.stars; i++) {
     timers.after(200 + (i - 1) * T.star, () => {
       row.set(i, false);
+      const star = row.el.children[i - 1] as HTMLElement | undefined;
+      if (star) landStar(kit, star, i);
+      starsBox.classList.remove('pl-thump');
+      void starsBox.offsetWidth;
+      starsBox.classList.add('pl-thump');
+      if (i === opts.stars) starsBox.classList.add('pl-win__stars--lit', 'pl-win__stars--' + i);
       deps.sfx('star', { step: i });
     });
   }
   timers.after(160, () => {
     void kit.tweenNumber(scoreN, 0, opts.score, T.scoreCount);
   });
-  if (opts.coins > 0) timers.after(200 + opts.stars * T.star, () => deps.sfx('coin'));
+  timers.after(200 + opts.stars * T.star, () => {
+    coinsRow.classList.remove('pl-win__coins--wait');
+    coinsRow.classList.add('pl-win__coins--in');
+    if (opts.coins > 0) deps.sfx('coin');
+  });
   return dialog;
 }
 

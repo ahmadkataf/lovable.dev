@@ -1614,6 +1614,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
           buffered: s.buffered !== null,
           hand: s.hand,
           attempt,
+          /** the end bonus is playing (a tap skips it) */
+          finale: s.finaleRunning,
           flyers: hud.flyerCount(),
           /** the open-attempt note (closing the app now would cost a life at the next start) */
           note: journal.pending(),

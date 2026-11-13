@@ -71,7 +71,7 @@ const pending = (page, name) => page.evaluate((n) => window.__t[n] === null, nam
 
 // ───────────────────────────── 1. the test store through the game's shop ─────────────────────────────
 
-async function shopJourney(browser, isDev) {
+async function shopJourney(browser) {
   console.log('\n1. the test store, through the game’s own shop');
   const context = await browser.newContext({ viewport: { width: 390, height: 780 }, deviceScaleFactor: 2 });
   const page = await context.newPage();
@@ -193,7 +193,6 @@ async function shopJourney(browser, isDev) {
   await p2.waitForTimeout(600);
   check('real save: 7,500 coins after a reload — kept, and not granted again', (await coins(p2)) === 7500, await coins(p2));
   await real.close();
-  void isDev;
 }
 
 // ───────────────────────────── 2. a pretend Android wrapper ─────────────────────────────
@@ -392,7 +391,7 @@ async function whereItLives(browser, isDev) {
   await probe.close();
   console.log(isDev ? 'dev server at ' + BASE : 'production bundle at ' + BASE);
 
-  await shopJourney(browser, isDev);
+  await shopJourney(browser);
   await androidJourney(browser);
   await whereItLives(browser, isDev);
 

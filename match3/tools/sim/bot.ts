@@ -196,6 +196,9 @@ function markNear(v: View, w: Wants): void {
   }
 }
 
+/** Extra goal value of a move that cuts at least one vine: no vine spreads after it. */
+const VINE_HELD_BACK = 1;
+
 const SPECIAL_BEAM = 1.5;
 const SPECIAL_NOVA = 2;
 const SPECIAL_PRISM = 3;
@@ -328,6 +331,7 @@ function evaluate(v: View, w: Wants, i: number, j: number): MoveValue {
   gone.fill(0);
   let goal = 0;
   let cleared = 0;
+  let vinesCut = 0;
 
   const hit = (k: number, byMatch: boolean): void => {
     const kind = v.kind[k]!;
@@ -345,6 +349,7 @@ function evaluate(v: View, w: Wants, i: number, j: number): MoveValue {
     if (!first) return;
     if (kind === K_VINE) {
       goal += w.vine;
+      vinesCut++;
       cleared++;
       gone[k] = 1;
       return;
@@ -425,6 +430,9 @@ function evaluate(v: View, w: Wants, i: number, j: number): MoveValue {
   // Undo the scratch changes (newest first, so every stone gets back the layers it started with).
   for (let b = hpBackup.length - 2; b >= 0; b -= 2) v.hp[hpBackup[b]!] = hpBackup[b + 1]!;
   if (swapped) swapCells(v, i, j);
+  // A turn that cuts a vine also keeps the vines from spreading (the vine tip says so).
+  if (vinesCut > 0) goal += VINE_HELD_BACK;
+
   let near = 0;
   for (let k = 0; k < n; k++) if (gone[k] === 1 && v.near[k] === 1) near++;
   return { goal, special, near, cleared };

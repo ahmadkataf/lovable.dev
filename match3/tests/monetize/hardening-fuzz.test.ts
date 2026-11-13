@@ -132,6 +132,8 @@ async function fuzz(seed: number, steps: number, withResets: boolean): Promise<S
   const pick = <T>(list: readonly T[]): T => list[Math.floor(rand() * list.length)]!;
 
   const stats: Stats = { events: 0, grants: 0, finishes: 0, restarts: 0, purchases: 0, syncDeliveries: 0, silentWritesLost: 0, finishWithheld: 0, promises: 0, bridgeThrows: 0, resets: 0, refunds: 0 };
+  /** To follow one run step by step: FUZZ_TRACE=<seed> npx vitest run tests/monetize/hardening-fuzz.test.ts */
+  const tracing = typeof process !== 'undefined' && process.env.FUZZ_TRACE === String(seed);
   const problems: string[] = [];
   let stepNo = 0;
   const fail = (what: string): void => {
@@ -270,7 +272,7 @@ async function fuzz(seed: number, steps: number, withResets: boolean): Promise<S
   const purchasedSeen: Record<string, number> = {};
 
   function deliver(ev: unknown): void {
-    if (process.env.FUZZ_TRACE && seed === Number(process.env.FUZZ_TRACE)) console.log('  deliver', JSON.stringify(ev).slice(0, 160));
+    if (tracing) console.log('  deliver', String(JSON.stringify(ev)).slice(0, 160));
     if (isRecord(ev) && ev.type === 'purchase' && ev.state === 'purchased' && typeof ev.id === 'string') purchasedSeen[ev.id] = (purchasedSeen[ev.id] || 0) + 1;
     predict(ev);
     stats.events += 1;
@@ -438,7 +440,7 @@ async function fuzz(seed: number, steps: number, withResets: boolean): Promise<S
 
   function check(): void {
     const p = cur.profile;
-    if (process.env.FUZZ_TRACE && seed === Number(process.env.FUZZ_TRACE)) console.log('step', stepNo, 'coins', p.coins(), 'model', model.coins, 'persisted', persisted.coins, 'disk', machine.disk.mode, 'session', cur.serial);
+    if (tracing) console.log('step', stepNo, 'coins', p.coins(), 'ledger', model.coins, 'on disk', persisted.coins, 'disk', machine.disk.mode, 'session', cur.serial);
     const data = p.data();
     if (p.coins() !== model.coins) fail('coins ' + p.coins() + ', the ledger says ' + model.coins);
     if (data.boosters.hammer !== model.hammer || data.boosters.freeSwap !== model.freeSwap || data.boosters.prism !== model.prism) {
@@ -740,4 +742,10 @@ describe('fuzz: a hostile world around the store, an honest ledger beside it', (
     for (let seed = 5001; seed <= 5003; seed++) all.push(await fuzz(seed, 4000, seed === 5003));
     expect(total(all).events).toBeGreaterThan(5_000);
   }, 120_000);
+
+  // A soak for whoever changes the money path: FUZZ_SOAK=400 npx vitest run tests/monetize/hardening-fuzz.test.ts
+  const soak = typeof process !== 'undefined' ? Math.floor(Number(process.env.FUZZ_SOAK)) || 0 : 0;
+  it.skipIf(soak <= 0)('soak: FUZZ_SOAK more runs × 700 steps on fresh seeds', async () => {
+    for (let i = 0; i < soak; i++) await fuzz(20_000 + i, 700, i % 3 === 0);
+  }, 3_600_000);
 });

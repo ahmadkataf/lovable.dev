@@ -105,6 +105,12 @@ export function watchOverlays(kit: Kit, onChange: () => void): Kit {
 }
 
 const FADE_MS = 240;
+/**
+ * A screen that has just replaced another takes no pointer input this long, like a new dialog of
+ * the kit: the second tap of a double tap on whatever caused the change (Play on the title, Home
+ * on the map) must not land on a button of the new screen that happens to sit in the same place.
+ */
+const ARM_MS = 320;
 
 export function createShell(deps: ShellDeps): Shell {
   const { root, kit, world, flags, services } = deps;
@@ -118,6 +124,8 @@ export function createShell(deps: ShellDeps): Shell {
   let mapScreen: MapScreen | null = null;
   let play: PlayScreen | null = null;
   let paused = false;
+  /** The previous screen while it fades out under the new one. */
+  let leaving: { el: HTMLElement; timer: number } | null = null;
   /** The clock of every countdown on the meta screens; stands still while the app is paused. */
   const tickers = createTickers({ set: (fn, ms) => window.setTimeout(fn, ms), clear: (handle) => window.clearTimeout(handle) });
   let lastRoot: boolean | null = null;
@@ -180,6 +188,11 @@ export function createShell(deps: ShellDeps): Shell {
     navToken++;
     next.el.classList.add('m-screen');
     if (animate && prev && !kit.reducedMotion()) next.el.classList.add('m-screen--in');
+    if (animate && prev) {
+      const fresh = next.el;
+      fresh.classList.add('m-screen--arming');
+      window.setTimeout(() => fresh.classList.remove('m-screen--arming'), ARM_MS);
+    }
     stage.appendChild(next.el);
     if (prev) {
       try {
@@ -189,9 +202,25 @@ export function createShell(deps: ShellDeps): Shell {
       }
       prev.el.classList.add('m-screen--out');
       prev.el.setAttribute('aria-hidden', 'true');
+      // one screen at most is on its way out: an older one (two changes within the fade) goes at once
+      if (leaving) {
+        window.clearTimeout(leaving.timer);
+        detach(leaving.el);
+        leaving = null;
+      }
       const old = prev.el;
-      if (animate && !kit.reducedMotion()) window.setTimeout(() => detach(old), FADE_MS);
-      else detach(old);
+      if (animate && !kit.reducedMotion()) {
+        const entry = {
+          el: old,
+          timer: window.setTimeout(() => {
+            detach(old);
+            if (leaving === entry) leaving = null;
+          }, FADE_MS),
+        };
+        leaving = entry;
+      } else {
+        detach(old);
+      }
     }
     if (next.shown) next.shown();
     if (paused && next.setPaused) next.setPaused(true);
@@ -350,6 +379,9 @@ export function createShell(deps: ShellDeps): Shell {
           mapScreen = null;
           mount(playHost(p), 'play', true);
         }
+        // A level started while the app is in the background waits for the resume. (Said again
+        // here because stopping the screen may have made it forget its own "paused".)
+        if (paused) p.setPaused(true);
         music('level');
         p.start(level, boosters || {});
       } catch (err) {

@@ -12,7 +12,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BUY_RESUME_GRACE_MS, BUY_WATCHDOG_MS, MAX_PURCHASE_QUANTITY, PRODUCTS, createCoreStore } from '../../src/monetize/index.ts';
+import { BUY_RESUME_GRACE_MS, BUY_WATCHDOG_MS, MAX_PURCHASE_QUANTITY, PRODUCTS, RESTORE_WATCHDOG_MS, createCoreStore } from '../../src/monetize/index.ts';
 import type { MonetizeBridge, PurchaseOutcome } from '../../src/monetize/types.ts';
 import { MAX_PURCHASE_TOKENS, createProfile, purchaseKey } from '../../src/state/index.ts';
 import type { FullProfile } from '../../src/state/index.ts';
@@ -541,10 +541,11 @@ describe('events out of order', () => {
     // 'owned' before restore(): the restore waits for its own answer, or for its watchdog
     session.send({ type: 'owned', ids: ['remove_ads'] });
     void book.track('r', session.store.restore());
-    await vi.advanceTimersByTimeAsync(14 * SECOND);
+    await vi.advanceTimersByTimeAsync(RESTORE_WATCHDOG_MS - SECOND);
     expect(book.open()).toEqual(['r']);
     await vi.advanceTimersByTimeAsync(SECOND);
     expect(book.values('r')).toEqual([0]);
+    expect(RESTORE_WATCHDOG_MS).toBeGreaterThan(20 * SECOND); // the wrapper may need 20 s to connect before it can answer
     // a stale 'purchased' of an old token while a NEW purchase of the same pack is open
     void book.track('b', session.store.buy('coins_small'));
     session.send(purchased('coins_small', 'mine'));

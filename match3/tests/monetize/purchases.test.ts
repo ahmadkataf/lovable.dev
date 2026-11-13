@@ -5,7 +5,7 @@
  * finished, re-delivery and restore at every start.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PRODUCTS, PRODUCT_IDS, productDef } from '../../src/monetize/index.ts';
+import { PRODUCTS, PRODUCT_IDS, RESTORE_WATCHDOG_MS, productDef } from '../../src/monetize/index.ts';
 import type { ProductId } from '../../src/monetize/types.ts';
 import { ALL_PRICES, MINUTE, SECOND, world } from './harness.ts';
 
@@ -458,7 +458,7 @@ describe('entitlements: already owned, restore, re-delivery', () => {
   it('a restore that gets no answer resolves by itself', async () => {
     const w = world();
     const restored = w.store.restore();
-    vi.advanceTimersByTime(15 * SECOND);
+    vi.advanceTimersByTime(RESTORE_WATCHDOG_MS);
     expect(await restored).toBe(0);
   });
 

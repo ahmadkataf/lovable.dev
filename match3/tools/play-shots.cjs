@@ -562,7 +562,7 @@ const FRAME_SCENES = {
       await page.waitForTimeout(30);
     }
     await page.waitForFunction(() => window.__play.state() === 'finale', null, { timeout: 30000 });
-    await page.waitForFunction(() => window.__play.info().flyers > 0, null, { timeout: 10000 });
+    await page.waitForFunction(() => window.__play.info().finale && window.__play.info().flyers > 0, null, { timeout: 10000 });
     await page.evaluate(() => {
       window.__demo.pause(true);
       window.__play.finish();

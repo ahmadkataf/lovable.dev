@@ -404,6 +404,9 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     if (disposed) return;
     const top = scroller.scrollTop;
     const bottom = top + viewH;
+    // remember the place (see onResize) — but not while a resize is being worked off: then the
+    // measures above belong to the old size and the scroll offset to the new one
+    if (!resizePending && unit > 0) placeFromBottom = (worldPx - (top + viewH * FOCUS_ANCHOR)) / unit;
     let first = -1;
     let last = -1;
     for (let i = 0; i < sections.length; i++) {
@@ -427,6 +430,11 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   let warmFrom = -1;
   let warmTo = -1;
   let warmTimer = 0;
+  /** Height of the whole world in px, as built. */
+  let worldPx = 0;
+  /** What sits under the focus line of the viewport, as a distance from the world's bottom edge in design units. */
+  let placeFromBottom = 0;
+  let resizePending = false;
 
   function scheduleWarm(): void {
     window.clearTimeout(warmTimer);
@@ -482,7 +490,12 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     marker.style.transform = 'translate(' + Math.round(c.x) + 'px,' + Math.round(c.y) + 'px)';
   }
 
-  function build(restoreRatio: number | null): void {
+  /**
+   * `restore`: where to scroll once the world is built — a scroll ratio (the same viewport rebuilt:
+   * language switch), a distance from the world's bottom in design units that goes back under the
+   * focus line (the viewport changed: rotation, resize), or null to focus the level asked for.
+   */
+  function build(restore: { ratio: number } | { fromBottom: number } | null): void {
     unit = kit.unit();
     viewW = scroller.clientWidth;
     viewH = scroller.clientHeight;
@@ -557,11 +570,15 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       s.top = s.el.offsetTop;
       s.heightPx = s.el.offsetHeight;
     }
+    worldPx = scroller.scrollHeight;
 
     // scroll position
-    const max = Math.max(0, scroller.scrollHeight - viewH);
-    if (restoreRatio !== null) {
-      scroller.scrollTop = Math.round(max * restoreRatio);
+    const max = Math.max(0, worldPx - viewH);
+    if (restore !== null && 'ratio' in restore) {
+      scroller.scrollTop = Math.round(max * restore.ratio);
+    } else if (restore !== null) {
+      const top = worldPx - restore.fromBottom * unit - viewH * FOCUS_ANCHOR;
+      scroller.scrollTop = Math.round(top < 0 ? 0 : top > max ? max : top);
     } else {
       const target = won ? won.level : typeof opts.focusLevel === 'number' ? opts.focusLevel : focusLevel(viewFrontier, levelCount);
       scroller.scrollTop = Math.round(focusScroll(Math.max(1, Math.min(levelCount, Math.floor(target)))));
@@ -897,16 +914,19 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   let lastSize = '';
 
   function onResize(): void {
+    // From here on the scroll offset belongs to the new size: keep the place remembered so far.
+    resizePending = true;
     window.clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(() => {
       if (disposed) return;
+      resizePending = false;
       const key = scroller.clientWidth + 'x' + scroller.clientHeight + '@' + kit.unit();
       if (key === lastSize) return;
       lastSize = key;
-      const max = Math.max(1, scroller.scrollHeight - scroller.clientHeight);
-      const ratio = scroller.scrollTop / max;
       if (celebrating) finishCelebration();
-      build(ratio);
+      // What was under the focus line stays there: the world has the same shape in design units at
+      // every size, so the place is a distance from its bottom edge (remembered while scrolling).
+      build({ fromBottom: placeFromBottom });
     }, 140);
   }
 
@@ -934,7 +954,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     el: root,
 
     shown(): void {
-      build(typeof opts.scrollRatio === 'number' ? opts.scrollRatio : null);
+      build(typeof opts.scrollRatio === 'number' ? { ratio: opts.scrollRatio } : null);
       lastSize = scroller.clientWidth + 'x' + scroller.clientHeight + '@' + kit.unit();
       refreshLives();
       refreshDailyBadge();

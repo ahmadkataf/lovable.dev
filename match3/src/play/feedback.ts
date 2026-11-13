@@ -16,6 +16,8 @@ export const FEEDBACK = {
   particlesPerGem: 8,
   /** particle lifetime ceiling, ms */
   particleLife: 400,
+  /** score labels written out per wave at most (the largest ones) */
+  maxPopups: 5,
   /** live particles at most (halved in low-end mode) */
   maxParticles: 120,
   maxParticlesLow: 60,

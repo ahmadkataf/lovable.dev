@@ -131,6 +131,17 @@ const HARNESS: Record<string, LevelDef> = {
     goals: [{ kind: 'score', target: 1200 }],
     stars: [1200, 2400, 3600],
   },
+  /** worst case for the renderer: a full 9×9 board of six colours with every special + special pair on it */
+  perf: {
+    id: 120,
+    cols: 9,
+    rows: 9,
+    colors: 6,
+    moves: 40,
+    pieces: ['.........', '.PP...NN.', '.........', '..HN..PH.', '.........', '.NV...PN.', '.........', '.HH...PP.', '.........'],
+    goals: [{ kind: 'score', target: 90000 }],
+    stars: [90000, 140000, 190000],
+  },
   /** four goals at once (the header's widest case) */
   goals4: {
     id: 115,

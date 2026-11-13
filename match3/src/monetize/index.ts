@@ -70,6 +70,7 @@ export function createOffStore(): FullStoreApi {
 }
 
 const PROFILE_METHODS = [
+  'subscribe',
   'shop',
   'lastSaveOk',
   'purchaseGranted',

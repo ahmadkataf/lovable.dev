@@ -196,6 +196,8 @@ function onInsets() {
   insetsTimer = setTimeout(checkInsets, 500);
 }
 
+let insetsMismatches = 0;
+
 function checkInsets() {
   check('insets', function () {
     const now = B.insets();
@@ -208,7 +210,19 @@ function checkInsets() {
     }
     const last = seen.insets[pushed - 1];
     parseInsets(last);
-    assert(last === now, 'last push ' + last + ' differs from insets() ' + now);
+    if (last !== now) {
+      // The push for the newest change is still on its way: the bars are moving, or the page is
+      // being paused and receives it when it is shown again. Only a difference that stays while
+      // the page is visible is an error; until then the earlier result stands.
+      insetsMismatches = document.hidden ? 0 : insetsMismatches + 1;
+      if (insetsMismatches < 8) {
+        clearTimeout(insetsTimer);
+        insetsTimer = setTimeout(checkInsets, 1000);
+        return undefined;
+      }
+      throw new Error('last push ' + last + ' still differs from insets() ' + now + ' after ' + insetsMismatches + ' s');
+    }
+    insetsMismatches = 0;
     return 'insets()=' + now + ' pushes=' + pushed + ' (red frame = inset area)';
   });
 }
