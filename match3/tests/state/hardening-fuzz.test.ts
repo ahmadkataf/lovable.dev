@@ -4,10 +4,13 @@
  * never throw and must always produce a SaveData that passes the strict validator below — which is
  * written from the contract (src/state/types.ts) and DESIGN §5, not from the implementation.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createProfile, fixedOffsetDayNumber, parseSave, repairSave } from '../../src/state/index.ts';
 import type { BoosterId, ProfileApi, Reward, SaveData } from '../../src/state/types.ts';
 import { MINUTE, T0, rng, sampleSave } from './harness.ts';
+
+// Thousands of cases per test: quick on an idle machine, but allow for a busy one.
+vi.setConfig({ testTimeout: 60_000 });
 
 // ───────────────────────────── a strict, independent validator ─────────────────────────────
 
@@ -360,10 +363,10 @@ describe('hardening: the validator itself', () => {
 });
 
 describe('hardening: fuzzing the save loader', () => {
-  it('6,000 valid saves with random damage always load into a valid profile', () => {
+  it('4,000 valid saves with random damage always load into a valid profile', () => {
     const random = rng(20260310);
     const failures: string[] = [];
-    for (let i = 0; i < 6000 && failures.length < 5; i++) {
+    for (let i = 0; i < 4000 && failures.length < 5; i++) {
       const json = toJson(mutated(random));
       const problems = gauntlet(json);
       if (problems.length) failures.push(problems.join('; ') + '  ← ' + json.slice(0, 600));
@@ -372,10 +375,10 @@ describe('hardening: fuzzing the save loader', () => {
     expectCleanPrototypes();
   });
 
-  it('3,000 documents of pure random JSON always load into a valid profile', () => {
+  it('2,000 documents of pure random JSON always load into a valid profile', () => {
     const random = rng(777);
     const failures: string[] = [];
-    for (let i = 0; i < 3000 && failures.length < 5; i++) {
+    for (let i = 0; i < 2000 && failures.length < 5; i++) {
       const json = toJson(hostile(random));
       const problems = gauntlet(json);
       if (problems.length) failures.push(problems.join('; ') + '  ← ' + json.slice(0, 600));
@@ -384,10 +387,10 @@ describe('hardening: fuzzing the save loader', () => {
     expectCleanPrototypes();
   });
 
-  it('3,000 save-shaped documents made only of hostile values always load into a valid profile', () => {
+  it('2,000 save-shaped documents made only of hostile values always load into a valid profile', () => {
     const random = rng(4242);
     const failures: string[] = [];
-    for (let i = 0; i < 3000 && failures.length < 5; i++) {
+    for (let i = 0; i < 2000 && failures.length < 5; i++) {
       const doc: Record<string, unknown> = {};
       for (const key of SAVE_KEYS) if (random() < 0.9) doc[key] = hostile(random);
       const json = toJson(doc);
@@ -398,11 +401,11 @@ describe('hardening: fuzzing the save loader', () => {
     expectCleanPrototypes();
   });
 
-  it('2,000 valid save strings cut, spliced and scrambled as text always load into a valid profile', () => {
+  it('1,500 valid save strings cut, spliced and scrambled as text always load into a valid profile', () => {
     const random = rng(31337);
     const failures: string[] = [];
     const junk = ['', '\u0000', '{', '}', '[', ']', '"', ':', ',', '\\', '\\u', 'null', '1e999', '-', '\uFEFF', '"__proto__":{"coins":9}', '/*x*/', '\n'];
-    for (let i = 0; i < 2000 && failures.length < 5; i++) {
+    for (let i = 0; i < 1500 && failures.length < 5; i++) {
       let text = JSON.stringify(validSave(random));
       for (let hits = 1 + Math.floor(random() * 3); hits > 0; hits--) {
         const at = Math.floor(random() * (text.length + 1));

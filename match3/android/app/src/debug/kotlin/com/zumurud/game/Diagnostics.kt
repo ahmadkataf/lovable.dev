@@ -12,7 +12,7 @@ import android.webkit.WebView
  *
  *     adb shell am start -n com.zumurud.game/.MainActivity --ez diag true
  *
- * and a few commands for an already running diagnostics session, used by tools/android/emu-smoke.sh:
+ * (add `--ei splashMs 60000` to keep the splash screen up until the page calls ready()), and a few commands for an already running diagnostics session, used by tools/android/emu-smoke.sh:
  *
  *     adb shell am start -n com.zumurud.game/.MainActivity --es diagcmd crash    renderer crash
  *     … --es diagcmd kill      renderer killed (as the system does under memory pressure)
@@ -33,6 +33,10 @@ internal object Diagnostics {
 
     fun startUrl(intent: Intent?): String? =
         if (intent?.getBooleanExtra("diag", false) == true) DIAG_URL else null
+
+    /** `--ei splashMs 60000` holds the splash screen longer, to study what a page can do behind it. */
+    fun splashMaxMs(intent: Intent?): Long? =
+        intent?.getIntExtra("splashMs", 0)?.takeIf { it in 1..120_000 }?.toLong()
 
     fun onWebViewCreated(activity: MainActivity, webView: WebView, startUrl: String) {
         WebView.setWebContentsDebuggingEnabled(true)

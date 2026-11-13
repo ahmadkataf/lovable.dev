@@ -9,11 +9,19 @@
  *  - claiming on the day right after the last claim continues the streak, anything later restarts it;
  *  - the reward is the streak's place in the 7-day cycle.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createProfile, dayNumberAtOffset, fixedOffsetDayNumber, localDayNumber, msUntilNextLocalDay } from '../../src/state/index.ts';
 import type { ProfileApi, Reward, SaveData } from '../../src/state/types.ts';
 import { DAY, HOUR, MINUTE, rng } from './harness.ts';
 
+// Thousands of cases per test: quick on an idle machine, but allow for a busy one.
+vi.setConfig({ testTimeout: 60_000 });
+
+// NOTE — which design these numbers are: docs/DESIGN.md §5 was revised by the strategy study while
+// this suite was being written (30-minute lives, 2,000 starting coins, new prices, booster unlocks,
+// a new daily cycle). The profile still implements the previous §5, and so do the numbers below;
+// the revision is implemented by the economy module (see src/state/extensions.ts). When it lands,
+// update the hand-written numbers in this file — the rules being tested do not change.
 /** DESIGN §5, written out again by hand (not imported from the implementation). */
 const CYCLE: Reward[][] = [
   [{ kind: 'coins', amount: 50 }],

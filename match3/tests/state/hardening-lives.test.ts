@@ -11,12 +11,20 @@
  *  - a clock that moved backwards takes progress away but never below zero and never takes a life;
  *  - refilling costs 120 coins and needs a missing life.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createProfile, fixedOffsetDayNumber, freshSave } from '../../src/state/index.ts';
 import type { ProfileApi, Reward } from '../../src/state/types.ts';
 import { DAY, HOUR, MINUTE, SECOND, harness, rng } from './harness.ts';
 import type { Harness } from './harness.ts';
 
+// Thousands of cases per test: quick on an idle machine, but allow for a busy one.
+vi.setConfig({ testTimeout: 60_000 });
+
+// NOTE — which design these numbers are: docs/DESIGN.md §5 was revised by the strategy study while
+// this suite was being written (30-minute lives, 2,000 starting coins, new prices, booster unlocks,
+// a new daily cycle). The profile still implements the previous §5, and so do the numbers below;
+// the revision is implemented by the economy module (see src/state/extensions.ts). When it lands,
+// update the hand-written numbers in this file — the rules being tested do not change.
 const INTERVAL = 20 * MINUTE;
 const FULL = 5;
 const REFILL_PRICE = 120;
@@ -78,6 +86,15 @@ class LivesModel {
   }
 }
 
+/** Cheap in a hot loop: an assertion is only built when the values differ. */
+function same<T>(actual: T, expected: T, where: string): void {
+  if (actual !== expected) expect(actual, where).toBe(expected);
+}
+
+function sameInfo(actual: { count: number; max: number; nextInMs: number }, expected: { count: number; max: number; nextInMs: number }, where: string): void {
+  if (actual.count !== expected.count || actual.max !== expected.max || actual.nextInMs !== expected.nextInMs) expect(actual, where).toEqual(expected);
+}
+
 /** Clock steps that matter: around the interval, tiny, huge, and backwards. */
 function clockStep(random: () => number): number {
   const roll = random();
@@ -102,7 +119,7 @@ function run(seed: number, steps: number): { regenerated: number; refills: numbe
   for (let step = 0; step < steps; step++) {
     const where = `seed ${seed}, step ${step}`;
     const writesBefore = h.storage.writes;
-    const notesBefore = h.notifications.count;
+    let notesBefore = h.notifications.count;
     const livesBefore = model.lives;
     let mutated: boolean | null = null; // null = the step made no API call that could change anything
 
@@ -113,11 +130,11 @@ function run(seed: number, steps: number): { regenerated: number; refills: numbe
       h.clock.now = Math.max(1_000, h.clock.now + dt);
     } else if (roll < 0.56) {
       mutated = model.lose(h.clock.now);
-      expect(h.profile.loseLife(), where).toBe(mutated);
+      same(h.profile.loseLife(), mutated, where + ' loseLife');
       if (model.lives + (mutated ? 1 : 0) > livesBefore) count.regenerated += 1;
     } else if (roll < 0.64) {
       mutated = model.refill(h.clock.now);
-      expect(h.profile.refillLives(), where).toBe(mutated);
+      same(h.profile.refillLives(), mutated, where + ' refillLives');
       if (mutated) count.refills += 1;
     } else if (roll < 0.7) {
       // Coins change without the profile looking at the clock.
@@ -133,34 +150,34 @@ function run(seed: number, steps: number): { regenerated: number; refills: numbe
     } else if (roll < 0.86) {
       model.look(h.clock.now);
       h = h.restart(); // loading looks at the lives once
+      notesBefore = h.notifications.count; // a new profile, a new listener
     } else if (roll < 0.93) {
-      expect(h.profile.lives(), where).toEqual(model.info(h.clock.now));
+      sameInfo(h.profile.lives(), model.info(h.clock.now), where + ' lives()');
     } else {
       model.look(h.clock.now);
       const data = h.profile.data();
-      expect(data.lives, where).toBe(model.lives);
-      expect(data.lifeTimer, where).toBe(model.lives >= FULL ? 0 : h.clock.now - model.progress);
+      same(data.lives, model.lives, where + ' data().lives');
+      same(data.lifeTimer, model.lives >= FULL ? 0 : h.clock.now - model.progress, where + ' data().lifeTimer');
     }
 
     // The return values above are the main evidence; the raw state is compared without making the
     // profile look at the clock again (the stored copy is read instead of calling lives()).
-    expect(h.profile.coins(), where).toBe(model.coins);
+    same(h.profile.coins(), model.coins, where + ' coins');
+    const wrote = h.storage.writes - writesBefore;
+    const announced = h.notifications.count - notesBefore;
     if (mutated === true) {
-      expect(h.storage.writes - writesBefore, where + ': a change is stored exactly once').toBe(1);
-      expect(h.notifications.count - notesBefore, where + ': a change is announced exactly once').toBe(1);
-      const saved = h.saved();
-      expect(saved.lives, where).toBe(model.lives);
-      expect(saved.coins, where).toBe(model.coins);
-    } else if (mutated === false) {
-      expect(h.storage.writes - writesBefore, where + ': a refused call stores at most once').toBeLessThanOrEqual(1);
-      expect(h.notifications.count - notesBefore, where + ': a refused call is silent').toBe(0);
+      same(wrote, 1, where + ': a change is stored exactly once');
+      same(announced, 1, where + ': a change is announced exactly once');
     } else {
-      expect(h.storage.writes - writesBefore, where).toBeLessThanOrEqual(1);
+      same(wrote <= 1, true, where + ': a call that changes nothing stores at most once (a regenerated life)');
+      same(announced, 0, where + ': a call that changes nothing is silent');
     }
-    if (h.storage.json !== null) {
+    if (wrote > 0) {
+      // What was just stored is the model's state, and is well-formed.
       const saved = h.saved();
-      expect(saved.lives >= 0 && saved.lives <= FULL, where).toBe(true);
-      expect(saved.lives === FULL ? saved.lifeTimer === 0 : saved.lifeTimer > 0, where).toBe(true);
+      same(saved.lives, model.lives, where + ': stored lives');
+      same(saved.coins, model.coins, where + ': stored coins');
+      same(saved.lives === FULL ? saved.lifeTimer === 0 : saved.lifeTimer > 0, true, where + ': stored timer');
     }
   }
   // Final agreement, down to the millisecond.

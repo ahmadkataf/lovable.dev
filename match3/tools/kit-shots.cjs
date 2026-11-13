@@ -202,6 +202,7 @@ async function checks(browser, problems) {
   await load(page, 'en', '');
 
   const demo = (fn, arg) => page.evaluate(fn, arg);
+  const near = (a, b) => Math.abs(a - b) < 0.1;
   const openCount = () => demo(() => document.querySelectorAll('.k-overlay.k-open').length);
   const settle = () => sleep(260);
 
@@ -526,7 +527,7 @@ async function checks(browser, problems) {
   });
   ok(
     'safe-area tokens default to 0 and setSafeInsets() pads screens, dialogs and toasts',
-    state.before === '0px 0px 0px 0px' && state.after === '40px 20px 30px 10px' && state.overlay[0] === 56 && state.overlay[1] === 32 && state.overlay[2] === 46 && state.overlay[3] === 22 && state.toastTop === 52,
+    state.before === '0px 0px 0px 0px' && state.after === '40px 20px 30px 10px' && near(state.overlay[0], 56) && near(state.overlay[1], 32) && near(state.overlay[2], 46) && near(state.overlay[3], 22) && near(state.toastTop, 52),
     JSON.stringify(state),
   );
   await sleep(500);
@@ -547,7 +548,8 @@ async function checks(browser, problems) {
         const small = [];
         const nodes = document.querySelectorAll('#app .k-btn, #app .k-chip--button, #app .k-toggle, #app .k-seg');
         for (const node of nodes) {
-          const r = node.getBoundingClientRect();
+          // layout size (a held button is drawn slightly smaller, its touch target is not)
+          const r = { width: node.offsetWidth, height: node.offsetHeight };
           const slop = getComputedStyle(node, '::after');
           const extraY = slop.content !== 'none' && slop.position === 'absolute' ? -(parseFloat(slop.top) || 0) - (parseFloat(slop.bottom) || 0) : 0;
           const extraX = slop.content !== 'none' && slop.position === 'absolute' ? -(parseFloat(slop.left) || 0) - (parseFloat(slop.right) || 0) : 0;
@@ -557,7 +559,8 @@ async function checks(browser, problems) {
         }
         const doc = document.documentElement;
         const wide = [];
-        for (const node of document.querySelectorAll('#app *')) {
+        // (a progress fill slides under its track's clip, so its box does not count)
+        for (const node of document.querySelectorAll('#app *:not(.k-progress__fill)')) {
           const r = node.getBoundingClientRect();
           if (r.width > 0 && (r.right > doc.clientWidth + 0.5 || r.left < -0.5)) wide.push(node.className + ' ' + r.left.toFixed(1) + '…' + r.right.toFixed(1));
         }
@@ -614,7 +617,7 @@ async function checks(browser, problems) {
         xRight: mid(x) > mid(panel),
         ribbonRight: mid(ribbon) > mid(card),
         knobRight: mid(knob) > mid(sw),
-        fillFromRight: Math.abs(fill.right - track.right) < Math.abs(fill.left - track.left),
+        fillFromRight: fill.left > track.left + 1,
         align: getComputedStyle(document.querySelector('[data-shot="controls"] .k-toggle__label')).textAlign,
       };
     });
@@ -654,8 +657,8 @@ async function checks(browser, problems) {
     };
     const over = (top, under) => ({ r: top.r * top.a + under.r * (1 - top.a), g: top.g * top.a + under.g * (1 - top.a), b: top.b * top.a + under.b * (1 - top.a), a: 1 });
     /** Opaque colours a surface can show behind text: every stop of its top gradient layer, else its background colour. */
-    const surfaces = (node, base) => {
-      const cs = getComputedStyle(node);
+    const surfaces = (node, base, pseudo) => {
+      const cs = getComputedStyle(node, pseudo || null);
       const out = [];
       const image = cs.backgroundImage;
       if (image && image !== 'none') {
@@ -672,7 +675,7 @@ async function checks(browser, problems) {
     };
     const night = { r: 20, g: 18, b: 58, a: 1 };
     const rows = [];
-    const add = (name, textNode, surfaceNode, base) => {
+    const add = (name, textNode, surfaceNode, base, pseudo) => {
       if (!textNode || !surfaceNode) {
         rows.push({ name, ratio: 0, note: 'missing' });
         return;
@@ -681,7 +684,7 @@ async function checks(browser, problems) {
       let color = parse(cs.webkitTextFillColor && cs.webkitTextFillColor !== 'rgba(0, 0, 0, 0)' ? cs.webkitTextFillColor : cs.color);
       if (cs.webkitTextFillColor === 'rgba(0, 0, 0, 0)') color = parse(cs.color);
       const opacity = parseFloat(cs.opacity);
-      const stops = surfaces(surfaceNode, base || night);
+      const stops = surfaces(surfaceNode, base || night, pseudo);
       let worst = Infinity;
       for (const s of stops) {
         const shown = opacity < 1 ? over({ r: color.r, g: color.g, b: color.b, a: opacity }, s) : color;
@@ -713,7 +716,8 @@ async function checks(browser, problems) {
     add('ribbon popular', q('.k-ribbon--popular span'), q('.k-ribbon--popular'));
     add('ribbon best', q('.k-ribbon--best span'), q('.k-ribbon--best'));
     add('ribbon new', q('#app .k-ribbon--new span'), q('#app .k-ribbon--new'));
-    add('chip text', q('.k-chip__text'), q('.k-chip'), panelWorstLight);
+    add('chip text', q('.k-chip__text'), q('.k-chip'), panelWorstLight, '::before');
+    add('dialog body text', q('.k-dialog .k-offer__title'), panel);
     add('quantity badge', q('.k-qty'), q('.k-qty'), panelWorstLight);
     add('quantity badge gold', q('#app .k-qty--gold'), q('#app .k-qty--gold'));
     add('owned', q('#app .k-owned span:last-child'), q('#app .k-owned'), panelWorstLight);
@@ -738,7 +742,7 @@ async function checks(browser, problems) {
   const page3 = await ctx3.newPage();
   watch(page3, problems);
   await load(page3, 'en', 'result');
-  await sleep(120);
+  await sleep(500);
   state = await page3.evaluate(() => {
     const d = getComputedStyle(document.querySelector('.k-dialog'));
     const f = getComputedStyle(document.querySelector('#demo-guard .k-btn__face'));

@@ -14,6 +14,8 @@ internal object Diagnostics {
 
     fun startUrl(intent: Intent?): String? = null
 
+    fun splashMaxMs(intent: Intent?): Long? = null
+
     fun onWebViewCreated(activity: MainActivity, webView: WebView, startUrl: String) = Unit
 
     fun onNewIntent(activity: MainActivity, intent: Intent) = Unit

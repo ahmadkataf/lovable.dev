@@ -119,6 +119,10 @@ document.addEventListener('visibilitychange', function () {
   onLifecycle();
 });
 
+window.addEventListener('resize', function () {
+  console.log('DIAG INFO resize: ' + window.innerWidth + '×' + window.innerHeight + ' CSS px, devicePixelRatio ' + window.devicePixelRatio);
+});
+
 const cspViolations = [];
 document.addEventListener('securitypolicyviolation', function (e) {
   cspViolations.push(e.violatedDirective + ' ' + e.blockedURI);
@@ -209,24 +213,24 @@ async function run() {
   if (!B) return;
 
   // Does requestAnimationFrame tick while the splash screen is still up? (Decides when the game may call ready().)
-  let rafAt = -1;
-  requestAnimationFrame(function () {
-    rafAt = performance.now();
-  });
-  await Promise.race([
-    sleep(1200),
-    new Promise(function (resolve) {
-      (function poll() {
-        if (rafAt >= 0) resolve();
-        else setTimeout(poll, 20);
-      })();
-    }),
-  ]);
+  const before = await nativeState();
+  let ticks = 0;
+  let counting = true;
+  (function loop() {
+    requestAnimationFrame(function () {
+      if (!counting) return;
+      ticks++;
+      loop();
+    });
+  })();
+  await sleep(1500);
+  counting = false;
   await check('ready', function () {
-    const before = rafAt >= 0 ? 'rAF ticked ' + Math.round(rafAt - t0) + ' ms after start, before ready()' : 'NO rAF tick within 1200 ms before ready()';
+    const calledAt = Math.round(performance.now());
     B.ready();
     B.ready(); // calling it again is harmless
-    return 'ready() called at ' + Math.round(performance.now()) + ' ms; ' + before;
+    const splash = before ? (before.splashUp ? 'splash still up' : 'splash already gone') : 'splash state unknown';
+    return 'ready() called at ' + calledAt + ' ms (' + splash + '); requestAnimationFrame ticked ' + ticks + '× in the 1500 ms before';
   });
 
   await check('mime', async function () {

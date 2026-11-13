@@ -46,6 +46,7 @@ import androidx.webkit.WebResourceErrorCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.abs
 import kotlin.math.ceil
 import org.json.JSONObject
 
@@ -70,6 +71,8 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
     private var resumed = false
     private var inBackground = false
     private var createdAt = 0L
+    private var splashMaxMs = SPLASH_MAX_MS
+    private var lastDensityDpi = 0
     private var lastStorePageAt = 0L
 
     /** Flips once: the page has drawn its first screen (or failed), so the splash screen may go. */
@@ -94,7 +97,9 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
         createdAt = SystemClock.uptimeMillis()
-        splash.setKeepOnScreenCondition { !pageReady.get() && SystemClock.uptimeMillis() - createdAt < SPLASH_MAX_MS }
+        splashMaxMs = Diagnostics.splashMaxMs(intent) ?: SPLASH_MAX_MS
+        splash.setKeepOnScreenCondition { splashUp() }
+        lastDensityDpi = resources.configuration.densityDpi
 
         setUpWindow()
 
@@ -173,6 +178,37 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
         publishInfo()
         hideSystemBars()
         ViewCompat.requestApplyInsets(root)
+        if (newConfig.densityDpi != lastDensityDpi) {
+            lastDensityDpi = newConfig.densityDpi
+            root.postDelayed({ repairViewportScale(VIEWPORT_REPAIR_ATTEMPTS) }, VIEWPORT_REPAIR_DELAY_MS)
+        }
+    }
+
+    /**
+     * The splash screen stays until the page calls AndroidBridge.ready(), but never longer than
+     * [splashMaxMs]: a page that fails to start must not hide behind the logo.
+     */
+    private fun splashUp(): Boolean = !pageReady.get() && SystemClock.uptimeMillis() - createdAt < splashMaxMs
+
+    /**
+     * The WebView converts its size to CSS pixels only when its pixel size changes. When the screen
+     * density changes and the pixel size does not (the "display size" setting, a second screen with
+     * another density), that conversion goes stale: the page is laid out for the old density and
+     * painted into a corner of the view. Detect it — the page's width must equal the view's width
+     * in dp — and repair it by resizing the WebView by one pixel for a single layout pass.
+     */
+    private fun repairViewportScale(attemptsLeft: Int) {
+        val view = webView ?: return
+        if (view.width == 0 || isDestroyed) return
+        view.evaluateJavascript("window.innerWidth") { value ->
+            val cssWidth = value?.toFloatOrNull()
+            if (view !== webView || cssWidth == null || view.width == 0) return@evaluateJavascript
+            val expected = view.width / resources.displayMetrics.density
+            if (abs(cssWidth - expected) <= 1.5f) return@evaluateJavascript
+            view.layout(view.left, view.top, view.right, view.bottom - 1)
+            view.requestLayout()
+            if (attemptsLeft > 1) root.postDelayed({ repairViewportScale(attemptsLeft - 1) }, VIEWPORT_REPAIR_DELAY_MS)
+        }
     }
 
     // ───────────────────────── window ─────────────────────────
@@ -547,6 +583,8 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
         .put("smallestWidthDp", resources.configuration.smallestScreenWidthDp)
         .put("fontScale", resources.configuration.fontScale.toDouble())
         .put("pageReady", pageReady.get())
+        .put("splashUp", splashUp())
+        .put("densityDpi", resources.configuration.densityDpi)
         .put("sdk", Build.VERSION.SDK_INT)
         .toString()
 
@@ -566,5 +604,7 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
         const val MAX_CONSOLE_CHARS = 2000
         const val MAX_RENDERER_LOSSES = 3
         const val RENDERER_LOSS_WINDOW_MS = 60_000L
+        const val VIEWPORT_REPAIR_ATTEMPTS = 5
+        const val VIEWPORT_REPAIR_DELAY_MS = 300L
     }
 }

@@ -20,6 +20,9 @@ import type { Lang, StringTable } from '../../src/i18n/types.ts';
 
 const LRM = '\u200E';
 
+// Thousands of cases per test: quick on an idle machine, but allow for a busy one.
+vi.setConfig({ testTimeout: 60_000 });
+
 function rng(seed: number): () => number {
   let a = seed >>> 0;
   return () => {

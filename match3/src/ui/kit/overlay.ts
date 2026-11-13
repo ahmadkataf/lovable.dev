@@ -18,6 +18,8 @@ import type { ConfirmOptions, DialogButton, DialogHandle, DialogOptions, KitButt
 const CLOSE_MS = 170;
 /** Backdrop taps are ignored this long after opening, so a stray tap cannot dismiss a new dialog. */
 const BACKDROP_GRACE_MS = 320;
+/** Below this visible body height (design units) a squeezed dialog scrolls as a whole. */
+const FLOW_BELOW_UNITS = 100;
 const TOAST_MAX = 3;
 const TOAST_EXIT_MS = 190;
 
@@ -221,6 +223,8 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
       inner,
     );
     inner.appendChild(bodyWrap);
+    panel.appendChild(el('div', { class: 'k-dialog__hint k-dialog__hint--up', 'aria-hidden': 'true' }));
+    panel.appendChild(el('div', { class: 'k-dialog__hint k-dialog__hint--down', 'aria-hidden': 'true' }));
     if (opts.ariaLabel) panel.setAttribute('aria-label', opts.ariaLabel);
     setTitle(opts.title || '');
 
@@ -256,7 +260,7 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
       if (!opts.silent && !quiet) core.sfx('popupClose');
       sync();
       if (observer) observer.disconnect();
-      window.removeEventListener('resize', onResize);
+      window.removeEventListener('resize', refit);
       window.setTimeout(() => detach(root), core.reducedMotion() ? 0 : CLOSE_MS);
       if (opts.onClose) {
         try {
@@ -370,22 +374,55 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
       }
     }
 
+    /**
+     * Normally the title and the buttons stay put and only the body scrolls. On a very short
+     * viewport (a phone in landscape with stacked buttons) that would squeeze the body to a
+     * sliver — then the whole panel content scrolls as one instead ("flow" mode).
+     */
+    let flow = false;
+    function fitBody(): void {
+      panel.classList.remove('k-dialog--flow');
+      flow = false;
+      const need = body.scrollHeight;
+      const have = body.clientHeight;
+      if (need > have + 1 && have < Math.min(need, FLOW_BELOW_UNITS * core.unit())) {
+        flow = true;
+        panel.classList.add('k-dialog--flow');
+      }
+    }
+
     // scroll hints
     function updateScrollHints(): void {
-      const max = body.scrollHeight - body.clientHeight;
-      bodyWrap.classList.toggle('k-can-up', body.scrollTop > 2);
-      bodyWrap.classList.toggle('k-can-down', max - body.scrollTop > 2);
+      const scroller = flow ? inner : body;
+      const max = scroller.scrollHeight - scroller.clientHeight;
+      const up = scroller.scrollTop > 2;
+      const down = max - scroller.scrollTop > 2;
+      bodyWrap.classList.toggle('k-can-up', !flow && up);
+      bodyWrap.classList.toggle('k-can-down', !flow && down);
+      panel.classList.toggle('k-can-up', flow && up);
+      panel.classList.toggle('k-can-down', flow && down);
     }
-    function onResize(): void {
+    function refit(): void {
+      if (entry.closed) return;
       fitButtons();
+      fitBody();
       updateScrollHints();
     }
     body.addEventListener('scroll', updateScrollHints, { passive: true });
-    window.addEventListener('resize', onResize);
+    inner.addEventListener('scroll', updateScrollHints, { passive: true });
+    window.addEventListener('resize', refit);
     let observer: ResizeObserver | null = null;
+    let refitQueued = false;
     if (typeof ResizeObserver === 'function') {
-      observer = new ResizeObserver(updateScrollHints);
-      observer.observe(body);
+      // content changed size (text set later, fonts arriving): re-fit on the next frame
+      observer = new ResizeObserver(() => {
+        if (refitQueued) return;
+        refitQueued = true;
+        requestAnimationFrame(() => {
+          refitQueued = false;
+          refit();
+        });
+      });
       if (body.firstElementChild) observer.observe(body.firstElementChild);
     }
 
@@ -394,10 +431,9 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
     stack.push(entry);
     parent.appendChild(root);
     sync();
-    fitButtons();
+    refit();
     reflow(root);
     root.classList.add('k-open');
-    updateScrollHints();
     focusPanel(panel);
     if (!opts.silent) core.sfx('popupOpen');
     return handle;

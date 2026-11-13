@@ -1,6 +1,11 @@
 /**
  * Every number of the in-game economy (docs/DESIGN.md §5) in one place.
  * Pure data + two tiny pure helpers; nothing here touches storage or the clock.
+ *
+ * NOTE: §5 has since been revised by the strategy study (docs/STRATEGY.md: 30-minute lives, 2,000
+ * starting coins, new prices and daily cycle, booster unlocks, the Caravan). These are still the
+ * numbers of the §5 before that revision; the new economy is implemented by the economy module
+ * (contract: ./extensions.ts), which replaces them.
  */
 import type { BoosterId, Reward } from './types.ts';
 

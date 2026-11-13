@@ -500,7 +500,7 @@ body {
   font-size: 0.62em;
   font-weight: 700;
   line-height: 1.15;
-  opacity: 0.86;
+  opacity: 0.92;
   overflow-wrap: anywhere;
 }
 
@@ -537,14 +537,13 @@ body {
 }
 
 /* small buttons are 46 units tall; this invisible margin keeps the touch target ≥ 48 px */
-.k-btn--sm::after,
-.k-chip--button::after {
+.k-btn--sm::after {
   content: '';
   position: absolute;
   top: -5px;
-  right: -4px;
+  right: -5px;
   bottom: -5px;
-  left: -4px;
+  left: -5px;
 }
 
 .k-btn--lg {
@@ -563,8 +562,8 @@ body {
 
 /* variants */
 .k-btn--secondary {
-  --k-btn-face: linear-gradient(180deg, #6a55c9 0%, #4d3a9e 100%);
-  --k-btn-edge: #281d63;
+  --k-btn-face: linear-gradient(180deg, #604cbe 0%, #473594 100%);
+  --k-btn-edge: #251b5e;
   --k-btn-rim: var(--k-lilac);
   --k-btn-text: var(--k-cream);
   --k-btn-tshadow: 0 calc(var(--k-u) * 1.5) 0 rgba(20, 14, 62, 0.6);
@@ -696,7 +695,7 @@ body {
   height: calc(var(--k-u) * 22);
   padding: 0 calc(var(--k-u) * 5);
   border-radius: calc(var(--k-u) * 11);
-  background: linear-gradient(180deg, #e2405c 0%, #bd2445 100%);
+  background: linear-gradient(180deg, #d23350 0%, #b01f40 100%);
   box-shadow:
     0 0 0 calc(var(--k-u) * 2) var(--k-cream),
     0 calc(var(--k-u) * 3) calc(var(--k-u) * 5) rgba(6, 4, 26, 0.45);
@@ -812,6 +811,16 @@ body {
 .k-chip--button {
   cursor: pointer;
   touch-action: manipulation;
+}
+
+/* a tappable chip is 36 units tall; this invisible margin keeps its touch target ≥ 48 px */
+.k-chip--button::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: -4px;
+  bottom: -8px;
+  left: -4px;
 }
 
 .k-chip--plus .k-chip__in {
@@ -1407,6 +1416,59 @@ body {
   opacity: 1;
 }
 
+/*
+ * "Flow" mode (class set by the kit): on a very short viewport the footer would squeeze the body
+ * to a sliver, so title, body and buttons scroll together inside the panel instead.
+ */
+.k-dialog--flow .k-dialog__inner {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.k-dialog--flow .k-dialog__inner::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.k-dialog--flow .k-dialog__bodywrap {
+  flex: none;
+}
+
+.k-dialog--flow .k-dialog__body {
+  overflow: visible;
+}
+
+.k-dialog__hint {
+  position: absolute;
+  left: calc(var(--k-u) * 3);
+  right: calc(var(--k-u) * 3);
+  z-index: 1;
+  height: calc(var(--k-u) * 26);
+  opacity: 0;
+  transition: opacity var(--k-fast) linear;
+  pointer-events: none;
+}
+
+.k-dialog__hint--up {
+  top: calc(var(--k-u) * 3);
+  border-radius: calc(var(--k-u) * 25) calc(var(--k-u) * 25) 0 0;
+  background: linear-gradient(180deg, rgba(10, 8, 36, 0.66) 0%, rgba(10, 8, 36, 0) 100%);
+}
+
+.k-dialog__hint--down {
+  bottom: calc(var(--k-u) * 3);
+  border-radius: 0 0 calc(var(--k-u) * 25) calc(var(--k-u) * 25);
+  background: linear-gradient(0deg, rgba(10, 8, 36, 0.66) 0%, rgba(10, 8, 36, 0) 100%);
+}
+
+.k-dialog--flow.k-can-up .k-dialog__hint--up,
+.k-dialog--flow.k-can-down .k-dialog__hint--down {
+  opacity: 1;
+}
+
 .k-dialog__foot {
   flex: none;
   display: flex;
@@ -1456,9 +1518,9 @@ body {
   top: calc(var(--k-u) * -9);
   right: calc(var(--k-u) * -7);
   z-index: 2;
-  --k-btn-h: calc(var(--k-u) * 36);
+  --k-btn-h: calc(var(--k-u) * 38);
   --k-btn-depth: calc(var(--k-u) * 3);
-  width: calc(var(--k-u) * 36);
+  width: calc(var(--k-u) * 38);
 }
 
 [dir='rtl'] .k-dialog__x {
@@ -1467,7 +1529,7 @@ body {
 }
 
 .k-dialog__x.k-btn--round.k-btn--sm {
-  width: calc(var(--k-u) * 36);
+  width: calc(var(--k-u) * 38);
 }
 
 .k-dialog__x::after {
@@ -1625,7 +1687,7 @@ body {
 }
 
 .k-offer--featured {
-  background: linear-gradient(180deg, #6a4fc4 0%, #37288a 100%);
+  background: linear-gradient(180deg, #5d45b8 0%, #33257f 100%);
   box-shadow:
     inset 0 0 0 calc(var(--k-u) * 2.5) var(--k-gold),
     inset 0 calc(var(--k-u) * 5) 0 rgba(255, 255, 255, 0.1),
@@ -1688,7 +1750,7 @@ body {
   font-size: calc(var(--k-u) * 13);
   font-weight: 600;
   line-height: 1.3;
-  color: var(--k-muted);
+  color: #dcd6f5;
   overflow-wrap: anywhere;
 }
 
@@ -1758,7 +1820,7 @@ body {
   max-width: calc(100% - var(--k-u) * 8);
   padding: calc(var(--k-u) * 3) calc(var(--k-u) * 10) calc(var(--k-u) * 3) calc(var(--k-u) * 12);
   border-radius: calc(var(--k-u) * 12) calc(var(--k-u) * 3) 0 calc(var(--k-u) * 12);
-  background: linear-gradient(180deg, #e2405c 0%, #bd2445 100%);
+  background: linear-gradient(180deg, #d23350 0%, #b01f40 100%);
   box-shadow: inset 0 calc(var(--k-u) * 1.5) 0 rgba(255, 255, 255, 0.35), 0 calc(var(--k-u) * 3) calc(var(--k-u) * 5) rgba(6, 4, 26, 0.4);
   color: #ffffff;
   font-size: calc(var(--k-u) * 12.5);
