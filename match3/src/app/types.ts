@@ -7,6 +7,7 @@ import type { AudioApi } from '../audio/types.ts';
 import type { I18nApi } from '../i18n/types.ts';
 import type { PlatformApi } from '../platform/types.ts';
 import type { ProfileApi } from '../state/types.ts';
+import type { ProfileExtensions } from '../state/extensions.ts';
 import type { StoreApi } from '../monetize/types.ts';
 
 export interface AppContext {
@@ -14,7 +15,8 @@ export interface AppContext {
   audio: AudioApi;
   i18n: I18nApi;
   platform: PlatformApi;
-  profile: ProfileApi;
+  /** Extension methods may be missing until the economy module lands — call them with `?.()`. */
+  profile: ProfileApi & Partial<ProfileExtensions>;
   /** Real-money purchases and ads (unavailable ⇒ offers are simply hidden). */
   store: StoreApi;
   /** All levels, index 0 = level 1. */

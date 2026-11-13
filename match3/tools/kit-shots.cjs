@@ -94,13 +94,21 @@ async function shootSize(browser, size, sections, scenarios, filter, problems) {
     if (wantSections.length) {
       await load(page, lang, '');
       for (const name of wantSections) {
-        const node = await page.$('[data-shot="' + name + '"]');
-        if (!node) {
-          problems.push('missing section ' + name);
-          continue;
+        // Other modules are edited while this runs; a dev-server reload in the middle of a shot is retried.
+        let done = false;
+        for (let attempt = 0; attempt < 3 && !done; attempt++) {
+          try {
+            if (attempt > 0) await load(page, lang, '');
+            const node = await page.$('[data-shot="' + name + '"]');
+            if (!node) continue;
+            await node.screenshot({ path: path.join(OUT, name + tag + '.png') });
+            done = true;
+          } catch (err) {
+            if (attempt === 2) problems.push('section ' + name + tag + ': ' + err.message);
+          }
         }
-        await node.screenshot({ path: path.join(OUT, name + tag + '.png') });
-        count++;
+        if (done) count++;
+        else problems.push('missing section ' + name + tag);
       }
     }
     for (const name of scenarios) {

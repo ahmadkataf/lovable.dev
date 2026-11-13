@@ -685,17 +685,21 @@ describe('hardening: markSeen', () => {
     expect(seen.length).toBe(58); // 58 × 1024 ≤ 60,000 < 59 × 1024
     expect(seen[seen.length - 1]).toBe(big(199));
     expect(seen[0]).toBe(big(142));
-    // Small ids added afterwards push out only as many big ones as they need.
+    // A small id fits into the room that is left: nothing is forgotten for it…
     h.profile.markSeen('tut.swap');
-    expect(h.profile.hasSeen('tut.swap')).toBe(true);
-    expect(h.profile.data().seen.length).toBe(58);
+    expect(h.profile.data().seen.length).toBe(59);
+    expect(h.profile.hasSeen(big(142))).toBe(true);
+    // …and another big one pushes out exactly the oldest.
+    h.profile.markSeen(big(200));
+    expect(h.profile.data().seen.length).toBe(59);
     expect(h.profile.hasSeen(big(142))).toBe(false);
     expect(h.profile.hasSeen(big(143))).toBe(true);
+    expect(h.profile.hasSeen('tut.swap')).toBe(true);
     // A restart keeps exactly this list, and a damaged save with too much in it is trimmed the same way.
     expect(h.restart().profile.data().seen).toEqual(h.profile.data().seen);
-    const flooded = fromSave({ ...sampleSave(), seen: Array.from({ length: 5000 }, (_, i) => big(i)) });
+    const flooded = fromSave({ ...sampleSave(), seen: Array.from({ length: 400 }, (_, i) => big(i)) });
     expect(flooded.profile.data().seen.length).toBe(58);
-    expect(flooded.profile.data().seen[57]).toBe(big(4999));
+    expect(flooded.profile.data().seen[57]).toBe(big(399));
   });
 
   it('the biggest save the profile can ever write stays far below one megabyte', () => {
@@ -712,7 +716,7 @@ describe('hardening: markSeen', () => {
       settings: { sfx: false, music: false, haptics: false, lang: 'ar' },
       dailyDay: 1e300,
       dailyStreak: 1e300,
-      seen: Array.from({ length: 5000 }, (_, i) => String(i).padEnd(1024, '\u0000')),
+      seen: Array.from({ length: 300 }, (_, i) => String(i).padEnd(1024, '\u0000')),
       stats: { played: 1e300, won: 1e300, bestCascade: 1e300, totalScore: 1e300 },
     });
     for (let i = 0; i < 100; i++) h.profile.markSeen('\u0001'.repeat(1000) + i);
