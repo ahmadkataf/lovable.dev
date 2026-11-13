@@ -376,7 +376,7 @@ small size | en | owner | a size claim: needs the final download size
 
 | الموضع | ما فيه | المطلوب |
 |---|---|---|
-| <span dir="ltr">`store/PUBLISHING-GUIDE.ar.md`</span> (السطر الأول من الدليل، وجدول <span dir="ltr">`Create app`</span>) | <span dir="ltr">`Zumurud: Gem Match Puzzle`</span> / «زمرد: جواهر الواحة» | كتابة الاسمين الجديدين — **الاسم الذي تكتبه عند إنشاء التطبيق يجب أن يكون نفسه في البطاقة** |
+| <span dir="ltr">`store/PUBLISHING-GUIDE.ar.md`</span> (السطر الأول من الدليل، وجدول <span dir="ltr">`Create app`</span>) | الاسمان الجديدان | **تمّ** (13 نوفمبر 2026)، ومعه <span dir="ltr">`store/UPLOAD-RUNBOOK.md`</span> و<span dir="ltr">`store/play-console.json`</span>. |
 | <span dir="ltr">`store/privacy/index.html`</span> (والصفحة المنشورة على رابط سياسة الخصوصية) | الاسمان السابقان في العنوان والنص | تحديث الاسمين ثم إعادة نشر الصفحة. ليس شرط قبول (الصفحة تذكر اسم المطوّر ومعرّف الحزمة)، لكن تطابق الاسم بين الصفحة والبطاقة أسلم عند المراجعة |
 | <span dir="ltr">`tools/store/check-kit.cjs`</span> (الاسم «المتوقَّع») | الاسمان السابقان | يطبع ملاحظة لا خطأ؛ تُحدَّث القيمتان ليختفي التنبيه |
 | الصورة المميّزة وعبارة اللعبة داخلها | <span dir="ltr">«Gem Match Puzzle»</span> / «لعبة تطابق الجواهر» | هذه **عبارة** لا اسم المتجر، ولا يلزم أن تطابقه |

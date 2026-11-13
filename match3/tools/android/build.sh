@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the Android app end to end: the web game first, then the Gradle project.
 #
-#   tools/android/build.sh [debug|release|bundle|all] [--flavor plain|ads] [--allow-test-ads]
+#   tools/android/build.sh [debug|release|bundle|all] [--flavor plain|ads|both] [--allow-test-ads]
 #                          [--skip-web] [-- extra gradle arguments]
 #
 #     debug     debuggable APK with the diagnostics page          → zumurud-<version>-<flavour>-debug.apk
@@ -14,6 +14,7 @@
 #   --flavor ads     purchases + AdMob ads. A release needs the three AdMob ids: ADMOB_APP_ID,
 #                    ADMOB_REWARDED_ID, ADMOB_INTERSTITIAL_ID as environment variables, in
 #                    android/admob.properties (see admob.properties.example) or as -P properties after "--".
+#   --flavor both    plain, then ads, with the same options (one web build for both)
 #   --allow-test-ads build a release of the ads flavour with Google's sample ids instead (test ads
 #                    only), whether or not real ids are configured — for trying a release build on
 #                    a device. The files are named "…-TESTADS" and must never be uploaded.
@@ -57,7 +58,15 @@ done
 case "$flavour" in
   plain) Flavour=Plain ;;
   ads) Flavour=Ads ;;
-  *) echo "build.sh: --flavor must be 'plain' or 'ads' (got '$flavour')" >&2; exit 2 ;;
+  both)
+    # plain first (it builds the web game unless --skip-web), then ads reusing that web build.
+    [ "$allow_test_ads" -eq 0 ] || { echo "build.sh: --allow-test-ads only makes sense with --flavor ads" >&2; exit 2; }
+    web_flag=()
+    [ "$skip_web" -eq 1 ] && web_flag=(--skip-web)
+    "${BASH_SOURCE[0]}" "$what" --flavor plain ${web_flag[@]+"${web_flag[@]}"} -- ${gradle_args[@]+"${gradle_args[@]}"}
+    exec "${BASH_SOURCE[0]}" "$what" --flavor ads --skip-web -- ${gradle_args[@]+"${gradle_args[@]}"}
+    ;;
+  *) echo "build.sh: --flavor must be 'plain', 'ads' or 'both' (got '$flavour')" >&2; exit 2 ;;
 esac
 if [ "$allow_test_ads" -eq 1 ]; then
   [ "$flavour" = "ads" ] || { echo "build.sh: --allow-test-ads only makes sense with --flavor ads" >&2; exit 2; }

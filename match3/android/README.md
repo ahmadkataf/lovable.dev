@@ -19,6 +19,7 @@ running in (`{"billing":true,"ads":false|true}`).
 ```sh
 tools/android/build.sh                          # plain: web build + lint + release APK + App Bundle → android/out/
 tools/android/build.sh all --flavor ads         # the same with ads (needs the AdMob ids, below)
+tools/android/build.sh all --flavor both        # plain, then ads, one web build for both
 tools/android/build.sh debug --flavor ads       # debuggable APK with the diagnostics page (always test ads)
 tools/android/build.sh bundle                   # only the .aab (the file Google Play wants)
 tools/android/build.sh all --skip-web           # reuse the existing ../dist
@@ -43,7 +44,8 @@ Output names say what a file is: `zumurud-<version>-<flavour>[-TESTADS][-DEBUGSI
 Only a file with neither suffix is fit for Google Play.
 
 On GitHub the same build runs from the Actions tab: workflow **Build Zumurud**
-(`.github/workflows/build-match3.yml`, started by hand only; inputs: flavour, version code, version name).
+(`.github/workflows/build-match3.yml`, started by hand only; inputs: flavour `plain` / `ads` / `both`,
+version code, version name; the AdMob ids come from repository variables or `admob.properties`).
 
 ## Signing
 

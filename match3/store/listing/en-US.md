@@ -158,7 +158,7 @@ Welcome to Zumurud, a match 3 puzzle game with jewels, set in a desert oasis.
 | الخانة | مطلوبة؟ | ماذا تكتب |
 |---|---|---|
 | <span dir="ltr">`Email address`</span> | **نعم** | بريد حساب Play Console نفسه (أنت من يدخله؛ ليس مكتوبًا في أي ملف هنا). تلتزم بالرد على استفسارات المشتريات خلال 3 أيام عمل. |
-| <span dir="ltr">`Website`</span> | Google يصفها بأنها «موصى بها»؛ **اكتبها** إن رفعت نسخة الإعلانات، لأن AdMob يقرأ منها ملف <span dir="ltr">`app-ads.txt`</span> | <span dir="ltr">`https://zumurud-privacy.almutafawiqin.workers.dev/`</span> |
+| <span dir="ltr">`Website`</span> | Google يصفها بأنها «موصى بها»؛ **اكتبها دائمًا**: النسخة المرفوعة فيها إعلانات، وAdMob يقرأ منها ملف <span dir="ltr">`app-ads.txt`</span> | <span dir="ltr">`https://zumurud-privacy.almutafawiqin.workers.dev/`</span> |
 | <span dir="ltr">`Phone number`</span> | اختيارية | راجع <span dir="ltr">`store/PUBLISHING-GUIDE.ar.md`</span> (صفة التاجر). |
 | <span dir="ltr">`Privacy policy`</span> (في <span dir="ltr">`App content`</span>) | **نعم** | <span dir="ltr">`https://zumurud-privacy.almutafawiqin.workers.dev/`</span> |
 

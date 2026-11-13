@@ -4,6 +4,7 @@
 #
 # Flavour:
 #   plain  purchases only (Google Play Billing), no ad SDK
+#   both   one run builds plain and ads (both sets of files in one artifact)
 #   ads    purchases + AdMob ads. Needs the three AdMob ids (they are not secrets), as repository
 #          VARIABLES (Settings → Secrets and variables → Actions → Variables):
 #            ADMOB_APP_ID           ca-app-pub-0000000000000000~0000000000
@@ -26,9 +27,9 @@ on:
   workflow_dispatch:
     inputs:
       flavour:
-        description: 'plain = purchases only; ads = purchases + AdMob (needs the ADMOB_* variables)'
+        description: 'plain = purchases only; ads = purchases + AdMob (needs the ADMOB_* variables); both = plain and ads'
         type: choice
-        options: [plain, ads]
+        options: [plain, ads, both]
         default: plain
         required: true
       version_code:
@@ -77,7 +78,7 @@ jobs:
           case "$VERSION_NAME" in
             ''|*[!0-9A-Za-z._-]*) echo "::error::version_name may only contain letters, digits, dots, dashes and underscores."; exit 1 ;;
           esac
-          if [ "$FLAVOUR" = "ads" ]; then
+          if [ "$FLAVOUR" = "ads" ] || [ "$FLAVOUR" = "both" ]; then
             # Each id: the repository variable, or else the same name in android/admob.properties.
             missing=""
             for name in ADMOB_APP_ID ADMOB_REWARDED_ID ADMOB_INTERSTITIAL_ID; do
@@ -155,7 +156,7 @@ jobs:
           ADMOB_REWARDED_ID: ${{ vars.ADMOB_REWARDED_ID }}
           ADMOB_INTERSTITIAL_ID: ${{ vars.ADMOB_INTERSTITIAL_ID }}
         run: |
-          # The web game was built in its own step; lint + release APK + App Bundle of one flavour.
+          # The web game was built in its own step; lint + release APK + App Bundle of the flavour(s).
           tools/android/build.sh all --flavor "$FLAVOUR" --skip-web
 
       - name: Check the signatures
