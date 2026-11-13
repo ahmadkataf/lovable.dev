@@ -50,11 +50,11 @@
 
 | ID | Text | Count |
 |---|---|---|
-| `G-EN-D1` | Swap gems, forge Beams and Novas, and cross 120 levels from the oasis to the stars. | 0 / 90 |
-| `G-EN-D2` | Six jewels, each with its own color and cut, on a board that stays easy to read. | 0 / 90 |
-| `G-EN-D3` | Clear sand, break stones and chains, and bring the brass lamps down the board. | 0 / 90 |
-| `G-EN-D4` | Win levels in a row and the Caravan starts your next board with special pieces. | 0 / 90 |
-| `G-EN-D5` | The levels need no Wi-Fi and no account. In English and Arabic, right to left. | 0 / 90 |
+| `G-EN-D1` | Swap gems, forge Beams and Novas, and cross 120 levels from the oasis to the stars. | 83 / 90 |
+| `G-EN-D2` | Six jewels, each with its own color and cut, on a board that stays easy to read. | 80 / 90 |
+| `G-EN-D3` | Clear sand, break stones and chains, and bring the brass lamps down the board. | 78 / 90 |
+| `G-EN-D4` | Win levels in a row and the Caravan starts your next board with special pieces. | 79 / 90 |
+| `G-EN-D5` | The levels need no Wi-Fi and no account. In English and Arabic, right to left. | 78 / 90 |
 
 </div>
 
@@ -62,21 +62,21 @@
 
 | ID | النص | العدد |
 |---|---|---|
-| `G-AR-H1` | طابِق الجواهر وأضِئ الليل | 0 / 30 |
-| `G-AR-H2` | 120 مرحلة في ستة عوالم | 0 / 30 |
-| `G-AR-H3` | شعاع ونوفا ومنشور | 0 / 30 |
-| `G-AR-H4` | العب بدون نت وبلا تسجيل | 0 / 30 |
-| `G-AR-H5` | لعبة مجوهرات بواجهة عربية | 0 / 30 |
+| `G-AR-H1` | طابِق الجواهر وأضِئ الليل | 25 / 30 |
+| `G-AR-H2` | 120 مرحلة في ستة عوالم | 22 / 30 |
+| `G-AR-H3` | شعاع ونوفا ومنشور | 17 / 30 |
+| `G-AR-H4` | العب بدون نت وبلا تسجيل | 23 / 30 |
+| `G-AR-H5` | لعبة مجوهرات بواجهة عربية | 25 / 30 |
 
 ### العربية — `Descriptions`
 
 | ID | النص | العدد |
 |---|---|---|
-| `G-AR-D1` | بدّل الجواهر واصنع الشعاع والنوفا، واعبر 120 مرحلة من الواحة إلى سماء النجوم. | 0 / 90 |
-| `G-AR-D2` | ستة أحجار كريمة لكل حجر لونه وشكله، ولوحة تبقى واضحة على الشاشة الصغيرة. | 0 / 90 |
-| `G-AR-D3` | أزِل الرمال وحطّم الأحجار واكسر السلاسل، وأنزِل الفوانيس النحاسية إلى أسفل اللوحة. | 0 / 90 |
-| `G-AR-D4` | فُز بالمراحل تباعًا، فتبدأ القافلة مرحلتك التالية بقطع خاصة جاهزة على اللوحة. | 0 / 90 |
-| `G-AR-D5` | المراحل تُلعب بدون نت ومن دون حساب، بواجهة عربية كاملة من اليمين إلى اليسار. | 0 / 90 |
+| `G-AR-D1` | بدّل الجواهر واصنع الشعاع والنوفا، واعبر 120 مرحلة من الواحة إلى سماء النجوم. | 77 / 90 |
+| `G-AR-D2` | ستة أحجار كريمة لكل حجر لونه وشكله، ولوحة تبقى واضحة على الشاشة الصغيرة. | 72 / 90 |
+| `G-AR-D3` | أزِل الرمال وحطّم الأحجار واكسر السلاسل، وأنزِل الفوانيس النحاسية إلى أسفل اللوحة. | 82 / 90 |
+| `G-AR-D4` | فُز بالمراحل تباعًا، فتبدأ القافلة مرحلتك التالية بقطع خاصة جاهزة على اللوحة. | 77 / 90 |
+| `G-AR-D5` | المراحل تُلعب بدون نت ومن دون حساب، بواجهة عربية كاملة من اليمين إلى اليسار. | 76 / 90 |
 
 **صور Google App campaign:** ارفع المقاسات الثلاثة التي تقبلها المنصة: <span dir="ltr">1200×1200</span> (نسبة 1:1) و<span dir="ltr">1200×628</span> (نسبة 1.91:1) و<span dir="ltr">1080×1350</span> (نسبة 4:5)، للأفكار الثلاث — تسع صور لكل لغة، والحد 20 صورة. الصيغة <span dir="ltr">`.jpg`</span> أو <span dir="ltr">`.png`</span> وبحد أقصى 5 ميغابايت للصورة (كل ملفات هذه الحزمة أصغر من ذلك بكثير).
 
@@ -92,18 +92,18 @@
 
 | ID | Field | Text | Count |
 |---|---|---|---|
-| `M-EN-A-P` | Primary text | Swap two gems, line up three, and watch the board light up. 120 levels of jewels under a desert night sky. | 0 / 125 |
-| `M-EN-A-H` | Headline | Match gems, light the night | 0 / 27 |
-| `M-EN-A-D` | Description | A match 3 puzzle with jewels | 0 / 30 |
-| `M-EN-B-P` | Primary text | Start at the oasis and climb through the Dunes, the Bazaar, the Palace and the Caverns to a sky full of stars. | 0 / 125 |
-| `M-EN-B-H` | Headline | Six worlds. 120 levels. | 0 / 27 |
-| `M-EN-B-D` | Description | From the oasis to the stars | 0 / 30 |
-| `M-EN-C-P` | Primary text | Four in a line make a Beam, an L or a T makes a Nova, five in a line make a Prism. Then swap two of them. | 0 / 125 |
-| `M-EN-C-H` | Headline | Beam. Nova. Prism. | 0 / 27 |
-| `M-EN-C-D` | Description | Three specials, six combos | 0 / 30 |
-| `M-EN-D-P` | Primary text | No Wi-Fi and no account: the levels of Zumurud play offline, at your own pace, on a flight or on your commute. | 0 / 125 |
-| `M-EN-D-H` | Headline | Gem puzzles, played offline | 0 / 27 |
-| `M-EN-D-D` | Description | No Wi-Fi needed to play | 0 / 30 |
+| `M-EN-A-P` | Primary text | Swap two gems, line up three, and watch the board light up. 120 levels of jewels under a desert night sky. | 106 / 125 |
+| `M-EN-A-H` | Headline | Match gems, light the night | 27 / 27 |
+| `M-EN-A-D` | Description | A match 3 puzzle with jewels | 28 / 30 |
+| `M-EN-B-P` | Primary text | Start at the oasis and climb through the Dunes, the Bazaar, the Palace and the Caverns to a sky full of stars. | 110 / 125 |
+| `M-EN-B-H` | Headline | Six worlds. 120 levels. | 23 / 27 |
+| `M-EN-B-D` | Description | From the oasis to the stars | 27 / 30 |
+| `M-EN-C-P` | Primary text | Four in a line make a Beam, an L or a T makes a Nova, five in a line make a Prism. Then swap two of them. | 105 / 125 |
+| `M-EN-C-H` | Headline | Beam. Nova. Prism. | 18 / 27 |
+| `M-EN-C-D` | Description | Three specials, six combos | 26 / 30 |
+| `M-EN-D-P` | Primary text | No Wi-Fi and no account: the levels of Zumurud play offline, at your own pace, on a flight or on your commute. | 110 / 125 |
+| `M-EN-D-H` | Headline | Gem puzzles, played offline | 27 / 27 |
+| `M-EN-D-D` | Description | No Wi-Fi needed to play | 23 / 30 |
 
 </div>
 
@@ -111,18 +111,18 @@
 
 | ID | الخانة | النص | العدد |
 |---|---|---|---|
-| `M-AR-A-P` | Primary text | بدّل جوهرتين، طابق ثلاثًا، وشاهد اللوحة تضيء. 120 مرحلة من الجواهر تحت سماء ليل الصحراء. | 0 / 125 |
-| `M-AR-A-H` | Headline | طابِق الجواهر وأضِئ الليل | 0 / 27 |
-| `M-AR-A-D` | Description | لعبة ألغاز الجواهر | 0 / 30 |
-| `M-AR-B-P` | Primary text | ابدأ من ماء الواحة واصعد عبر الكثبان والسوق والقصر والكهوف حتى سماء النجوم: 120 مرحلة في ستة عوالم. | 0 / 125 |
-| `M-AR-B-H` | Headline | ستة عوالم و120 مرحلة | 0 / 27 |
-| `M-AR-B-D` | Description | من الواحة إلى سماء النجوم | 0 / 30 |
-| `M-AR-C-P` | Primary text | أربع جواهر في خط تصنع الشعاع، وشكل L أو T يصنع النوفا، وخمس في خط تصنع المنشور. ثم بدّل قطعتين خاصتين معًا. | 0 / 125 |
-| `M-AR-C-H` | Headline | شعاع ونوفا ومنشور | 0 / 27 |
-| `M-AR-C-D` | Description | ثلاث قطع خاصة وست تركيبات | 0 / 30 |
-| `M-AR-D-P` | Primary text | بدون نت ومن دون حساب: مراحل زمرد تُلعب في الطائرة أو في الطريق، وعلى مهلك، فهي بعدد الحركات لا بالوقت. | 0 / 125 |
-| `M-AR-D-H` | Headline | لعبة مجوهرات بدون نت | 0 / 27 |
-| `M-AR-D-D` | Description | لا تحتاج إلى واي فاي | 0 / 30 |
+| `M-AR-A-P` | Primary text | بدّل جوهرتين، طابق ثلاثًا، وشاهد اللوحة تضيء. 120 مرحلة من الجواهر تحت سماء ليل الصحراء. | 88 / 125 |
+| `M-AR-A-H` | Headline | طابِق الجواهر وأضِئ الليل | 25 / 27 |
+| `M-AR-A-D` | Description | لعبة ألغاز الجواهر | 18 / 30 |
+| `M-AR-B-P` | Primary text | ابدأ من ماء الواحة واصعد عبر الكثبان والسوق والقصر والكهوف حتى سماء النجوم: 120 مرحلة في ستة عوالم. | 99 / 125 |
+| `M-AR-B-H` | Headline | ستة عوالم و120 مرحلة | 20 / 27 |
+| `M-AR-B-D` | Description | من الواحة إلى سماء النجوم | 25 / 30 |
+| `M-AR-C-P` | Primary text | أربع جواهر في خط تصنع الشعاع، وشكل L أو T يصنع النوفا، وخمس في خط تصنع المنشور. ثم بدّل قطعتين خاصتين معًا. | 107 / 125 |
+| `M-AR-C-H` | Headline | شعاع ونوفا ومنشور | 17 / 27 |
+| `M-AR-C-D` | Description | ثلاث قطع خاصة وست تركيبات | 25 / 30 |
+| `M-AR-D-P` | Primary text | بدون نت ومن دون حساب: مراحل زمرد تُلعب في الطائرة أو في الطريق، وعلى مهلك، فهي بعدد الحركات لا بالوقت. | 102 / 125 |
+| `M-AR-D-H` | Headline | لعبة مجوهرات بدون نت | 20 / 27 |
+| `M-AR-D-D` | Description | لا تحتاج إلى واي فاي | 20 / 30 |
 
 **صور Meta:** الخلاصة `Feed`: <span dir="ltr">1080×1350</span> (4:5، وهو ما يوصي به دليل Meta) أو <span dir="ltr">1080×1080</span> (1:1). القصص و`Reels`: <span dir="ltr">1080×1920</span> (9:16). العمود الأيمن وإعلانات الرابط الأفقية: <span dir="ltr">1200×628</span>. استعمل صور <span dir="ltr">`ar/`</span> مع النصوص العربية وصور <span dir="ltr">`en/`</span> مع الإنجليزية.
 
@@ -136,18 +136,18 @@
 
 | ID | Field | Text | Count |
 |---|---|---|---|
-| `TT-EN-1` | Ad description | Match gems and light up the board: 120 levels of jewels under a desert night sky. | 0 / 100 |
-| `TT-EN-2` | Ad description | Six worlds, 120 levels, three special pieces and six combos. The levels play offline. | 0 / 100 |
-| `TT-EN-3` | Ad description | Beam, Nova, Prism: line up gems, forge special pieces and clear the board. | 0 / 100 |
-| `TT-EN-NAME` | App name (if asked) | Zumurud: Gem Match 3 Puzzle | 0 / 40 |
+| `TT-EN-1` | Ad description | Match gems and light up the board: 120 levels of jewels under a desert night sky. | 81 / 100 |
+| `TT-EN-2` | Ad description | Six worlds, 120 levels, three special pieces and six combos. The levels play offline. | 85 / 100 |
+| `TT-EN-3` | Ad description | Beam, Nova, Prism: line up gems, forge special pieces and clear the board. | 74 / 100 |
+| `TT-EN-NAME` | App name (if asked) | Zumurud: Gem Match 3 Puzzle | 27 / 40 |
 
 </div>
 
 | ID | الخانة | النص | العدد |
 |---|---|---|---|
-| `TT-AR-1` | Ad description | طابِق الجواهر وأضِئ الليل: 120 مرحلة في ستة عوالم | 0 / 50 |
-| `TT-AR-2` | Ad description | لعبة مجوهرات بدون نت: شعاع ونوفا ومنشور و120 مرحلة | 0 / 50 |
-| `TT-AR-3` | Ad description | من الواحة إلى سماء النجوم: ستة عوالم و120 مرحلة | 0 / 50 |
+| `TT-AR-1` | Ad description | طابِق الجواهر وأضِئ الليل: 120 مرحلة في ستة عوالم | 49 / 50 |
+| `TT-AR-2` | Ad description | لعبة مجوهرات بدون نت: شعاع ونوفا ومنشور و120 مرحلة | 50 / 50 |
+| `TT-AR-3` | Ad description | من الواحة إلى سماء النجوم: ستة عوالم و120 مرحلة | 47 / 50 |
 
 **صور TikTok:** إعلانات الخلاصة داخل تطبيق TikTok نفسه **فيديو فقط** (صفحته الرسمية لا تذكر صورًا ثابتة). الصور الثابتة تُقبل في موضع <span dir="ltr">`Global App Bundle`</span>: عمودية 9:16 (<span dir="ltr">1080×1920</span>) ومربعة 1:1 (<span dir="ltr">1080×1080</span>)، بصيغة JPG أو PNG. المقاس <span dir="ltr">1200×628</span> ليس من نسب TikTok (الأفقي عنده 16:9) فلا ترفعه هناك. الصور نفسها تصلح أيضًا منشورًا عاديًّا غير مدفوع (`Photo Mode`) في حساب اللعبة.
 
