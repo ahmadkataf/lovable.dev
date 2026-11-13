@@ -824,8 +824,17 @@ export class Game implements GameApi {
 
   /** Fire every pending special: one `activate` step, then one `clear` step with all their hits. */
   private blastWave(t: Turn): void {
-    const fires = t.pending;
+    // Effects apply one after the other, in the order listed. Beams, novas and combos reach
+    // fixed cells, so their order among themselves makes no difference. A prism that picks its
+    // own colour does depend on what the others leave: it goes last and chooses from what is
+    // still on the board. That is best for the player (its pick is never wasted on gems another
+    // effect of the same wave destroys anyway) and makes the outcome independent of the order
+    // in which the specials happened to be hit (i.e. of the direction the board is read in).
+    const queued = t.pending;
     t.pending = [];
+    const fires: Fire[] = [];
+    for (const fire of queued) if (!(fire.kind === 'prism' && fire.color < 0)) fires.push(fire);
+    for (const fire of queued) if (fire.kind === 'prism' && fire.color < 0) fires.push(fire);
     const hits: Hit[] = [];
     const popups: { at: Pos; value: number }[] = [];
     const fxs: Fx[] = [];

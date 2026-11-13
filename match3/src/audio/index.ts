@@ -20,6 +20,17 @@
  * never play on in the background even if the shell's pause hook does not fire.
  * No call ever throws; without Web Audio everything is a silent no-op.
  *
+ * The mix (docs/STRATEGY.md, audio-01 — every number is checked by tools/audio-check.cjs):
+ *   - every effect belongs to a loudness tier and peaks at that tier's level: interface −18
+ *     dBFS, land −16, select/swap −14, match −12, blockers −10, specials −8, praise and double
+ *     blasts −6, jingles −5 (sfx.ts); the music's peak is held at −20 dBFS (output.ts) and
+ *     dips a further 4 dB for about 0.6 s under specials, praise and jingles (mixer.ts);
+ *   - sfx('match', { step }) climbs a twelve-rung ladder in the music's key, then holds its
+ *     top note and adds sparkle (scale.ts); it has three alternating takes;
+ *   - at most 12 effect voices sound at once, at most 3 of them 'match'; the oldest quiet
+ *     voice is faded out to make room, 'land' starts at most once per 60 ms (limiter.ts);
+ *   - nothing leaves the output above −1 dBFS (output.ts).
+ *
  * Importing this module touches neither the DOM nor an AudioContext, so it loads under Node.
  */
 import type { AudioApi, MusicTrack, SfxName, SfxOptions } from './types.ts';
@@ -489,7 +500,9 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
       return;
     }
     try {
-      old.stop(now, CROSSFADE);
+      // The fade starts a device buffer ahead, like everything else: a ramp that begins "now"
+      // is already under way when the audio thread hears of it, and would start with a step.
+      old.stop(now + sfxLead(), CROSSFADE);
     } catch {
       /* disposed below regardless */
     }
@@ -568,11 +581,12 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
       finish();
       return;
     }
-    // A 20 ms ramp instead of a hard cut, then everything that was sounding is stopped.
-    const t = ctx.currentTime;
+    // A 20 ms ramp instead of a hard cut, then everything that was sounding is stopped. The
+    // ramp begins a device buffer ahead so that it is rendered from its first sample.
+    const t = ctx.currentTime + sfxLead();
     old.gain.setValueAtTime(old.gain.value, t);
     old.gain.linearRampToValueAtTime(0, t + 0.02);
-    background(setTimeout(finish, 80));
+    background(setTimeout(finish, 90));
   }
 
   /** The audio clock, for the mixer to see whether it was overtaken while building a voice. */

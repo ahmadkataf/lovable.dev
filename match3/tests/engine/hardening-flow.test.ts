@@ -1001,6 +1001,16 @@ describe('§2.9 goals, winning and losing', () => {
     expect(fired.snapshot.goals[0].current).toBe(5);
   });
 
+  it('colour goal: the two pieces used up by a swap combo count as well', () => {
+    const rows = ['~  ~  ~  ~  ~', '~  D- D| ~  ~', '~  ~  ~  ~  ~', '~  ~  D  ~  ~', '~  ~  ~  ~  ~'];
+    const t = audit(rows, { goals: [{ kind: 'color', color: D, target: 9 }] });
+    const res = t.swap(at(1, 1), at(2, 1));
+    // cross on (2,1): both D beams are used up, and the D gem on (2,3) lies in the column → 3
+    const first = clearsOf(res)[0];
+    expect(first.hits.filter((h) => h.color === D).map((h) => h.result).sort()).toEqual(['activated', 'activated', 'removed']);
+    expect(res.snapshot.goals[0].current).toBe(3);
+  });
+
   it('chain and sand goals count from the initial board', () => {
     const rows = ['~  ~  D  ~  ~', 'D# D  ~  D  ~', '~  ~  ~  E# ~'];
     const t = audit(rows, { goals: [{ kind: 'chain' }, { kind: 'sand' }], floor: ['00000', '22000', '00000'] });

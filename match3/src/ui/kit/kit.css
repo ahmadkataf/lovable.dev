@@ -506,8 +506,7 @@ body {
 
 .k-btn__cap {
   min-width: 0;
-  /* 0.62 of the label, but never below 11.5 units (small buttons: Arabic stays readable) */
-  font-size: max(0.62em, calc(var(--k-u) * 11.5));
+  font-size: 0.62em;
   font-weight: 700;
   line-height: 1.15;
   opacity: 0.92;
@@ -544,6 +543,11 @@ body {
   --k-btn-px: calc(var(--k-u) * 14);
   --k-btn-fs: calc(var(--k-u) * 16.5);
   min-width: calc(var(--k-u) * 72);
+}
+
+/* a caption at 0.62 of a small label would be 10 units: too small to read, above all in Arabic */
+.k-btn--sm .k-btn__cap {
+  font-size: 0.7em;
 }
 
 /* small buttons are 46 units tall; this invisible margin keeps the touch target ≥ 48 px */

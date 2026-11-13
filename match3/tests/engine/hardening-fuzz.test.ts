@@ -15,9 +15,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { Game, applySteps, validateLevel } from '../../src/engine/index.ts';
-import type { Color, DebugPiece, LevelDef } from '../../src/engine/index.ts';
+import type { Color, DebugPiece, LevelDef, PieceKind, Pos, Snapshot, Step } from '../../src/engine/index.ts';
 import { LEVELS } from '../../src/levels/index.ts';
-import { Referee, at, checkDeterminism, dice, genLevel, perform, picture, playAudited, probeSwaps, type Call, type Dice, type GameLog } from './hardening-kit.ts';
+import { Referee, at, checkDeterminism, dice, genLevel, moveKey, perform, picture, playAudited, probeSwaps, type Call, type Dice, type GameLog } from './hardening-kit.ts';
 
 const LONG = 600_000;
 
@@ -209,6 +209,46 @@ describe('hardening fuzz', () => {
     LONG,
   );
 
+  it(
+    'the rules have no preferred direction: mirrored and transposed boards give mirrored and transposed moves and first waves',
+    () => {
+      const d = dice(606);
+      let boards = 0;
+      let turns = 0;
+      for (let n = 0; n < 260; n++) {
+        const level = genLevel(d, n + 1);
+        const game = new Game(level, { seed: 300 + n, boosters: n % 4 === 0 ? { prism: true, beamNova: true } : {} });
+        // a few moves in, so that specials made by play are on the board too
+        const bot = dice(n + 17);
+        for (let k = 0; k < n % 5 && game.snapshot().status === 'playing'; k++) {
+          const m = bot.pick(game.validMoves());
+          game.swap(m.a, m.b);
+        }
+        const s = game.snapshot();
+        if (s.status !== 'playing') continue;
+        boards++;
+        for (const view of [mirrorView(s.cols), transposeView()]) {
+          const twin = view.build(s, level, 300 + n);
+          const want = game.validMoves().map((m) => moveKey({ a: view.pos(m.a), b: view.pos(m.b) })).sort();
+          const got = twin.validMoves().map(moveKey).sort();
+          expect(got, `${view.name}\n${picture(s).join('\n')}`).toEqual(want);
+          const moves = game.validMoves();
+          for (let k = 0; k < 4 && k < moves.length; k++) {
+            const move = moves[(k * 7 + n) % moves.length];
+            const a = firstWave(game.clone().swap(move.a, move.b).steps, (p) => view.pos(p), view.kind);
+            const b = firstWave(twin.clone().swap(view.pos(move.a), view.pos(move.b)).steps, (p) => p, (kind) => kind);
+            if (a === null || b === null) continue; // prism + beam: the new beams get random orientations
+            expect(b, `${view.name}, move ${JSON.stringify(move)}\n${picture(s).join('\n')}`).toEqual(a);
+            turns++;
+          }
+        }
+      }
+      expect(boards).toBeGreaterThan(200);
+      expect(turns).toBeGreaterThan(1200);
+    },
+    LONG,
+  );
+
   it('garbage level data never throws: the game degrades to something consistent', () => {
     const d = dice(31337);
     const junk: unknown[] = [undefined, null, Number.NaN, -1, 0, 1e9, 2.5, '', 'x', [], {}, [1, 2], { kind: 'score' }, true, Number.POSITIVE_INFINITY, [null, undefined], 40];
@@ -257,6 +297,75 @@ describe('hardening fuzz', () => {
     }
   });
 });
+
+interface View {
+  name: string;
+  pos(p: Pos): Pos;
+  kind(kind: PieceKind): PieceKind;
+  /** The same position seen through the view, as a game of its own (start position kept as is). */
+  build(s: Snapshot, level: LevelDef, seed: number): Game;
+}
+
+function viewOf(name: string, cols: (s: Snapshot) => number, rows: (s: Snapshot) => number, pos: (p: Pos) => Pos, kind: (kind: PieceKind) => PieceKind): View {
+  return {
+    name,
+    pos,
+    kind,
+    build(s, level, seed) {
+      const w = cols(s);
+      const h = rows(s);
+      const cells: (DebugPiece | null | undefined)[] = new Array<DebugPiece | null | undefined>(w * h).fill(undefined);
+      const pieces: string[][] = [];
+      const floor: string[][] = [];
+      for (let r = 0; r < h; r++) {
+        pieces.push(new Array<string>(w).fill('_'));
+        floor.push(new Array<string>(w).fill('0'));
+      }
+      s.cells.forEach((cell, i) => {
+        const to = pos(at(i % s.cols, Math.floor(i / s.cols)));
+        if (!cell.exists) return;
+        pieces[to.r][to.c] = '.';
+        floor[to.r][to.c] = String(cell.sand);
+        const p = cell.piece;
+        cells[to.r * w + to.c] = p === null ? null : { kind: kind(p.kind), color: p.color, hp: p.hp, chained: p.chained };
+      });
+      const twin: LevelDef = { ...level, cols: w, rows: h, pieces: pieces.map((row) => row.join('')), floor: floor.map((row) => row.join('')) };
+      return new Game(twin, { seed }, { cells, noStartShuffle: true });
+    },
+  };
+}
+
+const same = (kind: PieceKind): PieceKind => kind;
+const mirrorView = (cols: number): View => viewOf('mirrored left-right', (s) => s.cols, (s) => s.rows, (p) => at(cols - 1 - p.c, p.r), same);
+const transposeView = (): View =>
+  viewOf('transposed', (s) => s.rows, (s) => s.cols, (p) => at(p.r, p.c), (kind) => (kind === 'beamH' ? 'beamV' : kind === 'beamV' ? 'beamH' : kind));
+
+/**
+ * Everything a turn does before its first fall, as order-free text: swap, waves (hits, created
+ * specials, score) and effects (kind, centre, colour, targets). Positions and kinds go through
+ * the given mappings. null when the turn contains a random transform.
+ */
+function firstWave(steps: readonly Step[], pos: (p: Pos) => Pos, kind: (kind: PieceKind) => PieceKind): string[] | null {
+  const key = (p: Pos): string => {
+    const q = pos(p);
+    return `${q.c},${q.r}`;
+  };
+  const fxKind = (k: string): string => (k === 'beamH' || k === 'beamV' ? kind(k) : k);
+  const out: string[] = [];
+  for (const step of steps) {
+    if (step.type === 'fall' || step.type === 'status' || step.type === 'grow' || step.type === 'shuffle') break;
+    if (step.type === 'transform') return null;
+    if (step.type === 'swap') out.push(`swap ${[key(step.a), key(step.b)].sort().join(' ')}`);
+    else if (step.type === 'clear') {
+      const hits = step.hits.map((h) => `${key(h.at)}:${h.cause}:${h.result}:${h.kind === null ? '-' : kind(h.kind)}:${h.color}:${h.hpLeft ?? ''}:${h.sandLeft ?? ''}`).sort();
+      const made = step.created.map((m) => `${key(m.at)}:${kind(m.piece.kind)}:${m.piece.color}:${m.from.map(key).sort().join('+')}`).sort();
+      out.push(`clear c${step.cascade} score ${step.score} hits ${hits.join(' ')} created ${made.join(' ')}`);
+    } else if (step.type === 'activate') {
+      out.push(`activate ${step.fx.map((f) => `${fxKind(f.kind)}@${key(f.at)}:${f.color}:${f.targets.map(key).sort().join('+')}`).sort().join(' | ')}`);
+    }
+  }
+  return out;
+}
 
 /** A random board of anything: pre-existing matches, floating pieces, lamps on exits, empty cells. */
 function soup(d: Dice, id: number): { level: LevelDef; cells: (DebugPiece | null | undefined)[] } {
