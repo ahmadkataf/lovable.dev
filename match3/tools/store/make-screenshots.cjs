@@ -89,8 +89,7 @@ function gameVersion() {
 
 /**
  * How much of an effect a frame shows: the share of near-white pixels on the board (the light of
- * the effect, counted up to a ceiling so a white-out does not win) plus the share of strongly
- * coloured pixels (gems still on the board).
+ * the effect) and the share of strongly coloured pixels (gems still on the board).
  */
 function effectScore(png, rect) {
   const img = decodePng(png);
@@ -114,9 +113,25 @@ function effectScore(png, rect) {
       n++;
     }
   }
-  const w = (100 * white) / n;
-  const c = (100 * colour) / n;
-  return { white: w, colour: c, score: Math.min(w, 22) * 2 + c };
+  return { white: (100 * white) / n, colour: (100 * colour) / n };
+}
+
+/**
+ * Which frame of a burst is kept. The effect is "on" while a frame shows at least half of the
+ * most light any frame of the burst shows; `at` (0..1) says how far into that stretch — measured on
+ * the game's own clock — the kept frame lies (0.5 = the middle of the effect, 0.9 = near its end,
+ * when the first flash has cleared and the beams stand sharp).
+ */
+function pickFrame(frames, at) {
+  let most = 0;
+  for (const f of frames) if (f.fx.white > most) most = f.fx.white;
+  const lit = frames.map((f, i) => i).filter((i) => frames[i].fx.white >= most * 0.5);
+  const from = frames[lit[0]].g;
+  const to = frames[lit[lit.length - 1]].g;
+  const target = from + (typeof at === 'number' ? at : 0.5) * (to - from);
+  let pick = lit[0];
+  for (const i of lit) if (Math.abs(frames[i].g - target) < Math.abs(frames[pick].g - target)) pick = i;
+  return pick;
 }
 
 // ───────────────────────────── planning ─────────────────────────────
@@ -203,6 +218,15 @@ async function pageFacts(page) {
   });
 }
 
+/** The world a level belongs to: its key and its name as the game itself writes it in this language. */
+async function worldOf(page, level) {
+  return page.evaluate((id) => {
+    const a = window.__app;
+    const chapter = a.world.chapters.find((c) => id >= c.from && id <= c.to);
+    return chapter ? { theme: chapter.theme, name: a.ctx.i18n.t('chapter.' + chapter.theme), chapter: chapter.index + 1 } : null;
+  }, level);
+}
+
 /**
  * One capture. Returns { png, meta } — png is the screenshot exactly as the browser took it
  * (re-encoded without an alpha channel, nothing else).
@@ -222,6 +246,12 @@ async function captureScene(browser, base, scene, lang, device, plans, problems)
       meta.save = 'levels 1–' + journey.reached + ' cleared, ' + journey.coins + ' coins, 5 lives' + (journey.caravan ? ', Caravan streak ' + journey.caravan : '') + (scene.kind === 'daily' ? ', daily gift of day 4 not yet taken' : '');
       meta.flags = 'still=1 (idle sparkle loops stand still)';
       const next = journey.reached + 1;
+      const w = await worldOf(page, next);
+      if (w) {
+        meta.theme = w.theme;
+        meta.worldLocal = w.name;
+        meta.world = WORLD_NAMES[w.theme] || w.theme;
+      }
       if (scene.kind === 'title') {
         await sleep(900);
         meta.moment = 'title screen after start-up';
@@ -275,6 +305,9 @@ async function captureScene(browser, base, scene, lang, device, plans, problems)
       const world = WORLD_NAMES[plan.theme] || plan.theme;
       meta.level = plan.level;
       meta.world = world;
+      meta.theme = plan.theme;
+      meta.worldLocal = (await worldOf(page, plan.level)).name;
+      meta.blockers = plan.kinds;
       meta.seed = plan.seed;
       meta.startBoosters = Object.keys(boosters).length ? Object.keys(boosters).join(' + ') + ((scene.caravan || 0) > 0 ? ' (brought by the Caravan, streak ' + scene.caravan + ')' : '') : 'none';
       meta.save = 'levels 1–' + (plan.level - 1) + ' cleared; level ' + plan.level + ' is the current level, played for the first time';
@@ -302,6 +335,7 @@ async function captureScene(browser, base, scene, lang, device, plans, problems)
         const stars = await page.evaluate(() => window.__play.snapshot().stars);
         meta.moment = 'level won in ' + plan.moves.length + ' moves (the engine\'s own hint at every move); result dialog after its stars and score have counted up — ' + stars + ' stars';
         meta.stars = stars;
+        if (stars !== 3) problems.push(tag + ' the level was won with ' + stars + ' stars, not three (the alt text says three)');
         shot = await page.screenshot({ type: 'png' });
       } else {
         await sleep(900);
@@ -325,15 +359,8 @@ async function captureScene(browser, base, scene, lang, device, plans, problems)
         } else {
           const rect = await boardRect(page, device.scale);
           const frames = await G.burst(page, trigger, scene.burst);
-          let pick = 0;
-          let top = -1;
-          frames.forEach((f, i) => {
-            f.fx = effectScore(f.png, rect);
-            if (f.fx.score > top) {
-              top = f.fx.score;
-              pick = i;
-            }
-          });
+          for (const f of frames) f.fx = effectScore(f.png, rect);
+          const pick = pickFrame(frames, scene.pick);
           if (KEEP_FRAMES) {
             frames.forEach((f, i) =>
               writeFile(path.join(FRAMES_DIR, device.id + '-' + lang + '-' + scene.id + '-' + String(i).padStart(2, '0') + '-g' + f.g + '-w' + f.fx.white.toFixed(0) + '-c' + f.fx.colour.toFixed(0) + (i === pick ? '-PICKED' : '') + '.png'), f.png),
@@ -342,8 +369,8 @@ async function captureScene(browser, base, scene, lang, device, plans, problems)
           shot = frames[pick].png;
           const fx = Object.keys(plan.stats.fx).map((k) => k + '×' + plan.stats.fx[k]).join(', ');
           meta.moment =
-            'move ' + plan.moves.length + ' ' + fmtMove(last) + ' (' + fx + '); frame ' + (pick + 1) + ' of ' + frames.length + ' taken while the effect runs, about ' + frames[pick].t + ' ms after the swipe' +
-            ' — chosen as the frame with the most effect light on the board (' + frames[pick].fx.white.toFixed(1) + ' % near-white, ' + frames[pick].fx.colour.toFixed(1) + ' % gem colour)';
+            'move ' + plan.moves.length + ' ' + fmtMove(last) + ' (' + fx + '); frame ' + (pick + 1) + ' of ' + frames.length + ' taken while the effect runs, ' + frames[pick].g + ' ms after the swipe on the game\'s own clock' +
+            ' (' + frames[pick].fx.white.toFixed(1) + ' % of the board is effect light, ' + frames[pick].fx.colour.toFixed(1) + ' % gem colour)';
         }
       }
     }
@@ -366,6 +393,16 @@ async function captureScene(browser, base, scene, lang, device, plans, problems)
 }
 
 // ───────────────────────────── layout ─────────────────────────────
+
+/** The alt text of an upload file, with the world and the blockers of the capture it shows. */
+function altText(final, lang, capture) {
+  const words = CFG.BLOCKER_WORDS[lang];
+  const kinds = ['lamp', 'chain', 'stone', 'vine', 'sand'].filter((k) => (capture.blockers || []).includes(k)).map((k) => words[k]);
+  const list = kinds.length > 1 ? kinds.slice(0, -1).join(words.comma) + words.and + kinds[kinds.length - 1] : kinds[0] || '';
+  // the capture may be in the other language (screenshot 8); the world's name must be in this one
+  const world = lang === capture.lang ? capture.worldLocal || '' : '';
+  return final.alt[lang].replace('{world}', world).replace('{blockers}', list);
+}
 
 async function layoutAll(browser, manifest, version) {
   const stage = await C.openStage(browser);
@@ -404,7 +441,7 @@ async function layoutAll(browser, manifest, version) {
           source: rel(job.source),
           sourceLang: job.sourceLang,
           caption: job.lines,
-          alt: job.final.alt[lang],
+          alt: altText(job.final, lang, manifest.captures[rel(job.source)] || {}),
           shot: job.geo.shot,
           radius: job.geo.radius,
           band: job.geo.band,
@@ -504,7 +541,13 @@ function writeManifestMd(manifest) {
   L.push('');
   L.push('| # | English | Arabic |');
   L.push('|---|---|---|');
-  for (const final of CFG.FINALS) L.push('| ' + final.n + ' | ' + cell(final.alt.en) + ' | ' + cell(final.alt.ar) + ' |');
+  for (const final of CFG.FINALS) {
+    const find = (lang) => {
+      const key = Object.keys(manifest.finals).find((k) => manifest.finals[k].n === final.n && manifest.finals[k].lang === lang && manifest.finals[k].device === 'phone');
+      return key ? manifest.finals[key].alt : '';
+    };
+    L.push('| ' + final.n + ' | ' + cell(find('en')) + ' | ' + cell(find('ar')) + ' |');
+  }
   L.push('');
   writeFile(path.join(OUT, 'MANIFEST.md'), L.join('\n'));
 }
@@ -517,6 +560,7 @@ async function main() {
   const problems = [];
   let captured = 0;
   const t0 = Date.now();
+  if (KEEP_FRAMES) fs.rmSync(FRAMES_DIR, { recursive: true, force: true });
   const browser = await chromium.launch();
   try {
     if (!LAYOUT_ONLY) {

@@ -165,7 +165,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
   let dragOther: VPiece | null = null;
 
   // frame statistics (dev overlay / tests) and the low-end switch
-  const perf = { frames: 0, total: 0, worst: 0, winFrames: 0, winTotal: 0, slowWindows: 0, lowEnd: false };
+  // (quality: 0 = full; each step down halves the particles / lowers the canvas resolution — see BoardView.setQuality)
+  const perf = { frames: 0, total: 0, worst: 0, winFrames: 0, winTotal: 0, slowWindows: 0, fastWindows: 0, lowEnd: false, quality: 0, trial: false, pinned: false };
 
   // ───────────────────────────── services ─────────────────────────────
 
@@ -229,6 +230,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
 
   let inFrame = false;
   let wantFrame = false;
+  let idleTick = false;
 
   function frame(ts: number): void {
     raf = 0;
@@ -257,10 +259,14 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     }
     sched.step(gameDt);
     view.step(gameDt);
-    view.draw();
+    // Nothing moves but a slow pulse (a selected gem, the hint, the tutorial hand, the targeting
+    // veil): every second frame is enough for those — half the redraws while the player thinks.
+    idleTick = !idleTick;
+    if (idleTick || sched.active() || view.dirty() || !view.idleLoopOnly()) view.draw();
 
-    // measured frame interval → low-end mode (fewer particles) when it stays above 22 ms: two
-    // 2-second windows in a row, so a hitch while a level builds its sprites does not count
+    // Measured frame interval → quality. When it stays above 22 ms for two 2-second windows in a
+    // row (so a hitch while a level builds its sprites does not count) the renderer steps down:
+    // fewer particles and a smaller canvas — frame rate before sharpness. Up to three steps.
     if (dt > 0) {
       perf.frames++;
       perf.total += dt;
@@ -270,9 +276,24 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       if (perf.winTotal >= FEEDBACK.lowEndWindow) {
         const mean = perf.winTotal / perf.winFrames;
         perf.slowWindows = mean > FEEDBACK.lowEndFrame ? perf.slowWindows + 1 : 0;
-        if (!perf.lowEnd && perf.slowWindows >= 2) {
+        perf.fastWindows = mean < FEEDBACK.fastFrame ? perf.fastWindows + 1 : 0;
+        if (perf.slowWindows >= 2 && perf.quality < FEEDBACK.qualitySteps) {
+          // too slow: one step down (and if this was a step up on trial, it stays down for good)
+          perf.quality++;
           perf.lowEnd = true;
-          view.setLowEnd(true);
+          perf.slowWindows = 0;
+          perf.fastWindows = 0;
+          if (perf.trial) perf.pinned = true;
+          perf.trial = false;
+          view.setQuality(perf.quality);
+          relayout();
+        } else if (perf.quality > 0 && !perf.pinned && perf.fastWindows >= FEEDBACK.fastWindows) {
+          // smooth for a good while (the slowness was a passing thing): try one step up, once
+          perf.quality--;
+          perf.lowEnd = perf.quality > 0;
+          perf.fastWindows = 0;
+          perf.trial = true;
+          view.setQuality(perf.quality);
           relayout();
         }
         perf.winFrames = 0;
@@ -1516,7 +1537,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     }
     attachGlobal();
     view.setReducedEffects(reducedEffects());
-    view.setLowEnd(perf.lowEnd);
+    view.setQuality(perf.quality);
     hud.setLevel(level, snap.goals, chapterOf(level.id).theme);
     hud.setMoves(snap.movesLeft, false);
     hud.setScore(snap.score, false);
@@ -1587,6 +1608,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
         worstInterval: perf.worst,
         meanWork: work.frames > 0 ? work.total / work.frames : 0,
         lowEnd: perf.lowEnd,
+        quality: perf.quality,
         particles: view.particleCount(),
       }),
       loop: () => ({ running: raf !== 0, tweens: sched.count(), timers: timers.count(), dialogs: own.length, frozen }),

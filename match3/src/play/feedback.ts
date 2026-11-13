@@ -27,6 +27,11 @@ export const FEEDBACK = {
   /** mean frame time (ms) over 2 s above which low-end mode switches on */
   lowEndFrame: 22,
   lowEndWindow: 2000,
+  /** how many times the renderer may step its quality down when frames stay slow */
+  qualitySteps: 3,
+  /** mean frame time (ms) below which a window counts as smooth, and how many smooth windows in a row earn a step back up */
+  fastFrame: 17.6,
+  fastWindows: 10,
 } as const;
 
 // ───────────────────────────── praise ─────────────────────────────

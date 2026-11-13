@@ -56,14 +56,14 @@
       "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
       "flags": "seed=1",
       "moves": [
-        "(0,2)↔(1,2)",
+        "(4,2)↔(5,2)",
         "(0,4)↔(1,4)"
       ],
-      "moment": "move 2 (0,4)↔(1,4) (bigCross×1, prism×1); frame 9 of 24 taken while the effect runs, about 1062 ms after the swipe — chosen as the frame with the most effect light on the board (20.5 % near-white, 38.6 % gem colour)",
+      "moment": "move 2 (0,4)↔(1,4) (bigCross×1, prism×1, beamH×1); frame 13 of 46 taken while the effect runs, about 1257 ms after the swipe — chosen as the frame with the most effect light on the board (21.5 % near-white, 36.6 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "ceb08ecc761c2e1381feb9262ecf77e21bf9df98438cff5f7f93fbd0a8e16df8",
-      "bytes": 1414578
+      "sha256": "fe77b9b817d9320d21be2b55e6516dab954cce7b04b45938ddab8e4a28d4ca59",
+      "bytes": 1593132
     },
     "raw/en/05-play-beam.png": {
       "scene": "beam",
@@ -81,11 +81,11 @@
         "(0,6)↔(1,6)",
         "(5,3)↔(6,3)"
       ],
-      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 10 of 24 taken while the effect runs, about 823 ms after the swipe — chosen as the frame with the most effect light on the board (5.0 % near-white, 29.6 % gem colour)",
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 16 of 39 taken while the effect runs, about 1452 ms after the swipe — chosen as the frame with the most effect light on the board (5.1 % near-white, 29.6 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "2ce44c6500bf5ef7340a444c299a03a9ea352a45c2de2cf610735e8e8183b92e",
-      "bytes": 1517133
+      "sha256": "da46ec855964e565ba97f5d0bc7058a238431e370c8634cac369ed617ea9d5fb",
+      "bytes": 1556052
     },
     "raw/en/06-play-blockers.png": {
       "scene": "blockers",
@@ -245,9 +245,9 @@
       },
       "captionShare": 0.0613,
       "fontSize": 100,
-      "bytes": 1653036,
-      "sha256": "f505b1432622adf2651774d553fe9e436c80b6ba5bc3ea191087a5600c3f9577",
-      "sourceSha256": "ceb08ecc761c2e1381feb9262ecf77e21bf9df98438cff5f7f93fbd0a8e16df8"
+      "bytes": 1752611,
+      "sha256": "e9218010e5d0a83028e47dfead2d70c78acdad73682e209da535d1437eb141a0",
+      "sourceSha256": "fe77b9b817d9320d21be2b55e6516dab954cce7b04b45938ddab8e4a28d4ca59"
     },
     "phone/en/02-special-pieces.png": {
       "n": 2,
@@ -277,9 +277,9 @@
       },
       "captionShare": 0.0637,
       "fontSize": 100,
-      "bytes": 1852585,
-      "sha256": "ea157bc274329bca8a9eb351c4e8742485b7a666258f7648cf4fc25ac2ab9bde",
-      "sourceSha256": "2ce44c6500bf5ef7340a444c299a03a9ea352a45c2de2cf610735e8e8183b92e"
+      "bytes": 1877963,
+      "sha256": "68ff3b638883fef8f802d34fc14730a61ccbc46e2b4794202d99dcb71648c056",
+      "sourceSha256": "da46ec855964e565ba97f5d0bc7058a238431e370c8634cac369ed617ea9d5fb"
     },
     "phone/en/03-six-worlds.png": {
       "n": 3,
@@ -443,11 +443,11 @@
     }
   },
   "levelsInGame": 120,
-  "capturedAt": "2026-11-13T21:11:44.077Z",
+  "capturedAt": "2026-11-13T21:16:13.169Z",
   "game": {
     "version": "1.0.0",
     "commit": "0c756c6",
     "sourceEditedSinceCommit": true
   },
-  "laidOutAt": "2026-11-13T21:12:08.934Z"
+  "laidOutAt": "2026-11-13T21:16:43.027Z"
 }

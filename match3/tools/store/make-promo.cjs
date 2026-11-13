@@ -16,9 +16,12 @@
  *                                                   SOCIAL-CAPTIONS.md, then check
  *
  * Output (PROMO_OUT=<dir> writes somewhere else, e.g. for a preview):
- *   store/promo/png/<lang>/zumurud-<concept>-<W>x<H>-<lang>.png   24-bit PNG, no alpha channel
- *   store/promo/jpg/<lang>/zumurud-<concept>-<W>x<H>-<lang>.jpg   JPEG, at most 1 MB
- *   store/promo/manifest.json                                      what each file is, its hook, its weight
+ *   store/promo/png/<lang>/zumurud-<concept>-<W>x<H>-<lang>.png          24-bit PNG, no alpha channel
+ *   store/promo/jpg/<lang>/zumurud-<concept>-<W>x<H>-<lang>.jpg          the same image as JPEG, at most 1 MB
+ *   store/promo/clean/<lang>/zumurud-<concept>-<W>x<H>-<lang>-clean.jpg  the same design WITHOUT the
+ *                                    "Available on Google Play" line: for posts before the game is
+ *                                    live, and as the base when the owner adds Google's official badge
+ *   store/promo/manifest.json        what each file is, its hook, its alt text, its weight
  *
  * Concepts (each in five sizes and two languages):
  *   A-hero-board   one real board at the instant a Beam + Nova combination fires, logo, hook
@@ -87,10 +90,11 @@ const COPY = {
     B: { hook: ['Six worlds.', '120 levels.'] },
     C: { labels: ['Beam.', 'Nova.', 'Prism.'] },
     store: 'Available on Google Play',
+    // alt text: at most 100 characters, so it also fits where the limit is short
     alt: {
-      A: 'A board of gems in Zumurud as a Beam and a Nova fire together in a cross of light. Text: Match gems. Light the night.',
-      B: 'The six chapters of the Zumurud level map side by side, from the oasis to the starlit sky. Text: Six worlds. 120 levels.',
-      C: 'Three close-ups of the Zumurud board: a Beam clearing a row, a Nova blast and a Prism clearing one colour. Text: Beam. Nova. Prism.',
+      A: 'A Zumurud board of gems crossed by beams of light. Text: Match gems. Light the night.',
+      B: 'Six scenes of the Zumurud level map, oasis to starlit sky. Text: Six worlds. 120 levels.',
+      C: 'Three close-ups of gems: a beam, a burst and a prism at work. Text: Beam. Nova. Prism.',
     },
   },
   ar: {
@@ -100,9 +104,9 @@ const COPY = {
     C: { labels: ['شعاع', 'نوفا', 'منشور'] },
     store: 'متوفّرة على Google Play',
     alt: {
-      A: 'لوحة جواهر في لعبة زمرد لحظة انطلاق شعاع ونوفا معًا في تقاطع من الضوء. النص: طابِق الجواهر وأضِئ الليل.',
-      B: 'فصول خريطة المراحل الستة في لعبة زمرد متجاورة، من الواحة إلى سماء النجوم. النص: ستة عوالم، 120 مرحلة.',
-      C: 'ثلاث لقطات مقرّبة من لوحة زمرد: شعاع يمسح صفًّا، ونوفا تنفجر، ومنشور يزيل لونًا كاملًا. النص: شعاع، نوفا، منشور.',
+      A: 'لوحة جواهر في لعبة زمرد تعبرها أشعة من الضوء. النص: طابِق الجواهر وأضِئ الليل.',
+      B: 'ستة مشاهد من خريطة مراحل زمرد، من الواحة إلى سماء النجوم. النص: ستة عوالم، 120 مرحلة.',
+      C: 'ثلاث لقطات مقرّبة للجواهر: شعاع وانفجار ومنشور. النص: شعاع، نوفا، منشور.',
     },
   },
 };
@@ -135,7 +139,8 @@ const SCENES = {
 /** Map tiles: CSS size of the part of the map that is kept (between the top bar and the tray). */
 const MAP_TILES = {
   grid: { cssW: 320, cssH: 330 }, // square formats, 3 × 2
-  tall: { cssW: 320, cssH: 420 }, // portrait and story, 3 × 2
+  tall: { cssW: 320, cssH: 420 }, // portrait, 3 × 2
+  story: { cssW: 320, cssH: 454 }, // story, 3 × 2
   strip: { cssW: 320, cssH: 700 }, // landscape, 6 × 1
 };
 /** The level each chapter's tile is centred on (one per chapter, in journey order). */
@@ -528,7 +533,7 @@ const LAYOUT = {
       lock: { mode: 'h', ax: 540, align: 'center', y: 284, h: 116 },
       hook: { ax: 540, align: 'center', y: 418, w: 930, h: 236, max: 112 },
       store: { ax: 540, align: 'center', cy: 696, size: 33 },
-      tiles: { x: 65, y: 756, cols: 3, rows: 2, w: 303, h: 396, gap: 20.5, kind: 'tall', stagger: 0 },
+      tiles: { x: 65, y: 756, cols: 3, rows: 2, w: 303, h: 430, gap: 20.5, kind: 'story', stagger: 0 },
     },
     landscape: {
       lock: { mode: 'h', ax: 48, align: 'start', y: 40, h: 92 },
@@ -541,7 +546,7 @@ const LAYOUT = {
     theme: 'bazaar', // used only if the capture does not name its chapter
     square: {
       lock: { mode: 'h', ax: 540, align: 'center', y: 34, h: 108 },
-      lenses: { d: 328, centres: [[194, 470], [540, 470], [886, 470]], label: { dy: 300, max: 92, w: 300 }, badge: 0.4, row: true },
+      lenses: { d: 336, centres: [[190, 500], [540, 500], [890, 500]], label: { dy: 316, max: 96, w: 310 }, badge: 0.4, row: true },
       store: { ax: 540, align: 'center', cy: 1042, size: 31 },
       gems: [
         ['gem2', 90, 965, 120, -12],
@@ -550,13 +555,13 @@ const LAYOUT = {
     },
     portrait: {
       lock: { mode: 'h', ax: 540, align: 'center', y: 40, h: 116 },
-      lenses: { d: 380, centres: [[262, 400], [818, 742], [262, 1084]], label: { side: 556, max: 132, w: 470 }, badge: 0.36 },
+      lenses: { d: 380, centres: [[250, 400], [830, 742], [250, 1084]], label: { side: 600, max: 132, w: 450 }, badge: 0.36 },
       store: { ax: 540, align: 'center', cy: 1308, size: 33 },
     },
     story: {
       lock: { mode: 'h', ax: 540, align: 'center', y: 284, h: 116 },
       store: { ax: 540, align: 'center', cy: 440, size: 31 },
-      lenses: { d: 340, centres: [[262, 650], [818, 925], [262, 1200]], label: { side: 556, max: 128, w: 460 }, badge: 0.38 },
+      lenses: { d: 340, centres: [[240, 650], [840, 925], [240, 1200]], label: { side: 600, max: 128, w: 450 }, badge: 0.38 },
       gems: [
         ['beamH5', 190, 1590, 240, -8],
         ['prism', 540, 1660, 310, 6],
@@ -705,6 +710,8 @@ async function setupStage(opts) {
       rtl,
       lang: job.lang,
       texts: [],
+      /** true = leave the store line out */
+      clean: job.clean === true,
       /** mirror an x position for right-to-left */
       mx: (x) => (rtl ? DW - x : x),
       /** 'start' | 'center' | 'end' → canvas textAlign-like 'left' | 'center' | 'right' */
@@ -875,7 +882,7 @@ async function setupStage(opts) {
 
   /** "Available on Google Play": plain text in the game's font between two small gold ornaments. */
   function drawStore(st, T, text) {
-    if (!T || T.hidden) return;
+    if (!T || st.clean) return;
     const g = st.g;
     const size = T.size;
     const align = st.side(T.align);
@@ -1074,6 +1081,13 @@ async function setupStage(opts) {
     shade.addColorStop(1, 'rgba(8,6,36,0.38)');
     g.fillStyle = shade;
     g.fillRect(cx - r, cy - r, d, d);
+    // … and a faint reflection along the upper left
+    g.lineCap = 'round';
+    g.lineWidth = d * 0.035;
+    g.strokeStyle = 'rgba(255,255,255,0.2)';
+    g.beginPath();
+    g.arc(cx, cy, r * 0.86, Math.PI * 1.08, Math.PI * 1.42);
+    g.stroke();
     g.restore();
     // gold ring
     g.save();
@@ -1134,7 +1148,7 @@ async function setupStage(opts) {
       const size = fitSize(st, job.copy.C.labels, '800', Z.label.w, Z.label.max);
       if (zig) {
         // label beside the lens, in the free half
-        const lx = cx < st.DW / 2 ? cx + Z.label.side - Z.d / 2 + 30 : cx - Z.label.side + Z.d / 2 - 30;
+        const lx = cx < st.DW / 2 ? cx + Z.label.side - Z.d / 2 : cx - Z.label.side + Z.d / 2;
         drawLine(st, text, lx, cy + size * 0.3, size, { align: 'center', tone: i === 1 ? 'gold' : 'cream', what: 'hook' });
       } else {
         drawLine(st, text, cx, cy + Z.label.dy, size, { align: 'center', tone: i === 1 ? 'gold' : 'cream', what: 'hook' });
@@ -1160,8 +1174,10 @@ async function setupStage(opts) {
       }
     }
     let s = '';
-    const step = 0x8000;
-    for (let i = 0; i < data.length; i += step) s += String.fromCharCode.apply(null, data.subarray(i, i + step));
+    if (job.wantPixels) {
+      const step = 0x8000;
+      for (let i = 0; i < data.length; i += step) s += String.fromCharCode.apply(null, data.subarray(i, i + step));
+    }
     // JPEG: the best quality that stays under the limit
     let jpeg = null;
     let quality = 0;
@@ -1175,7 +1191,7 @@ async function setupStage(opts) {
     }
     // lettering boxes in output pixels
     const texts = st.texts.map((t) => ({ what: t.what, text: t.text || '', x: Math.round(t.x * st.k), y: Math.round(t.y * st.k), w: Math.round(t.w * st.k), h: Math.round(t.h * st.k) }));
-    return { width: job.w, height: job.h, rgba: btoa(s), opaque, jpeg, quality, texts };
+    return { width: job.w, height: job.h, rgba: job.wantPixels ? btoa(s) : '', opaque, jpeg, quality, texts };
   }
 
   window.__promo = {
@@ -1345,19 +1361,22 @@ function runCheck() {
           if (good) seen++;
           else fail(path.relative(OUT, png) + ': ' + info.width + '×' + info.height + ', colour type ' + info.colorType + ', ' + buf.length + ' bytes (want ' + size.w + '×' + size.h + ', 24-bit RGB, at most ' + PNG_MAX + ' bytes)');
         }
-        if (!fs.existsSync(jpg)) {
-          fail('missing ' + path.relative(OUT, jpg));
-        } else {
-          const buf = fs.readFileSync(jpg);
+        const cleanJpg = path.join(OUT, 'clean', lang, fileName(concept, size, lang, 'jpg').replace(/\.jpg$/, '-clean.jpg'));
+        for (const file of [jpg, cleanJpg]) {
+          if (!fs.existsSync(file)) {
+            fail('missing ' + path.relative(OUT, file));
+            continue;
+          }
+          const buf = fs.readFileSync(file);
           const info = jpegInfo(buf);
           const good = info.width === size.w && info.height === size.h && info.components === 3 && buf.length <= JPG_MAX;
           if (good) seen++;
-          else fail(path.relative(OUT, jpg) + ': ' + info.width + '×' + info.height + ', ' + buf.length + ' bytes (want ' + size.w + '×' + size.h + ', at most ' + JPG_MAX + ' bytes)');
+          else fail(path.relative(OUT, file) + ': ' + info.width + '×' + info.height + ', ' + buf.length + ' bytes (want ' + size.w + '×' + size.h + ', at most ' + JPG_MAX + ' bytes)');
         }
       }
     }
   }
-  if (seen === LANGS.length * CONCEPTS.length * SIZES.length * 2) ok('images: ' + seen + ' files, every one at its exact pixel size; PNG 24-bit without alpha and under ' + PNG_MAX + ' bytes, JPEG at most ' + JPG_MAX + ' bytes');
+  if (seen === LANGS.length * CONCEPTS.length * SIZES.length * 3) ok('images: ' + seen + ' files (30 PNG, 30 JPEG, 30 clean JPEG), every one at its exact pixel size; PNG 24-bit without alpha and under ' + PNG_MAX + ' bytes, JPEG at most ' + JPG_MAX + ' bytes');
 
   // 2. the lettering on the images
   for (const lang of LANGS) {
@@ -1393,63 +1412,81 @@ function runCheck() {
     fail('manifest.json is missing (run the tool without --check)');
   }
 
-  // 4. the copy sheets: every row "| id | text | n / limit |" is counted again
+  // 4. the copy sheets: every table row that starts with an id in backticks and ends with
+  //    "n / limit" is counted again; the text is the cell just before the count
+  const altSeen = {};
   for (const name of ['AD-COPY.md', 'SOCIAL-CAPTIONS.md']) {
     const file = path.join(OUT, name);
     if (!fs.existsSync(file)) {
       fail(name + ' is missing');
       continue;
     }
-    let src = fs.readFileSync(file, 'utf8');
-    const rowRe = /^\| *`([A-Za-z0-9.-]+)` *\| (.*?) \| *(\d+) *\/ *(\d+) *\|$/gm;
-    let m;
+    const lines = fs.readFileSync(file, 'utf8').split('\n');
     let rows = 0;
     let bad = 0;
-    const edits = [];
+    let rewritten = 0;
     const ids = new Set();
-    while ((m = rowRe.exec(src))) {
-      const [whole, id, cell, stated, limitText] = m;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].replace(/\r$/, '');
+      if (!/^\| *`[A-Za-z0-9.-]+` *\|/.test(line) || !/\|\s*$/.test(line)) continue;
+      const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+      const count = /^(\d+) *\/ *(\d+)$/.exec(cells[cells.length - 1]);
+      if (cells.length < 3 || !count) {
+        bad++;
+        fail(name + ' line ' + (i + 1) + ': a row with an id but no "n / limit" cell');
+        continue;
+      }
       rows++;
-      const text = cell.replace(/<br\s*\/?>/g, '\n').replace(/\\\|/g, '|').trim();
-      const lang = /(^|[.-])ar([.-]|$)/i.test(id) ? 'ar' : 'en';
+      const id = cells[0].replace(/`/g, '');
+      const text = cells[cells.length - 2].replace(/<br\s*\/?>/g, '\n');
+      const lang = /(^|-)AR(-|$)/.test(id) ? 'ar' : 'en';
       const points = Array.from(text).length;
-      const limit = Number(limitText);
-      if (ids.has(id)) {
-        bad++;
-        fail(name + ' ' + id + ': the id is used twice');
-      }
+      const limit = Number(count[2]);
+      const problemsHere = [];
+      if (ids.has(id)) problemsHere.push('the id is used twice');
       ids.add(id);
-      if (points > limit || text.length > limit) {
-        bad++;
-        fail(name + ' ' + id + ': ' + points + ' characters (' + text.length + ' UTF-16 units) is over the limit of ' + limit);
-      }
-      if (Number(stated) !== points) {
-        if (WRITE_COUNTS) edits.push([whole, whole.replace(/\| *\d+ *\/ *\d+ *\|$/, '| ' + points + ' / ' + limit + ' |')]);
-        else {
-          bad++;
-          fail(name + ' ' + id + ': the sheet says ' + stated + ' but the text has ' + points + ' characters (run with --write-counts)');
+      if (text.length === 0) problemsHere.push('empty text');
+      if (points > limit || text.length > limit) problemsHere.push(points + ' characters (' + text.length + ' UTF-16 units) is over the limit of ' + limit);
+      if (Number(count[1]) !== points) {
+        if (WRITE_COUNTS) {
+          lines[i] = line.replace(/\| *\d+ *\/ *\d+ *\|\s*$/, '| ' + points + ' / ' + limit + ' |');
+          rewritten++;
+        } else {
+          problemsHere.push('the sheet says ' + count[1] + ' but the text has ' + points + ' characters (run with --write-counts)');
         }
       }
-      // hashtags are names, not wording: check the sentence without them
-      const sentence = text.replace(/#[\p{L}\p{N}_]+/gu, ' ');
-      const probs = wordingProblems(sentence, lang, others);
+      // hashtags are names, not wording: the sentence is checked without them, the tags apart
       const tags = text.match(/#[\p{L}\p{N}_]+/gu) || [];
-      for (const tag of tags) for (const w of others || []) if (tag.toLowerCase().replace('#', '').replace(/_/g, ' ').indexOf(w) >= 0 && w.length > 3) probs.push('hashtag ' + tag + ' carries the vocabulary of another game');
-      if (/^[A-Z]-?(G|TT)/i.test(id) || /^(G|TT)[.-]/i.test(id)) {
-        if (/[#{}]/.test(text)) probs.push('"#", "{" or "}" in a Google / TikTok ad text');
+      const sentence = text.replace(/#[\p{L}\p{N}_]+/gu, ' ').replace(/https?:\/\/\S+/g, ' ');
+      problemsHere.push(...wordingProblems(sentence, lang, others));
+      for (const tag of tags) {
+        const words = tag.slice(1).replace(/_/g, ' ').toLowerCase();
+        for (const w of others || []) if (w.length > 3 && words.indexOf(w) >= 0) problemsHere.push('hashtag ' + tag + ' carries the vocabulary of another game');
+        for (const w of BANNED[lang]) if (w.length > 2 && words.indexOf(w.toLowerCase()) >= 0) problemsHere.push('hashtag ' + tag + ' carries forbidden wording "' + w + '"');
       }
-      if (probs.length) {
+      if (tags.length > 5) problemsHere.push(tags.length + ' hashtags (keep to five at most)');
+      // paid-ad texts (Google, Meta, TikTok) carry no hashtag, no braces and no link; captions (S-…) may
+      if (!/^S-/.test(id) && (/[#{}]/.test(text) || /https?:\/\//.test(text))) problemsHere.push('"#", braces or a link in an ad text');
+      if (/^ALT-/.test(id)) altSeen[id] = text;
+      if (problemsHere.length) {
         bad++;
-        fail(name + ' ' + id + ': ' + probs.join('; '));
+        fail(name + ' ' + id + ': ' + problemsHere.join('; '));
       }
     }
-    if (edits.length) {
-      for (const [from, to] of edits) src = src.replace(from, to);
-      fs.writeFileSync(file, src);
-      console.log('  note  ' + name + ': ' + edits.length + ' count(s) rewritten');
+    if (rewritten) {
+      fs.writeFileSync(file, lines.join('\n'));
+      console.log('  note  ' + name + ': ' + rewritten + ' count(s) rewritten');
     }
     if (rows === 0) fail(name + ': no counted rows found');
     else if (bad === 0) ok(name + ': ' + rows + ' texts counted (Unicode code points), every one within its limit and free of forbidden wording');
+  }
+  // the alt texts of the sheet are the ones written into manifest.json
+  for (const lang of LANGS) {
+    for (const c of ['A', 'B', 'C']) {
+      const id = 'ALT-' + lang.toUpperCase() + '-' + c;
+      if (altSeen[id] === undefined) fail('SOCIAL-CAPTIONS.md has no row ' + id);
+      else if (altSeen[id] !== COPY[lang].alt[c]) fail(id + ' differs from the alt text in tools/store/make-promo.cjs (COPY.' + lang + '.alt.' + c + ')');
+    }
   }
 
   console.log(failures === 0 ? 'make-promo --check: all good' : 'make-promo --check: ' + failures + ' problem(s)');
@@ -1543,7 +1580,7 @@ async function main() {
       const sample = LANGS.map((l) => [COPY[l].A.hook.join(' '), COPY[l].B.hook.join(' '), COPY[l].C.labels.join(' '), COPY[l].store].join(' ')).join(' ');
       await stage.evaluate(setupStage, { images: Object.keys(captures), meta, layout: LAYOUT, sample });
       for (const job of jobs) {
-        const res = await stage.evaluate((j) => window.__promo.render(j), {
+        const spec = {
           concept: job.concept.id,
           lang: job.lang,
           dir: COPY[job.lang].dir,
@@ -1552,9 +1589,11 @@ async function main() {
           w: job.size.w,
           h: job.size.h,
           jpgMax: JPG_MAX,
-        });
-        if (!res.opaque) throw new Error(fileName(job.concept, job.size, job.lang, 'png') + ': the image has transparent pixels');
-        results.push({ job, res });
+        };
+        const res = await stage.evaluate((j) => window.__promo.render(j), Object.assign({ wantPixels: true, clean: false }, spec));
+        const clean = await stage.evaluate((j) => window.__promo.render(j), Object.assign({ wantPixels: false, clean: true }, spec));
+        if (!res.opaque || !clean.opaque) throw new Error(fileName(job.concept, job.size, job.lang, 'png') + ': the image has transparent pixels');
+        results.push({ job, res, clean });
       }
     } finally {
       await browser.close();
@@ -1567,25 +1606,32 @@ async function main() {
   // ── write ──
   console.log('make-promo: writing to ' + path.relative(process.cwd(), OUT));
   const listed = [];
-  for (const { job, res } of results) {
+  for (const { job, res, clean } of results) {
     const rgba = Buffer.from(res.rgba, 'base64');
     const png = encodePng24(res.width, res.height, rgba);
     const jpg = Buffer.from(res.jpeg, 'base64');
+    const cleanJpg = Buffer.from(clean.jpeg, 'base64');
     const pngRel = path.join('png', job.lang, fileName(job.concept, job.size, job.lang, 'png'));
     const jpgRel = path.join('jpg', job.lang, fileName(job.concept, job.size, job.lang, 'jpg'));
+    const cleanRel = path.join('clean', job.lang, fileName(job.concept, job.size, job.lang, 'jpg').replace(/\.jpg$/, '-clean.jpg'));
     writeFile(path.join(OUT, pngRel), png);
     writeFile(path.join(OUT, jpgRel), jpg);
+    writeFile(path.join(OUT, cleanRel), cleanJpg);
     const pi = pngInfo(png);
-    const ji = jpegInfo(jpg);
-    if (pi.width !== job.size.w || pi.height !== job.size.h || ji.width !== job.size.w || ji.height !== job.size.h) throw new Error(pngRel + ': wrong pixel size written');
+    for (const [rel, buf] of [[jpgRel, jpg], [cleanRel, cleanJpg]]) {
+      const ji = jpegInfo(buf);
+      if (ji.width !== job.size.w || ji.height !== job.size.h) throw new Error(rel + ': wrong pixel size written');
+      if (buf.length > JPG_MAX) throw new Error(rel + ' is ' + buf.length + ' bytes, over ' + JPG_MAX);
+    }
+    if (pi.width !== job.size.w || pi.height !== job.size.h) throw new Error(pngRel + ': wrong pixel size written');
     if (png.length > PNG_MAX) throw new Error(pngRel + ' is ' + png.length + ' bytes, over ' + PNG_MAX);
-    if (jpg.length > JPG_MAX) throw new Error(jpgRel + ' is ' + jpg.length + ' bytes, over ' + JPG_MAX);
-    const area = res.texts.reduce((n, t) => n + t.w * t.h, 0);
-    const share = area / (res.width * res.height);
+    const share = (texts) => texts.reduce((n, t) => n + t.w * t.h, 0) / (res.width * res.height);
     const words = job.concept.id === 'C' ? COPY[job.lang].C.labels : COPY[job.lang][job.concept.id].hook;
+    const posix = (rel) => rel.split(path.sep).join('/');
     listed.push({
-      png: pngRel.split(path.sep).join('/'),
-      jpg: jpgRel.split(path.sep).join('/'),
+      png: posix(pngRel),
+      jpg: posix(jpgRel),
+      cleanJpg: posix(cleanRel),
       concept: job.concept.slug,
       language: job.lang,
       width: res.width,
@@ -1593,17 +1639,19 @@ async function main() {
       pngBytes: png.length,
       jpgBytes: jpg.length,
       jpgQuality: res.quality,
+      cleanJpgBytes: cleanJpg.length,
       hook: words.join(' '),
       storeLine: COPY[job.lang].store,
       altText: COPY[job.lang].alt[job.concept.id],
-      letteringShare: Math.round(share * 1000) / 1000,
+      letteringShare: Math.round(share(res.texts) * 1000) / 1000,
+      letteringShareClean: Math.round(share(clean.texts) * 1000) / 1000,
     });
-    console.log('  ' + pngRel + '  ' + pi.width + '×' + pi.height + '  png ' + Math.round(png.length / 1024) + ' KB · jpg ' + Math.round(jpg.length / 1024) + ' KB (q ' + res.quality + ') · lettering ' + (share * 100).toFixed(1) + '%');
+    console.log('  ' + pngRel + '  ' + pi.width + '×' + pi.height + '  png ' + Math.round(png.length / 1024) + ' KB · jpg ' + Math.round(jpg.length / 1024) + ' KB (q ' + res.quality + ') · clean jpg ' + Math.round(cleanJpg.length / 1024) + ' KB · lettering ' + (share(res.texts) * 100).toFixed(1) + '%');
   }
   if (jobs.length === LANGS.length * CONCEPTS.length * SIZES.length) {
     const manifest = {
       game: 'Zumurud (com.zumurud.game)',
-      note: 'Made by tools/store/make-promo.cjs from the game itself. letteringShare = boxes of the wordmark, the hook and the store line divided by the image area.',
+      note: 'Made by tools/store/make-promo.cjs from the game itself. png and jpg are the same image; cleanJpg is the same design without the store line. letteringShare = boxes of the wordmark, the hook and the store line divided by the image area.',
       scenes: Object.keys(meta).map((name) => ({ scene: name, level: meta[name].level, seed: meta[name].seed, move: meta[name].move, msAfterMove: meta[name].at })),
       mapTiles: { focusLevels: MAP_FOCUS, sizesCssPx: MAP_TILES },
       images: listed,

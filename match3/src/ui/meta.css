@@ -1300,8 +1300,13 @@
   color: var(--k-muted);
 }
 
+/* (the gap sits on the label: the number is left-to-right in both languages, so its own
+   "inline start" would be its left side also in Arabic, where the label stands on its right) */
+.m-best__text span {
+  margin-inline-end: calc(var(--k-u) * 6);
+}
+
 .m-best__text b {
-  margin-inline-start: calc(var(--k-u) * 6);
   font-size: calc(var(--k-u) * 17);
   font-weight: 800;
   color: var(--k-cream);
@@ -1599,8 +1604,11 @@
   text-align: center;
 }
 
+.m-lives__label {
+  margin-inline-end: calc(var(--k-u) * 8);
+}
+
 .m-lives__clock {
-  margin-inline-start: calc(var(--k-u) * 8);
   color: var(--k-gold-light);
   font-size: calc(var(--k-u) * 24);
   font-weight: 800;

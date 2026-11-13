@@ -111,7 +111,7 @@ export function openLivesDialog(ui: Ui): Promise<void> {
       if (full) {
         status.appendChild(h('span', { text: t('meta.lives.full') }));
       } else {
-        status.appendChild(h('span', { text: t('meta.lives.next') }));
+        status.appendChild(h('span', { class: 'm-lives__label', text: t('meta.lives.next') }));
         status.appendChild(clock);
       }
     }

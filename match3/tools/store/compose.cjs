@@ -245,7 +245,7 @@ async function composeFinal(page, spec) {
 async function contactSheet(browser, rows, title) {
   const gap = 18;
   const width = Math.max.apply(null, rows.map((r) => r.items.length * (r.cell.w + gap) + gap));
-  const context = await browser.newContext({ viewport: { width, height: 800 }, deviceScaleFactor: 1 });
+  const context = await browser.newContext({ viewport: { width, height: 200 }, deviceScaleFactor: 1 });
   const page = await context.newPage();
   const html =
     '<!doctype html><meta charset="utf-8"><style>' + fontCss() +

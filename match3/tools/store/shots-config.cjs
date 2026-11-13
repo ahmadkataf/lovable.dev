@@ -38,9 +38,12 @@ const JOURNEY = { reached: 81, coins: 3450 };
  *   plain     only levels without blockers (a board of gems)
  *   need      blocker kinds the level must have: 'stone' | 'chain' | 'vine' | 'lamp' | 'sand'
  *   rich      among the fitting levels, the one with the most kinds of blockers
+ *   full      among the fitting levels, the one with the most cells (the fullest board)
  *   from      lowest level number
  * `caravan`   the player's win streak in the save (3 = the Caravan brings a beam, a nova, a prism)
  * `plan`      see planMoment() in game.cjs; `seeds` = how many level seeds are searched
+ * `burst`     frames are taken until the game's own clock is `until` ms past the move
+ * `pick`      which frame is kept: how far into the effect, 0..1 (see pickFrame() in make-screenshots.cjs)
  */
 const SCENES = [
   { id: 'title', file: '01-title', kind: 'title', devices: ALL, what: 'Title screen' },
@@ -54,7 +57,8 @@ const SCENES = [
     level: { chapters: [2], prefer: [28], plain: true },
     caravan: 3,
     plan: { wish: 'cross', depth: 2, min: 100, seeds: 80 },
-    burst: { lead: 200, step: 45, until: 1500 },
+    burst: { lead: 200, step: 45, until: 1100 },
+    pick: 0.9,
     what: 'Gameplay: two special pieces swapped — a big combo',
   },
   {
@@ -65,7 +69,8 @@ const SCENES = [
     level: { chapters: [3], prefer: [51], plain: true },
     caravan: 3,
     plan: { wish: 'beam', depth: 2, min: 90, seeds: 80 },
-    burst: { lead: 200, step: 45, until: 1500 },
+    burst: { lead: 200, step: 45, until: 1100 },
+    pick: 0.5,
     what: 'Gameplay: a beam fires along its line',
   },
   {
@@ -91,7 +96,7 @@ const SCENES = [
     file: '08-play-praise',
     kind: 'praise',
     devices: ALL,
-    level: { chapters: [6], prefer: [111, 104, 101], plain: true },
+    level: { chapters: [6], plain: true, full: true },
     caravan: 0,
     plan: { wish: 'cascade', depth: 2, min: 100, seeds: 60 },
     what: 'Gameplay: a long cascade and the praise word it earns',
@@ -115,7 +120,9 @@ const SCENES = [
  * taken in the other language (the proof for "English and Arabic"). `tint` is the soft glow behind
  * the caption — a colour of the world on show, over the game's indigo. Captions: two to five words,
  * no ranking, price or call-to-action wording, nothing about any other game; `alt` is the
- * screenshot's alt text for Play Console (at most 140 characters).
+ * screenshot's alt text for Play Console (at most 140 characters) — `{world}` and `{blockers}`
+ * are filled in from the capture itself (the world's name as the game writes it, the blockers
+ * really on that level), so the text stays true when a level is re-tuned.
  */
 const FINALS = [
   {
@@ -125,8 +132,8 @@ const FINALS = [
     tint: '#ff8a3c',
     caption: { en: ['Match Gems,', 'Unleash the Light'], ar: ['طابق الجواهر', 'وأطلق وهجها'] },
     alt: {
-      en: 'A board of gems in the Dunes world as two special pieces combine and beams of light sweep across rows and columns.',
-      ar: 'لوح من الجواهر في عالم الكثبان لحظة دمج قطعتين خاصتين وأشعة الضوء تكتسح الصفوف والأعمدة.',
+      en: 'A board of gems in the {world} world as two special pieces combine and beams of light sweep across rows and columns.',
+      ar: 'لوح من الجواهر في عالم {world} لحظة دمج قطعتين خاصتين وأشعة الضوء تكتسح الصفوف والأعمدة.',
     },
   },
   {
@@ -136,8 +143,8 @@ const FINALS = [
     tint: '#d9479f',
     caption: { en: ['Fire Beams, Novas', 'and Prisms'], ar: ['أشعل الشعاع', 'والنوفا والمنشور'] },
     alt: {
-      en: 'A beam fires down a column in the Bazaar world while a nova and a prism wait on the board.',
-      ar: 'شعاع ينطلق على طول عمود في عالم السوق، وعلى اللوح نوفا ومنشور ينتظران دورهما.',
+      en: 'A beam fires along its line in a level of the {world} world while other special pieces wait on the board.',
+      ar: 'شعاع ينطلق على طول خطه في مرحلة من عالم {world}، وعلى اللوح قطع خاصة أخرى تنتظر دورها.',
     },
   },
   {
@@ -147,8 +154,8 @@ const FINALS = [
     tint: '#22c7b8',
     caption: { en: ['120 Levels', 'Across Six Worlds'], ar: ['120 مرحلة', 'في ستة عوالم'] },
     alt: {
-      en: 'The level map at the entrance to the Caverns world, with stars earned on the levels already cleared.',
-      ar: 'خريطة المراحل عند مدخل عالم الكهوف، وعليها النجوم المكتسبة في المراحل المنجزة.',
+      en: 'The level map at the entrance to the {world} world, with stars earned on the levels already cleared.',
+      ar: 'خريطة المراحل عند مدخل عالم {world}، وعليها النجوم المكتسبة في المراحل المنجزة.',
     },
   },
   {
@@ -158,8 +165,8 @@ const FINALS = [
     tint: '#5b7cff',
     caption: { en: ['Every Level,', 'a Fresh Puzzle'], ar: ['في كل مرحلة', 'تحدٍّ مختلف'] },
     alt: {
-      en: 'A Palace level with lamps to bring down, chained gems, stone blocks, vines and sand, and its goals in the top bar.',
-      ar: 'مرحلة في عالم القصر فيها مصابيح يجب إنزالها وجواهر مقيدة وحجارة ونباتات متسلقة ورمال، وأهدافها في الشريط العلوي.',
+      en: 'A level of the {world} world with {blockers}; its goals are in the top bar.',
+      ar: 'مرحلة من عالم {world} فيها {blockers}، وأهدافها في الشريط العلوي.',
     },
   },
   {
@@ -169,8 +176,8 @@ const FINALS = [
     tint: '#2fd17c',
     caption: { en: ['Boosters for', 'Tricky Moments'], ar: ['معزّزات', 'تنقذ الموقف'] },
     alt: {
-      en: 'The Hammer booster is selected in an Oasis level and the game asks which piece to smash.',
-      ar: 'معزّز المطرقة محدد في مرحلة من عالم الواحة، واللعبة تسأل أي قطعة تُحطَّم.',
+      en: 'The Hammer booster is selected in a level of the {world} world and the game asks which piece to smash.',
+      ar: 'معزّز المطرقة محدد في مرحلة من عالم {world}، واللعبة تسأل أي قطعة تُحطَّم.',
     },
   },
   {
@@ -178,7 +185,7 @@ const FINALS = [
     slug: 'rewards',
     scene: 'win',
     tint: '#f5c95a',
-    caption: { en: ['Win Stars', 'and Daily Gifts'], ar: ['اكسب النجوم', 'والهدايا اليومية'] },
+    caption: { en: ['Earn Stars', 'and Rewards'], ar: ['اكسب النجوم', 'والمكافآت'] },
     alt: {
       en: 'The level complete dialog with three stars, the score and the coins earned.',
       ar: 'نافذة إتمام المرحلة بثلاث نجوم مع النتيجة والعملات المكتسبة.',
@@ -191,8 +198,8 @@ const FINALS = [
     tint: '#8a6bff',
     caption: { en: ['Works Offline,', 'Anywhere'], ar: ['تعمل بلا إنترنت', 'أينما كنت'] },
     alt: {
-      en: 'A Starlit Sky level just after a long cascade, with the praise word the game shows for it.',
-      ar: 'مرحلة في عالم سماء النجوم بعد سلسلة تطابقات طويلة، مع كلمة الثناء التي تعرضها اللعبة.',
+      en: 'A level of the {world} world just after a long cascade, with the praise word the game shows for it.',
+      ar: 'مرحلة من عالم {world} بعد سلسلة تطابقات طويلة، مع كلمة الثناء التي تعرضها اللعبة.',
     },
   },
   {
@@ -208,6 +215,12 @@ const FINALS = [
     },
   },
 ];
+
+/** Words for the `{blockers}` place in an alt text (the kinds really on the level that was captured). */
+const BLOCKER_WORDS = {
+  en: { lamp: 'lamps to bring down', chain: 'chained gems', stone: 'stone blocks', vine: 'vines', sand: 'sand', and: ' and ', comma: ', ' },
+  ar: { lamp: 'مصابيح يجب إنزالها', chain: 'جواهر مقيّدة', stone: 'حجارة', vine: 'نباتات متسلقة', sand: 'رمال', and: ' و', comma: '، ' },
+};
 
 /**
  * Layout of an upload file, as fractions of its width W (so the three device sizes share one
@@ -251,4 +264,4 @@ const LIMITS = {
   altMax: 140,
 };
 
-module.exports = { DEVICES, DEVICE_IDS, LANGS, JOURNEY, SCENES, FINALS, LAYOUT, CAPTION_BANNED, LIMITS };
+module.exports = { DEVICES, DEVICE_IDS, LANGS, JOURNEY, SCENES, FINALS, BLOCKER_WORDS, LAYOUT, CAPTION_BANNED, LIMITS };

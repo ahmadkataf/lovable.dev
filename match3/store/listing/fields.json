@@ -1,0 +1,266 @@
+{
+  "_readme": [
+    "Google Play store listing texts for Zumurud (com.zumurud.game), ready to paste. Generated from store/listing/en-US.md and store/listing/ar.md by: node store/aso/check-listing.cjs --write. Do not edit by hand.",
+    "Paste each string exactly as it is. \"\\n\" inside a string is a line break: the full description and the release notes have several lines, the title and the short description have one.",
+    "Where: Play Console > Grow users > Store presence > Store listings > the default store listing (this kit's guides call it \"Main store listing\"), fields under \"App details\": title -> \"App name\", shortDescription -> \"Short description\", fullDescription -> \"Full description\". The default language is en-US.",
+    "Arabic: on the same page click \"Manage translations\" > \"Select languages\", add \"Arabic - ar\", Apply and Save, then paste the ar strings into the Arabic version of the same three fields.",
+    "releaseNotes does not go on the store listing. It goes on the release page (Prepare release > Release notes), each language between its own tags on separate lines. releaseNotesBox is that text ready to paste; if the box shows other tags, keep the tags the box shows and paste only the notes between them.",
+    "ifTheBuildHasNoAds: use these full descriptions instead ONLY when the uploaded app bundle is the flavour without the ad library (App content > Ads answered \"No\"). Otherwise ignore the block.",
+    "experimentCandidates are NOT part of the listing: they are alternatives for later store listing experiments (see store/listing/ar-variants.md and en-US-variants.md). Entries with needsOwnerConfirmation need the owner's yes first.",
+    "The Arabic strings are correct as stored. Inside a left-to-right text box their periods, bullets and numbers can LOOK misplaced; that is only how the box draws them. Do not reorder characters and do not add direction marks.",
+    "Nothing from store/aso/KEYWORDS.md is ever typed into Play Console: Google Play has no keyword field."
+  ],
+  "_meta": {
+    "applicationId": "com.zumurud.game",
+    "defaultLanguage": "en-US",
+    "languages": [
+      "en-US",
+      "ar"
+    ],
+    "limits": {
+      "title": 30,
+      "shortDescription": 80,
+      "fullDescription": 4000,
+      "releaseNotes": 500
+    },
+    "counts": {
+      "en-US": {
+        "title": {
+          "characters": 27,
+          "limit": 30
+        },
+        "shortDescription": {
+          "characters": 73,
+          "limit": 80
+        },
+        "fullDescription": {
+          "characters": 3221,
+          "limit": 4000
+        },
+        "releaseNotes": {
+          "characters": 362,
+          "limit": 500
+        }
+      },
+      "ar": {
+        "title": {
+          "characters": 24,
+          "limit": 30
+        },
+        "shortDescription": {
+          "characters": 71,
+          "limit": 80
+        },
+        "fullDescription": {
+          "characters": 2912,
+          "limit": 4000
+        },
+        "releaseNotes": {
+          "characters": 332,
+          "limit": 500
+        }
+      },
+      "ifTheBuildHasNoAds": {
+        "en-US": {
+          "fullDescription": {
+            "characters": 2954,
+            "limit": 4000
+          }
+        },
+        "ar": {
+          "fullDescription": {
+            "characters": 2689,
+            "limit": 4000
+          }
+        }
+      }
+    },
+    "category": {
+      "applicationType": "Game",
+      "category": "Puzzle"
+    },
+    "tags": {
+      "maximum": 5,
+      "howToChoose": "Store settings → App category → Manage tags. Pick, in this order, the first five of these that the picker really offers; never pick a tag that is not on this list.",
+      "inOrderOfPriority": [
+        {
+          "priority": 1,
+          "label": "Match 3",
+          "labelInArabicConsole": "مطابقة 3",
+          "note": "the genre; shown on 39 of 44 top match-3 listings"
+        },
+        {
+          "priority": 2,
+          "label": "Puzzle",
+          "labelInArabicConsole": "ألغاز",
+          "note": "shown on 43 of 44; also the category"
+        },
+        {
+          "priority": 3,
+          "label": "Gems & jewels",
+          "labelInArabicConsole": "أحجار كريمة وجواهر",
+          "note": "the theme; shown on 15 of 44, so it sets the game apart"
+        },
+        {
+          "priority": 4,
+          "label": "Casual",
+          "labelInArabicConsole": "الألعاب البسيطة",
+          "note": "shown on 39 of 44"
+        },
+        {
+          "priority": 5,
+          "label": "Offline",
+          "labelInArabicConsole": "بلا اتصال بالإنترنت",
+          "note": "shown on 40 of 44; the strongest modifier in both languages"
+        },
+        {
+          "priority": 6,
+          "label": "Single player",
+          "labelInArabicConsole": "اللعب الفردي",
+          "note": "shown on 41 of 44; take it only if one of the five above is not offered"
+        }
+      ]
+    },
+    "releaseNotesVersion": "1.0.0"
+  },
+  "en-US": {
+    "title": "Zumurud: Gem Match 3 Puzzle",
+    "shortDescription": "Match 3 jewels across a desert oasis: 120 puzzle levels, playable offline",
+    "fullDescription": "Zumurud is an offline match 3 puzzle game set among the jewels of a moonlit desert oasis. Swap gems to match three or more, combine special pieces into board-clearing combos, and journey through 120 levels in six worlds, from the Oasis to the Starlit Sky. No Wi-Fi is needed to play, and there is no account to create.\n\nHow to play\n• The classic match 3 rule: swap two adjacent gems to get three or more of the same kind in a row.\n• Complete each level's goal before your moves run out. Levels are limited by moves, not by a timer, so you can think at your own pace.\n• Earn up to three stars per level, and replay any level to improve your score.\n\nSpecial pieces and combos\n• Beam: match four gems in a line. It clears a whole row or column.\n• Nova: match gems in an L or T shape. It bursts and clears everything around it.\n• Prism: match five gems in a line. Swap it with any gem to clear every gem of that color.\n• Swap two special pieces with each other for a bigger effect. There are six combos to discover.\n\nSix worlds, 120 levels\nOasis, Dunes, Bazaar, Palace, Caverns and Starlit Sky: each world is a chapter of twenty levels with its own backdrop. Goals change as you go: reach a score, collect jewels of one color, clear the sand, break stones and chains, cut back vines before they spread, or bring brass lamps down to the bottom of the board.\n\nJewels you can tell apart at a glance\nRuby, amber, emerald, sapphire, amethyst and moonstone: each jewel has its own color and its own cut, so the board stays readable on small screens and for players who find some colors hard to tell apart.\n\nBoosters and rewards\n• Six boosters, each introduced with a gift so you can try it: a hammer, a swap that needs no match, a shuffle, extra moves, and head starts with special pieces already on the board.\n• The Caravan: win levels in a row and your next level starts with special pieces waiting on the board.\n• A daily gift on a seven-day cycle.\n• Five lives: failing a level costs one, one returns every 30 minutes, and winning never costs a life.\n\nPlay anywhere\n• A match 3 game that works offline: the puzzle levels need no Wi-Fi and no mobile data, so you can play in airplane mode, on a flight or on your commute.\n• Single player. Your progress is saved on your device.\n• English and Arabic, with a full right-to-left layout in Arabic. Switch language at any time in Settings.\n• Artwork and sound made for this game, with a calm, relaxing soundtrack led by an oud-like melody.\n• Made for teens and adults aged 13 and over who enjoy jewel games and matching puzzles.\n\nPurchases and ads, stated plainly\nYou can install Zumurud and finish all 120 levels without paying. The game contains optional in-app purchases: packs of coins, a one-time starter pack, and an option that removes the ads shown between levels. Coins are also earned by playing. The game contains ads: video ads that give a reward play only when you choose to watch one, and ads between levels are occasional, never interrupt a level, and are switched off after any purchase. Playing needs no connection; only purchases and ads do.\n\nZumurud is the Arabic word for emerald. The oasis is waiting: make your first match and see how far the caravan takes you.",
+    "releaseNotes": "Welcome to Zumurud, a match 3 puzzle game with jewels, set in a desert oasis.\n• 120 levels in six worlds, from the Oasis to the Starlit Sky\n• Three special pieces (Beam, Nova and Prism) and six combos\n• Sand, stones, chains and vines to clear, and lamps to bring down\n• Six boosters, the Caravan win streak and a daily gift\n• Plays offline, in English and Arabic"
+  },
+  "ar": {
+    "title": "زمرد: لعبة ألغاز الجواهر",
+    "shortDescription": "لعبة مجوهرات بدون نت: طابق جواهر الواحة واعبر 120 مرحلة حتى سماء النجوم",
+    "fullDescription": "زمرد لعبة جواهر بدون نت من ألعاب ألغاز مطابقة 3: بدّل الجواهر، طابق ثلاثًا منها أو أكثر، واصنع قطعًا خاصة تمسح اللوحة. تبدأ رحلتك عند ماء الواحة تحت ضوء القمر، وتمضي بك عبر 120 مرحلة في ستة عوالم حتى سماء النجوم. لعبة مجوهرات بواجهة عربية كاملة، لا تحتاج إلى واي فاي ولا إلى حساب.\n\nطريقة اللعب\n• القاعدة بسيطة: مطابقة ثلاثة عناصر متماثلة أو أكثر في صف أو عمود، بتبديل مكان جوهرتين متجاورتين.\n• حقّق هدف المرحلة قبل أن تنتهي حركاتك. المراحل محدودة بعدد الحركات لا بالوقت، فالعب على مهلك.\n• اجمع حتى ثلاث نجوم في كل مرحلة، وأعد أي مرحلة متى شئت لتحسّن نتيجتك.\n\nقطع خاصة وتركيبات\n• الشعاع: تصنعه بمطابقة أربع جواهر في خط واحد، فيمسح صفًّا أو عمودًا كاملًا.\n• النوفا: تصنعها بمطابقة الجواهر على شكل L أو T، فتفجّر كل ما حولها.\n• المنشور: تصنعه بمطابقة خمس جواهر في خط واحد، ثم تبدّله مع أي جوهرة ليزيل كل الجواهر من لونها.\n• بدّل قطعتين خاصتين إحداهما مع الأخرى لتأثير أكبر. ست تركيبات تنتظر أن تكتشفها.\n\nستة عوالم و120 مرحلة\nالواحة، الكثبان، السوق، القصر، الكهوف، سماء النجوم: كل عالم فصل من عشرين مرحلة له خلفيته الخاصة. مراحل تتدرج مستويات صعوبتها وتتغير أهدافها: بلوغ عدد من النقاط، أو جمع جواهر من لون معين، أو إزالة الرمال، أو تحطيم الأحجار، أو كسر السلاسل، أو قطع النبات المتسلق قبل أن ينتشر، أو إنزال الفوانيس النحاسية إلى أسفل اللوحة.\n\nأحجار تميزها من النظرة الأولى\nستة أنواع من الأحجار الكريمة: الياقوت الأحمر والكهرمان والزمرد والياقوت الأزرق والجمشت وحجر القمر. لكل حجر لونه وشكله الخاص، فتبقى اللوحة واضحة على الشاشات الصغيرة ولمن يصعب عليه التفريق بين بعض الألوان.\n\nمعززات وهدايا\n• ستة معززات تتعرف إليها واحدًا بعد الآخر، ومع كل معزز هدية لتجربه بنفسك: مطرقة، وتبديل لا يشترط التطابق، وخلط، وحركات إضافية، وبدايات بقطع خاصة جاهزة على اللوحة.\n• القافلة: فُز بالمراحل تباعًا، فتبدأ مرحلتك التالية وعلى اللوحة قطع خاصة بانتظارك.\n• هدية اليوم: مكافأة يومية في دورة من سبعة أيام.\n• خمسة قلوب: خسارة المرحلة تكلفك قلبًا، ويعود قلب كل 30 دقيقة، والفوز لا يكلفك شيئًا.\n\nالعب بدون نت في أي مكان\n• لعبة ألغاز مسلية لدقائق الانتظار أو لجلسة طويلة: كل المراحل تُلعب بدون إنترنت، في الطائرة أو في الطريق، ومن دون بيانات الجوال.\n• لعبة فردية للاعب واحد، وتقدمك محفوظ على جهازك.\n• بالعربية والإنجليزية، مع واجهة من اليمين إلى اليسار، وتبديل اللغة متى شئت من الإعدادات.\n• رسوم ومؤثرات صوتية صُنعت لهذه اللعبة، وموسيقى هادئة مريحة بنغمة تشبه العود.\n• للشباب والكبار من عمر 13 سنة فأكثر، ولمحبي ألعاب المجوهرات والأحجار الكريمة.\n\nالمشتريات والإعلانات بوضوح\nيمكنك تثبيت زمرد وإكمال مراحلها كلها دون أن تدفع شيئًا. تحتوي اللعبة على مشتريات اختيارية داخل التطبيق: حزم عملات، وحزمة بداية تُشترى مرة واحدة، وخيار يزيل الإعلانات بين المراحل. والعملات تُكسب باللعب أيضًا. وتحتوي اللعبة على إعلانات: إعلانات المكافأة لا تُعرض إلا حين تختار أنت مشاهدتها، والإعلانات بين المراحل قليلة، ولا تقاطع اللعب داخل المرحلة، وتتوقف بعد أي عملية شراء. اللعب نفسه يعمل بلا اتصال بالإنترنت، والاتصال مطلوب للمشتريات والإعلانات فقط.\n\nزمرد هو الاسم العربي لحجر الزمرد الأخضر. الواحة بانتظارك: ابدأ بأول ثلاث جواهر، وانظر إلى أين تأخذك القافلة.",
+    "releaseNotes": "أهلًا بك في زمرد، لعبة ألغاز الجواهر في واحة الصحراء.\n• 120 مرحلة في ستة عوالم، من الواحة إلى سماء النجوم\n• ثلاث قطع خاصة (الشعاع والنوفا والمنشور) وست تركيبات بينها\n• رمال وأحجار وسلاسل ونباتات متسلقة تزيلها، وفوانيس تنزلها إلى أسفل اللوحة\n• ستة معززات، والقافلة لسلسلة الانتصارات، وهدية اليوم\n• تُلعب بدون نت، بالعربية والإنجليزية"
+  },
+  "releaseNotesBox": "<en-US>\nWelcome to Zumurud, a match 3 puzzle game with jewels, set in a desert oasis.\n• 120 levels in six worlds, from the Oasis to the Starlit Sky\n• Three special pieces (Beam, Nova and Prism) and six combos\n• Sand, stones, chains and vines to clear, and lamps to bring down\n• Six boosters, the Caravan win streak and a daily gift\n• Plays offline, in English and Arabic\n</en-US>\n<ar>\nأهلًا بك في زمرد، لعبة ألغاز الجواهر في واحة الصحراء.\n• 120 مرحلة في ستة عوالم، من الواحة إلى سماء النجوم\n• ثلاث قطع خاصة (الشعاع والنوفا والمنشور) وست تركيبات بينها\n• رمال وأحجار وسلاسل ونباتات متسلقة تزيلها، وفوانيس تنزلها إلى أسفل اللوحة\n• ستة معززات، والقافلة لسلسلة الانتصارات، وهدية اليوم\n• تُلعب بدون نت، بالعربية والإنجليزية\n</ar>",
+  "ifTheBuildHasNoAds": {
+    "en-US": {
+      "fullDescription": "Zumurud is an offline match 3 puzzle game set among the jewels of a moonlit desert oasis. Swap gems to match three or more, combine special pieces into board-clearing combos, and journey through 120 levels in six worlds, from the Oasis to the Starlit Sky. No Wi-Fi is needed to play, and there is no account to create.\n\nHow to play\n• The classic match 3 rule: swap two adjacent gems to get three or more of the same kind in a row.\n• Complete each level's goal before your moves run out. Levels are limited by moves, not by a timer, so you can think at your own pace.\n• Earn up to three stars per level, and replay any level to improve your score.\n\nSpecial pieces and combos\n• Beam: match four gems in a line. It clears a whole row or column.\n• Nova: match gems in an L or T shape. It bursts and clears everything around it.\n• Prism: match five gems in a line. Swap it with any gem to clear every gem of that color.\n• Swap two special pieces with each other for a bigger effect. There are six combos to discover.\n\nSix worlds, 120 levels\nOasis, Dunes, Bazaar, Palace, Caverns and Starlit Sky: each world is a chapter of twenty levels with its own backdrop. Goals change as you go: reach a score, collect jewels of one color, clear the sand, break stones and chains, cut back vines before they spread, or bring brass lamps down to the bottom of the board.\n\nJewels you can tell apart at a glance\nRuby, amber, emerald, sapphire, amethyst and moonstone: each jewel has its own color and its own cut, so the board stays readable on small screens and for players who find some colors hard to tell apart.\n\nBoosters and rewards\n• Six boosters, each introduced with a gift so you can try it: a hammer, a swap that needs no match, a shuffle, extra moves, and head starts with special pieces already on the board.\n• The Caravan: win levels in a row and your next level starts with special pieces waiting on the board.\n• A daily gift on a seven-day cycle.\n• Five lives: failing a level costs one, one returns every 30 minutes, and winning never costs a life.\n\nPlay anywhere\n• A match 3 game that works offline: the puzzle levels need no Wi-Fi and no mobile data, so you can play in airplane mode, on a flight or on your commute.\n• Single player. Your progress is saved on your device.\n• English and Arabic, with a full right-to-left layout in Arabic. Switch language at any time in Settings.\n• Artwork and sound made for this game, with a calm, relaxing soundtrack led by an oud-like melody.\n• Made for teens and adults aged 13 and over who enjoy jewel games and matching puzzles.\n\nPurchases, stated plainly\nYou can install Zumurud and finish all 120 levels without paying. The game contains optional in-app purchases: packs of coins and a one-time starter pack. Coins are also earned by playing. Playing needs no connection; only purchases do.\n\nZumurud is the Arabic word for emerald. The oasis is waiting: make your first match and see how far the caravan takes you."
+    },
+    "ar": {
+      "fullDescription": "زمرد لعبة جواهر بدون نت من ألعاب ألغاز مطابقة 3: بدّل الجواهر، طابق ثلاثًا منها أو أكثر، واصنع قطعًا خاصة تمسح اللوحة. تبدأ رحلتك عند ماء الواحة تحت ضوء القمر، وتمضي بك عبر 120 مرحلة في ستة عوالم حتى سماء النجوم. لعبة مجوهرات بواجهة عربية كاملة، لا تحتاج إلى واي فاي ولا إلى حساب.\n\nطريقة اللعب\n• القاعدة بسيطة: مطابقة ثلاثة عناصر متماثلة أو أكثر في صف أو عمود، بتبديل مكان جوهرتين متجاورتين.\n• حقّق هدف المرحلة قبل أن تنتهي حركاتك. المراحل محدودة بعدد الحركات لا بالوقت، فالعب على مهلك.\n• اجمع حتى ثلاث نجوم في كل مرحلة، وأعد أي مرحلة متى شئت لتحسّن نتيجتك.\n\nقطع خاصة وتركيبات\n• الشعاع: تصنعه بمطابقة أربع جواهر في خط واحد، فيمسح صفًّا أو عمودًا كاملًا.\n• النوفا: تصنعها بمطابقة الجواهر على شكل L أو T، فتفجّر كل ما حولها.\n• المنشور: تصنعه بمطابقة خمس جواهر في خط واحد، ثم تبدّله مع أي جوهرة ليزيل كل الجواهر من لونها.\n• بدّل قطعتين خاصتين إحداهما مع الأخرى لتأثير أكبر. ست تركيبات تنتظر أن تكتشفها.\n\nستة عوالم و120 مرحلة\nالواحة، الكثبان، السوق، القصر، الكهوف، سماء النجوم: كل عالم فصل من عشرين مرحلة له خلفيته الخاصة. مراحل تتدرج مستويات صعوبتها وتتغير أهدافها: بلوغ عدد من النقاط، أو جمع جواهر من لون معين، أو إزالة الرمال، أو تحطيم الأحجار، أو كسر السلاسل، أو قطع النبات المتسلق قبل أن ينتشر، أو إنزال الفوانيس النحاسية إلى أسفل اللوحة.\n\nأحجار تميزها من النظرة الأولى\nستة أنواع من الأحجار الكريمة: الياقوت الأحمر والكهرمان والزمرد والياقوت الأزرق والجمشت وحجر القمر. لكل حجر لونه وشكله الخاص، فتبقى اللوحة واضحة على الشاشات الصغيرة ولمن يصعب عليه التفريق بين بعض الألوان.\n\nمعززات وهدايا\n• ستة معززات تتعرف إليها واحدًا بعد الآخر، ومع كل معزز هدية لتجربه بنفسك: مطرقة، وتبديل لا يشترط التطابق، وخلط، وحركات إضافية، وبدايات بقطع خاصة جاهزة على اللوحة.\n• القافلة: فُز بالمراحل تباعًا، فتبدأ مرحلتك التالية وعلى اللوحة قطع خاصة بانتظارك.\n• هدية اليوم: مكافأة يومية في دورة من سبعة أيام.\n• خمسة قلوب: خسارة المرحلة تكلفك قلبًا، ويعود قلب كل 30 دقيقة، والفوز لا يكلفك شيئًا.\n\nالعب بدون نت في أي مكان\n• لعبة ألغاز مسلية لدقائق الانتظار أو لجلسة طويلة: كل المراحل تُلعب بدون إنترنت، في الطائرة أو في الطريق، ومن دون بيانات الجوال.\n• لعبة فردية للاعب واحد، وتقدمك محفوظ على جهازك.\n• بالعربية والإنجليزية، مع واجهة من اليمين إلى اليسار، وتبديل اللغة متى شئت من الإعدادات.\n• رسوم ومؤثرات صوتية صُنعت لهذه اللعبة، وموسيقى هادئة مريحة بنغمة تشبه العود.\n• للشباب والكبار من عمر 13 سنة فأكثر، ولمحبي ألعاب المجوهرات والأحجار الكريمة.\n\nالمشتريات بوضوح\nيمكنك تثبيت زمرد وإكمال مراحلها كلها دون أن تدفع شيئًا. تحتوي اللعبة على مشتريات اختيارية داخل التطبيق: حزم عملات، وحزمة بداية تُشترى مرة واحدة. والعملات تُكسب باللعب أيضًا. اللعب نفسه يعمل بلا اتصال بالإنترنت، والاتصال مطلوب للمشتريات فقط.\n\nزمرد هو الاسم العربي لحجر الزمرد الأخضر. الواحة بانتظارك: ابدأ بأول ثلاث جواهر، وانظر إلى أين تأخذك القافلة."
+    }
+  },
+  "experimentCandidates": {
+    "en-US": {
+      "title": [
+        {
+          "id": "title-A",
+          "text": "Zumurud: Gem Match 3 Puzzle",
+          "characters": 27,
+          "isTheCurrentText": true,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "title-B",
+          "text": "Zumurud: Gem Match Puzzle",
+          "characters": 25,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": false
+        }
+      ],
+      "shortDescription": [
+        {
+          "id": "short-A",
+          "text": "Match 3 jewels across a desert oasis: 120 puzzle levels, playable offline",
+          "characters": 73,
+          "isTheCurrentText": true,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "short-B",
+          "text": "Swap gems, build combos and cross 120 levels of a desert oasis. Works offline.",
+          "characters": 78,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "short-C",
+          "text": "A jewel puzzle journey from the Oasis to the Starlit Sky, playable offline",
+          "characters": 74,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": false
+        }
+      ]
+    },
+    "ar": {
+      "title": [
+        {
+          "id": "title-A",
+          "text": "زمرد: لعبة ألغاز الجواهر",
+          "characters": 24,
+          "isTheCurrentText": true,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "title-B",
+          "text": "زمرد: لعبة جواهر وألغاز",
+          "characters": 23,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "title-C",
+          "text": "زمرد: لعبة الجواهر",
+          "characters": 18,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "title-D",
+          "text": "زمرد: جواهر الواحة",
+          "characters": 18,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "title-E",
+          "text": "زمرد: لعبة جواهر بدون نت",
+          "characters": 24,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": false
+        }
+      ],
+      "shortDescription": [
+        {
+          "id": "short-A",
+          "text": "لعبة مجوهرات بدون نت: طابق جواهر الواحة واعبر 120 مرحلة حتى سماء النجوم",
+          "characters": 71,
+          "isTheCurrentText": true,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "short-B",
+          "text": "طابق الجواهر واعبر 120 مرحلة من الواحة إلى سماء النجوم، والعب بدون نت",
+          "characters": 69,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "short-C",
+          "text": "لعبة جواهر وألغاز بدون نت: 120 مرحلة من ماء الواحة إلى سماء النجوم",
+          "characters": 66,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "short-D",
+          "text": "ألغاز مطابقة 3 بالجواهر: 120 مرحلة وقطع خاصة ومعززات، وكلها بدون نت",
+          "characters": 67,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": false
+        },
+        {
+          "id": "short-E",
+          "text": "لعبة عربية بدون نت: طابق الجواهر واعبر 120 مرحلة من الواحة إلى النجوم",
+          "characters": 69,
+          "isTheCurrentText": false,
+          "needsOwnerConfirmation": true
+        }
+      ]
+    }
+  }
+}

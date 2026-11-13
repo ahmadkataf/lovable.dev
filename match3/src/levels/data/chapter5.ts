@@ -1,6 +1,6 @@
 /**
  * Chapter 5 — Caverns (levels 81–100). Tighter boards and bigger jobs.
- * Hard levels: 89 and 99, each followed by a breather.
+ * Hard levels: 89 and 99, each followed by a breather; 100 is the chapter's generous finale.
  *
  * Layouts, colours and goals are designed by hand. `moves` and `stars` (and the target of a
  * score-only level) are fitted by `node tools/levelgen/tune.ts` — change a layout, then run the
@@ -10,9 +10,9 @@
 import type { LevelDef } from '../../engine/types.ts';
 
 export const CHAPTER_5: readonly LevelDef[] = [
-  // [normal] The cave mouth: a rock rises from the floor, with a heap of sand piled on top of it.
+  // [normal] The stalagmite: a mound of sand, deep at its base, standing over a gap in the floor. Six colours.
   {
-    id: 81, cols: 9, rows: 8, colors: 6, moves: 25,
+    id: 81, cols: 9, rows: 8, colors: 6, moves: 22,
     pieces: [
       '_......._',
       '.........',
@@ -36,9 +36,9 @@ export const CHAPTER_5: readonly LevelDef[] = [
     goals: [{ kind: 'sand' }],
     stars: [4400, 8500, 10800],
   },
-  // [normal] Stalactites: three spurs hang from the ceiling, tipped with crystal; stumps of stone below.
+  // [normal] The organ pipes: three shafts in the ceiling, five stones, two colours to gather.
   {
-    id: 82, cols: 9, rows: 8, colors: 6, moves: 28,
+    id: 82, cols: 9, rows: 8, colors: 5, moves: 22,
     pieces: [
       '._.._.._.',
       '._.._.._.',
@@ -50,32 +50,32 @@ export const CHAPTER_5: readonly LevelDef[] = [
       '..3...3..',
     ],
     goals: [
-      { kind: 'stone' },
-      { kind: 'color', color: 3, target: 20 },
-      { kind: 'color', color: 5, target: 20 },
+      { kind: 'color', color: 3, target: 30 },
+      { kind: 'color', color: 4, target: 30 },
     ],
     stars: [3800, 7100, 9400],
   },
-  // [build-up] The crystal cluster: a pyramid of stone, thickest at its heart.
+  // [build-up] The rock fall: a pile of stones, thicker the deeper you dig.
   {
-    id: 83, cols: 8, rows: 8, colors: 6, moves: 19,
+    id: 83, cols: 9, rows: 8, colors: 5, moves: 27,
     pieces: [
-      '........',
-      '........',
-      '...11...',
-      '..1221..',
-      '.123321.',
-      '........',
-      '........',
-      '........',
+      '.........',
+      '.........',
+      '....2....',
+      '...232...',
+      '..23332..',
+      '.2333332.',
+      '.........',
+      '.........',
     ],
     goals: [{ kind: 'stone' }],
     stars: [2700, 6100, 8400],
   },
-  // [spike] The underground lake: a round pool of sand that gets deeper toward the middle.
+  // [spike] The crystal bed: a diamond of sand at the bottom of the cave, deep at its core. Six colours.
   {
-    id: 84, cols: 9, rows: 8, colors: 6, moves: 28,
+    id: 84, cols: 9, rows: 9, colors: 6, moves: 23,
     pieces: [
+      '.........',
       '.........',
       '.........',
       '.........',
@@ -94,13 +94,14 @@ export const CHAPTER_5: readonly LevelDef[] = [
       '011222110',
       '011222110',
       '001121100',
+      '000111000',
     ],
     goals: [{ kind: 'sand' }],
     stars: [6800, 10800, 14000],
   },
-  // [breather] Crystal columns: three columns of stone that thicken toward the foot.
+  // [breather] The three pillars: stone columns of growing thickness; two colours to gather around them. Six colours.
   {
-    id: 85, cols: 9, rows: 8, colors: 6, moves: 22,
+    id: 85, cols: 9, rows: 8, colors: 6, moves: 23,
     pieces: [
       '.........',
       '.1..1..1.',
@@ -112,60 +113,59 @@ export const CHAPTER_5: readonly LevelDef[] = [
       '.........',
     ],
     goals: [
-      { kind: 'stone' },
       { kind: 'color', color: 2, target: 18 },
       { kind: 'color', color: 4, target: 18 },
     ],
     stars: [3500, 7200, 9900],
   },
-  // [normal] Roots: vines hang from the ceiling, where they are hardest to reach.
+  // [normal] The cave moss: a knot of vine in the middle of the cave and amber to gather. Six colours.
   {
-    id: 86, cols: 8, rows: 8, colors: 6, moves: 24,
+    id: 86, cols: 8, rows: 8, colors: 6, moves: 27,
     pieces: [
-      'v.v..v.v',
-      'v......v',
       '........',
       '........',
       '........',
-      '........',
+      '..v..v..',
+      '...vv...',
+      '..v..v..',
       '........',
       '........',
     ],
     goals: [
       { kind: 'vine' },
-      { kind: 'color', color: 1, target: 26 },
+      { kind: 'color', color: 1, target: 30 },
     ],
     stars: [3800, 7500, 10100],
   },
-  // [normal] The geode: a hollow lined with crystal, thick at its four points.
+  // [normal] The sinkhole: a ring of stones around a hole in the middle of the board.
   {
-    id: 87, cols: 9, rows: 9, colors: 6, moves: 30,
+    id: 87, cols: 9, rows: 9, colors: 5, moves: 28,
     pieces: [
       '.........',
       '.........',
-      '...121...',
-      '..11_11..',
-      '..2___2..',
-      '..11_11..',
-      '...121...',
+      '...232...',
+      '..22_22..',
+      '..3___3..',
+      '..22_22..',
+      '...232...',
       '.........',
       '.........',
     ],
     goals: [{ kind: 'stone' }],
     stars: [4600, 9000, 11600],
   },
-  // [build-up] Chained crystals: stones and chained gems in facing pairs.
+  // [build-up] Locked veins: thick stones and chained gems arranged around the middle.
   {
-    id: 88, cols: 8, rows: 8, colors: 6, moves: 29,
+    id: 88, cols: 9, rows: 8, colors: 5, moves: 20,
     pieces: [
-      '........',
-      '.c.22.c.',
-      '........',
-      '.2.cc.2.',
-      '.2.cc.2.',
-      '........',
-      '.c.22.c.',
-      '........',
+      '.........',
+      '.c.333.c.',
+      '.........',
+      '.3.c.c.3.',
+      '.3.c.c.3.',
+      '.........',
+      '.c.333.c.',
+      '.........',
     ],
     goals: [
       { kind: 'stone' },
@@ -173,12 +173,11 @@ export const CHAPTER_5: readonly LevelDef[] = [
     ],
     stars: [4500, 9200, 12000],
   },
-  // [hard] The abyss: stones above a floor of sand that is deep at the very bottom.
+  // [hard] The flooded chamber: a row of stones across the board and a deep sand bed below it. Six colours.
   {
-    id: 89, cols: 8, rows: 8, colors: 6, moves: 29,
+    id: 89, cols: 8, rows: 8, colors: 6, moves: 20,
     hard: true,
     pieces: [
-      '........',
       '........',
       '........',
       '........',
@@ -186,16 +185,17 @@ export const CHAPTER_5: readonly LevelDef[] = [
       '........',
       '........',
       '........',
+      '........',
     ],
     floor: [
       '00000000',
       '00000000',
       '00000000',
       '00000000',
-      '00000000',
-      '00000000',
+      '01111110',
+      '01222210',
+      '01222210',
       '00111100',
-      '02222220',
     ],
     goals: [
       { kind: 'sand' },
@@ -203,45 +203,43 @@ export const CHAPTER_5: readonly LevelDef[] = [
     ],
     stars: [6400, 10800, 13500],
   },
-  // [breather] The lamp shaft: a wall splits the lower cave into two shafts; the middle column ends early.
+  // [breather] The lamp shaft: five lamps and only four colours — everything falls fast. The floor is split by a wall.
   {
-    id: 90, cols: 9, rows: 8, colors: 5, moves: 32,
+    id: 90, cols: 9, rows: 8, colors: 4, moves: 20,
     pieces: [
+      '.L..L..L.',
       '.........',
-      '.........',
-      '.........',
+      '..L...L..',
       '.........',
       '...._....',
       '...._....',
       '...._....',
       '...._....',
     ],
-    goals: [{ kind: 'lamp', target: 3 }],
-    lamps: { total: 3, maxOnBoard: 3, everyMoves: 1 },
+    goals: [{ kind: 'lamp', target: 5 }],
     stars: [9600, 14700, 19100],
   },
-  // [normal] Glow-worms: vines grow on the floor, right where the lamps have to land.
+  // [normal] The hedge of roots: three lamps, and a broken hedge of vine halfway down.
   {
     id: 91, cols: 8, rows: 7, colors: 5, moves: 22,
     pieces: [
-      '........',
-      '........',
-      '........',
+      '.L..L.L.',
       '........',
       '........',
       '........',
       'v.v..v.v',
+      '........',
+      '........',
     ],
     goals: [
       { kind: 'lamp', target: 3 },
       { kind: 'vine' },
     ],
-    lamps: { total: 3, maxOnBoard: 3, everyMoves: 1 },
     stars: [7200, 12000, 16200],
   },
-  // [normal] The narrow pass: two chambers joined by a short bridge of deep sand.
+  // [normal] The rope bridge: two chambers joined by a bridge of deep sand; rubies to gather.
   {
-    id: 92, cols: 9, rows: 7, colors: 6, moves: 30,
+    id: 92, cols: 9, rows: 7, colors: 5, moves: 22,
     pieces: [
       '...___...',
       '...___...',
@@ -262,13 +260,13 @@ export const CHAPTER_5: readonly LevelDef[] = [
     ],
     goals: [
       { kind: 'sand' },
-      { kind: 'color', color: 0, target: 20 },
+      { kind: 'color', color: 0, target: 26 },
     ],
     stars: [3600, 6500, 8400],
   },
-  // [build-up] The sump: a funnel of a board with sand collecting at the bottom.
+  // [build-up] The funnel: the board narrows to three tiles at the bottom; sand all the way down.
   {
-    id: 93, cols: 9, rows: 8, colors: 5, moves: 25,
+    id: 93, cols: 9, rows: 8, colors: 5, moves: 20,
     pieces: [
       '.........',
       '.........',
@@ -282,22 +280,19 @@ export const CHAPTER_5: readonly LevelDef[] = [
     floor: [
       '000000000',
       '000000000',
-      '000000000',
-      '000000000',
-      '001111100',
-      '001111100',
-      '000111000',
+      '011111110',
+      '012222210',
+      '001222100',
+      '001222100',
       '000222000',
+      '000111000',
     ],
-    goals: [
-      { kind: 'sand' },
-      { kind: 'color', color: 2, target: 22 },
-    ],
+    goals: [{ kind: 'sand' }],
     stars: [5700, 11000, 14300],
   },
-  // [spike] The cave-in: two walls of rubble, each with a single gap.
+  // [spike] The double wall: two stone walls, each with a single gap, and sapphires to gather.
   {
-    id: 94, cols: 8, rows: 8, colors: 6, moves: 26,
+    id: 94, cols: 8, rows: 8, colors: 5, moves: 22,
     pieces: [
       '........',
       '........',
@@ -310,51 +305,48 @@ export const CHAPTER_5: readonly LevelDef[] = [
     ],
     goals: [
       { kind: 'stone' },
-      { kind: 'color', color: 3, target: 20 },
+      { kind: 'color', color: 3, target: 36 },
     ],
     stars: [4700, 8300, 11400],
   },
-  // [breather] The bat colony: chained gems hang in a zigzag under the ceiling.
+  // [breather] The glitter vein: two rows of chained gems near the top; amethyst to gather.
   {
-    id: 95, cols: 8, rows: 8, colors: 6, moves: 27,
+    id: 95, cols: 9, rows: 8, colors: 5, moves: 22,
     pieces: [
-      '........',
-      'c.c.c.c.',
-      '.c.c.c.c',
-      '........',
-      '........',
-      '........',
-      '........',
-      '........',
+      '.........',
+      'c.c.c.c.c',
+      '.c.c.c.c.',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
     ],
-    goals: [
-      { kind: 'chain' },
-      { kind: 'color', color: 4, target: 20 },
-    ],
+    goals: [{ kind: 'color', color: 4, target: 38 }],
     stars: [3800, 7900, 11100],
   },
-  // [normal] Twin caverns: one roof, two chambers — vines in the left one, deep sand in the right.
+  // [normal] The twin grottoes: a wall splits the cave — vines grow on one side, deep sand lies on the other.
   {
-    id: 96, cols: 9, rows: 8, colors: 6, moves: 27,
+    id: 96, cols: 9, rows: 8, colors: 5, moves: 20,
     pieces: [
       '.........',
       '.........',
-      '...._....',
+      '.........',
       '...._....',
       '.vv._....',
       '.vv._....',
-      '...._....',
-      '...._....',
+      '.vv._....',
+      '.........',
     ],
     floor: [
       '000000000',
       '000000000',
-      '000000000',
-      '000000000',
-      '000000220',
-      '000000220',
-      '000000110',
-      '000000110',
+      '000001220',
+      '000001220',
+      '000001220',
+      '000001220',
+      '000001220',
+      '000001110',
     ],
     goals: [
       { kind: 'vine' },
@@ -362,9 +354,9 @@ export const CHAPTER_5: readonly LevelDef[] = [
     ],
     stars: [3900, 7600, 9900],
   },
-  // [normal] The lantern lake: lamps on chains above a lake of sand.
+  // [normal] The lamp well: two lamps on chains above a deep basin of sand.
   {
-    id: 97, cols: 8, rows: 8, colors: 5, moves: 23,
+    id: 97, cols: 8, rows: 8, colors: 5, moves: 24,
     pieces: [
       '..L..L..',
       '..c..c..',
@@ -391,27 +383,28 @@ export const CHAPTER_5: readonly LevelDef[] = [
     ],
     stars: [8700, 15600, 21100],
   },
-  // [build-up] Fungus: a lopsided clump of vines with stones scattered around it.
+  // [build-up] The mossy stones: a knot of vine between four stones, and emeralds to gather.
   {
-    id: 98, cols: 8, rows: 8, colors: 6, moves: 19,
+    id: 98, cols: 8, rows: 9, colors: 5, moves: 21,
     pieces: [
+      '........',
       '........',
       '..2..2..',
       '...vv...',
-      '.2vvv...',
-      '...vv.2.',
-      '....v...',
-      '..2.....',
+      '...vv...',
+      '..2..2..',
+      '........',
+      '........',
       '........',
     ],
     goals: [
       { kind: 'vine' },
       { kind: 'stone' },
-      { kind: 'color', color: 2, target: 16 },
+      { kind: 'color', color: 2, target: 44 },
     ],
     stars: [2900, 6100, 8300],
   },
-  // [hard] The heart of the mountain: a diamond of deep sand under vines, guarded by thick stones.
+  // [hard] The heart of the mountain: thick stones, chained gems and a row of vine over a diamond of deep sand. Six colours.
   {
     id: 99, cols: 9, rows: 9, colors: 6, moves: 20,
     hard: true,
@@ -444,9 +437,9 @@ export const CHAPTER_5: readonly LevelDef[] = [
     ],
     stars: [5200, 9600, 13000],
   },
-  // [breather] Twin stars: two round boards joined at the waist, a nova waiting in each.
+  // [finale] The crystal cave: an odd-shaped cave with two novas lying ready; two colours to gather.
   {
-    id: 100, cols: 9, rows: 8, colors: 6, moves: 26,
+    id: 100, cols: 9, rows: 8, colors: 5, moves: 23,
     pieces: [
       '_..___.._',
       '...._....',

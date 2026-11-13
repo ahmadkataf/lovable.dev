@@ -340,6 +340,20 @@ export function gateProblems(level: LevelDef, stats: LevelStats): string[] {
   return out;
 }
 
+/**
+ * A fingerprint of everything in a level that decides how it plays (FNV-1a over its JSON). The
+ * balance report stores it per level; the tests use it to notice a report that is out of date.
+ */
+export function levelHash(level: LevelDef): string {
+  const text = JSON.stringify([level.id, level.cols, level.rows, level.colors, level.moves, level.pieces, level.floor ?? null, level.goals, level.stars, level.lamps ?? null, level.hard === true, level.tutorial ?? null]);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
 /** A short description of a level's goals for tables, e.g. "sand + amber×30". */
 export function describeGoals(level: LevelDef): string {
   const names = ['ruby', 'amber', 'emerald', 'sapphire', 'amethyst', 'moonstone'];

@@ -74,8 +74,11 @@ const FRAME_SHARE = 0.125;
 const DPR_CAP = 3;
 /** Additive light drawn per frame at most, in board areas (see draw()). */
 const LIGHT_BUDGET = 3.5;
-/** low-end mode: at most two device pixels per CSS pixel (a 3x screen then fills 44 % of the pixels) */
-const DPR_CAP_LOW = 2;
+/**
+ * Device pixels per CSS pixel at most, by quality step (BoardView.setQuality): a 3x screen fills
+ * 44 % of its pixels at 2x, 25 % at 1.5x, 17 % at 1.25x.
+ */
+const DPR_CAPS: readonly number[] = [DPR_CAP, 2, 1.5, 1.25];
 const FONT = '"Baloo Bhaijaan 2 Variable", "Baloo Bhaijaan 2", system-ui, sans-serif';
 
 interface BeamFx {
@@ -263,8 +266,14 @@ export interface BoardView {
   setHand(a: Pos | null, b: Pos | null): void;
   setTargeting(on: boolean): void;
   setReducedEffects(on: boolean): void;
-  /** Fewer particles and a canvas of at most 2x (applied by the next layout()). */
-  setLowEnd(on: boolean): void;
+  /**
+   * Quality step, 0 = full. Each step trades sharpness for frame rate on a device that cannot
+   * keep up: 1 = fewer particles and a canvas of at most 2 device pixels per CSS pixel, 2 = at
+   * most 1.5, 3 = at most 1.25. The canvas size changes with the next layout().
+   */
+  setQuality(level: number): void;
+  /** True when nothing but the slow looping highlights (selection, hint, hand, targeting) animates. */
+  idleLoopOnly(): boolean;
 
   /** Advance effects and particles by `dt` ms of game time. */
   step(dt: number): void;
@@ -2113,11 +2122,26 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     setReducedEffects(on) {
       reduced = on;
     },
-    setLowEnd(on) {
-      particleCap = on ? FEEDBACK.maxParticlesLow : FEEDBACK.maxParticles;
+    setQuality(level) {
+      const q = level > 0 ? (level < DPR_CAPS.length ? Math.floor(level) : DPR_CAPS.length - 1) : 0;
+      particleCap = q > 0 ? FEEDBACK.maxParticlesLow : FEEDBACK.maxParticles;
       // takes effect at the next layout()
-      dprCap = on ? DPR_CAP_LOW : DPR_CAP;
+      dprCap = DPR_CAPS[q] as number;
     },
+    idleLoopOnly: () =>
+      (selC >= 0 || hintAC >= 0 || handAC >= 0 || targeting) &&
+      pCount === 0 &&
+      beams.length === 0 &&
+      rings.length === 0 &&
+      rays.length === 0 &&
+      flares.length === 0 &&
+      tiles.length === 0 &&
+      popups.length === 0 &&
+      ghosts.length === 0 &&
+      glows.length === 0 &&
+      flashT >= flashDur &&
+      shakeT >= shakeDur &&
+      pulseT >= pulseDur,
     step,
     draw,
     animating,

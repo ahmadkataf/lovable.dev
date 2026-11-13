@@ -168,7 +168,8 @@ export function openSettingsDialog(ui: Ui): Promise<void> {
     body.appendChild(rows);
 
     const info = platform.info();
-    body.appendChild(h('div', { class: 'm-settings__version k-num', text: t('meta.settings.version', { v: info.versionName }) }));
+    // (a sentence, not a number: it follows the language's own direction — "الإصدار 1.0.0")
+    body.appendChild(h('div', { class: 'm-settings__version', text: t('meta.settings.version', { v: info.versionName }) }));
   }
 
   render();

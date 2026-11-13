@@ -308,7 +308,8 @@ async function pickLevels(page, want) {
         cols: level.cols,
         rows: level.rows,
         kinds,
-        order: [chapters.indexOf(chapter.index + 1), preferred >= 0 ? preferred : 999, w.rich ? -kinds.length : 0, Math.abs(level.cols - 8), level.id],
+        cells: pieces.replace(/_/g, '').length,
+        order: [chapters.indexOf(chapter.index + 1), preferred >= 0 ? preferred : 999, w.rich ? -kinds.length : 0, w.full ? -pieces.replace(/_/g, '').length : 0, Math.abs(level.cols - 8), level.id],
       });
     }
     out.sort((a, b) => {

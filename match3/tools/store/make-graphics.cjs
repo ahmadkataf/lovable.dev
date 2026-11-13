@@ -2,40 +2,48 @@
  * Google Play listing graphics, rendered from the game's own art module (src/art/index.ts:
  * createArt().paintBackdrop / emblem / logo / sprite) so the store always shows the game's real art.
  *
- *   node tools/store/make-graphics.cjs            write the files listed below
- *   node tools/store/make-graphics.cjs --force    also re-create icon-512.png if it already exists
+ *   node tools/store/make-graphics.cjs            write the feature graphics, check the icon
+ *   node tools/store/make-graphics.cjs --force    also re-create icon-512.png from the current emblem
  *
  * Writes into store/graphics/ (STORE_GFX_OUT=<dir> writes somewhere else, e.g. for a preview):
  *   feature-graphic.png      1024×500, English wordmark   — 24-bit PNG, no alpha channel
  *   feature-graphic-ar.png   1024×500, Arabic wordmark    — 24-bit PNG, no alpha channel
  *   icon-512.png             512×512 listing icon, full-bleed square, fully opaque, no rounded
- *                            corners — ONLY if the file does not exist yet (tools/android/make-icons.cjs
- *                            normally writes it together with the launcher icons, so both match)
+ *                            corners — written here only with --force or when the file is missing.
+ *                            Normally tools/android/make-icons.cjs writes it together with the
+ *                            launcher icons, so the two always match. Every run compares the file
+ *                            with the emblem the game draws today and says so; a stale icon is an
+ *                            error (exit code 1) with the command that puts it right.
  *
- * The script starts the dev server itself (`npx vite --port 5188 --strictPort` in the match3
- * directory) and stops it afterwards; if a server already answers on 5188 it is reused and left
- * running. Playwright is the globally installed one (`require('playwright')`); never run
- * "playwright install".
+ * The feature graphic is a BANNER, not a screenshot: it is composed from the game's own art —
+ * a world backdrop, the emblem, the wordmark, gem sprites — and shows no board, no button and no
+ * interface, so it cannot be taken for gameplay.
+ *
+ * It starts the game's dev server itself on port 5189 (STORE_PORT; no hot reload) and stops it
+ * afterwards; a server already running there is reused. Playwright is the globally installed one
+ * (`require('playwright')`); never run "playwright install".
  *
  * Google Play rules these files follow (docs/research/play-policy.md):
  *   - feature graphic: JPEG or 24-bit PNG (no alpha), exactly 1024×500, focal point centred, no
  *     ranking / price / promotional words, no device imagery, no store badges;
  *   - icon: 512×512 PNG, full square (Google Play applies its own mask and shadow), no ranking text.
  *
- * Composition of the feature graphic (all sizes in the 1024×500 space, painted at 2× and scaled
- * down for clean edges). FEATURE below holds every number, so the layout is easy to tune:
- *   backdrop of one chapter → soft scrims so the lettering stands clear → the emblem on top of the
- *   wordmark and tagline (the lower half of the game's own logo lockup, drawn larger than in the
- *   stock lockup so the name reads at thumbnail size) → a pile of gems in each lower corner.
- * Everything that carries meaning stays inside the middle of the canvas; the gem piles may touch
- * the edges on purpose (they are decoration and may be cropped by rounded store cards).
+ * Composition (all numbers in the 1024×500 space, painted at 2× and scaled down; FEATURE below
+ * holds every one of them):
+ *   the Oasis backdrop, full bleed → a night veil toward the edges and soft rays behind the middle
+ *   → a burst of gems to the left and right → the emblem above the wordmark, both large, no small
+ *   lettering at all.
+ * What must stay readable sits in the middle: the emblem and the wordmark keep inside the central
+ * 66 % of the width and 82 % of the height (Play rounds the corners and crops a little on some
+ * surfaces); the exact centre falls into the gap between emblem and wordmark, which is where Play
+ * puts its play button when a promo video is set. The gems may touch the edges on purpose.
  */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
-const { ROOT, startServer, encodeRgbPng, pngInfo, decodePng, writeFile } = require('./lib.cjs');
+const { ROOT, STORE_PORT, startServer, encodeRgbPng, pngInfo, decodePng, writeFile } = require('./lib.cjs');
+const { emblemDifference, ICON_MATCH_LIMIT } = require('./icon-check.cjs');
 
-const PORT = 5188;
 const OUT = process.env.STORE_GFX_OUT ? path.resolve(process.env.STORE_GFX_OUT) : path.join(ROOT, 'store', 'graphics');
 const FORCE = process.argv.includes('--force');
 
@@ -57,34 +65,48 @@ const FEATURE = {
   height: 500,
   /** supersampling factor */
   scale: 2,
-  /** chapter backdrop: the oasis — the first chapter, and the place the Arabic title names */
+  /** chapter backdrop: the oasis — the first world, and the place the Arabic title names */
   theme: process.env.STORE_GFX_THEME || 'oasis',
   /** strength of the night-coloured veil over the backdrop, 0 (none) … 1 (strong) */
-  veil: process.env.STORE_GFX_VEIL ? Number(process.env.STORE_GFX_VEIL) : 0.38,
+  veil: process.env.STORE_GFX_VEIL ? Number(process.env.STORE_GFX_VEIL) : 0.42,
   /** emblem (launcher artwork): centre and diameter */
-  emblem: { cx: 512, cy: 122, size: 198 },
-  /** logo lockup the wordmark and tagline are taken from: its width and where its lower half goes */
-  lockup: { width: 620, top: 227 },
+  emblem: { cx: 512, cy: 121, size: 186 },
+  /** soft rays behind the lockup: centre, reach, number of rays, strength */
+  rays: { cx: 512, cy: 156, reach: 560, count: 22, alpha: 0.085 },
+  /**
+   * The wordmark (cut out of the game's own logo lockup, without the tagline), per language: the
+   * top of its lettering, and the box the lettering is fitted into (as wide and as tall as these
+   * allow). The Arabic name is four letters, so it is set taller to carry the same weight.
+   */
+  wordmark: { en: { top: 286, maxWidth: 652, maxHeight: 176 }, ar: { top: 251, maxWidth: 652, maxHeight: 204 } },
   /**
    * Gems: [sprite key, centre x, centre y, size, rotation in degrees], listed back to front.
-   * The piles stay left of x = 240 and right of x = 784 so they never touch the tagline's ornaments.
+   * In the wordmark's rows the gems stay left of x = 166 and right of x = 858.
    */
   gems: [
-    // left pile
-    ['gem4', 66, 300, 96, -12],
-    ['gem1', 158, 330, 104, 10],
-    ['nova3', 78, 410, 136, -6],
-    ['gem0', 170, 436, 112, 12],
-    // right pile
-    ['gem5', 958, 300, 96, 12],
-    ['gem2', 866, 330, 104, -10],
-    ['beamH1', 940, 410, 136, 6],
-    ['gem3', 846, 436, 112, -12],
-    // floating accents near the top corners (deliberately not mirrored)
-    ['prism', 118, 104, 112, -8],
-    ['gem2', 222, 190, 62, 16],
-    ['nova0', 908, 114, 104, 8],
-    ['gem4', 800, 186, 62, -18],
+    // left burst
+    ['gem2', 276, 178, 68, 16],
+    ['gem4', 56, 236, 108, -12],
+    ['prism', 152, 100, 132, -8],
+    ['nova3', 52, 440, 132, -6],
+    ['gem1', 102, 346, 124, 10],
+    ['gem0', 168, 470, 96, 12],
+    // right burst (deliberately not a mirror image)
+    ['gem4', 752, 176, 64, -18],
+    ['gem5', 968, 240, 108, 12],
+    ['nova0', 876, 102, 124, 8],
+    ['beamH1', 972, 440, 132, 6],
+    ['gem2', 922, 346, 124, -10],
+    ['gem3', 858, 472, 96, -12],
+  ],
+  /** glints: [x, y, radius, opacity] */
+  glints: [
+    [330, 66, 13, 0.9],
+    [700, 54, 9, 0.8],
+    [226, 246, 8, 0.7],
+    [806, 250, 10, 0.75],
+    [206, 418, 7, 0.65],
+    [824, 410, 7, 0.65],
   ],
 };
 
@@ -154,6 +176,75 @@ async function renderInPage(opts) {
     g.restore();
   }
 
+  /**
+   * The wordmark alone, cut out of the game's logo lockup (emblem on top, wordmark, tagline):
+   * the rows between the emblem and the tagline. Returns the canvas and the box of its lettering.
+   */
+  function wordmark(lang) {
+    const logo = art.logo(1200 / window.devicePixelRatio, lang);
+    const W = logo.width;
+    const data = logo.getContext('2d').getImageData(0, 0, W, logo.height).data;
+    const rowInk = (y) => {
+      let n = 0;
+      for (let x = 0; x < W; x += 2) if (data[(y * W + x) * 4 + 3] > 96) n++;
+      return n;
+    };
+    // the emptiest row between the wordmark band and the tagline: the cut goes there
+    let cut = Math.round(W * 0.79);
+    let least = Infinity;
+    for (let y = Math.round(W * 0.765); y < Math.round(W * 0.815); y++) {
+      const n = rowInk(y);
+      if (n < least) {
+        least = n;
+        cut = y;
+      }
+    }
+    // the top cut: the emptiest row between the emblem's lower rim and the lettering
+    let top = Math.round(W * 0.49);
+    least = Infinity;
+    for (let y = Math.round(W * 0.487); y < Math.round(W * 0.512); y++) {
+      const n = rowInk(y);
+      if (n < least) {
+        least = n;
+        top = y;
+      }
+    }
+    const c = canvas(W, cut - top);
+    const g = c.getContext('2d');
+    g.drawImage(logo, 0, top, W, cut - top, 0, 0, W, cut - top);
+    // feather the first and last rows (only the tails of the soft shadow are there)
+    g.globalCompositeOperation = 'destination-out';
+    const feather = Math.round(W * 0.012);
+    const fade = g.createLinearGradient(0, c.height - feather, 0, c.height);
+    fade.addColorStop(0, 'rgba(0,0,0,0)');
+    fade.addColorStop(1, 'rgba(0,0,0,1)');
+    g.fillStyle = fade;
+    g.fillRect(0, c.height - feather, W, feather);
+    const head = Math.round(W * 0.004);
+    const fadeIn = g.createLinearGradient(0, 0, 0, head);
+    fadeIn.addColorStop(0, 'rgba(0,0,0,1)');
+    fadeIn.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = fadeIn;
+    g.fillRect(0, 0, W, head);
+    // box of the lettering (solid pixels only, not the soft shadow)
+    const d2 = g.getImageData(0, 0, c.width, c.height).data;
+    let x0 = c.width;
+    let y0 = c.height;
+    let x1 = 0;
+    let y1 = 0;
+    for (let y = 0; y < c.height; y++) {
+      for (let x = 0; x < c.width; x++) {
+        if (d2[(y * c.width + x) * 4 + 3] > 200) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+    return { canvas: c, box: { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 } };
+  }
+
   function feature(lang) {
     const F = opts.feature;
     const S = F.scale;
@@ -165,36 +256,60 @@ async function renderInPage(opts) {
     // 1. the chapter backdrop, full bleed
     art.paintBackdrop(g, F.theme, W, H);
 
-    // 2. scrims: a night-coloured veil that deepens toward the edges, plus a darker pool behind the lettering
+    // 2. a night-coloured veil that deepens toward the edges, a darker pool behind the lettering
     g.save();
-    const veil = g.createRadialGradient(W / 2, H * 0.46, H * 0.2, W / 2, H * 0.5, W * 0.62);
     const v = F.veil;
-    veil.addColorStop(0, 'rgba(20,18,58,' + (0.1 * v).toFixed(3) + ')');
-    veil.addColorStop(0.55, 'rgba(20,18,58,' + (0.34 * v).toFixed(3) + ')');
-    veil.addColorStop(1, 'rgba(12,10,40,' + (0.78 * v).toFixed(3) + ')');
+    const veil = g.createRadialGradient(W / 2, H * 0.46, H * 0.2, W / 2, H * 0.5, W * 0.62);
+    veil.addColorStop(0, 'rgba(20,18,58,' + (0.08 * v).toFixed(3) + ')');
+    veil.addColorStop(0.55, 'rgba(20,18,58,' + (0.36 * v).toFixed(3) + ')');
+    veil.addColorStop(1, 'rgba(12,10,40,' + (0.86 * v).toFixed(3) + ')');
     g.fillStyle = veil;
     g.fillRect(0, 0, W, H);
-    const pool = g.createRadialGradient(W / 2, H * 0.66, 0, W / 2, H * 0.66, W * 0.36);
-    pool.addColorStop(0, 'rgba(14,11,46,' + (0.62 * v).toFixed(3) + ')');
-    pool.addColorStop(0.6, 'rgba(14,11,46,' + (0.3 * v).toFixed(3) + ')');
+    const pool = g.createRadialGradient(W / 2, H * 0.7, 0, W / 2, H * 0.7, W * 0.4);
+    pool.addColorStop(0, 'rgba(14,11,46,' + (0.7 * v).toFixed(3) + ')');
+    pool.addColorStop(0.6, 'rgba(14,11,46,' + (0.34 * v).toFixed(3) + ')');
     pool.addColorStop(1, 'rgba(14,11,46,0)');
     g.fillStyle = pool;
-    g.save();
-    g.translate(W / 2, H * 0.66);
-    g.scale(1, 0.52);
-    g.translate(-W / 2, -H * 0.66);
+    g.translate(W / 2, H * 0.7);
+    g.scale(1, 0.5);
+    g.translate(-W / 2, -H * 0.7);
     g.fillRect(0, -H, W, H * 3);
     g.restore();
+
+    // 3. soft rays behind the lockup, fading out with distance
+    const R = F.rays;
+    const rays = canvas(W, H);
+    const rg = rays.getContext('2d');
+    rg.translate(R.cx * S, R.cy * S);
+    rg.fillStyle = 'rgba(255,236,170,' + R.alpha + ')';
+    for (let i = 0; i < R.count; i++) {
+      const a = (i / R.count) * Math.PI * 2 + 0.07;
+      const half = (Math.PI / R.count) * 0.46;
+      rg.beginPath();
+      rg.moveTo(0, 0);
+      rg.lineTo(Math.cos(a - half) * R.reach * S, Math.sin(a - half) * R.reach * S);
+      rg.lineTo(Math.cos(a + half) * R.reach * S, Math.sin(a + half) * R.reach * S);
+      rg.closePath();
+      rg.fill();
+    }
+    rg.setTransform(1, 0, 0, 1, 0, 0);
+    rg.globalCompositeOperation = 'destination-in';
+    const mask = rg.createRadialGradient(R.cx * S, R.cy * S, 0, R.cx * S, R.cy * S, R.reach * S);
+    mask.addColorStop(0, 'rgba(0,0,0,1)');
+    mask.addColorStop(0.45, 'rgba(0,0,0,0.75)');
+    mask.addColorStop(1, 'rgba(0,0,0,0)');
+    rg.fillStyle = mask;
+    rg.fillRect(0, 0, W, H);
+    g.drawImage(rays, 0, 0);
     // warm halo behind the emblem
-    const halo = g.createRadialGradient(F.emblem.cx * S, F.emblem.cy * S, 0, F.emblem.cx * S, F.emblem.cy * S, F.emblem.size * S * 0.95);
-    halo.addColorStop(0, 'rgba(255,222,130,0.42)');
-    halo.addColorStop(0.5, 'rgba(255,214,120,0.14)');
+    const halo = g.createRadialGradient(F.emblem.cx * S, F.emblem.cy * S, 0, F.emblem.cx * S, F.emblem.cy * S, F.emblem.size * S * 1.05);
+    halo.addColorStop(0, 'rgba(255,222,130,0.5)');
+    halo.addColorStop(0.5, 'rgba(255,214,120,0.16)');
     halo.addColorStop(1, 'rgba(255,214,120,0)');
     g.fillStyle = halo;
     g.fillRect(0, 0, W, H);
-    g.restore();
 
-    // 3. gem piles (back to front), each with a soft contact shadow
+    // 4. the burst of gems (back to front), each with a soft contact shadow
     for (let i = 0; i < F.gems.length; i++) {
       const [key, x, y, size, deg] = F.gems[i];
       const px = Math.round(size * S);
@@ -202,14 +317,14 @@ async function renderInPage(opts) {
       g.save();
       g.translate(x * S, y * S);
       g.rotate((deg * Math.PI) / 180);
-      g.shadowColor = 'rgba(6,4,28,0.55)';
-      g.shadowBlur = px * 0.12;
-      g.shadowOffsetY = px * 0.05;
+      g.shadowColor = 'rgba(6,4,28,0.6)';
+      g.shadowBlur = px * 0.14;
+      g.shadowOffsetY = px * 0.06;
       g.drawImage(sprite, -px / 2, -px / 2);
       g.restore();
     }
 
-    // 4. emblem
+    // 5. emblem
     const E = Math.round(F.emblem.size * S);
     const emblem = art.emblem(E);
     g.save();
@@ -219,27 +334,21 @@ async function renderInPage(opts) {
     g.drawImage(emblem, Math.round(F.emblem.cx * S - E / 2), Math.round(F.emblem.cy * S - E / 2));
     g.restore();
 
-    // 5. wordmark + tagline: the lower half of the game's own logo lockup
-    const LW = F.lockup.width * S;
-    const logo = art.logo(LW / window.devicePixelRatio, lang);
-    const sy = Math.round(logo.width * 0.5);
-    const sh = logo.height - sy;
-    const dw = LW;
-    const dh = Math.round((sh / logo.width) * LW);
-    g.drawImage(logo, 0, sy, logo.width, sh, Math.round(W / 2 - dw / 2), Math.round(F.lockup.top * S), dw, dh);
+    // 6. the wordmark, as large as its box allows, its lettering starting at `top`
+    const wm = wordmark(lang);
+    const M = F.wordmark[lang];
+    const k = Math.min((M.maxWidth * S) / wm.box.w, (M.maxHeight * S) / wm.box.h);
+    const dx = W / 2 - (wm.box.x + wm.box.w / 2) * k;
+    const dy = M.top * S - wm.box.y * k;
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(wm.canvas, dx, dy, wm.canvas.width * k, wm.canvas.height * k);
+    const placed = { x: (dx + wm.box.x * k) / S, y: (dy + wm.box.y * k) / S, w: (wm.box.w * k) / S, h: (wm.box.h * k) / S };
 
-    // 6. a few glints
-    const glints = [
-      [322, 70, 13, 0.9],
-      [706, 58, 9, 0.8],
-      [258, 300, 8, 0.7],
-      [770, 292, 10, 0.75],
-      [120, 232, 7, 0.7],
-      [906, 236, 7, 0.7],
-    ];
-    for (let i = 0; i < glints.length; i++) sparkle(g, glints[i][0] * S, glints[i][1] * S, glints[i][2] * S, glints[i][3]);
+    // 7. a few glints
+    for (let i = 0; i < F.glints.length; i++) sparkle(g, F.glints[i][0] * S, F.glints[i][1] * S, F.glints[i][2] * S, F.glints[i][3]);
 
-    return downscale(c, F.width, F.height);
+    return { canvas: downscale(c, F.width, F.height), wordmark: placed };
   }
 
   /**
@@ -291,13 +400,25 @@ async function renderInPage(opts) {
   }
 
   const out = {};
-  out['feature-graphic.png'] = { width: opts.feature.width, height: opts.feature.height, rgba: toBase64(feature('en')) };
-  out['feature-graphic-ar.png'] = { width: opts.feature.width, height: opts.feature.height, rgba: toBase64(feature('ar')) };
+  for (const [name, lang] of [
+    ['feature-graphic.png', 'en'],
+    ['feature-graphic-ar.png', 'ar'],
+  ]) {
+    const f = feature(lang);
+    out[name] = { width: opts.feature.width, height: opts.feature.height, rgba: toBase64(f.canvas), wordmark: f.wordmark };
+  }
+  // the emblem as the game draws it today, on the game's night colour — the reference the icon is compared with
+  const ref = canvas(512, 512);
+  const refG = ref.getContext('2d');
+  refG.fillStyle = '#14123a';
+  refG.fillRect(0, 0, 512, 512);
+  refG.drawImage(art.emblem(512), 0, 0);
+  out['__emblem__'] = { width: 512, height: 512, rgba: toBase64(ref) };
   if (opts.icon) out['icon-512.png'] = { width: 512, height: 512, rgba: toBase64(icon(512)) };
   return out;
 }
 
-/** Fully opaque 32-bit PNG check for an existing icon; returns a problem string or ''. */
+/** Fully opaque 512×512 check for an existing icon; returns a problem string or ''. */
 function iconProblem(file) {
   try {
     const buf = fs.readFileSync(file);
@@ -316,7 +437,7 @@ function iconProblem(file) {
 async function main() {
   const iconFile = path.join(OUT, 'icon-512.png');
   const makeIcon = FORCE || !fs.existsSync(iconFile);
-  const server = await startServer(PORT);
+  const server = await startServer(STORE_PORT);
   let files;
   try {
     const browser = await chromium.launch();
@@ -341,6 +462,8 @@ async function main() {
   }
 
   console.log('make-graphics: writing to ' + path.relative(process.cwd(), OUT));
+  const emblem = files['__emblem__'];
+  delete files['__emblem__'];
   for (const name of Object.keys(files)) {
     const f = files[name];
     const rgba = Buffer.from(f.rgba, 'base64');
@@ -349,16 +472,31 @@ async function main() {
     const file = path.join(OUT, name);
     writeFile(file, png);
     const info = pngInfo(png);
-    console.log('  ' + name + '  ' + info.width + '×' + info.height + '  colour type ' + info.colorType + ' (RGB, no alpha)  ' + png.length + ' bytes');
-  }
-  if (!makeIcon) {
-    const problem = iconProblem(iconFile);
-    if (problem) {
-      console.error('  icon-512.png exists but ' + problem + ' — run again with --force to re-create it');
-      process.exitCode = 1;
-    } else {
-      console.log('  icon-512.png  kept (already there: 512×512, fully opaque). Use --force to re-create it here.');
+    let extra = '';
+    if (f.wordmark) {
+      const w = f.wordmark;
+      extra = '  wordmark ' + Math.round(w.w) + '×' + Math.round(w.h) + ' at (' + Math.round(w.x) + ', ' + Math.round(w.y) + ') — ' + Math.round((100 * w.w) / f.width) + ' % of the width';
     }
+    console.log('  ' + name + '  ' + info.width + '×' + info.height + '  colour type ' + info.colorType + ' (RGB, no alpha)  ' + png.length + ' bytes' + extra);
+  }
+
+  // the listing icon against the emblem the game draws today
+  const problem = iconProblem(iconFile);
+  if (problem) {
+    console.error('  icon-512.png ' + problem + ' — run again with --force to re-create it');
+    process.exitCode = 1;
+    return;
+  }
+  const reference = { width: emblem.width, height: emblem.height, channels: 4, data: Buffer.from(emblem.rgba, 'base64') };
+  const diff = emblemDifference(decodePng(fs.readFileSync(iconFile)), reference);
+  if (diff === null || diff > ICON_MATCH_LIMIT) {
+    console.error(
+      '  icon-512.png does NOT show the emblem the game draws today (difference ' + (diff === null ? 'not measurable' : diff.toFixed(1)) + ', limit ' + ICON_MATCH_LIMIT + ').\n' +
+        '  Re-create the launcher icons and this file together:  node tools/android/make-icons.cjs   (or only this file:  node tools/store/make-graphics.cjs --force)',
+    );
+    process.exitCode = 1;
+  } else {
+    console.log('  icon-512.png  ' + (makeIcon ? 're-created' : 'kept') + ': 512×512, fully opaque, shows the emblem the game draws today (difference ' + diff.toFixed(1) + ' of 255, limit ' + ICON_MATCH_LIMIT + ')');
   }
 }
 

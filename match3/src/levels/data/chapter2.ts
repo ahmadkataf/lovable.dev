@@ -11,18 +11,18 @@
 import type { LevelDef } from '../../engine/types.ts';
 
 export const CHAPTER_2: readonly LevelDef[] = [
-  // [tutorial] Two lamps: the first lamps wait at the top — clear the cells beneath them. Four colours keep it gentle.
+  // [tutorial] Two lamps: the first lamps wait at the top — clear the cells beneath them. Four colours keep it gentle. Fixed start board: the hinted move lowers a lamp.
   {
     id: 21, cols: 7, rows: 7, colors: 4, moves: 15,
     tutorial: 'lamp',
     pieces: [
-      '..L.L..',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
+      'CdLaLCa',
+      'CCbdadC',
+      'dabbdbd',
+      'Cbadaba',
+      'bdaadCb',
+      'dbbadCd',
+      'CdCbCdb',
     ],
     goals: [{ kind: 'lamp', target: 2 }],
     stars: [5700, 15200, 22200],
@@ -221,18 +221,18 @@ export const CHAPTER_2: readonly LevelDef[] = [
     goals: [{ kind: 'sand' }],
     stars: [4300, 8500, 13100],
   },
-  // [tutorial] Chains: chained gems cannot move — match each one where it stands. Four colours keep it gentle.
+  // [tutorial] Chains: chained gems cannot move — match each one where it stands. On the start board every possible move breaks a chain.
   {
-    id: 31, cols: 7, rows: 7, colors: 4, moves: 20,
+    id: 31, cols: 7, rows: 7, colors: 5, moves: 20,
     tutorial: 'chain',
     pieces: [
-      '.......',
-      '.......',
-      '.c.c.c.',
-      '.......',
-      '.c.c.c.',
-      '.......',
-      '.......',
+      'CaCbbae',
+      'eaCCdeb',
+      'dcdceca',
+      'beaadde',
+      'ecececb',
+      'CbabaCb',
+      'baCbddC',
     ],
     goals: [{ kind: 'chain' }],
     stars: [5100, 9500, 12800],
@@ -263,18 +263,18 @@ export const CHAPTER_2: readonly LevelDef[] = [
     goals: [{ kind: 'sand' }],
     stars: [4900, 10800, 16100],
   },
-  // [build-up] The chain curtain: eighteen chained gems hang in a lattice — every one has to be matched in place.
+  // [build-up] The chain curtain: twenty-one chained gems hang in a lattice — every one has to be matched in place.
   {
-    id: 33, cols: 8, rows: 8, colors: 5, moves: 20,
+    id: 33, cols: 9, rows: 8, colors: 5, moves: 20,
     pieces: [
-      '........',
-      '..c..c..',
-      '.c.cc.c.',
-      '..c..c..',
-      '.c.cc.c.',
-      '..c..c..',
-      '...cc...',
-      '........',
+      '.........',
+      '..c.c.c..',
+      '.c.c.c.c.',
+      '..c...c..',
+      '.c.c.c.c.',
+      '..c.c.c..',
+      '...c.c...',
+      '.........',
     ],
     goals: [{ kind: 'chain' }],
     stars: [8900, 15900, 21400],
@@ -296,8 +296,9 @@ export const CHAPTER_2: readonly LevelDef[] = [
   },
   // [breather] The sealed prism: a prism locked inside a ring of stones — free it and the amber falls in heaps.
   {
-    id: 35, cols: 7, rows: 7, colors: 5, moves: 26,
+    id: 35, cols: 7, rows: 8, colors: 5, moves: 26,
     pieces: [
+      '.......',
       '.......',
       '.......',
       '..222..',
@@ -328,19 +329,21 @@ export const CHAPTER_2: readonly LevelDef[] = [
     ],
     stars: [3800, 8800, 14200],
   },
-  // [normal] The descent: three lamps at two heights come down a board with clipped lower corners.
+  // [normal] The lamp bearers: two lamps wait at the top and two more follow them down — never through the notched edge columns.
   {
-    id: 37, cols: 8, rows: 7, colors: 5, moves: 27,
+    id: 37, cols: 8, rows: 8, colors: 5, moves: 27,
     pieces: [
       '..L..L..',
       '........',
-      '....L...',
-      '........',
-      '........',
-      '........',
       '_......_',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
     ],
-    goals: [{ kind: 'lamp', target: 3 }],
+    goals: [{ kind: 'lamp', target: 4 }],
+    lamps: { total: 4, maxOnBoard: 2, everyMoves: 2 },
     stars: [8700, 13600, 17000],
   },
   // [build-up] The hourglass: sand in both bulbs, deepest where the glass narrows.
@@ -405,14 +408,14 @@ export const CHAPTER_2: readonly LevelDef[] = [
   {
     id: 40, cols: 8, rows: 8, colors: 5, moves: 21,
     pieces: [
-      '........',
+      '_......_',
       '.c....c.',
       '........',
       '...2P...',
       '...N2...',
       '........',
       '.c....c.',
-      '........',
+      '_......_',
     ],
     goals: [
       { kind: 'color', color: 0, target: 30 },

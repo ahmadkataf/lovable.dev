@@ -171,14 +171,20 @@ const BANNED = {
   ],
 };
 
+/** Function words left out of the "most repeated words" report (compared after fold()). */
+const STOP_WORDS = {
+  en: ['with', 'your', 'that', 'this', 'from', 'each', 'every', 'when', 'only', 'more', 'them', 'they', 'have', 'into', 'will', 'also', 'before', 'there', 'their', 'need', 'needs'],
+  ar: ['علي', 'الي', 'عند', 'عبر', 'حتي', 'التي', 'الذي', 'هذه', 'هذا', 'ذلك', 'بين', 'بعد', 'قبل', 'حين', 'كلها', 'فقط', 'ايضا', 'اكثر', 'دون', 'بدون', 'شيئا', 'كل', 'مع', 'ان', 'لا', 'او'],
+};
+
 /** British spellings that do not belong in the en-US listing. */
 const BRITISH = [
   'colour', 'colours', 'coloured', 'colourful', 'neighbour', 'neighbours', 'neighbouring', 'favourite', 'favourites', 'jewellery',
   'licence', 'centre', 'travelling', 'travelled', 'organise', 'recognise', 'customise', 'grey', 'programme', 'splendour', 'honour',
 ];
 
-/** Latin words that may stand inside the Arabic texts. */
-const AR_LATIN_ALLOWED = ['Google Play', 'L', 'T'];
+/** Latin words that may stand inside the Arabic texts: only the two letters that name the shapes of a Nova match. */
+const AR_LATIN_ALLOWED = ['L', 'T'];
 
 /**
  * Names and vocabulary of other games, apps and brands. Not spelled out here on purpose: the naming
@@ -191,7 +197,7 @@ function namingResearchTerms() {
   const out = new Set();
   const add = (chunk) => {
     for (const raw of chunk.split(/,| plus | or | and |, and the praise words | and the praise words /)) {
-      const w = raw.replace(/['"`.()!]/g, '').trim().toLowerCase();
+      const w = raw.replace(/['"`.()!]/g, '').trim().toLowerCase().replace(/^the praise words /, '');
       if (w && w.length >= 3 && w.split(' ').length <= 4) out.add(w);
     }
   };
@@ -268,7 +274,7 @@ function gameFacts() {
     dailyDays: num('DAILY_CYCLE_DAYS'),
     boosters: order ? order[1].split(',').filter((s) => s.trim()).length : null,
     products: (catalog.match(/id: '([a-z_]+)'/g) || []).map((s) => s.slice(5, -1)),
-    rewardedPlacements: (/AD_PLACEMENTS[^\[]*\[([^\]]*)\]/.exec(catalog) || ['', ''])[1].split(',').filter((s) => s.trim()).length,
+    rewardedPlacements: (/AD_PLACEMENTS[^=]*=\s*Object\.freeze\(\[([^\]]*)\]/.exec(catalog) || ['', ''])[1].split(',').filter((s) => s.trim()).length,
     interstitials: /INTERSTITIALS_PER_DAY\s*=\s*(\d+)/.test(catalog),
     en: table('en'),
     ar: table('ar'),
@@ -372,8 +378,7 @@ function checkText(L, kind, label, text, limit, body, waiveOwnerRows) {
     for (const allowed of AR_LATIN_ALLOWED.slice().sort((a, b) => b.length - a.length)) latin = latin.replace(new RegExp('(?<![A-Za-z])' + escapeRe(allowed) + '(?![A-Za-z])', 'g'), ' ');
     const stray = latin.match(/[A-Za-z]+/g);
     if (stray) fail(label + ': Latin words in the Arabic text: ' + Array.from(new Set(stray)).join(', '));
-    if ((kind === 'title' || kind === 'short') && AR_MARKS.test(text)) fail(label + ': diacritics in a ' + kind + ' (Play search does not fold them reliably — see KEYWORDS.md §5)');
-    AR_MARKS.lastIndex = 0;
+    if ((kind === 'title' || kind === 'short') && text !== text.replace(AR_MARKS, '')) fail(label + ': diacritics in a ' + kind + ' (Play search does not fold them reliably — see KEYWORDS.md §5)');
     // a search keyword must never carry a diacritic
     const marked = text.match(new RegExp('[' + AR_LETTER + '\\u064B-\\u0652\\u0670]*[\\u064B-\\u0652\\u0670][' + AR_LETTER + '\\u064B-\\u0652\\u0670]*', 'g')) || [];
     for (const w of marked) {
@@ -445,10 +450,11 @@ function checkPlan(L, fields) {
   }
   // the most repeated content words, whatever the plan says
   const freq = new Map();
+  const stop = STOP_WORDS[L.lang];
   for (const w of words(full)) {
     let k = fold(w).replace(/[’']s$/, '');
     if (L.lang === 'ar') k = k.replace(/^[وف]?(?:ال|لل|بال)?/, '');
-    if (k.length < (L.lang === 'ar' ? 3 : 4)) continue;
+    if (k.length < (L.lang === 'ar' ? 3 : 4) || stop.indexOf(k) >= 0) continue;
     freq.set(k, (freq.get(k) || 0) + 1);
   }
   const topWords = Array.from(freq.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6);
@@ -616,10 +622,13 @@ function buildJson(out) {
     _readme: [
       'Google Play store listing texts for Zumurud (com.zumurud.game), ready to paste. Generated from store/listing/en-US.md and store/listing/ar.md by: node store/aso/check-listing.cjs --write. Do not edit by hand.',
       'Paste each string exactly as it is. "\\n" inside a string is a line break: the full description and the release notes have several lines, the title and the short description have one.',
-      'Play Console → Grow users → Store presence → Main store listing: title → "App name", shortDescription → "Short description", fullDescription → "Full description". Default language en-US; add the translation "Arabic – ar" with Manage translations and paste the ar strings there.',
-      'releaseNotes goes on the release page (Release notes), inside the language tags <en-US>…</en-US> and <ar>…</ar>, not on the store listing.',
-      'ifTheBuildHasNoAds: use these full descriptions instead ONLY when the uploaded app bundle is the flavour without the ad library (App content → Ads answered "No"). Otherwise ignore the block.',
+      'Where: Play Console > Grow users > Store presence > Store listings > the default store listing (this kit\'s guides call it "Main store listing"), fields under "App details": title -> "App name", shortDescription -> "Short description", fullDescription -> "Full description". The default language is en-US.',
+      'Arabic: on the same page click "Manage translations" > "Select languages", add "Arabic - ar", Apply and Save, then paste the ar strings into the Arabic version of the same three fields.',
+      'releaseNotes does not go on the store listing. It goes on the release page (Prepare release > Release notes), each language between its own tags on separate lines. releaseNotesBox is that text ready to paste; if the box shows other tags, keep the tags the box shows and paste only the notes between them.',
+      'ifTheBuildHasNoAds: use these full descriptions instead ONLY when the uploaded app bundle is the flavour without the ad library (App content > Ads answered "No"). Otherwise ignore the block.',
       'experimentCandidates are NOT part of the listing: they are alternatives for later store listing experiments (see store/listing/ar-variants.md and en-US-variants.md). Entries with needsOwnerConfirmation need the owner\'s yes first.',
+      'The Arabic strings are correct as stored. Inside a left-to-right text box their periods, bullets and numbers can LOOK misplaced; that is only how the box draws them. Do not reorder characters and do not add direction marks.',
+      'Nothing from store/aso/KEYWORDS.md is ever typed into Play Console: Google Play has no keyword field.',
     ],
     _meta: {
       applicationId: 'com.zumurud.game',
@@ -637,6 +646,7 @@ function buildJson(out) {
     },
     'en-US': out['en-US'],
     ar: out.ar,
+    releaseNotesBox: '<en-US>\n' + out['en-US'].releaseNotes + '\n</en-US>\n<ar>\n' + out.ar.releaseNotes + '\n</ar>',
     ifTheBuildHasNoAds: out.ifTheBuildHasNoAds,
     experimentCandidates: out.experimentCandidates,
   };
@@ -690,6 +700,31 @@ function checkJson(out) {
   else ok('fields.json is identical to what en-US.md, ar.md, the variants files and KEYWORDS.md generate (' + ['en-US', 'ar'].map((l) => l + ': ' + Object.keys(parsed[l]).length + ' strings').join(', ') + ')');
 }
 
+/** KEYWORDS.md section 1 quotes each title and short description with its count: it must not go stale. */
+function checkKeywordsSummary(out) {
+  head('\nstore/aso/KEYWORDS.md');
+  if (!fs.existsSync(KEYWORDS_FILE)) return fail('store/aso/KEYWORDS.md is missing');
+  const text = fs.readFileSync(KEYWORDS_FILE, 'utf8');
+  let quoted = 0;
+  for (const L of LOCALES) {
+    if (!out[L.locale]) continue;
+    for (const key of ['title', 'shortDescription']) {
+      const value = out[L.locale][key];
+      const limit = key === 'title' ? LIMITS.title : LIMITS.short;
+      // the summary row reads:  `<text>` — N / L   (an English text is wrapped in a <span dir="ltr">)
+      const needle = '`' + value + '`';
+      let stated = null;
+      for (let at = text.indexOf(needle); at >= 0 && !stated; at = text.indexOf(needle, at + 1)) {
+        stated = /^(?:<\/span>)? — (\d+) \/ (\d+)/.exec(text.slice(at + needle.length, at + needle.length + 24));
+      }
+      if (!stated) fail('KEYWORDS.md does not quote the current ' + L.locale + ' ' + key + ' with its length ("' + value + '")');
+      else if (Number(stated[1]) !== counts(value).points || Number(stated[2]) !== limit) fail('KEYWORDS.md states ' + stated[1] + ' / ' + stated[2] + ' for the ' + L.locale + ' ' + key + ', the text has ' + counts(value).points + ' / ' + limit);
+      else quoted++;
+    }
+  }
+  if (quoted === 4) ok('the summary table quotes the 2 titles and 2 short descriptions exactly, with the counted lengths');
+}
+
 function checkOneSet() {
   head('\none authoritative set');
   const old = path.join(LISTING, 'en.md');
@@ -735,6 +770,7 @@ function main() {
   const out = { _counts: { ifTheBuildHasNoAds: {} }, ifTheBuildHasNoAds: {}, experimentCandidates: {} };
   for (const L of LOCALES) checkLocale(L, facts, out);
   checkJson(out);
+  checkKeywordsSummary(out);
   checkOneSet();
   if (CROSS) crossCheck();
 

@@ -119,7 +119,7 @@ fun findAdMobIds(): AdMobIds {
 val adMob = findAdMobIds()
 val allowTestAds = optionalSetting("allowTestAds").equals("true", ignoreCase = true)
 
-/** Debug builds only: devices that get test ads / the test consent flow with real ids (comma separated). */
+/** Debug builds only: test devices for the consent SDK (needed for UMP_DEBUG_GEOGRAPHY on a phone) and the ad SDK, comma separated. */
 val adsTestDevices = optionalSetting("ADS_TEST_DEVICE_IDS").orEmpty()
 /** Debug builds only: pretend to be in a consent region — "EEA", "REGULATED_US_STATE", "OTHER" or empty. */
 val umpDebugGeography = optionalSetting("UMP_DEBUG_GEOGRAPHY").orEmpty().uppercase()

@@ -12,33 +12,32 @@
 import type { LevelDef } from '../../engine/types.ts';
 
 export const CHAPTER_1: readonly LevelDef[] = [
-  // [tutorial] First steps: a small open board, nothing but matching. Impossible to get wrong.
+  // [tutorial] First steps: a small board, nothing but matching. A fixed start board (a = ruby, b = amber, C = emerald, d = sapphire); impossible to get wrong.
   {
     id: 1, cols: 6, rows: 6, colors: 4, moves: 12,
     tutorial: 'match',
     pieces: [
-      '......',
-      '......',
-      '......',
-      '......',
-      '......',
-      '......',
+      'CbbCdC',
+      'bbdada',
+      'bdCaCb',
+      'dadbaa',
+      'adbCda',
+      'bbaCab',
     ],
     goals: [{ kind: 'score', target: 2000 }],
     stars: [2000, 8000, 12000],
   },
-  // [tutorial] Collecting: gather rubies on a slightly larger board; the level ends early and the spare moves burst.
+  // [tutorial] Collecting: gather rubies. A fixed start board whose hinted move is a match of rubies; the level ends early and the spare moves burst.
   {
-    id: 2, cols: 7, rows: 7, colors: 4, moves: 20,
+    id: 2, cols: 7, rows: 6, colors: 4, moves: 20,
     tutorial: 'collect',
     pieces: [
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
+      'dbCbbaC',
+      'dbdaabC',
+      'aadbaba',
+      'bbaddab',
+      'abaaCaa',
+      'adbddbC',
     ],
     goals: [{ kind: 'color', color: 0, target: 25 }],
     stars: [5900, 14900, 22100],
@@ -59,18 +58,19 @@ export const CHAPTER_1: readonly LevelDef[] = [
     goals: [{ kind: 'color', color: 0, target: 30 }],
     stars: [7100, 16500, 23700],
   },
-  // [tutorial] The nova: a fixed start board — the ruby at column 4, row 4 slides left and closes an L. Points only.
+  // [tutorial] The nova: a fixed start board whose hinted move closes an L of five. Points only.
   {
-    id: 4, cols: 7, rows: 7, colors: 4, moves: 15,
+    id: 4, cols: 7, rows: 8, colors: 4, moves: 15,
     tutorial: 'nova',
     pieces: [
-      'aadCCbb',
-      'aCCdbad',
-      'CababCb',
-      'dbdaaba',
-      'daababC',
-      'aadCCdd',
-      'Cddaabb',
+      'aabaabd',
+      'ddbCaaC',
+      'abCCdba',
+      'CaCaabd',
+      'ddbaCab',
+      'bdaddCd',
+      'CCdbdCC',
+      'CCdCCdd',
     ],
     goals: [{ kind: 'score', target: 6350 }],
     stars: [6350, 22900, 32800],
@@ -88,21 +88,21 @@ export const CHAPTER_1: readonly LevelDef[] = [
       'bbCbbdCd',
       'bddaCaba',
     ],
-    goals: [{ kind: 'color', color: 0, target: 40 }],
+    goals: [{ kind: 'color', color: 0, target: 30 }],
     stars: [11700, 23600, 31000],
   },
-  // [tutorial] The pond: the first sand, a shallow patch in the middle of the board. A fifth colour joins.
+  // [tutorial] The pond: the first sand, a shallow patch in the middle of the board. A fifth colour joins. Fixed start board: the hinted move sweeps three tiles.
   {
     id: 6, cols: 7, rows: 7, colors: 5, moves: 20,
     tutorial: 'sand',
     pieces: [
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
+      'CedeCCb',
+      'aaeeabb',
+      'CebaeaC',
+      'dCCbbCC',
+      'aCaabaa',
+      'adCCdda',
+      'CebddaC',
     ],
     floor: [
       '0000000',
@@ -161,18 +161,18 @@ export const CHAPTER_1: readonly LevelDef[] = [
     ],
     stars: [3600, 8700, 12100],
   },
-  // [tutorial] Deep water: sand that takes two sweeps, thickest at the centre.
+  // [tutorial] Deep water: sand that takes two sweeps, thickest at the centre. Fixed start board: the hinted move sweeps deep sand.
   {
     id: 9, cols: 7, rows: 7, colors: 5, moves: 20,
     tutorial: 'sand2',
     pieces: [
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
-      '.......',
+      'dbbCedC',
+      'bdadbCe',
+      'Cadbeae',
+      'aabaeCd',
+      'ebCbaCa',
+      'aeeaeae',
+      'Cadadee',
     ],
     floor: [
       '0000000',
@@ -227,18 +227,18 @@ export const CHAPTER_1: readonly LevelDef[] = [
     goals: [{ kind: 'sand' }],
     stars: [6500, 13600, 19100],
   },
-  // [tutorial] The fire ring: the first stones — a ring around one sealed gem, and four harder posts.
+  // [tutorial] The fire ring: the first stones — a ring around one sealed gem, and four harder posts. Fixed start board: the hinted move cracks a stone.
   {
-    id: 12, cols: 7, rows: 7, colors: 5, moves: 18,
+    id: 12, cols: 9, rows: 7, colors: 5, moves: 18,
     tutorial: 'stone',
     pieces: [
-      '.......',
-      '.2...2.',
-      '..111..',
-      '..1.1..',
-      '..111..',
-      '.2...2.',
-      '.......',
+      'daCeebddC',
+      'e2CCaCb2a',
+      'Cab111dba',
+      'aCC1d1bbd',
+      'Cda111dCd',
+      'e2bdabC2b',
+      'adCabadeb',
     ],
     goals: [{ kind: 'stone' }],
     stars: [3300, 6400, 9600],
@@ -261,13 +261,14 @@ export const CHAPTER_1: readonly LevelDef[] = [
   },
   // [spike] Buried treasure: a sand court with stones sitting on its deep centre — the first gentle peak.
   {
-    id: 14, cols: 8, rows: 8, colors: 5, moves: 22,
+    id: 14, cols: 8, rows: 9, colors: 5, moves: 22,
     pieces: [
       '........',
       '........',
       '........',
       '...22...',
       '...22...',
+      '........',
       '........',
       '........',
       '........',
@@ -278,6 +279,7 @@ export const CHAPTER_1: readonly LevelDef[] = [
       '01111110',
       '01122110',
       '01122110',
+      '01111110',
       '01111110',
       '01111110',
       '00000000',
