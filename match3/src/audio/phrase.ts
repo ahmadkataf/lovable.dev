@@ -74,6 +74,8 @@ export interface Bar {
 
 export interface TrackStyle {
   bpm: number;
+  /** Output level of the track; the sparser menu track is lifted a little to match. */
+  gain: number;
   /** Weight of each entry of RHYTHM_CELLS when a motif is invented. */
   cellWeights: readonly number[];
   /** Weights for statement, callAnswer, sequence, breath. */
@@ -126,6 +128,7 @@ export const RHYTHM_CELLS: readonly (readonly number[])[] = [
 export const TRACK_STYLES: Record<MusicTrack, TrackStyle> = {
   menu: {
     bpm: 90,
+    gain: 1.3,
     cellWeights: [3, 4, 2.5, 2.5, 1, 2.5, 3, 1.2, 0.3, 1.2, 0.6, 1],
     formWeights: [3, 3, 1.5, 2],
     introForm: 'callAnswer',
@@ -146,6 +149,7 @@ export const TRACK_STYLES: Record<MusicTrack, TrackStyle> = {
   },
   level: {
     bpm: 104,
+    gain: 1,
     cellWeights: [1, 2.5, 3, 3, 3, 3, 2, 2, 1.5, 1, 2, 0.4],
     formWeights: [3.5, 2.5, 3, 0.9],
     introForm: 'statement',

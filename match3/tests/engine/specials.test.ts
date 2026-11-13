@@ -177,7 +177,7 @@ describe('chain reactions', () => {
     checkTurn(g, before, res, 'booster', undefined, false);
   });
 
-  it('a cell reached by two effects of the same wave is hit once', () => {
+  it('a cell reached by two effects of the same wave is hit by both', () => {
     const g = board(
       [
         '~ ~ ~ ~ ~',
@@ -186,24 +186,59 @@ describe('chain reactions', () => {
         '~ ~ ~ ~ ~',
         '~ ~ ~ ~ ~',
       ],
-      C3,
+      { colors: 3, floor: ['00000', '00000', '00200', '00000', '00000'] },
     );
     const before = g.snapshot();
     const stoneId = pieceOf(before, 2, 1)!.id;
     const res = g.useBooster('hammer', P(0, 2));
     const acts = stepsOf(res.steps, 'activate');
     expect(acts[1]!.fx.map((f) => f.kind)).toEqual(['nova', 'nova']);
-    // both diamonds contain the stone
-    for (const fx of acts[1]!.fx) expect(keys(fx.targets)).toContain('2,1');
+    // both diamonds contain the stone at (2,1) and the sandy cell at (2,2)
+    for (const fx of acts[1]!.fx) {
+      expect(keys(fx.targets)).toContain('2,1');
+      expect(keys(fx.targets)).toContain('2,2');
+    }
     // the wave in which both novas fire is the third clear step (hammer, beam, novas)
     const wave = stepsOf(res.steps, 'clear')[2]!;
     const stoneHits = wave.hits.filter((h) => h.pieceId === stoneId);
-    expect(stoneHits).toHaveLength(1);
-    expect(stoneHits[0]).toMatchObject({ result: 'damaged', hpLeft: 2, cause: 'blast' });
-    // and nothing touched it before the first fall
-    const firstFall = res.steps.findIndex((s) => s.type === 'fall');
-    const early = res.steps.slice(0, firstFall).filter((s): s is Clear => s.type === 'clear');
-    expect(early.flatMap((c) => c.hits).filter((h) => h.pieceId === stoneId)).toHaveLength(1);
+    expect(stoneHits.map((h) => [h.result, h.hpLeft])).toEqual([
+      ['damaged', 2],
+      ['damaged', 1],
+    ]);
+    // the beam already cleared the gem on (2,2) and one sand layer; the two novas take the rest:
+    // the first removes the last layer, the second finds nothing left to hit
+    const beamWave = stepsOf(res.steps, 'clear')[1]!;
+    expect(beamWave.hits.find((h) => h.at.c === 2 && h.at.r === 2)).toMatchObject({ result: 'removed', sandLeft: 1 });
+    expect(wave.hits.filter((h) => h.at.c === 2 && h.at.r === 2)).toEqual([
+      { at: P(2, 2), cause: 'blast', result: 'none', pieceId: null, kind: null, color: -1, sandLeft: 0 },
+    ]);
+    // one popup per nova, and together they account for the whole wave
+    expect(wave.popups.map((p) => `${p.at.c},${p.at.r}`)).toEqual(['1,2', '3,2']);
+    expect(wave.popups.reduce((n, p) => n + p.value, 0)).toBe(wave.score);
+    checkTurn(g, before, res, 'booster', undefined, false);
+  });
+
+  it('a special in the crossfire of two effects still fires only once', () => {
+    // hammer the corner nova → it sets off the column beam at (2,0) and the row beam at (0,2),
+    // which fire together and cross on the nova at (2,2)
+    const g = board(['dN ~ eV ~ ~', '~ ~ ~ ~ ~', 'fH ~ dN ~ ~', '~ ~ ~ ~ ~', '~ ~ ~ ~ ~'], C3);
+    const before = g.snapshot();
+    const centre = pieceOf(before, 2, 2)!;
+    const res = g.useBooster('hammer', P(0, 0));
+    expect(stepTypes(res.steps).startsWith('booster clear activate clear activate clear activate clear fall')).toBe(true);
+    const acts = stepsOf(res.steps, 'activate');
+    expect(acts[0]!.fx.map((f) => [f.kind, key(f.at)])).toEqual([['nova', '0,0']]);
+    expect(acts[1]!.fx.map((f) => [f.kind, key(f.at)])).toEqual([
+      ['beamV', '2,0'],
+      ['beamH', '0,2'],
+    ]);
+    for (const fx of acts[1]!.fx) expect(keys(fx.targets)).toContain('2,2');
+    // the first beam sets the centre nova off and removes it; the second finds the cell empty
+    const crossing = stepsOf(res.steps, 'clear')[2]!;
+    expect(crossing.hits.filter((h) => h.at.c === 2 && h.at.r === 2)).toEqual([
+      { at: P(2, 2), cause: 'blast', result: 'activated', pieceId: centre.id, kind: 'nova', color: 3 },
+    ]);
+    expect(acts[2]!.fx.map((f) => [f.kind, key(f.at)])).toEqual([['nova', '2,2']]);
     checkTurn(g, before, res, 'booster', undefined, false);
   });
 });

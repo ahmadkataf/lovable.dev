@@ -7,6 +7,17 @@
  *                            the same synthesis against any BaseAudioContext, which is how
  *                            tools/audio-check.cjs renders and measures every sound offline
  *
+ * Using it from the app shell:
+ *   const audio = createAudio();
+ *   audio.setSfxEnabled(...); audio.setMusicEnabled(...);   // from the saved settings
+ *   audio.music('menu');                                     // may be asked before unlocking
+ *   audio.unlock();                                          // from any tap handler; the
+ *                                                            // engine also unlocks itself on
+ *                                                            // the first gesture on the page
+ *   platform.onPause(() => audio.suspend());                 // app hidden: silence at once
+ *   platform.onResume(() => audio.resume());                 // shown again: music returns
+ * No call ever throws; without Web Audio everything is a silent no-op.
+ *
  * Importing this module touches neither the DOM nor an AudioContext, so it loads under Node.
  */
 import type { AudioApi, MusicTrack, SfxName, SfxOptions } from './types.ts';
@@ -15,6 +26,7 @@ import { createMusicPlayer, type MusicPlayer } from './music.ts';
 import { LEVELS, createOutputChain, type OutputChain } from './output.ts';
 import { isPrioritySfx, renderSfx, sfxKey } from './sfx.ts';
 import { BASE_LOOKAHEAD, lookaheadFor, type TransportStats } from './transport.ts';
+import { LEAD_MIDI, pluckBuffer } from './voices.ts';
 
 export type { AudioApi, MusicTrack, SfxName, SfxOptions } from './types.ts';
 export { SFX_NAMES, SFX_STEPS, isPrioritySfx, renderSfx, sfxClass, sfxKey, type SfxClass } from './sfx.ts';
@@ -47,9 +59,19 @@ const START_DELAY = 0.06;
 const SFX_DELAY = 0.005;
 /** Effects fired while the context is still starting are queued for at most this long (ms). */
 const PENDING_WINDOW_MS = 400;
+/**
+ * Seed of the first menu music of a session: the same opening every time the game is
+ * launched gives it a tune of its own. Later starts move on to fresh material.
+ */
+export const MENU_SIGNATURE_SEED = 13;
+/** Pause between two plucked-string buffers synthesised in the background (ms). */
+const WARMUP_GAP_MS = 60;
 
 export interface AudioOptions {
-  /** Seed of the generative music (default: varies per session). */
+  /**
+   * Seed of the generative music. Default: the menu opens with its signature phrase, and
+   * everything after that varies from session to session.
+   */
   seed?: number;
   /**
    * Also unlock on the first user gesture anywhere on the page (default true). The game still
@@ -106,13 +128,15 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
   let player: MusicPlayer | null = null;
   const fading: { player: MusicPlayer; timer: Timer }[] = [];
   let ticker: Timer | null = null;
-  let lastTick = 0;
+  let lastTick = -1;
   let musicStarts = 0;
+  let menuPlayed = false;
   let sfxPlayed = 0;
   let sfxDropped = 0;
   let resumeAskedAt = -1;
   let pendingSince = -1;
   let listening = false;
+  let warmup: Timer | null = null;
   const gate = new SfxGate();
   const baseSeed = options.seed === undefined ? (Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0 : options.seed >>> 0;
 
@@ -159,7 +183,27 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
     } catch {
       /* not supported: state is re-checked on every call instead */
     }
+    warmUp(made, 0);
     return true;
+  }
+
+  /** Synthesise the lead's string buffers one by one, between frames. */
+  function warmUp(target: AudioContext, index: number): void {
+    if (warmup !== null) clearTimeout(warmup);
+    warmup = null;
+    if (index >= LEAD_MIDI.length) return;
+    warmup = background(
+      setTimeout(() => {
+        warmup = null;
+        if (disposed || ctx !== target) return;
+        try {
+          pluckBuffer(target, LEAD_MIDI[index]);
+        } catch {
+          return;
+        }
+        warmUp(target, index + 1);
+      }, WARMUP_GAP_MS),
+    );
   }
 
   /** The context only runs while there is something it could play. */
@@ -230,14 +274,23 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
         player = null;
       }
       if (target) {
-        const seed = (baseSeed + musicStarts * 7919) >>> 0;
+        let seed = (baseSeed + musicStarts * 7919) >>> 0;
         musicStarts++;
+        if (target === 'menu' && !menuPlayed && options.seed === undefined) seed = MENU_SIGNATURE_SEED;
+        if (target === 'menu') menuPlayed = true;
         player = createMusicPlayer(ctx, chain.musicBus, target, { seed, startAt: now + START_DELAY, fadeIn: CROSSFADE });
-        lastTick = 0;
+        lastTick = -1;
         player.schedule(now + START_DELAY + BASE_LOOKAHEAD);
       }
     }
     updateTicker();
+  }
+
+  /** Timers of this module must not keep a Node process (tests) alive. */
+  function background<T extends Timer>(timer: T): T {
+    const t = timer as unknown as { unref?: () => void };
+    if (typeof t.unref === 'function') t.unref();
+    return timer;
   }
 
   /** Fade a player out and disconnect it once it is silent. */
@@ -249,13 +302,15 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
     }
     const entry = {
       player: old,
-      timer: setTimeout(
-        () => {
-          old.dispose();
-          const i = fading.indexOf(entry);
-          if (i >= 0) fading.splice(i, 1);
-        },
-        (CROSSFADE + 0.15) * 1000,
+      timer: background(
+        setTimeout(
+          () => {
+            old.dispose();
+            const i = fading.indexOf(entry);
+            if (i >= 0) fading.splice(i, 1);
+          },
+          (CROSSFADE + 0.15) * 1000,
+        ),
       ),
     };
     fading.push(entry);
@@ -277,10 +332,7 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
 
   function updateTicker(): void {
     if (player && ticker === null) {
-      ticker = setInterval(tick, TICK_MS);
-      // Under Node (tests) the scheduler must not keep the process alive.
-      const t = ticker as unknown as { unref?: () => void };
-      if (typeof t.unref === 'function') t.unref();
+      ticker = background(setInterval(tick, TICK_MS));
     } else if (!player && ticker !== null) {
       clearInterval(ticker);
       ticker = null;
@@ -290,7 +342,7 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
   function tick(): void {
     if (!ctx || !player) return;
     const w = wall();
-    const gap = lastTick ? (w - lastTick) / 1000 : 0;
+    const gap = lastTick >= 0 ? (w - lastTick) / 1000 : 0;
     lastTick = w;
     if (stateOf() !== 'running') return;
     try {
@@ -454,6 +506,8 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
       if (disposed) return;
       disposed = true;
       unlisten();
+      if (warmup !== null) clearTimeout(warmup);
+      warmup = null;
       try {
         dropPlayers();
         if (ctx) {

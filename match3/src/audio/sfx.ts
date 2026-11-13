@@ -134,15 +134,15 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── clears ─────────────────────────────────────────────────────────────
   match: {
-    gain: 0.69,
+    gain: 0.68,
     cls: 'game',
     build(v, step) {
       // A chime that climbs D F♯ G A C through two octaves with the cascade number.
       const midi = matchStepMidi(step);
       const rung = matchStepIndex(step);
       chime(v, midi, 0, 0.34, 0.6, 0.2 + rung * 0.012);
-      // From the second octave on, a faint fifth above adds sparkle.
-      if (rung >= 5) tone(v, { f: hz(midi + 7), at: 0.035, dur: 0.14, peak: 0.07, attack: 0.003 });
+      // From the second octave on, a faint third harmonic adds sparkle.
+      if (rung >= 5) tone(v, { f: hz(midi) * 3, at: 0.035, dur: 0.14, peak: 0.06, attack: 0.003 });
     },
   },
   sand: {
@@ -156,7 +156,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   stone: {
-    gain: 0.83,
+    gain: 0.84,
     cls: 'game',
     build(v) {
       // A knock on rock: pitched tock, grit, and a little weight underneath.
@@ -168,7 +168,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   stoneBreak: {
-    gain: 0.91,
+    gain: 0.92,
     cls: 'game',
     build(v) {
       // The block gives way: a crack, a thud, and pieces tumbling after it.
@@ -186,12 +186,12 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   chain: {
-    gain: 1.28,
+    gain: 1.24,
     cls: 'game',
     build(v) {
       // Two links knocking: clangorous FM pairs.
-      fm(v, { f: 1720, ratio: 1.41, index: 2.2, indexEnd: 0.3, modDur: 0.08, dur: 0.14, peak: 0.35, attack: 0.001 });
-      fm(v, { f: 2090, ratio: 1.41, index: 2.2, indexEnd: 0.3, modDur: 0.08, at: 0.075, dur: 0.17, peak: 0.35, attack: 0.001 });
+      fm(v, { f: 1720, ratio: 1.41, index: 1.7, indexEnd: 0.25, modDur: 0.08, dur: 0.14, peak: 0.35, attack: 0.001 });
+      fm(v, { f: 2090, ratio: 1.41, index: 1.7, indexEnd: 0.25, modDur: 0.08, at: 0.075, dur: 0.17, peak: 0.35, attack: 0.001 });
       noise(v, { type: 'highpass', f: 5000, q: 0.7, dur: 0.03, peak: 0.2, attack: 0.001 });
     },
   },
@@ -265,7 +265,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   beam: {
-    gain: 0.69,
+    gain: 0.68,
     cls: 'game',
     build(v) {
       // Line blast: noise swept downwards over a falling tone.
@@ -301,7 +301,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   bigCombo: {
-    gain: 0.76,
+    gain: 0.78,
     cls: 'game',
     build(v) {
       // Two specials at once: a bright impact that falls away under a chord that mellows.
@@ -381,8 +381,9 @@ const SFX: Record<SfxName, SfxDef> = {
       tone(v, { f: hz(midi + 12), at: 0.02, dur: 0.3, peak: 0.14, attack: 0.003 });
       tone(v, { type: 'triangle', f: hz(midi - 12), dur: 0.25, peak: 0.2, attack: 0.006 });
       noise(v, { type: 'highpass', f: 7000, q: 0.7, dur: 0.1 + 0.04 * s, peak: 0.1, attack: 0.004 });
+      const glitter = [D7, D7 + 4, D7 + 7];
       for (let k = 0; k < s; k++) {
-        tone(v, { f: hz(midi + 19 + k * 5), at: 0.06 + k * 0.045, dur: 0.12, peak: 0.06, attack: 0.003 });
+        tone(v, { f: hz(glitter[k]), at: 0.06 + k * 0.045, dur: 0.12, peak: 0.06, attack: 0.003 });
       }
     },
   },
@@ -431,7 +432,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── rewards ────────────────────────────────────────────────────────────
   coin: {
-    gain: 0.76,
+    gain: 0.77,
     cls: 'game',
     build(v) {
       // One struck metal ring with shimmering overtones.
@@ -503,7 +504,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   lose: {
-    gain: 0.79,
+    gain: 0.78,
     cls: 'jingle',
     priority: true,
     build(v) {

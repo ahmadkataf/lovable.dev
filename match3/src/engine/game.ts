@@ -8,9 +8,15 @@
  *        → (next cascade: clear → … → fall)* → [grow] → [shuffle [→ transform 'recolor']] → [status]
  *
  * - A *wave* is one `clear` step. A wave is either a match wave (all match groups on the board,
- *   plus adjacent damage) or a blast wave (everything the specials listed in the preceding
- *   `activate` step reach). Within one wave a cell is hit at most once.
- * - Specials hit in a wave fire in the next wave, before gravity runs (chain reactions).
+ *   plus adjacent damage — at most one adjacent hit per blocker per wave) or a blast wave
+ *   (everything the specials listed in the preceding `activate` step reach).
+ * - In a blast wave every effect hits each cell it reaches exactly once, in the order the effects
+ *   are listed. Two effects that share a cell both hit it, so `hits` can name a cell more than
+ *   once (a 2-layer stone under two crossing beams is destroyed).
+ * - Specials hit in a wave fire in the next wave, before gravity runs (chain reactions). Each
+ *   special fires once: the hit removes it, later hits of the same wave find an empty cell.
+ * - Swap combos and the end bonus use their pieces up in the same wave that carries the effect:
+ *   those pieces appear as hits with result 'activated' in the `clear` after the `activate`.
  * - A special created by a match is immune until the next `fall` (a blast that reaches it is
  *   reported as a hit with result 'none'), so the piece the player just made is not wasted.
  * - `cascade` grows by one after every `fall` step.
@@ -27,6 +33,7 @@ import type {
   GameApi,
   GameOptions,
   GameStatus,
+  Goal,
   GoalProgress,
   Hit,
   HitCause,
@@ -126,10 +133,13 @@ export class Game implements GameApi {
   private readonly b: Board;
   private readonly rng: Rng;
   private readonly colors: number;
+  /** The level's goals, minus anything that is not a goal object (the Game never crashes on bad data). */
+  private readonly goals: Goal[];
+  private readonly starLimits: [number, number, number];
   private readonly scoreOnly: boolean;
   private readonly lampCfg: { total: number; maxOnBoard: number; everyMoves: number } | null;
   private readonly lampCols: boolean[];
-  /** Scratch: cells already hit in the current wave. */
+  /** Scratch: blockers that already took their adjacent hit in the current match wave. */
   private readonly seen: Uint8Array;
   /** Scratch: pieces spawned per column in the current fall. */
   private readonly spawnCount: Uint8Array;
@@ -161,8 +171,14 @@ export class Game implements GameApi {
 
   constructor(level: LevelDef, opts: GameOptions, debug?: GameDebug) {
     this.level = level;
-    this.rng = createRng(opts.seed);
+    this.rng = createRng(opts ? opts.seed : 0);
     this.colors = Number.isInteger(level.colors) ? Math.min(6, Math.max(1, level.colors)) : 6;
+    this.goals = Array.isArray(level.goals) ? level.goals.filter((g) => g !== null && typeof g === 'object' && typeof g.kind === 'string') : [];
+    const stars = level.stars as unknown;
+    this.starLimits =
+      Array.isArray(stars) && stars.length === 3 && stars.every((v) => typeof v === 'number' && !Number.isNaN(v))
+        ? [stars[0] as number, stars[1] as number, stars[2] as number]
+        : [Infinity, Infinity, Infinity];
 
     const parsed = parseLevel(level);
     if (debug?.cells) {
@@ -199,17 +215,17 @@ export class Game implements GameApi {
       else if (p.kind === 'lamp') this.lampsExisted++;
       if (p.chained) this.chainTotal++;
     }
-    const goals = Array.isArray(level.goals) ? level.goals : [];
-    this.scoreOnly = goals.length > 0 && goals.every((g) => g.kind === 'score');
+    this.scoreOnly = this.goals.length > 0 && this.goals.every((g) => g.kind === 'score');
 
     const cfg = level.lamps;
-    this.lampCfg = cfg ? { total: cfg.total, maxOnBoard: cfg.maxOnBoard, everyMoves: cfg.everyMoves } : null;
+    const lampsOk = cfg !== undefined && cfg !== null && Number.isFinite(cfg.total) && Number.isFinite(cfg.maxOnBoard) && Number.isFinite(cfg.everyMoves);
+    this.lampCfg = lampsOk ? { total: cfg.total, maxOnBoard: cfg.maxOnBoard, everyMoves: cfg.everyMoves } : null;
     const friendly = lampColumns(parsed);
     this.lampCols = friendly.some((f) => f) ? friendly : friendly.map(() => true);
     // With lamps already on the board the first drop waits `everyMoves`; otherwise it may come at once.
     this.lastLampMove = this.lampsExisted > 0 ? 0 : -1e9;
 
-    const boosters = opts.boosters ?? {};
+    const boosters = (opts && opts.boosters) || {};
     const moves = Number.isFinite(level.moves) ? Math.max(0, Math.floor(level.moves)) : 0;
     this.movesLeft = moves + (boosters.extraMoves ? EXTRA_MOVES_BOOSTER : 0);
 
@@ -533,14 +549,20 @@ export class Game implements GameApi {
     }
   }
 
-  /** After the board settled: goals, vine growth, dead-board check, status. */
+  /**
+   * After the board settled (§2.9): goals, vine growth, dead-board check, status.
+   * Levels with only score goals are decided when no further move is possible — normally when
+   * the moves run out; every other level is won the moment all goals are done.
+   */
   private finishTurn(t: Turn, isMove: boolean): void {
-    if (this.goalsMet() && (!this.scoreOnly || this.movesLeft <= 0)) {
+    const met = this.goalsMet();
+    if (met && (!this.scoreOnly || this.movesLeft <= 0)) {
       this.status = 'won';
     } else {
       if (isMove && !this.vineCut) this.growVine(t.steps);
       if (this.movesLeft <= 0) this.status = 'lost';
-      else if (!this.ensurePlayable(t.steps)) this.status = 'lost';
+      // No move can ever exist on this board again: the level ends here.
+      else if (!this.ensurePlayable(t.steps)) this.status = met ? 'won' : 'lost';
     }
     if (this.status !== 'playing') t.steps.push({ type: 'status', status: this.status });
   }
@@ -721,8 +743,6 @@ export class Game implements GameApi {
   private blastWave(t: Turn): void {
     const fires = t.pending;
     t.pending = [];
-    const seen = this.seen;
-    seen.fill(0);
     const hits: Hit[] = [];
     const popups: { at: Pos; value: number }[] = [];
     const fxs: Fx[] = [];
@@ -730,16 +750,10 @@ export class Game implements GameApi {
     let total = 0;
 
     // Pieces used up by their own effect leave first, so no other effect of this wave can set
-    // them off a second time. Their cell counts as hit.
+    // them off a second time. That counts as the effect's hit on those cells.
     for (const fire of fires) {
       let gained = 0;
-      if (fire.consumed !== null) {
-        for (const cell of fire.consumed) {
-          if (seen[cell] === 1) continue;
-          seen[cell] = 1;
-          gained += this.consume(cell, t, hits);
-        }
-      }
+      if (fire.consumed !== null) for (const cell of fire.consumed) gained += this.consume(cell, t, hits);
       points.push(gained);
     }
 
@@ -756,9 +770,9 @@ export class Game implements GameApi {
         targets = this.targetsOf(fire.kind, fire.at);
       }
       let gained = points[k] as number;
+      const used = fire.consumed;
       for (const cell of targets) {
-        if (seen[cell] === 1) continue;
-        seen[cell] = 1;
+        if (used !== null && used.indexOf(cell) >= 0) continue;
         gained += this.hitCell(cell, 'blast', t, hits);
       }
       fxs.push({ kind: fire.kind, at: this.pos(fire.at), color, targets: targets.map((cell) => this.pos(cell)) });
@@ -1089,8 +1103,7 @@ export class Game implements GameApi {
 
   private goalProgress(): GoalProgress[] {
     const out: GoalProgress[] = [];
-    const goals = Array.isArray(this.level.goals) ? this.level.goals : [];
-    for (const goal of goals) {
+    for (const goal of this.goals) {
       let current = 0;
       let target = 0;
       switch (goal.kind) {
@@ -1135,7 +1148,7 @@ export class Game implements GameApi {
   }
 
   private stars(): 0 | 1 | 2 | 3 {
-    const stars = starsFor(this.score, this.level.stars);
+    const stars = starsFor(this.score, this.starLimits);
     return this.status === 'won' && stars < 1 ? 1 : stars;
   }
 

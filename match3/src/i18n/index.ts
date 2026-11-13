@@ -8,12 +8,21 @@
  * Message syntax:
  *   {name}                         replaced by vars.name. Whole numbers are written with thousands
  *                                  separators and Western digits (1500 → "1,500"); pass a string to
- *                                  insert something verbatim. Unknown placeholders are left as they are.
+ *                                  insert something verbatim. Unknown placeholders (and variables
+ *                                  that are null / undefined) are left as they are.
  *   {n, plural, one {…} other {…}} picks a variant by the number in vars.n using the language's plural
  *                                  rules. English: one, other. Arabic: zero, one, two, few (3–10),
  *                                  many (11–99), other. `=0`, `=1` … match an exact number first.
- *                                  A missing category falls back to `other`. Variants may contain
- *                                  placeholders, e.g. "{n, plural, one {1 move} other {{n} moves}}".
+ *                                  A missing category falls back to `other`; so does a negative
+ *                                  number (variants such as "1 move" spell their number out and
+ *                                  would hide the sign). Variants may contain placeholders, e.g.
+ *                                  "{n, plural, one {1 move} other {{n} moves}}".
+ *
+ * Right-to-left text and signs: in Arabic a leading "-" or "+" is drawn on the wrong side of its
+ * number ("5-") unless a left-to-right mark (U+200E) stands before it. `num()` and `t()` add that
+ * mark themselves for negative numbers while the language is Arabic; a sign written by hand needs it
+ * in the Arabic string ("\u200E+{n}") — tests/i18n/strings.test.ts checks this. Thousands separators,
+ * "mm:ss" and "3/5" need nothing: the bidi algorithm keeps them together.
  */
 import type { I18nApi, Lang, StringTable } from './types.ts';
 
@@ -33,14 +42,30 @@ export function resolveLang(saved: Lang | null | undefined, locale: string): Lan
 
 // ───────────────────────────── numbers & time ─────────────────────────────
 
-/** 12345 → "12,345". Rounded to a whole number, Western digits in every language. */
+/**
+ * 12345 → "12,345". Rounded to a whole number, Western digits in every language.
+ * Not a number ⇒ "0"; ±Infinity ⇒ "∞" / "-∞" (never "0": an unbounded price must not look free).
+ */
 export function formatNumber(n: number): string {
-  if (typeof n !== 'number' || !isFinite(n)) return '0';
+  if (typeof n !== 'number' || n !== n) return '0';
+  if (n === Infinity) return '∞';
+  if (n === -Infinity) return '-∞';
   const rounded = Math.round(n);
   const digits = String(Math.abs(rounded));
   if (digits.indexOf('e') >= 0) return String(rounded); // beyond 1e21: nothing sensible to group
   const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return rounded < 0 ? '-' + grouped : grouped;
+}
+
+/** U+200E LEFT-TO-RIGHT MARK. */
+const LRM = '\u200E';
+
+/**
+ * A formatted number made safe for the language's text direction: in Arabic a leading minus gets a
+ * left-to-right mark in front, so it stays on the left of its digits (see the file header).
+ */
+function directed(text: string, lang: Lang): string {
+  return lang === 'ar' && text.charCodeAt(0) === 45 /* - */ ? LRM + text : text;
 }
 
 function two(n: number): string {
@@ -63,21 +88,24 @@ export function formatClock(ms: number): string {
 
 export type PluralCategory = 'zero' | 'one' | 'two' | 'few' | 'many' | 'other';
 
-/** CLDR plural category of a number (cardinals). Hand-written so it never depends on ICU data. */
+/**
+ * CLDR plural category of a count (cardinals). Hand-written so it never depends on ICU data.
+ * Counts are never negative; a negative number (and anything that is not a number) is 'other', so
+ * that a variant with its number spelled out ("1 day") can never be shown for −1.
+ */
 export function pluralCategory(lang: Lang, n: number): PluralCategory {
-  if (typeof n !== 'number' || !isFinite(n)) return 'other';
-  const abs = Math.abs(n);
+  if (typeof n !== 'number' || !isFinite(n) || n < 0) return 'other';
   if (lang === 'ar') {
-    if (abs === 0) return 'zero';
-    if (abs === 1) return 'one';
-    if (abs === 2) return 'two';
-    if (abs !== Math.floor(abs)) return 'other';
-    const mod = abs % 100;
+    if (n === 0) return 'zero';
+    if (n === 1) return 'one';
+    if (n === 2) return 'two';
+    if (n !== Math.floor(n)) return 'other';
+    const mod = n % 100;
     if (mod >= 3 && mod <= 10) return 'few';
     if (mod >= 11) return 'many';
     return 'other';
   }
-  return abs === 1 ? 'one' : 'other';
+  return n === 1 ? 'one' : 'other';
 }
 
 // ───────────────────────────── message formatting ─────────────────────────────
@@ -150,12 +178,37 @@ function choose(block: PluralBlock, value: string | number | undefined, lang: La
   return block.options[block.options.length - 1]![1];
 }
 
-function show(v: string | number): string {
-  return typeof v === 'number' && v === Math.floor(v) ? formatNumber(v) : String(v);
+function show(v: unknown, lang: Lang): string {
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number') {
+    // Whole numbers (and ±Infinity) get separators; NaN and fractions are shown as they are.
+    return directed(v === Math.floor(v) ? formatNumber(v) : String(v), lang);
+  }
+  try {
+    return String(v);
+  } catch {
+    return ''; // an object that cannot be turned into text
+  }
+}
+
+/** The value for a placeholder, or undefined when the variable is missing (also null / undefined). */
+function variable(vars: Vars | undefined, name: string): string | number | undefined {
+  if (vars === undefined || vars === null || !Object.prototype.hasOwnProperty.call(vars, name)) return undefined;
+  const v = vars[name];
+  return v === null ? undefined : v;
 }
 
 /** Fill a message template (see the syntax at the top of this file). Never throws. */
 export function formatMessage(template: string, vars: Vars | undefined, lang: Lang): string {
+  if (typeof template !== 'string') return '';
+  try {
+    return fill(template, vars, lang);
+  } catch {
+    return template; // only reachable with absurd nesting (stack overflow): show the raw text
+  }
+}
+
+function fill(template: string, vars: Vars | undefined, lang: Lang): string {
   if (template.indexOf('{') < 0) return template;
   let out = '';
   let i = 0;
@@ -170,16 +223,14 @@ export function formatMessage(template: string, vars: Vars | undefined, lang: La
     SIMPLE.lastIndex = open;
     const simple = SIMPLE.exec(template);
     if (simple) {
-      const name = simple[1]!;
-      const has = vars !== undefined && Object.prototype.hasOwnProperty.call(vars, name);
-      out += has ? show(vars[name]!) : simple[0];
-      i = SIMPLE.lastIndex;
+      const value = variable(vars, simple[1]!);
+      i = SIMPLE.lastIndex; // read before `show`, which may run foreign code (toString) that formats too
+      out += value === undefined ? simple[0] : show(value, lang);
       continue;
     }
     const block = parsePlural(template, open);
     if (block) {
-      const has = vars !== undefined && Object.prototype.hasOwnProperty.call(vars, block.name);
-      out += formatMessage(choose(block, has ? vars[block.name] : undefined, lang), vars, lang);
+      out += fill(choose(block, variable(vars, block.name), lang), vars, lang);
       i = block.end;
       continue;
     }
@@ -335,7 +386,7 @@ function applyToDocument(lang: Lang): void {
 
 /** Build the API from explicit tables (tests, Node tools). */
 export function createI18nFromTables(tables: StringTable[], initial: Lang): I18nApi {
-  const merged = mergeTables(tables);
+  const merged = mergeTables(Array.isArray(tables) ? tables : []);
   const listeners: { fn: (lang: Lang) => void }[] = [];
   const warned: Record<string, true> = Object.create(null);
   let current: Lang = initial === 'ar' ? 'ar' : 'en';
@@ -368,6 +419,7 @@ export function createI18nFromTables(tables: StringTable[], initial: Lang): I18n
     isRtl: () => current === 'ar',
 
     t(key: string, vars?: Vars): string {
+      if (typeof key !== 'string') return show(key, current); // a caller's bug: still answer with text
       let template = lookup(current, key);
       if (template === undefined) {
         // Missing in this language only: better the other language than a raw key.
@@ -381,7 +433,7 @@ export function createI18nFromTables(tables: StringTable[], initial: Lang): I18n
       return formatMessage(template, vars, current);
     },
 
-    num: formatNumber,
+    num: (n: number): string => directed(formatNumber(n), current),
     clock: formatClock,
 
     onChange(listener: (lang: Lang) => void): () => void {

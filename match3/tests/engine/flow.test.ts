@@ -337,6 +337,22 @@ describe('shuffles (§2.8)', () => {
     expect(more.snapshot).toEqual(lost);
   });
 
+  it('a score-only level whose board dies is decided on the spot: won if the target is reached', () => {
+    // after d d d clears, two gems are left under a wall — no move can ever exist again
+    const rows = ['3 3 3 3 3', 'd d ~ d ~'];
+    const won = board(rows, { colors: 3, moves: 5, goals: [{ kind: 'score', target: 60 }], stars: [60, 600, 6000] });
+    const a = won.swap(P(3, 1), P(2, 1));
+    expect(a.snapshot.score).toBe(60 + 3 * 40); // the match also chips the three stones above it
+    expect(a.snapshot.movesLeft).toBe(4);
+    expect(a.snapshot.status).toBe('won');
+    expect(a.steps[a.steps.length - 1]).toEqual({ type: 'status', status: 'won' });
+    const lost = board(rows, { colors: 3, moves: 5, goals: [{ kind: 'score', target: 500 }], stars: [500, 600, 6000] });
+    const b = lost.swap(P(3, 1), P(2, 1));
+    expect(b.snapshot.status).toBe('lost');
+    expect(b.snapshot.movesLeft).toBe(4);
+    expect(lost.addMoves(5).accepted).toBe(false);
+  });
+
   it('a level that starts without a valid move is shuffled before play begins', () => {
     const level: LevelDef = {
       id: 3,
@@ -552,6 +568,7 @@ describe('hint()', () => {
     const hintOf = (row: string) => board(['~ ~ ~ ~ ~ ~', row, '~ ~ ~ ~ ~ ~'], C3).hint();
     expect(hintOf('eN P P fH ~ ~')).toEqual({ a: P(1, 1), b: P(2, 1) }); // prism + prism
     expect(hintOf('eN P d fH ~ ~')).toEqual({ a: P(0, 1), b: P(1, 1) }); // prism + nova
+    expect(hintOf('~ dH P eN ~ ~')).toEqual({ a: P(2, 1), b: P(3, 1) }); // prism + nova over prism + beam
     expect(hintOf('d P fH ~ ~ ~')).toEqual({ a: P(1, 1), b: P(2, 1) }); // prism + beam over prism + gem
     expect(hintOf('fN eN dH eV ~ ~')).toEqual({ a: P(0, 1), b: P(1, 1) }); // nova + nova
     expect(hintOf('~ eN dH eV ~ ~')).toEqual({ a: P(1, 1), b: P(2, 1) }); // nova + beam over beam + beam

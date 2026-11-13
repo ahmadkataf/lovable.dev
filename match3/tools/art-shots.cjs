@@ -3,7 +3,8 @@
  * can be reviewed. Dev tool only.
  *
  *   node tools/art-shots.cjs                 all sections
- *   node tools/art-shots.cjs gems,board      only these gallery parts (gems, board, icons, backdrops, logos, checks)
+ *   node tools/art-shots.cjs gems,board      only these gallery parts (gems, board, extras, icons, backdrops, logos, checks)
+ *   ART_OUT=some/dir node tools/art-shots.cjs   write the PNGs somewhere else (default shots/art)
  *
  * Uses the dev server at http://127.0.0.1:5181 (ART_PORT / ART_URL override); if none is running it
  * starts `vite --port 5181 --strictPort` itself and stops it afterwards.
@@ -17,7 +18,7 @@ const { spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const PORT = Number(process.env.ART_PORT || 5181);
 const URL_BASE = process.env.ART_URL || 'http://127.0.0.1:' + PORT + '/gallery.html';
-const OUT = path.join(ROOT, 'shots', 'art');
+const OUT = process.env.ART_OUT ? path.resolve(process.env.ART_OUT) : path.join(ROOT, 'shots', 'art');
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Snapshot, Step } from '../../src/engine/index.ts';
+import { Game, applySteps, createRng, type CellView, type LevelDef, type Snapshot, type Step } from '../../src/engine/index.ts';
 import { P, board, cellOf, checkTurn, pieceOf, stepsOf, unfilledReachable } from './helpers.ts';
 
 // DESIGN §2.6 — gravity, diagonal feeding around blockers and holes, refill.
@@ -192,5 +192,68 @@ describe('gravity and refill', () => {
       }
     }
     expect(checked).toBeGreaterThan(40);
+  });
+
+  it('deep in a cascade the refill calms down: from cascade 8 on, new gems do not complete a match where they land', () => {
+    // Three colours on a 9×9 board is the worst case: with plain random refills a move there can
+    // run for a hundred cascades. From cascade 8 (where the score multiplier is capped anyway)
+    // new gems are coloured so that they do not match on landing, so the turn ends soon after.
+    const level: LevelDef = {
+      id: 1,
+      cols: 9,
+      rows: 9,
+      colors: 3,
+      moves: 100000,
+      pieces: new Array<string>(9).fill('.........'),
+      goals: [{ kind: 'score', target: 1e12 }],
+      stars: [1e12, 2e12, 3e12],
+    };
+    const game = new Game(level, { seed: 8 });
+    const bot = createRng(8);
+    const inRun = (cells: CellView[], c: number, r: number): boolean => {
+      const colorAt = (x: number, y: number): number => (x < 0 || y < 0 || x >= 9 || y >= 9 ? -1 : (cells[y * 9 + x]!.piece?.color ?? -1));
+      const k = colorAt(c, r);
+      let h = 1;
+      for (let x = c - 1; colorAt(x, r) === k; x--) h++;
+      for (let x = c + 1; colorAt(x, r) === k; x++) h++;
+      let v = 1;
+      for (let y = r - 1; colorAt(c, y) === k; y--) v++;
+      for (let y = r + 1; colorAt(c, y) === k; y++) v++;
+      return h >= 3 || v >= 3;
+    };
+    let earlySpawns = 0;
+    let earlyMatching = 0;
+    let calmSpawns = 0;
+    let calmMatching = 0;
+    let longest = 0;
+    for (let turn = 0; turn < 400; turn++) {
+      const before = game.snapshot();
+      const move = bot.pick(game.validMoves());
+      const res = game.swap(move.a, move.b);
+      let falls = 0;
+      res.steps.forEach((step, index) => {
+        if (step.type !== 'fall') return;
+        falls++;
+        // `falls` is the number of the cascade this fall ends
+        const cells = applySteps(before, res.steps.slice(0, index + 1)).cells;
+        for (const spawn of step.spawns) {
+          const matching = inRun(cells, spawn.to.c, spawn.to.r);
+          if (falls >= 8) {
+            calmSpawns++;
+            if (matching) calmMatching++;
+          } else {
+            earlySpawns++;
+            if (matching) earlyMatching++;
+          }
+        }
+      });
+      if (falls > longest) longest = falls;
+    }
+    expect(calmSpawns).toBeGreaterThan(300);
+    // plain random refills match on landing all the time …
+    expect(earlyMatching / earlySpawns).toBeGreaterThan(0.2);
+    // … calm ones practically never (only when all three colours would match at once)
+    expect(calmMatching / calmSpawns).toBeLessThan(0.02);
+    expect(longest).toBeLessThan(60);
   });
 });

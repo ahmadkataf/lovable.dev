@@ -3,15 +3,32 @@
  * everywhere. Other namespaces (play, shop, settings, …) live in their own files next to this one.
  *
  * Message syntax ({name} placeholders, {n, plural, …} variants): see ../index.ts.
- * Arabic style used here and worth keeping in other files: Modern Standard Arabic in a warm, direct
- * tone; buttons are verbal nouns (إلغاء، شراء، متابعة) except the main call to action (العب);
- * instructions address the player in the imperative; only the shadda and tanwin that help reading
- * are written; digits are always Western.
  *
- * Vocabulary (keep it consistent across files):
- *   level المرحلة · move حركة · life قلب · coin عملة · star نجمة · booster معزّز · board اللوحة ·
- *   tile خانة · piece قطعة · gem جوهرة · beam الشعاع · nova النوفا · prism المنشور · sand الرمال ·
- *   stone الحجر · chain السلسلة · vine النبات المتسلّق · lamp الفانوس
+ * Arabic style used here — keep it in every other file:
+ *  - Modern Standard Arabic in a warm, direct tone; the player is addressed in the masculine
+ *    singular imperative (العب، اجمع، بدّل), the usual neutral form in Arabic apps.
+ *  - Buttons are verbal nouns (إلغاء، شراء، متابعة) except the main call to action (العب).
+ *  - Labels and titles carry the article (الحركات، النقاط، الشعاع); names of things you own or
+ *    receive do not (مطرقة، منشور، حركات إضافية), so they also read well after a number.
+ *  - Only the shadda and tanwin that help reading are written (معزّز، مجانًا); the tanwin sits on
+ *    the letter before the alif. Punctuation is Arabic (، ؛ ؟); digits are always Western (0-9).
+ *  - Counted things use a plural block with the Arabic categories: one {حركة واحدة} two {حركتان}
+ *    few {{n} حركات} many {{n} حركة} other {{n} حركة}. After a preposition or as an object the
+ *    dual is حركتين.
+ *  - A "+" or "-" written before a number or placeholder needs U+200E in front of it
+ *    ("\u200E+{n}"), otherwise right-to-left text draws the sign after the number. Numbers passed
+ *    as variables are handled by t() itself. Latin text inside an Arabic sentence (a price such as
+ *    "US$0.99") belongs at the end of the sentence or on its own line.
+ *
+ * Vocabulary — ONE Arabic word per concept, in every file (tests/i18n/strings.test.ts rejects the
+ * synonyms listed there):
+ *   level مرحلة / مراحل      (not مستوى)          move حركة / حركات       (not نقلة، خطوة)
+ *   life قلب / قلوب          (not روح / أرواح)     coin عملة / عملات
+ *   star نجمة / نجوم                              booster معزّز / معزّزات  (with the shadda)
+ *   board اللوحة · tile خانة · piece قطعة · gem جوهرة / جواهر · score / points نقطة / نقاط
+ *   beam شعاع · nova نوفا (feminine) · prism منشور · sand الرمال · stone حجر / أحجار ·
+ *   chain سلسلة / سلاسل · vine النبات المتسلّق · lamp فانوس / فوانيس · shop المتجر ·
+ *   reward مكافأة · goal هدف / أهداف · chapter فصل / فصول
  */
 import type { StringTable } from '../types.ts';
 
@@ -199,16 +216,17 @@ const table: StringTable = {
     'common.time.s': '{n} ث',
 
     // ── boosters ──
-    'booster.hammer.name': 'المطرقة',
+    // names without the article (see the style notes at the top): they follow numbers and "×"
+    'booster.hammer.name': 'مطرقة',
     'booster.hammer.desc': 'اضرب أي خانة تختارها، ولن تخسر أي حركة.',
     'booster.freeSwap.name': 'تبديل حر',
     'booster.freeSwap.desc': 'بدّل أي قطعتين متجاورتين حتى لو لم تتطابقا، ولن تخسر أي حركة.',
-    'booster.shuffle.name': 'الخلط',
+    'booster.shuffle.name': 'خلط',
     'booster.shuffle.desc': 'اخلط الجواهر على اللوحة، ولن تخسر أي حركة.',
     'booster.extraMoves.name': 'حركات إضافية',
     'booster.extraMoves.desc': 'ابدأ المرحلة بـ 3 حركات إضافية.',
-    'booster.prism.name': 'المنشور',
-    'booster.prism.desc': 'ابدأ بمنشور على اللوحة. بدّله مع أي جوهرة ليزيل كل الجواهر من نوعها.',
+    'booster.prism.name': 'منشور',
+    'booster.prism.desc': 'ابدأ بمنشور على اللوحة. بدّل مكانه مع أي جوهرة ليزيل كل الجواهر من نوعها.',
     'booster.beamNova.name': 'شعاع ونوفا',
     'booster.beamNova.desc': 'ابدأ بشعاع يمسح خطًّا كاملًا ونوفا تفجّر كل ما حولها.',
 

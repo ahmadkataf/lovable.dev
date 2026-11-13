@@ -4,9 +4,12 @@
  */
 import '@fontsource-variable/baloo-bhaijaan-2/index.css';
 import { ICON_KEYS, SPRITE_KEYS, createArt } from '../index.ts';
-import type { ChapterTheme, SpriteKey } from '../types.ts';
+import type { ChapterTheme, IconKey, SpriteKey } from '../types.ts';
 
 const art = createArt();
+// exposed for review scripts (tools/art-shots.cjs --verify, ad-hoc Playwright probes)
+(window as unknown as { __art: unknown; __artKeys: unknown }).__art = art;
+(window as unknown as { __artKeys: unknown }).__artKeys = { sprites: SPRITE_KEYS, icons: ICON_KEYS };
 const root = document.getElementById('root') as HTMLElement;
 const DPR = Math.min(3, window.devicePixelRatio || 1);
 const THEMES: ChapterTheme[] = ['oasis', 'dunes', 'bazaar', 'palace', 'caverns', 'stars'];
@@ -200,6 +203,178 @@ function board(): void {
     for (let k = 0; k < parts.length; k++) if (top.indexOf(parts[k]) >= 0) g.drawImage(art.sprite(parts[k] as SpriteKey, P), x, y);
   }
   det.appendChild(dc);
+}
+
+// ───────────────────────────── (b2) review extras ─────────────────────────────
+
+/** Deterministic dense n×n layout that looks like a real mid-level board (no accidental 3-runs). */
+function denseLayout(n: number): { piece: string; sand: number; chained: boolean }[][] {
+  let seed = 0x2f6e2b1;
+  const rnd = (): number => {
+    seed = (seed + 0x6d2b79f5) >>> 0;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const colour: number[][] = [];
+  const out: { piece: string; sand: number; chained: boolean }[][] = [];
+  for (let r = 0; r < n; r++) {
+    colour.push([]);
+    out.push([]);
+    for (let c = 0; c < n; c++) {
+      let k = Math.floor(rnd() * 6);
+      for (let tries = 0; tries < 12; tries++) {
+        const h = c >= 2 && colour[r][c - 1] === k && colour[r][c - 2] === k;
+        const v = r >= 2 && colour[r - 1][c] === k && colour[r - 2][c] === k;
+        if (!h && !v) break;
+        k = (k + 1 + Math.floor(rnd() * 5)) % 6;
+      }
+      colour[r].push(k);
+      const roll = rnd();
+      let piece = 'gem' + k;
+      if (roll < 0.04) piece = 'beamH' + k;
+      else if (roll < 0.08) piece = 'beamV' + k;
+      else if (roll < 0.13) piece = 'nova' + k;
+      else if (roll < 0.145) piece = 'prism';
+      out[r].push({ piece, sand: r >= n - 3 ? (r === n - 1 ? 2 : 1) : 0, chained: false });
+    }
+  }
+  const put = (r: number, c: number, piece: string): void => {
+    if (r < n && c < n) out[r][c].piece = piece;
+  };
+  put(3, 1, 'stone3');
+  put(3, 2, 'stone2');
+  put(3, 3, 'stone1');
+  put(4, n - 2, 'vine');
+  put(4, n - 3, 'vine');
+  put(5, n - 2, 'vine');
+  put(1, n - 2, 'lamp');
+  put(n - 2, 2, 'lamp');
+  out[2][5].chained = true;
+  out[6][4].chained = true;
+  out[5][0].chained = true;
+  return out;
+}
+
+function drawDenseBoard(g: CanvasRenderingContext2D, x0: number, y0: number, cell: number, n: number, frame: string): void {
+  const pad = Math.round(cell * 0.09);
+  const size = n * cell;
+  const r = cell * 0.26;
+  const px = x0 - pad;
+  const py = y0 - pad;
+  const ps = size + pad * 2;
+  g.save();
+  g.beginPath();
+  g.moveTo(px + r, py);
+  g.arcTo(px + ps, py, px + ps, py + ps, r);
+  g.arcTo(px + ps, py + ps, px, py + ps, r);
+  g.arcTo(px, py + ps, px, py, r);
+  g.arcTo(px, py, px + ps, py, r);
+  g.closePath();
+  g.shadowColor = 'rgba(5,3,26,0.6)';
+  g.shadowBlur = cell * 0.3;
+  g.shadowOffsetY = cell * 0.08;
+  g.fillStyle = '#17143f';
+  g.fill();
+  g.shadowColor = 'transparent';
+  g.lineWidth = Math.max(2, cell * 0.045);
+  g.strokeStyle = frame;
+  g.stroke();
+  g.restore();
+  const lay = denseLayout(n);
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      const x = x0 + col * cell;
+      const y = y0 + row * cell;
+      const it = lay[row][col];
+      g.drawImage(art.sprite((row + col) % 2 === 0 ? 'tileA' : 'tileB', cell), x, y);
+      if (it.sand === 1) g.drawImage(art.sprite('sand1', cell), x, y);
+      if (it.sand === 2) g.drawImage(art.sprite('sand2', cell), x, y);
+      if (row === n - 1 && col % 3 === 1) g.drawImage(art.sprite('exit', cell), x, y);
+      g.drawImage(art.sprite(it.piece as SpriteKey, cell), x, y);
+      if (it.chained) g.drawImage(art.sprite('chain', cell), x, y);
+      if (row === 1 && col === 3) g.drawImage(art.sprite('select', cell), x, y);
+    }
+  }
+}
+
+/** A 360×640 CSS px phone at the given device pixel ratio: backdrop, HUD icons, dense 9×9 board. */
+function phone360(theme: ChapterTheme, ratio: number): HTMLCanvasElement {
+  const W = 360 * ratio;
+  const H = 640 * ratio;
+  const c = deviceCanvas(W, H);
+  const g = ctxOf(c);
+  art.paintBackdrop(g, theme, W, H);
+  const cell = Math.floor(((360 - 12) * ratio) / 9);
+  const bx = Math.round((W - cell * 9) / 2);
+  const by = Math.round(H * 0.24);
+  drawDenseBoard(g, bx, by, cell, 9, art.palette(theme).frame);
+  const hud: IconKey[] = ['heart', 'coin', 'moves', 'star', 'pause'];
+  for (let k = 0; k < hud.length; k++) g.drawImage(art.sprite(hud[k] as unknown as SpriteKey, 24 * ratio), Math.round((22 + k * 70) * ratio), Math.round(40 * ratio));
+  const boosters: IconKey[] = ['hammer', 'freeSwap', 'shuffle'];
+  for (let k = 0; k < boosters.length; k++) g.drawImage(art.sprite(boosters[k] as unknown as SpriteKey, 40 * ratio), Math.round((70 + k * 90) * ratio), Math.round(570 * ratio));
+  return c;
+}
+
+function extras(): void {
+  // six gems side by side at 36 px, greyscale: silhouettes alone must tell them apart
+  const g36 = section('gems-36-grey', 'Six gems at 36 px in greyscale (1:1 and ×5)');
+  const row = el('div', 'row');
+  const a = gemSheet(36, 1, [['gem0', 'gem1', 'gem2', 'gem3', 'gem4', 'gem5']]);
+  a.className += ' grey';
+  const b = gemSheet(36, 5, [['gem0', 'gem1', 'gem2', 'gem3', 'gem4', 'gem5']]);
+  b.className += ' grey';
+  row.appendChild(a);
+  row.appendChild(b);
+  g36.appendChild(row);
+
+  // every special next to its plain gem at 40 px
+  const sp = section('specials-40', 'Specials at 40 px next to their plain gem (1:1 and ×3): gem · beamH · beamV · nova, last row prism');
+  const rows: SpriteKey[][] = [];
+  for (let i = 0; i < 6; i++) rows.push([('gem' + i) as SpriteKey, ('beamH' + i) as SpriteKey, ('beamV' + i) as SpriteKey, ('nova' + i) as SpriteKey]);
+  rows.push(['gem0', 'prism', 'gem3', 'prism']);
+  const row2 = el('div', 'row');
+  row2.appendChild(gemSheet(40, 1, rows));
+  row2.appendChild(gemSheet(40, 3, rows));
+  sp.appendChild(row2);
+
+  // icons at 20 device px (the worst case: a DPR-1 screen)
+  const ic = section('icons-20', 'Icons at 20 device px (1:1 and ×4)');
+  const perRow = 16;
+  const n = ICON_KEYS.length;
+  for (let z = 0; z < 2; z++) {
+    const zoom = z === 0 ? 1 : 4;
+    const cv = deviceCanvas(perRow * 26, Math.ceil(n / perRow) * 26, zoom);
+    const g = ctxOf(cv);
+    g.fillStyle = '#231f5c';
+    g.fillRect(0, 0, cv.width, cv.height);
+    for (let i = 0; i < n; i++) g.drawImage(art.sprite(ICON_KEYS[i] as unknown as SpriteKey, 20), (i % perRow) * 26 + 3, Math.floor(i / perRow) * 26 + 3);
+    cv.style.marginBottom = '8px';
+    ic.appendChild(cv);
+  }
+
+  // a dense 9×9 board on a real phone: 360×640 CSS px at DPR 3 (1080×1920) and at DPR 1
+  const ph = section('phone-360', 'Dense 9×9 board on a 360×640 phone at DPR 3 (1080×1920 device px)', true);
+  ph.appendChild(phone360('oasis', 3));
+  const ph1 = section('phone-360-1x', 'The same phone at DPR 1 (360×640), all six chapters', true);
+  const prow = el('div', 'row');
+  prow.style.flexWrap = 'nowrap';
+  for (let i = 0; i < THEMES.length; i++) {
+    const c = phone360(THEMES[i], 1);
+    c.style.marginRight = '4px';
+    prow.appendChild(c);
+  }
+  ph1.appendChild(prow);
+  const ph2 = section('phone-360-all', 'All six chapters at DPR 2 (720×1280 each)', true);
+  const prow2 = el('div', 'row');
+  prow2.style.flexWrap = 'nowrap';
+  for (let i = 0; i < THEMES.length; i++) {
+    const c = phone360(THEMES[i], 2);
+    c.style.marginRight = '4px';
+    prow2.appendChild(c);
+  }
+  ph2.appendChild(prow2);
 }
 
 // ───────────────────────────── (c) icons ─────────────────────────────
@@ -582,7 +757,7 @@ async function main(): Promise<void> {
     console.warn('font load failed', err);
   }
   const only = new URLSearchParams(location.search).get('only');
-  const parts: Record<string, () => void> = { gems, board, icons, backdrops, logos, checks: showChecks };
+  const parts: Record<string, () => void> = { gems, board, extras, icons, backdrops, logos, checks: showChecks };
   const names = Object.keys(parts);
   for (let i = 0; i < names.length; i++) {
     if (only && only.split(',').indexOf(names[i]) < 0) continue;

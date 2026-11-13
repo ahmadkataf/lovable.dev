@@ -407,11 +407,31 @@ export function checkTurn(game: Game, before: Snapshot, res: TurnResult, action:
         popupSum += popup.value;
       }
       if (popupSum !== step.score) fail(`popups sum to ${popupSum}, clear score is ${step.score}`, before, res);
-      const hitCells = new Set<number>();
+      // How often may a cell be hit in this wave? Match wave: once. Blast wave: once per effect
+      // that reaches it (plus the prism a combo uses up, which sits outside its own rays).
+      const previous = k > 0 ? (steps[k - 1] as Step) : null;
+      const cover = new Map<number, number>();
+      if (previous !== null && previous.type === 'activate') {
+        for (const fx of previous.fx) {
+          for (const target of fx.targets) {
+            const key = target.r * after.cols + target.c;
+            cover.set(key, (cover.get(key) ?? 0) + 1);
+          }
+        }
+      }
+      const blastWave = previous !== null && previous.type === 'activate';
+      const hitCount = new Map<number, number>();
       for (const hit of step.hits) {
         const key = hit.at.r * after.cols + hit.at.c;
-        if (hitCells.has(key)) fail(`cell ${hit.at.c},${hit.at.r} is hit twice in one wave`, before, res);
-        hitCells.add(key);
+        const count = (hitCount.get(key) ?? 0) + 1;
+        hitCount.set(key, count);
+        if (blastWave) {
+          if (hit.cause !== 'blast') fail(`a blast wave carries a '${hit.cause}' hit`, before, res);
+          const usedUpPrism = hit.kind === 'prism' && hit.result === 'activated';
+          if (count > (cover.get(key) ?? 0) + (usedUpPrism ? 1 : 0)) fail(`cell ${hit.at.c},${hit.at.r} is hit more often than effects reach it`, before, res);
+        } else if (count > 1) {
+          fail(`cell ${hit.at.c},${hit.at.r} is hit twice in a match wave`, before, res);
+        }
         if (tally && (hit.result === 'removed' || hit.result === 'activated') && hit.color >= 0) {
           tally.collected[hit.color] = (tally.collected[hit.color] as number) + 1;
         }
@@ -481,7 +501,10 @@ export function checkTurn(game: Game, before: Snapshot, res: TurnResult, action:
   const allDone = after.goals.every((g) => g.done);
   const scoreOnly = level.goals.every((g) => g.kind === 'score');
   if (after.status === 'won' && !allDone) fail('won with unmet goals', before, res);
-  if (after.status === 'won' && scoreOnly && action !== 'endBonus' && after.movesLeft !== 0) fail('score-only level won before the moves ran out', before, res);
+  // A score-only level is decided when no further move is possible: out of moves, or a dead board.
+  if (after.status === 'won' && before.status === 'playing' && scoreOnly && after.movesLeft !== 0 && refValidMoves(after).length > 0) {
+    fail('score-only level won before the moves ran out', before, res);
+  }
   if (after.status === 'lost' && before.status === 'playing') {
     if (allDone && !scoreOnly) fail('lost with every goal done', before, res);
     // Out of moves — or, with moves left, a board on which no move can ever exist.

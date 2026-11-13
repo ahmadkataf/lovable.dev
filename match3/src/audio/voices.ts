@@ -394,6 +394,13 @@ export function pluckBuffer(ctx: BaseAudioContext, midi: number, alt: boolean = 
   return buf;
 }
 
+/**
+ * The notes the music's lead can play, most likely first: every scale tone from G3 to A5 and
+ * the open low D. The engine synthesises these in the background after unlocking, one at a
+ * time, so that a new pitch never costs a frame in the middle of play.
+ */
+export const LEAD_MIDI: readonly number[] = [62, 69, 67, 66, 63, 74, 72, 70, 60, 50, 58, 57, 55, 75, 78, 79, 81];
+
 export interface PluckOpts {
   midi: number;
   at?: number;

@@ -126,7 +126,11 @@ export type GameStatus =
   | 'playing'
   /** all goals met; call endBonus() (optional) to spend the remaining moves */
   | 'won'
-  /** out of moves with goals unmet; addMoves() resumes play */
+  /**
+   * out of moves with goals unmet; addMoves() resumes play.
+   * (Also reported, with moves left, in the rare case that no move can ever exist on the board
+   * again — e.g. vines left fewer than three gems. addMoves() is then refused: accepted=false.)
+   */
   | 'lost';
 
 // ───────────────────────────── Turn script ─────────────────────────────

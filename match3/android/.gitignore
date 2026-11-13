@@ -1,0 +1,20 @@
+# Build outputs and local machine state
+.gradle/
+.kotlin/
+build/
+app/build/
+out/
+local.properties
+captures/
+*.iml
+.idea/
+
+# Secrets — never commit a keystore or its passwords
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pepk
+
+# Web game copied in by Gradle (generated; the source of truth is ../dist)
+app/src/main/assets/www/

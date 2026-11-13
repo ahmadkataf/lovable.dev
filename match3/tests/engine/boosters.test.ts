@@ -289,6 +289,16 @@ describe('shuffle booster', () => {
     expect(g.snapshot()).toEqual(before);
   });
 
+  it('is refused when every possible result would look the same', () => {
+    // the only free gems are two of the same colour; the prism keeps the board playable
+    const g = board(['3 3 3 3', 'P d d 3']);
+    const before = g.snapshot();
+    expect(refValidMoves(before)).toEqual(['0,1-1,1']);
+    const res = g.useBooster('shuffle');
+    expect(res.accepted).toBe(false);
+    expect(g.snapshot()).toEqual(before);
+  });
+
   it('an unknown booster name is refused', () => {
     const g = new Game(level, { seed: 1 });
     const before = g.snapshot();

@@ -68,10 +68,13 @@ export function createMusicPlayer(
 
   // ── buses ──
   const output = ctx.createGain();
+  const trackGain = composer.style.gain;
   if (fadeIn > 0) {
     output.gain.value = 0;
     output.gain.setValueAtTime(0, startAt);
-    output.gain.linearRampToValueAtTime(1, startAt + fadeIn);
+    output.gain.linearRampToValueAtTime(trackGain, startAt + fadeIn);
+  } else {
+    output.gain.value = trackGain;
   }
   output.connect(dest);
 
@@ -111,7 +114,7 @@ export function createMusicPlayer(
   padBus.gain.value = MUSIC_MIX.pad;
   const padTone = ctx.createBiquadFilter();
   padTone.type = 'lowpass';
-  padTone.frequency.value = 900;
+  padTone.frequency.value = 1200;
   padTone.Q.value = 0.6;
   padBus.connect(padTone);
   padTone.connect(output);
@@ -152,8 +155,9 @@ export function createMusicPlayer(
     const v = new Voice(ctx, padBus, t, 1);
     for (let i = 0; i < ev.midis.length; i++) {
       const f = midiToFreq(ev.midis[i]);
-      // Lower tones carry the weight; upper ones are softer and purer.
-      const level = (i === 0 ? 0.5 : i === 1 ? 0.34 : i === 2 ? 0.26 : 0.15) * ev.vel;
+      // Lower tones carry the weight; the upper ones are softer and purer, but they are what
+      // a phone speaker can actually reproduce, so they are not left too faint.
+      const level = (i === 0 ? 0.42 : i === 1 ? 0.34 : i === 2 ? 0.3 : i === 3 ? 0.22 : 0.15) * ev.vel;
       const g = v.keep(ctx.createGain());
       g.gain.value = 0;
       g.gain.setValueAtTime(0, t);
@@ -162,7 +166,7 @@ export function createMusicPlayer(
       g.gain.linearRampToValueAtTime(0, end);
       g.connect(v.out);
       const osc = ctx.createOscillator();
-      osc.type = i < 2 ? 'triangle' : 'sine';
+      osc.type = i < 3 ? 'triangle' : 'sine';
       osc.frequency.value = f;
       osc.detune.value = i % 2 === 0 ? -4 : 5;
       osc.connect(g);
@@ -210,9 +214,13 @@ export function createMusicPlayer(
       if (stopped) return;
       stopped = true;
       const g = output.gain;
-      const from = g.value;
-      g.cancelScheduledValues(at);
-      g.setValueAtTime(from, at);
+      if (typeof g.cancelAndHoldAtTime === 'function') {
+        g.cancelAndHoldAtTime(at);
+      } else {
+        const from = g.value;
+        g.cancelScheduledValues(at);
+        g.setValueAtTime(from, at);
+      }
       g.linearRampToValueAtTime(0, at + Math.max(0.01, fade));
     },
     dispose(): void {
