@@ -9,7 +9,7 @@
 import type { ChapterTheme } from '../../art/types.ts';
 import { focusLevel, levelById, nodeState } from '../helpers.ts';
 import type { Chip, KitButton } from '../kit/index.ts';
-import { METRICS, litCount, naturalHeight, nodePos, scrollFor, smoothPieces, spanCount, trailPoints } from '../map/layout.ts';
+import { BANNER_LIFT, METRICS, litCount, naturalHeight, nodePos, scrollFor, smoothPieces, spanCount, trailPoints } from '../map/layout.ts';
 import type { SectionGeo, TrailPt } from '../map/layout.ts';
 import { decoSprite, khatamSprite, nodeSprite } from '../map/sprites.ts';
 import type { DecoKind, NodeSkin } from '../map/sprites.ts';
@@ -43,11 +43,21 @@ export interface MapOptions {
 export interface MapScreen extends Screen {
   /** Current scroll position, 0 = top … 1 = bottom. */
   scrollRatio(): number;
+  /**
+   * While a win celebration is playing, remember that this level's intro was asked for and open it
+   * when the celebration ends (returns true). Returns false when nothing is playing.
+   */
+  queueIntro(levelId: number): boolean;
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 /** Where the focused node sits in the viewport (0 = top, 1 = bottom): comfortably above the tray. */
 const FOCUS_ANCHOR = 0.6;
+/**
+ * Map backdrops sit behind the trail and scroll in and out, so they are painted at up to 1.5
+ * device pixels per CSS pixel: a smaller texture reaches the screen faster when a section appears.
+ */
+const MAP_BACKDROP_SCALE = 1.5;
 
 const THEME_DECO: Record<ChapterTheme, readonly DecoKind[]> = {
   oasis: ['palm', 'post', 'tent', 'palm'],
@@ -215,6 +225,27 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     return { x: viewW / 2 + p.x * unit, y: s.top + s.heightPx - p.y * unit };
   }
 
+  /**
+   * Scroll offset that shows a level comfortably above the tray. The first two levels of a chapter
+   * sit right above its banner, so there the banner is lined up just above the tray instead
+   * (otherwise the tray would cut it in half).
+   */
+  function focusScroll(level: number): number {
+    const c = nodeCentre(level);
+    if (!c) return scroller.scrollTop;
+    const s = sectionOf(level);
+    const worldH = scroller.scrollHeight;
+    if (s && level - s.ch.from < 2) {
+      const bannerBottom = s.top + s.heightPx - (s.geo.foot + BANNER_LIFT) * unit;
+      const clear = tray.offsetHeight + 12 * unit;
+      const top = bannerBottom + clear - viewH;
+      const maxTop = Math.max(0, worldH - viewH);
+      // only when the level itself stays well inside the view
+      if (c.y - top > viewH * 0.28) return top < 0 ? 0 : top > maxTop ? maxTop : top;
+    }
+    return scrollFor(c.y, viewH, worldH, FOCUS_ANCHOR);
+  }
+
   function u(n: number): string {
     return 'calc(var(--k-u) * ' + Math.round(n * 100) / 100 + ')';
   }
@@ -261,7 +292,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     const count = spanCount(ch);
 
     // backdrop (pinned while the section crosses the screen)
-    const canvas = paintBackdropCanvas(art, ch.theme, viewW, viewH);
+    const canvas = paintBackdropCanvas(art, ch.theme, viewW, viewH, MAP_BACKDROP_SCALE);
     if (canvas) s.bg.appendChild(canvas);
 
     // trail
@@ -315,14 +346,14 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
         h('div', { class: 'm-banner__meta' }, kit.icon(locked ? 'lock' : 'star', 16), starsEl),
       ),
     );
-    banner.style.bottom = u(s.geo.foot + (m.bannerZone - 104) / 2);
+    banner.style.bottom = u(s.geo.foot + BANNER_LIFT);
     s.content.appendChild(banner);
 
     // the cap above the last chapter
     if (s.isLast) {
       const cap = h('div', { class: 'm-cap' }, kit.icon('map', 26), h('span', { text: ui.t('meta.map.comingSoon') }));
       const lastNode = nodePos(ch.to, s.geo, m, rtl);
-      cap.style.bottom = u(lastNode.y + m.step * 0.5 + m.headZone + 4);
+      cap.style.bottom = u(lastNode.y + m.step * 0.5 + m.headZone - 6);
       s.content.appendChild(cap);
     }
 
@@ -335,7 +366,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
         'button',
         { type: 'button', class: 'm-node', dataset: { level: id } },
         h('span', { class: 'm-node__halo' }),
-        h('span', { class: 'm-node__face' }, h('span', { class: 'm-node__num k-num', text: String(id) })),
+        h('span', { class: 'm-node__face' }, h('span', { class: 'm-node__num k-num' + (id >= 100 ? ' m-node__num--long' : ''), text: String(id) })),
         h('span', { class: 'm-node__stars' }, starEls),
       );
       btn.style.left = 'calc(50% + ' + u(p.x) + ')';
@@ -359,18 +390,54 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     s.bannerStars = null;
   }
 
+  /**
+   * Keep alive what is on screen or about to be. Sections that touch the viewport (plus a margin)
+   * are built at once; their direct neighbours are built in idle time (`warm`), so a section is
+   * normally ready before it scrolls in; everything further away is dropped.
+   */
   function updateAlive(): void {
     if (disposed) return;
     const top = scroller.scrollTop;
     const bottom = top + viewH;
-    for (const s of sections) {
+    let first = -1;
+    let last = -1;
+    for (let i = 0; i < sections.length; i++) {
+      const s = sections[i]!;
       const a = s.top;
       const b = s.top + s.heightPx;
-      const near = b >= top - viewH * 0.9 && a <= bottom + viewH * 0.9;
-      const far = b < top - viewH * 2.5 || a > bottom + viewH * 2.5;
-      if (near) buildSection(s);
-      else if (far) dropSection(s);
+      if (b >= top - viewH * 0.9 && a <= bottom + viewH * 0.9) {
+        buildSection(s);
+        if (first < 0) first = i;
+        last = i;
+      }
     }
+    for (let i = 0; i < sections.length; i++) {
+      if (first >= 0 && (i < first - 1 || i > last + 1)) dropSection(sections[i]!);
+    }
+    warmFrom = first;
+    warmTo = last;
+    scheduleWarm();
+  }
+
+  let warmFrom = -1;
+  let warmTo = -1;
+  let warmTimer = 0;
+
+  function scheduleWarm(): void {
+    window.clearTimeout(warmTimer);
+    warmTimer = window.setTimeout(() => {
+      if (disposed || warmFrom < 0) return;
+      // one neighbour per pause, the one in the direction of progress (upwards) first
+      const order = [warmFrom - 1, warmTo + 1];
+      for (const i of order) {
+        const s = sections[i];
+        if (s && !s.built) {
+          buildSection(s);
+          scheduleWarm();
+          return;
+        }
+      }
+    }, 220);
   }
 
   function nodeView(level: number): NodeView | null {
@@ -492,8 +559,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       scroller.scrollTop = Math.round(max * restoreRatio);
     } else {
       const target = won ? won.level : typeof opts.focusLevel === 'number' ? opts.focusLevel : focusLevel(viewFrontier, levelCount);
-      const c = nodeCentre(Math.max(1, Math.min(levelCount, Math.floor(target))));
-      if (c) scroller.scrollTop = Math.round(scrollFor(c.y, viewH, scroller.scrollHeight, FOCUS_ANCHOR));
+      scroller.scrollTop = Math.round(focusScroll(Math.max(1, Math.min(levelCount, Math.floor(target)))));
     }
     updateAlive();
     placeMarker(false);
@@ -638,6 +704,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   // ───────────────────────────── win celebration ─────────────────────────────
 
   let celebrationStarted = false;
+  let queuedIntro = 0;
   let celebrationTimers: number[] = [];
   let afterCelebration: (() => void) | null = null;
   let litOverlay: SVGPathElement[] = [];
@@ -731,16 +798,19 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
         });
         return;
       }
-      if (hasNext && next <= profile.highestUnlocked()) {
-        const c = nodeCentre(next);
-        if (c && w.firstClear) {
+      // the next level's intro: always after a first clear, otherwise only when it was asked for
+      const wanted = queuedIntro || (w.firstClear && hasNext ? next : 0);
+      queuedIntro = 0;
+      if (wanted >= 1 && wanted <= profile.highestUnlocked()) {
+        if (w.firstClear && wanted === next) {
+          const top = focusScroll(next);
           try {
-            scroller.scrollTo({ top: scrollFor(c.y, viewH, scroller.scrollHeight, FOCUS_ANCHOR), behavior: kit.reducedMotion() ? 'auto' : 'smooth' });
+            scroller.scrollTo({ top, behavior: kit.reducedMotion() ? 'auto' : 'smooth' });
           } catch {
-            scroller.scrollTop = scrollFor(c.y, viewH, scroller.scrollHeight, FOCUS_ANCHOR);
+            scroller.scrollTop = top;
           }
         }
-        ctx.nav.openLevelIntro(next);
+        ctx.nav.openLevelIntro(wanted);
       }
     };
 
@@ -843,9 +913,10 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       can = false;
     }
     if (!can) return;
-    opts.onDailyOffered();
     window.setTimeout(() => {
-      if (!disposed && !kit.hasOverlay()) void ui.openDaily();
+      if (disposed || kit.hasOverlay()) return;
+      opts.onDailyOffered();
+      void ui.openDaily();
     }, 450);
   }
 
@@ -870,6 +941,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       for (const id of celebrationTimers) window.clearTimeout(id);
       celebrationTimers = [];
       stopTicker();
+      window.clearTimeout(warmTimer);
       window.clearTimeout(resizeTimer);
       window.cancelAnimationFrame(coinTween);
       window.removeEventListener('resize', onResize);
@@ -898,6 +970,12 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     scrollRatio(): number {
       const max = scroller.scrollHeight - scroller.clientHeight;
       return max > 0 ? scroller.scrollTop / max : 1;
+    },
+
+    queueIntro(levelId: number): boolean {
+      if (!celebrating) return false;
+      queuedIntro = levelId;
+      return true;
     },
   };
 }

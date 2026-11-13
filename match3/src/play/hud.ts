@@ -228,6 +228,20 @@ export function createHud(deps: HudDeps): Hud {
     if (at >= 0) transient.splice(at, 1);
   }
 
+  /**
+   * The targeting banner lies over the (dimmed) header, so it never covers a tile the player may
+   * want to tap.
+   */
+  function placeTarget(): void {
+    if (!targetEl) return;
+    const r = header.getBoundingClientRect();
+    const o = rootRect();
+    targetEl.style.left = r.left - o.left + 'px';
+    targetEl.style.top = r.top - o.top + 'px';
+    targetEl.style.width = r.width + 'px';
+    targetEl.style.height = r.height + 'px';
+  }
+
   /** The eight-pointed star behind a praise word (two overlapped squares, our own motif). */
   function khatam(size: number): HTMLCanvasElement {
     const px = Math.round(size * kit.unit());
@@ -290,7 +304,7 @@ export function createHud(deps: HudDeps): Hud {
       chips = [];
       for (let i = 0; i < goals.length; i++) {
         const g = goals[i] as GoalProgress;
-        const chip = makeChip(g, Math.max(0, g.target - g.current), g.done, 24);
+        const chip = makeChip(g, Math.max(0, g.target - g.current), g.done, 22);
         chips.push(chip);
         goalsBox.appendChild(chip.el);
       }
@@ -427,7 +441,7 @@ export function createHud(deps: HudDeps): Hud {
       root.style.setProperty('--pl-by', rect.y + 'px');
       root.style.setProperty('--pl-bw', rect.w + 'px');
       root.style.setProperty('--pl-bh', rect.h + 'px');
-      if (targetEl) targetEl.classList.toggle('pl-target--low', rect.y < 62 * kit.unit());
+      placeTarget();
     },
 
     paintBackdrop(force) {
@@ -484,7 +498,7 @@ export function createHud(deps: HudDeps): Hud {
     },
 
     note(text, ms) {
-      const node = el('div', { class: 'pl-note', role: 'status' }, text);
+      const node = el('div', { class: 'pl-note', role: 'status' }, el('div', { class: 'pl-note__in' }, text));
       over.appendChild(node);
       removeLater(node, ms, 200);
     },
@@ -525,10 +539,9 @@ export function createHud(deps: HudDeps): Hud {
       });
       const iconNode = icon ? kit.icon(icon, 30) : null;
       if (iconNode) iconNode.classList.add('pl-target__icon');
-      targetEl = el('div', { class: 'pl-target', role: 'status' }, iconNode, el('span', { class: 'pl-target__text' }, text), cancel);
-      over.appendChild(targetEl);
-      const by = parseFloat(root.style.getPropertyValue('--pl-by')) || 0;
-      targetEl.classList.toggle('pl-target--low', by < 62 * kit.unit());
+      targetEl = el('div', { class: 'pl-target', role: 'status' }, el('div', { class: 'pl-target__pill' }, iconNode, el('span', { class: 'pl-target__text' }, text), cancel));
+      root.appendChild(targetEl);
+      placeTarget();
     },
 
     fly(icon, from, to, dur, size) {

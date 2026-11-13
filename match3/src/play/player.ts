@@ -373,11 +373,19 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
       case 'cross':
       case 'bigCross': {
         const big = fx.kind === 'bigCross';
-        const thick = big ? 3.4 : 1.7;
-        view.beam(x, y, true, color, thick, sweep);
-        view.beam(x, y, false, color, thick, sweep);
-        view.glow(x, y, 1.2, big ? 6 : 4.2, d(320), PAL_WHITE, 1);
-        view.ring(x, y, 0.4, big ? 4.4 : 3, d(T.bigBlast), color, 0.9);
+        if (big) {
+          // three rows and three columns, each its own racing streak
+          for (let k = -1; k <= 1; k++) {
+            if (ar + k >= 0 && ar + k < rows) view.beam(x, y + k, true, color, 1.25, sweep);
+            if (ac + k >= 0 && ac + k < cols) view.beam(x + k, y, false, color, 1.25, sweep);
+          }
+        } else {
+          view.beam(x, y, true, color, 1.6, sweep);
+          view.beam(x, y, false, color, 1.6, sweep);
+        }
+        view.glow(x, y, 1, big ? 4.4 : 3.4, d(300), PAL_WHITE, 0.85);
+        view.ring(x, y, 0.4, big ? 4.6 : 3.2, d(T.bigBlast), color, 0.9);
+        view.ring(x, y, 0.3, big ? 3.2 : 2.2, d(T.bigBlast), PAL_GOLD, 0.6, d(70));
         view.burst(x, y, PAL_GOLD, 12, 7, SHAPE_SPARK, { size: 0.4, gravity: 0, additive: true, life: 400 });
         for (let i = 0; i < targets.length; i++) {
           const t = targets[i] as Pos;
@@ -389,7 +397,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           arrive(t.c, t.r, tt === Infinity ? 0 : tt);
         }
         view.shake(FEEDBACK.shakeBig, T.shakeBig);
-        flashOnce(0.35);
+        flashOnce(0.2);
         host.slowMo(T.slowMo);
         break;
       }
@@ -398,14 +406,14 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
         const big = fx.kind === 'bigNova';
         const radius = big ? 4.6 : 2.9;
         const dur = d(big ? T.bigBlast : T.novaBlast);
-        view.glow(x, y, 1, radius * 1.7, dur * 0.9, PAL_WHITE, 1);
+        view.glow(x, y, 1, big ? radius * 1.15 : radius * 1.6, dur * 0.9, PAL_WHITE, big ? 0.85 : 1);
         view.ring(x, y, 0.3, radius, dur, color, 1);
         view.ring(x, y, 0.2, radius * 0.72, dur * 0.9, PAL_WHITE, 0.6, dur * 0.22);
         view.burst(x, y, color, big ? 20 : 12, big ? 9 : 6.5, SHAPE_CHUNK, { size: 0.3, gravity: 5, life: 400 });
         view.burst(x, y, PAL_GOLD, big ? 10 : 6, big ? 8 : 5.5, SHAPE_SPARK, { size: 0.38, gravity: 0, additive: true, life: 380 });
         if (big) {
           view.ring(x, y, 0.5, radius * 1.25, dur * 1.2, PAL_GOLD, 0.7, dur * 0.3);
-          flashOnce(0.4);
+          flashOnce(0.22);
           host.slowMo(T.slowMo);
         }
         for (let i = 0; i < targets.length; i++) {
@@ -437,7 +445,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           if (dist > radius) radius = dist;
         }
         radius += 0.8;
-        view.glow(x, y, 1.5, radius * 1.6, dur, PAL_WHITE, 1);
+        view.glow(x, y, 1, 4.2, dur * 0.7, PAL_WHITE, 0.9);
         view.ring(x, y, 0.4, radius, dur, PAL_GOLD, 1);
         view.ring(x, y, 0.3, radius * 0.8, dur, PAL_WHITE, 0.7, dur * 0.18);
         view.ring(x, y, 0.3, radius * 0.6, dur, 4, 0.6, dur * 0.36);
@@ -447,7 +455,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           arrive(t.c, t.r, ringTime(Math.hypot(t.c - ac, t.r - ar), radius, dur));
         }
         view.shake(FEEDBACK.shakeBig, T.shakeBig);
-        flashOnce(0.45);
+        flashOnce(0.25);
         host.slowMo(T.slowMo);
         break;
       }

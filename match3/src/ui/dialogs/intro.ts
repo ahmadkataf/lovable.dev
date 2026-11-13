@@ -24,19 +24,21 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
   const body = h('div', { class: 'm-intro' });
   const selected: StartBoosters = {};
 
-  // ── hard tag ──
-  if (level.hard) {
-    body.appendChild(h('div', { class: 'm-tag m-tag--hard' }, h('i', { class: 'm-tag__gem' }), h('span', { text: t('meta.intro.hard') })));
-  }
+  // ── moves (+ the "hard level" tag) ──
+  body.appendChild(
+    h(
+      'div',
+      { class: 'm-intro__meta' },
+      h('div', { class: 'm-pill' }, kit.icon('moves', 22), h('span', { text: t('meta.intro.moves', { n: level.moves }) })),
+      level.hard ? h('div', { class: 'm-tag m-tag--hard' }, h('i', { class: 'm-tag__gem' }), h('span', { text: t('meta.intro.hard') })) : null,
+    ),
+  );
 
   // ── goals ──
   const goals = h('div', { class: 'm-goals' });
   for (const goal of level.goals) {
     goals.appendChild(h('div', { class: 'm-goal' }, h('span', { class: 'm-goal__icon' }, kit.icon(goalIcon(goal), 34)), h('span', { class: 'm-goal__text', text: goalText(t, goal) })));
   }
-  goals.appendChild(
-    h('div', { class: 'm-goal m-goal--moves' }, h('span', { class: 'm-goal__icon' }, kit.icon('moves', 30)), h('span', { class: 'm-goal__text', text: t('meta.intro.moves', { n: level.moves }) })),
-  );
   body.appendChild(goals);
 
   // ── best result (replay) ──
@@ -111,6 +113,7 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
           onClick: () => {
             if (profile.buyBooster(id)) {
               selected[id] = true;
+              renderTile(tile);
               try {
                 audio.sfx('coin');
               } catch {

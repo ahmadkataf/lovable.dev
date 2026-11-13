@@ -147,6 +147,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
   let slowLeft = 0;
   let hintToken = 0;
   const own: DialogHandle<unknown>[] = [];
+  /** turns played to the end since the screen was created (test hook) */
+  let turnsDone = 0;
   let pauseOpen = false;
   let detachGlobal: (() => void) | null = null;
 
@@ -177,6 +179,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     return s.reduceEffects === true;
   }
 
+  sched.onSchedule = kick;
   const hud = createHud({ kit, art: ctx.art, i18n, sched, timers, kick });
   const view = createBoardView(hud.canvas, ctx.art);
 
@@ -573,6 +576,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     if (!s) return;
     const snap = res.snapshot;
     s.snap = snap;
+    turnsDone++;
     syncHud(snap);
     hud.chain(0);
     const stats = turnStats(res.steps);
@@ -1384,6 +1388,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       status: () => (session ? session.game.snapshot().status : 'none'),
       state: () => (session ? session.state : 'none'),
       level: () => (session ? session.level.id : 0),
+      /** turns (moves, boosters, rejected swaps) whose animation has finished */
+      turns: () => turnsDone,
       validMoves: () => (session ? session.game.validMoves() : []),
       shown: () => (session ? { moves: session.movesShown, score: session.tracker.score, cell: view.rect().cell } : null),
       perf: () => ({

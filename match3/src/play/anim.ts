@@ -28,17 +28,28 @@ export class Scheduler {
   /** Game time in ms since creation / the last clear. */
   time = 0;
   private stepping = false;
+  /**
+   * Called whenever something is scheduled, so the owner can make sure frames are running. (Code
+   * that awaits one tween and then starts the next does so in a microtask — after the frame that
+   * finished the first one may already have decided there is nothing left to animate.)
+   */
+  onSchedule: (() => void) | null = null;
+
+  private add(tween: Tween): void {
+    this.tweens.push(tween);
+    if (this.onSchedule) this.onSchedule();
+  }
 
   /** Run `update(k)` with k from 0 to 1 over `dur` ms (after `delay`). Resolves when it is done. */
   tween(dur: number, update: ((k: number) => void) | null, ease?: Ease, delay?: number): Promise<void> {
     return new Promise<void>((resolve) => {
-      this.tweens.push({ t: -(delay || 0), dur: dur > 0 ? dur : 0, ease: ease || linear, update, resolve, dead: false });
+      this.add({ t: -(delay || 0), dur: dur > 0 ? dur : 0, ease: ease || linear, update, resolve, dead: false });
     });
   }
 
   /** Fire-and-forget tween (no promise allocated). */
   run(dur: number, update: (k: number) => void, ease?: Ease, delay?: number): void {
-    this.tweens.push({ t: -(delay || 0), dur: dur > 0 ? dur : 0, ease: ease || linear, update, resolve: null, dead: false });
+    this.add({ t: -(delay || 0), dur: dur > 0 ? dur : 0, ease: ease || linear, update, resolve: null, dead: false });
   }
 
   wait(ms: number): Promise<void> {
@@ -47,7 +58,7 @@ export class Scheduler {
 
   /** Call `fn` after `ms` of game time. */
   after(ms: number, fn: () => void): void {
-    this.tweens.push({ t: 0, dur: ms > 0 ? ms : 0, ease: linear, update: null, resolve: fn, dead: false });
+    this.add({ t: 0, dur: ms > 0 ? ms : 0, ease: linear, update: null, resolve: fn, dead: false });
   }
 
   active(): boolean {

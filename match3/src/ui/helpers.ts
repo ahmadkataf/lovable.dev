@@ -132,8 +132,8 @@ export function coinsIn(rewards: readonly Reward[]): number {
 
 /** Which art icon a coin pack gets, by how many coins it holds relative to the other packs (0..1). */
 export function coinPackArt(rank: number): IconName {
-  if (rank < 0.34) return 'coin';
-  if (rank < 0.75) return 'coinPile';
+  if (rank < 0.2) return 'coin';
+  if (rank < 0.7) return 'coinPile';
   return 'coinChest';
 }
 

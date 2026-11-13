@@ -15,6 +15,12 @@ import type { Ui } from '../types.ts';
 
 type Product = { def: ProductDef; info: ProductInfo };
 
+/** Whatever shows a real-money offer: its element and a way to show "busy". */
+interface BuyTarget {
+  readonly el: HTMLElement;
+  update(patch: { loading?: boolean }): void;
+}
+
 /** Coins granted by one "free coins" ad: from the economy constants (docs/DESIGN.md §7: 50). */
 export function freeCoinsAmount(): number {
   return pickNumber(econ, ['FREE_COINS_AD_REWARD', 'AD_FREE_COINS', 'FREE_COINS_REWARD', 'REWARDED_COINS', 'AD_COINS_REWARD', 'FREE_COINS_PER_AD', 'AD_REWARD_COINS'], 50);
@@ -105,7 +111,7 @@ export function openShopDialog(ui: Ui): Promise<void> {
     return parts.join(i18n.isRtl() ? '، ' : ', ');
   }
 
-  function outcomeFeedback(outcome: PurchaseOutcome, card: OfferCard): void {
+  function outcomeFeedback(outcome: PurchaseOutcome, card: BuyTarget): void {
     switch (outcome) {
       case 'purchased':
         sfx('purchase');
@@ -128,7 +134,7 @@ export function openShopDialog(ui: Ui): Promise<void> {
     }
   }
 
-  function buyProduct(id: ProductId, card: OfferCard): Promise<void> {
+  function buyProduct(id: ProductId, card: BuyTarget): Promise<void> {
     card.update({ loading: true });
     const settle = (outcome: PurchaseOutcome): void => {
       if (!open) {
@@ -181,18 +187,22 @@ export function openShopDialog(ui: Ui): Promise<void> {
       const list = h('div', { class: 'm-shop__rows' });
       if (showStarter) {
         const product = showStarter;
-        const extra = product.def.removesAds && ads ? (i18n.isRtl() ? '، ' : ', ') + t('meta.shop.noAdsIncluded') : '';
-        const card = kit.offerCard({
-          art: 'gift',
-          title: t('meta.shop.starter'),
-          subtitle: rewardsText(product.def.grants) + extra,
-          price: product.info.price,
-          layout: 'row',
-          featured: true,
-          onBuy: (c) => buyProduct(product.def.id, c),
-        });
-        card.el.dataset.product = product.def.id;
-        list.appendChild(card.el);
+        // what is inside, as icons with amounts
+        const inside = h('div', { class: 'm-pack__rewards' });
+        for (const r of product.def.grants) {
+          const view = rewardView(t, i18n.num, r);
+          inside.appendChild(h('span', { class: 'm-rchip', title: view.text }, kit.icon(view.icon, 26), h('b', { class: 'k-num', text: view.amount })));
+        }
+        if (product.def.removesAds && ads) inside.appendChild(h('span', { class: 'm-rchip m-rchip--text' }, kit.icon('noAds', 26), h('b', { text: t('meta.shop.noAdsIncluded') })));
+        const button = kit.priceButton({ price: product.info.price, block: true, onClick: () => buyProduct(product.def.id, target) });
+        const el = h(
+          'div',
+          { class: 'k-offer k-offer--featured m-pack', dataset: { product: product.def.id }, 'aria-label': rewardsText(product.def.grants) },
+          h('div', { class: 'm-pack__head' }, h('div', { class: 'k-offer__art' }, kit.icon('gift', 60)), h('div', { class: 'm-pack__texts' }, h('div', { class: 'k-offer__title', text: t('meta.shop.starter') }), inside)),
+          h('div', { class: 'k-offer__action' }, button),
+        );
+        const target: BuyTarget = { el, update: (patch) => button.update({ loading: patch.loading === true }) };
+        list.appendChild(el);
       }
       if (showRemove) {
         const product = showRemove;
@@ -216,8 +226,9 @@ export function openShopDialog(ui: Ui): Promise<void> {
       packs.forEach((product, index) => {
         const coins = coinsIn(product.def.grants);
         const badge = product.def.badge;
+        const rank = packs.length > 1 ? index / (packs.length - 1) : 1;
         const card = kit.offerCard({
-          art: coinPackArt(packs.length > 1 ? index / (packs.length - 1) : 1),
+          art: kit.icon(coinPackArt(rank), Math.round(54 + rank * 22)),
           title: t('meta.shop.coins', { n: coins }),
           price: product.info.price,
           ribbon: badge ? { text: t('meta.shop.badge.' + badge), tone: badge } : null,
@@ -262,9 +273,9 @@ export function openShopDialog(ui: Ui): Promise<void> {
       freeLeftEl = h('div', { class: 'k-offer__sub' });
       freeButton = kit.adButton({
         label: '+' + i18n.num(amount),
-        caption: t('meta.ad.watch'),
         rewardIcon: 'coin',
         size: 'sm',
+        ariaLabel: t('meta.ad.watch') + ': ' + t('meta.shop.coins', { n: amount }),
         onClick: () => watchForCoins(),
       });
       freeButton.dataset.act = 'free-coins';
@@ -274,12 +285,12 @@ export function openShopDialog(ui: Ui): Promise<void> {
           'div',
           { class: 'k-offer k-offer--row m-shop__freecard' },
           h('div', { class: 'k-offer__art' }, kit.icon('coinPile', 56)),
-          h('div', { class: 'k-offer__texts' }, h('div', { class: 'k-offer__title', text: t('meta.shop.coins', { n: amount }) }), freeLeftEl),
+          h('div', { class: 'k-offer__texts' }, h('div', { class: 'k-offer__title', text: t('meta.ad.watch') }), freeLeftEl),
           h('div', { class: 'k-offer__action' }, freeButton),
         ),
       );
     }
-    freeLeftEl.textContent = state.left === null ? t('meta.ad.watch') : t('meta.ad.left', { n: state.left });
+    freeLeftEl.textContent = state.left === null ? t('meta.shop.coins', { n: amount }) : t('meta.ad.left', { n: state.left });
     freeButton.update({ disabled: freeBusy || !state.ready || state.left === 0, loading: freeBusy });
   }
 
@@ -326,7 +337,6 @@ export function openShopDialog(ui: Ui): Promise<void> {
       const card = kit.offerCard({
         art: boosterIcon(id),
         title: name,
-        subtitle: t('booster.' + id + '.desc'),
         price: i18n.num(profile.boosterPrice(id)),
         priceIcon: 'coin',
         variant: 'primary',
@@ -343,6 +353,9 @@ export function openShopDialog(ui: Ui): Promise<void> {
         },
       });
       card.el.dataset.booster = id;
+      // the description runs under the row, full width (beside the price button it would wrap into a column)
+      card.el.classList.add('m-brow');
+      card.el.appendChild(h('div', { class: 'm-brow__desc', text: t('booster.' + id + '.desc') }));
       boosterCards.push({ id, card });
       list.appendChild(card.el);
     }

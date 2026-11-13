@@ -269,20 +269,6 @@ function makeCanvas(w: number, h: number): HTMLCanvasElement {
   return c;
 }
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
-  const rr = Math.min(r, w / 2, h / 2);
-  ctx.moveTo(x + rr, y);
-  ctx.lineTo(x + w - rr, y);
-  ctx.arcTo(x + w, y, x + w, y + rr, rr);
-  ctx.lineTo(x + w, y + h - rr);
-  ctx.arcTo(x + w, y + h, x + w - rr, y + h, rr);
-  ctx.lineTo(x + rr, y + h);
-  ctx.arcTo(x, y + h, x, y + h - rr, rr);
-  ctx.lineTo(x, y + rr);
-  ctx.arcTo(x, y, x + rr, y, rr);
-  ctx.closePath();
-}
-
 export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardView {
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 
@@ -811,10 +797,52 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     needsDraw = true;
   }
 
+  function has(c: number, r: number): boolean {
+    return c >= 0 && r >= 0 && c < nCols && r < nRows && cellExists[idx(c, r)] === 1;
+  }
+
+  /**
+   * One cell's share of the board outline, grown by `grow` on its free sides only (so neighbours
+   * join without a seam) and rounded only where two free sides meet.
+   */
+  function cellOutline(g: CanvasRenderingContext2D, m: number, c: number, r: number, grow: number, radius: number): void {
+    const freeL = !has(c - 1, r);
+    const freeR = !has(c + 1, r);
+    const freeT = !has(c, r - 1);
+    const freeB = !has(c, r + 1);
+    const x0 = m + c * cs - (freeL ? grow : 1);
+    const x1 = m + (c + 1) * cs + (freeR ? grow : 1);
+    const y0 = m + r * cs - (freeT ? grow : 1);
+    const y1 = m + (r + 1) * cs + (freeB ? grow : 1);
+    const tl = freeL && freeT ? radius : 0;
+    const tr = freeR && freeT ? radius : 0;
+    const br = freeR && freeB ? radius : 0;
+    const bl = freeL && freeB ? radius : 0;
+    g.moveTo(x0 + tl, y0);
+    g.lineTo(x1 - tr, y0);
+    if (tr > 0) g.arcTo(x1, y0, x1, y0 + tr, tr);
+    g.lineTo(x1, y1 - br);
+    if (br > 0) g.arcTo(x1, y1, x1 - br, y1, br);
+    g.lineTo(x0 + bl, y1);
+    if (bl > 0) g.arcTo(x0, y1, x0, y1 - bl, bl);
+    g.lineTo(x0, y0 + tl);
+    if (tl > 0) g.arcTo(x0, y0, x0 + tl, y0, tl);
+    g.closePath();
+  }
+
+  function outline(g: CanvasRenderingContext2D, m: number, grow: number, radius: number): void {
+    g.beginPath();
+    for (let r = 0; r < nRows; r++) {
+      for (let c = 0; c < nCols; c++) {
+        if (cellExists[idx(c, r)]) cellOutline(g, m, c, r, grow, radius);
+      }
+    }
+  }
+
   /** Tiles, frame, exit markers and sand, drawn once and blitted every frame. */
   function renderFloor(): void {
     floorDirty = false;
-    floorMargin = Math.ceil(cs * 0.3);
+    floorMargin = Math.ceil(cs * 0.34);
     const w = nCols * cs + floorMargin * 2;
     const h = nRows * cs + floorMargin * 2;
     if (!floor) floor = makeCanvas(w, h);
@@ -826,55 +854,38 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, w, h);
     const m = floorMargin;
-    const frame = Math.max(2, cs * 0.085);
-    const radius = cs * 0.24;
+    const frame = Math.max(2.5, cs * 0.095);
+    const line = Math.max(1, cs * 0.03);
+    const radius = cs * 0.26;
 
     // 1. soft drop shadow + dark outline
     g.save();
-    g.shadowColor = 'rgba(4,2,20,0.55)';
+    g.shadowColor = 'rgba(4,2,20,0.6)';
     g.shadowBlur = cs * 0.22;
-    g.shadowOffsetY = cs * 0.08;
+    g.shadowOffsetY = cs * 0.09;
     g.fillStyle = '#0f0c30';
-    g.beginPath();
-    for (let r = 0; r < nRows; r++) {
-      for (let c = 0; c < nCols; c++) {
-        if (!cellExists[idx(c, r)]) continue;
-        const e = frame + Math.max(1, cs * 0.03);
-        roundRect(g, m + c * cs - e, m + r * cs - e, cs + e * 2, cs + e * 2, radius + e * 0.5);
-      }
-    }
+    outline(g, m, frame + line, radius + frame + line);
     g.fill();
     g.restore();
 
-    // 2. gold frame (the union of every cell, grown by the frame width)
+    // 2. gold frame
     const gold = g.createLinearGradient(0, m, 0, m + nRows * cs);
     gold.addColorStop(0, '#fff0bd');
-    gold.addColorStop(0.3, '#f5c95a');
-    gold.addColorStop(0.7, '#c9973a');
+    gold.addColorStop(0.28, '#f5c95a');
+    gold.addColorStop(0.68, '#c9973a');
     gold.addColorStop(1, '#f3c556');
     g.fillStyle = gold;
-    g.beginPath();
-    for (let r = 0; r < nRows; r++) {
-      for (let c = 0; c < nCols; c++) {
-        if (!cellExists[idx(c, r)]) continue;
-        roundRect(g, m + c * cs - frame, m + r * cs - frame, cs + frame * 2, cs + frame * 2, radius);
-      }
-    }
+    outline(g, m, frame, radius + frame);
     g.fill();
-
     // 3. dark inner line between frame and tiles
-    const inner = frame * 0.36;
     g.fillStyle = '#17134a';
-    g.beginPath();
-    for (let r = 0; r < nRows; r++) {
-      for (let c = 0; c < nCols; c++) {
-        if (!cellExists[idx(c, r)]) continue;
-        roundRect(g, m + c * cs - inner, m + r * cs - inner, cs + inner * 2, cs + inner * 2, radius * 0.7);
-      }
-    }
+    outline(g, m, line * 1.2, radius + line * 1.2);
     g.fill();
 
-    // 4. tiles, exit markers, sand
+    // 4. tiles, exit markers, sand — clipped to the rounded playfield
+    g.save();
+    outline(g, m, 0, radius);
+    g.clip();
     const tileA = art.sprite('tileA', cs);
     const tileB = art.sprite('tileB', cs);
     const exit = lampLevel ? art.sprite('exit', cs) : null;
@@ -893,6 +904,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
         else if (sand === 1) g.drawImage(sand1, x, y, cs, cs);
       }
     }
+    g.restore();
   }
 
   // ───────────────────────────── effects ─────────────────────────────
@@ -1234,7 +1246,10 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     if (targeting) {
       ctx.globalAlpha = 0.1 + 0.07 * Math.sin(loopT * 0.006);
       ctx.fillStyle = '#ffe7a3';
-      ctx.fillRect(bx, by, nCols * cs, nRows * cs);
+      for (let i = 0; i < cellExists.length; i++) {
+        if (cellExists[i] === 1) ctx.fillRect(bx + (i % nCols) * cs, by + Math.floor(i / nCols) * cs, cs, cs);
+      }
+      ctx.globalAlpha = 1;
     }
 
     // hint halos under the pieces
@@ -1368,7 +1383,9 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     if (flashT < flashDur) {
       ctx.globalAlpha = flashAlpha * (1 - flashT / flashDur);
       ctx.fillStyle = '#fff6dc';
-      ctx.fillRect(bx, by, nCols * cs, nRows * cs);
+      for (let i = 0; i < cellExists.length; i++) {
+        if (cellExists[i] === 1) ctx.fillRect(bx + (i % nCols) * cs, by + Math.floor(i / nCols) * cs, cs, cs);
+      }
     }
 
     // ── particles ──

@@ -302,6 +302,8 @@ export function createShell(deps: ShellDeps): Shell {
       }
       if (id > profile.highestUnlocked()) return;
       if (introOpen && introOpen.isOpen()) return;
+      // a win celebration is playing on the map: the intro follows it instead of covering it
+      if (kind === 'map' && mapScreen && mapScreen.queueIntro(id)) return;
       // a booster may unlock on reaching this level: introduce it first, then show the level
       if (introBusy) return;
       introBusy = true;

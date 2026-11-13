@@ -15,7 +15,7 @@ import { createI18n } from '../i18n/index.ts';
 import { LEVELS } from '../levels/index.ts';
 import type { AdPlacement, RewardedOutcome, StoreApi } from '../monetize/types.ts';
 import { SAVE_KEY, createPlatform } from '../platform/index.ts';
-import { createProfile } from '../state/index.ts';
+import { createProfile, levelReward } from '../state/index.ts';
 import type { BoosterId } from '../state/types.ts';
 import { createKit, fontsReady } from '../ui/kit/index.ts';
 import { createPlayScreen } from './index.ts';
@@ -29,7 +29,7 @@ const lang = q.get('lang') === 'ar' ? 'ar' : 'en';
 const HARNESS: Record<string, LevelDef> = {
   /** every blocker at once: sand ×1 / ×2, stones 1–3, chains, vines, lamps, holes, pre-placed specials */
   mix: {
-    id: 901,
+    id: 37,
     cols: 9,
     rows: 9,
     colors: 5,
@@ -42,7 +42,7 @@ const HARNESS: Record<string, LevelDef> = {
   },
   /** won in a handful of moves */
   easy: {
-    id: 902,
+    id: 5,
     cols: 7,
     rows: 7,
     colors: 4,
@@ -53,7 +53,7 @@ const HARNESS: Record<string, LevelDef> = {
   },
   /** cannot be won: three moves for ninety-nine gems */
   hard: {
-    id: 903,
+    id: 44,
     cols: 7,
     rows: 7,
     colors: 5,
@@ -67,7 +67,7 @@ const HARNESS: Record<string, LevelDef> = {
   },
   /** specials ready to fire (hammer them) */
   fx: {
-    id: 904,
+    id: 61,
     cols: 8,
     rows: 8,
     colors: 5,
@@ -78,7 +78,7 @@ const HARNESS: Record<string, LevelDef> = {
   },
   /** special + special pairs side by side */
   combo: {
-    id: 905,
+    id: 83,
     cols: 8,
     rows: 8,
     colors: 5,
@@ -88,7 +88,7 @@ const HARNESS: Record<string, LevelDef> = {
     stars: [3000, 9000, 15000],
   },
   lamp: {
-    id: 906,
+    id: 17,
     cols: 7,
     rows: 8,
     colors: 4,
@@ -99,7 +99,7 @@ const HARNESS: Record<string, LevelDef> = {
     lamps: { total: 3, maxOnBoard: 2, everyMoves: 2 },
   },
   vine: {
-    id: 907,
+    id: 62,
     cols: 8,
     rows: 8,
     colors: 5,
@@ -110,7 +110,7 @@ const HARNESS: Record<string, LevelDef> = {
   },
   /** an irregular board: holes in the middle and stepped edges */
   holes: {
-    id: 908,
+    id: 104,
     cols: 9,
     rows: 9,
     colors: 5,
@@ -122,7 +122,7 @@ const HARNESS: Record<string, LevelDef> = {
   },
   /** the smallest board the screen must lay out */
   tiny: {
-    id: 909,
+    id: 2,
     cols: 5,
     rows: 5,
     colors: 4,
@@ -133,7 +133,7 @@ const HARNESS: Record<string, LevelDef> = {
   },
   /** four goals at once (the header's widest case) */
   goals4: {
-    id: 910,
+    id: 115,
     cols: 9,
     rows: 9,
     colors: 6,
@@ -156,7 +156,6 @@ function findLevel(key: string | null): LevelDef {
   if (key && isFinite(id)) {
     const byId = LEVELS.find((l) => l.id === id);
     if (byId) return byId;
-    for (const name of Object.keys(HARNESS)) if ((HARNESS[name] as LevelDef).id === id) return HARNESS[name] as LevelDef;
   }
   return HARNESS.mix as LevelDef;
 }
@@ -184,6 +183,8 @@ const profile = createProfile({
   now: () => Date.now(),
   levelCount: Math.max(allLevels.length, 120),
 });
+/** Level played right now (harness levels borrow ids of real levels, so the id alone is ambiguous). */
+let current: LevelDef | null = null;
 
 if (q.get('mute') === '1') {
   audio.setSfxEnabled(false);
@@ -286,8 +287,11 @@ function showMap(note: string): void {
   const add = (label: string, level: LevelDef): void => {
     const b = document.createElement('button');
     b.textContent = label;
-    b.dataset.level = String(level.id);
-    b.addEventListener('click', () => nav.toPlay(level.id, {}));
+    b.dataset.level = label;
+    b.addEventListener('click', () => {
+      log.nav.push('toPlay ' + label);
+      startLevel(level, {});
+    });
     map.appendChild(b);
   };
   for (const name of Object.keys(HARNESS)) add(name, HARNESS[name] as LevelDef);
@@ -307,7 +311,7 @@ const nav: Navigator = {
   },
   toPlay(levelId, boosters) {
     log.nav.push('toPlay ' + levelId);
-    startLevel(findLevel(String(levelId)), boosters);
+    startLevel(current && current.id === levelId ? current : findLevel(String(levelId)), boosters);
   },
   openShop() {
     log.nav.push('openShop');
@@ -338,6 +342,7 @@ function startLevel(level: LevelDef, boosters: StartBoosters): void {
     app.appendChild(play.el);
     mounted = true;
   }
+  current = level;
   play.start(withTutorial(level), boosters);
 }
 
@@ -357,6 +362,8 @@ const demo = {
   profile,
   kit,
   levels: HARNESS,
+  /** Coins the economy pays for a win (tests compare the saved profile against it). */
+  levelReward: (previousStars: number, stars: number) => levelReward(previousStars, stars),
   /** Start a level by id or harness name. */
   start: (key: string, boosters?: StartBoosters) => startLevel(findLevel(key), boosters || {}),
   stop: () => {

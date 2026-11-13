@@ -123,7 +123,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  margin: calc(var(--k-u) * -2);
+  margin: calc(var(--k-u) * -1.5);
 }
 
 .pl-goal {
@@ -132,16 +132,16 @@
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  height: calc(var(--k-u) * 30);
-  min-width: calc(var(--k-u) * 54);
-  margin: calc(var(--k-u) * 2);
-  padding-inline-start: calc(var(--k-u) * 3);
-  padding-inline-end: calc(var(--k-u) * 8);
-  border-radius: calc(var(--k-u) * 15);
+  height: calc(var(--k-u) * 29);
+  min-width: calc(var(--k-u) * 50);
+  margin: calc(var(--k-u) * 1.5);
+  padding-inline-start: calc(var(--k-u) * 2.5);
+  padding-inline-end: calc(var(--k-u) * 7);
+  border-radius: calc(var(--k-u) * 14.5);
   background: linear-gradient(180deg, rgba(13, 10, 44, 0.9) 0%, rgba(30, 24, 82, 0.9) 100%);
   box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(245, 201, 90, 0.8), 0 calc(var(--k-u) * 2) calc(var(--k-u) * 4) rgba(6, 4, 26, 0.35);
   color: var(--k-cream);
-  font-size: calc(var(--k-u) * 17);
+  font-size: calc(var(--k-u) * 16.5);
   font-weight: 800;
   line-height: 1;
 }
@@ -195,7 +195,7 @@
   flex: none;
   position: relative;
   width: calc(var(--k-u) * 84);
-  margin: 0 calc(var(--k-u) * 5);
+  margin: 0 calc(var(--k-u) * 3);
 }
 
 .pl-moves__ring {
@@ -557,15 +557,23 @@
 
 .pl-target {
   position: absolute;
-  top: calc(var(--pl-by) - var(--k-u) * 58);
-  left: 50%;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 calc(var(--k-u) * 6);
+  pointer-events: none;
+}
+
+.pl-target__pill {
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  max-width: calc(100% - var(--k-u) * 16);
+  max-width: 100%;
   padding: calc(var(--k-u) * 5) calc(var(--k-u) * 6);
-  padding-inline-start: calc(var(--k-u) * 8);
-  border-radius: calc(var(--k-u) * 26);
+  padding-inline-start: calc(var(--k-u) * 10);
+  border-radius: calc(var(--k-u) * 27);
   background: linear-gradient(180deg, #fff1c0 0%, #fbd873 40%, #f0b93f 100%);
   box-shadow:
     0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.9),
@@ -575,12 +583,15 @@
   font-weight: 800;
   line-height: 1.2;
   pointer-events: auto;
-  transform: translateX(-50%);
   animation: pl-target-in 220ms var(--k-ease-back) both;
 }
 
-.pl-target--low {
-  top: calc(var(--pl-by) + var(--k-u) * 8);
+.pl-target__pill .k-btn {
+  flex: none;
+}
+
+.pl-target__pill .k-btn__label {
+  white-space: nowrap;
 }
 
 .pl-target__icon {
@@ -591,7 +602,7 @@
 .pl-target__text {
   flex: 1 1 auto;
   min-width: 0;
-  margin-inline-end: calc(var(--k-u) * 8);
+  margin-inline-end: calc(var(--k-u) * 10);
 }
 
 /* ───────────────────────────── banners ───────────────────────────── */
@@ -661,9 +672,18 @@
 .pl-note {
   position: absolute;
   top: calc(var(--pl-by) + var(--pl-bh) * 0.5);
-  left: 50%;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
   box-sizing: border-box;
-  max-width: calc(100% - var(--k-u) * 24);
+  padding: 0 calc(var(--k-u) * 12);
+  transform: translateY(-50%);
+}
+
+.pl-note__in {
+  box-sizing: border-box;
+  max-width: 100%;
   padding: calc(var(--k-u) * 9) calc(var(--k-u) * 18) calc(var(--k-u) * 8);
   border-radius: calc(var(--k-u) * 22);
   background: linear-gradient(180deg, rgba(20, 16, 62, 0.96) 0%, rgba(40, 32, 104, 0.96) 100%);
@@ -675,12 +695,11 @@
   font-weight: 800;
   line-height: 1.3;
   text-align: center;
-  transform: translate(-50%, -50%);
-  animation: pl-banner-in 240ms var(--k-ease-back) both;
+  animation: pl-pop 240ms var(--k-ease-back) both;
 }
 
-.pl-note.pl-out {
-  animation: pl-banner-out 200ms var(--k-ease-in) both;
+.pl-note.pl-out .pl-note__in {
+  animation: pl-fade-out 200ms linear both;
 }
 
 /* praise word: light-gold lettering, indigo outline, a khatam spark behind it */
@@ -841,8 +860,8 @@
   text-align: center;
 }
 
-.pl-dlg > * + * {
-  margin-top: calc(var(--k-u) * 10);
+.pl-dlg.pl-dlg > * + * {
+  margin-top: calc(var(--k-u) * 12);
 }
 
 .pl-dlg__text {
@@ -1100,11 +1119,20 @@
 @keyframes pl-target-in {
   0% {
     opacity: 0;
-    transform: translateX(-50%) translateY(calc(var(--k-u) * 10)) scale(0.8);
+    transform: translateY(calc(var(--k-u) * 10)) scale(0.8);
   }
   100% {
     opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pl-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 

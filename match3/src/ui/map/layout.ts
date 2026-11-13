@@ -21,13 +21,17 @@ export interface MapMetrics {
 }
 
 export const METRICS: MapMetrics = {
-  step: 92,
-  bannerZone: 168,
-  headZone: 64,
+  step: 104,
+  bannerZone: 172,
+  headZone: 70,
   amp: 98,
-  capZone: 210,
+  capZone: 78,
   trackWidth: 360,
 };
+
+/** Height of the chapter banner and its distance from the bottom of the banner zone. */
+export const BANNER_HEIGHT = 104;
+export const BANNER_LIFT = 30;
 
 export interface Span {
   from: number;
@@ -55,7 +59,7 @@ export function sectionHeight(count: number, m: MapMetrics, isLast: boolean): nu
  * top, driven by the global level number so the trail runs on smoothly from chapter to chapter.
  */
 export function swing(levelId: number): number {
-  const a = (levelId - 1) * 0.93;
+  const a = (levelId - 1) * 0.86;
   const v = 0.82 * Math.sin(a) + 0.18 * Math.sin(a * 2.37 + 1.1);
   return v > 1 ? 1 : v < -1 ? -1 : v;
 }

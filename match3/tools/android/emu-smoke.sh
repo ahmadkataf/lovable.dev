@@ -176,7 +176,7 @@ fi
 
 # ── the log: everything the app and its page said, plus crashes ──
 # (threadtime format: "MM-DD HH:MM:SS.mmm  PID  TID L Tag     : message")
-printf '%s\n' "$full_log" | grep -E ' [VDIWEF] (ZumurudJS|Zumurud|ZumurudDiag|AndroidRuntime|chromium|cr_[A-Za-z]*) *: |ANR in ' > "$LOG" || true
+printf '%s\n' "$full_log" | grep -E ' [VDIWEF] (ZumurudJS|Zumurud|ZumurudDiag|chromium|cr_[A-Za-z]*) *: | [EF] AndroidRuntime *: |ANR in ' > "$LOG" || true
 [ -s "$LOG" ] || fail "no log lines from the app were captured"
 say "log ($LOG):"
 sed 's/^/   /' "$LOG"
