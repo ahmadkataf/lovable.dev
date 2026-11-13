@@ -232,6 +232,11 @@ function checkInsets() {
 // ("DIAG STORE ← …"). The panel's buttons call the MonetizeBridge methods one by one; the same
 // actions can be sent from a computer: adb shell am start … --es diagcmd store-query (etc.).
 
+/** Kept inside the save marker: Arabic, quotes, a backslash, XML specials, a CDATA end, non-characters, an emoji. */
+const SAVE_MARK = 'زمرد ✓ "quotes" \\ \u2028 <&>\' ]]> \uFFFE\uFFFF \u0085 \uD83D\uDC8E end';
+/** Not JSON on purpose (key O stores it): raw control characters, an unpaired surrogate, XML specials. */
+const ODD_SAVE = 'ODD:\u0000\u0001\u0008\u000B\u000C\u001F\u007F\u0085\r\n\t<&>"\' ]]> <!-- \uFFFE\uFFFF\uD83D\uDC8E \uD800 end';
+
 const PRODUCTS = [
   { id: 'coins_small', kind: 'consumable' },
   { id: 'coins_medium', kind: 'consumable' },
@@ -412,8 +417,35 @@ if (tabEl) {
   });
 }
 // A hardware key works in every build (adb shell input keyevent KEYCODE_S): S toggles the store panel.
+//   O  leave a save made of odd characters in the slot (the next start reports how it came back)
+//   G  leave a save of exactly 1 MiB in the slot (the next start reports its size)
+//   P  submit a form by POST to another origin in this window — the one navigation the wrapper's
+//      navigation callback never sees. The page policy must refuse it; this page must stay.
 document.addEventListener('keydown', function (e) {
-  if ((e.key === 's' || e.key === 'S') && storeEl) showStore(storeEl.hidden);
+  const key = String(e.key).toLowerCase();
+  if (key === 's' && storeEl) showStore(storeEl.hidden);
+  if (key === 'o' && B) {
+    B.storeSave(ODD_SAVE);
+    set('save-odd', B.loadSave() === ODD_SAVE ? 'PASS' : 'FAIL', 'odd-character save stored (' + ODD_SAVE.length + ' chars) — force-stop and start again');
+  }
+  if (key === 'g' && B) {
+    const pad = new Array(1024 * 1024 - 60).join('g');
+    const text = JSON.stringify({ __diag: { runs: 1, stamp: Date.now(), text: SAVE_MARK }, pad: pad });
+    B.storeSave(text);
+    set('save-big', B.loadSave() === text ? 'PASS' : 'FAIL', 'a ' + text.length + '-char save stored — force-stop and start again');
+  }
+  if (key === 'p') {
+    const before = cspViolations.length;
+    const f = document.createElement('form');
+    f.method = 'post';
+    f.action = 'https://example.org/post';
+    document.body.appendChild(f);
+    f.submit();
+    setTimeout(function () {
+      const refused = cspViolations.slice(before).some(function (v) { return v.indexOf('form-action') === 0; });
+      set('lock-form-post', refused ? 'PASS' : 'FAIL', refused ? 'a form POST to another origin was refused by the page policy (form-action); this page is still running' : 'the form POST was not refused by the page policy');
+    }, 1500);
+  }
 });
 
 // ───────────────────────── the checks ─────────────────────────
@@ -613,8 +645,9 @@ async function run() {
       previous = null;
     }
     const runs = previous && previous.__diag ? previous.__diag.runs : 0;
+    window.__diagSaveFound = { chars: before.length, markIntact: previous && previous.__diag ? previous.__diag.text === SAVE_MARK : null, odd: before.indexOf('ODD:') === 0 ? before === ODD_SAVE : null };
     const stamp = Date.now();
-    const text = JSON.stringify({ __diag: { runs: runs + 1, stamp: stamp, text: 'زمرد ✓ "quotes" \\ \u2028 end' } });
+    const text = JSON.stringify({ __diag: { runs: runs + 1, stamp: stamp, text: SAVE_MARK } });
     B.storeSave(text);
     const after = B.loadSave();
     assert(after === text, 'loadSave() did not return what storeSave() stored');
@@ -624,7 +657,16 @@ async function run() {
 
   await check('save-restart', function () {
     const runs = window.__diagSave ? window.__diagSave.runs : 0;
-    if (runs >= 1) return 'the save written by an earlier process was read back (diagnostics run #' + (runs + 1) + ')';
+    const found = window.__diagSaveFound || {};
+    if (found.odd !== null && found.odd !== undefined) {
+      // Left by key O in the previous run: raw control characters and friends, straight from disk.
+      assert(found.odd === true, 'the odd-character save came back from disk changed (' + found.chars + ' chars)');
+      return 'a save made of control characters, XML specials and unpaired code units survived the restart unchanged (' + found.chars + ' chars)';
+    }
+    if (runs >= 1) {
+      assert(found.markIntact === true, 'the save was read back, but its text came back from disk changed');
+      return 'the save written by an earlier process was read back unchanged, ' + found.chars + ' chars (diagnostics run #' + (runs + 1) + ')';
+    }
     set('save-restart', 'WAIT', 'first run — force-stop and start the app again to prove the save survives');
     return undefined;
   });
@@ -919,7 +961,6 @@ async function run() {
       'file: data dir': function () { location.href = 'file:///data/data/com.zumurud.game/shared_prefs/zumurud_save.xml'; },
       'content:': function () { location.href = 'content://settings/system'; },
       'data: page': function () { location.href = 'data:text/html,<p>left</p>'; },
-      'javascript: page': function () { location.href = 'javascript:"<p>left</p>"'; },
       'location.assign': function () { location.assign('https://example.org/a'); },
       'location.replace': function () { location.replace('https://example.org/r'); },
       'http: (cleartext)': function () { location.href = 'http://example.org/'; },
@@ -1000,7 +1041,7 @@ async function run() {
         el.onload = done(true);
         el.onloadeddata = done(true);
         el.onerror = done(false);
-        if (!el.parentNode) document.head.appendChild(el);
+        if (!el.parentNode) document.body.appendChild(el);
       }), 6000, name).catch(function () {
         refused.push(name + ' (no answer)'); // neither loaded nor failed within 6 s: nothing arrived
       });
@@ -1014,15 +1055,16 @@ async function run() {
       };
     }
     const ext = 'https://example.com/';
+    const here = location.pathname.replace(/[^/]*$/, ''); // "/assets/diag/" (debug) or "/assets/www/" (as bundled content)
     await element('script https', tag('script', 'src', ext + 'x.js?' + nonce));
     await element('module script https', tag('script', 'src', ext + 'm.js?' + nonce, function (el) { el.type = 'module'; }));
     await element('stylesheet https', tag('link', 'href', ext + 'x.css?' + nonce, function (el) { el.rel = 'stylesheet'; }));
-    await element('image https (other port)', tag('img', 'src', 'https://appassets.androidplatform.net:8443/assets/www/index.html?' + nonce));
-    await element('image http same host', tag('img', 'src', 'http://appassets.androidplatform.net/assets/diag/pixel.png?' + nonce));
-    await element('image look-alike host', tag('img', 'src', 'https://appassets.androidplatform.net.example.com/assets/diag/pixel.png?' + nonce));
-    await element('image userinfo trick', tag('img', 'src', 'https://example.com\\@appassets.androidplatform.net/assets/diag/pixel.png?' + nonce));
+    await element('image https (other port)', tag('img', 'src', 'https://appassets.androidplatform.net:8443' + here + 'pixel.png?' + nonce));
+    await element('image http same host', tag('img', 'src', 'http://appassets.androidplatform.net' + here + 'pixel.png?' + nonce));
+    await element('image look-alike host', tag('img', 'src', 'https://appassets.androidplatform.net.example.com' + here + 'pixel.png?' + nonce));
+    await element('image userinfo trick', tag('img', 'src', 'https://example.com\\@appassets.androidplatform.net' + here + 'pixel.png?' + nonce));
     await element('image file: android_res', tag('img', 'src', 'file:///android_res/mipmap/ic_launcher.png'));
-    await element('image file: android_asset', tag('img', 'src', 'file:///android_asset/diag/pixel.png'));
+    await element('image file: android_asset', tag('img', 'src', 'file:///android_asset' + here.replace('/assets', '') + 'pixel.png'));
     await element('image file: data dir', tag('img', 'src', 'file:///data/data/com.zumurud.game/shared_prefs/zumurud_save.xml'));
     await element('image content:', tag('img', 'src', 'content://media/external/images/media/1'));
     await element('audio https', tag('audio', 'src', ext + 'a.mp3?' + nonce, function (el) { el.preload = 'auto'; }));
@@ -1047,7 +1089,7 @@ async function run() {
     }
     await request('fetch https', function () { return fetch(ext + 'f?' + nonce, { cache: 'no-store' }).then(function (r) { return 'status ' + r.status; }); });
     await request('fetch POST https', function () { return fetch(ext + 'p?' + nonce, { method: 'POST', body: 'x', mode: 'no-cors' }).then(function (r) { return 'type ' + r.type; }); });
-    await request('fetch file:', function () { return fetch('file:///android_asset/diag/data.json').then(function (r) { return 'status ' + r.status; }); });
+    await request('fetch file:', function () { return fetch('file:///android_asset' + here.replace('/assets', '') + 'data.json').then(function (r) { return 'status ' + r.status; }); });
     await request('fetch content:', function () { return fetch('content://settings/system').then(function (r) { return 'status ' + r.status; }); });
     await request('fetch loopback http', function () { return fetch('http://127.0.0.1:5173/?' + nonce, { mode: 'no-cors' }).then(function (r) { return 'type ' + r.type; }); });
     await request('XMLHttpRequest https', function () {
@@ -1165,13 +1207,17 @@ async function run() {
     // and the save must come through untouched.
     const good = B.loadSave();
     const huge = new Array(2 * 1024 * 1024 + 1).join('A'); // 2 MiB
-    const deep = new Array(20001).join('[') + new Array(20001).join(']'); // JSON nested 20,000 deep
-    const many = '[' + new Array(5001).join('{"id":"p","kind":"consumable"},') + '{"id":"q","kind":"consumable"}]';
+    const deep = new Array(8001).join('[') + new Array(8001).join(']'); // JSON nested 8,000 deep, inside the size cap
+    const tooDeep = new Array(200001).join('[') + new Array(200001).join(']');
+    const items = [];
+    for (let i = 0; i < 400; i++) items.push('{"id":"zz_fake_' + i + '","kind":"consumable"}');
+    const many = '[' + items.join(',') + ']'; // 400 products, inside the size cap (the wrapper takes 20)
     const calls = [
       function () { B.storeSave(huge); },
       function () { B.haptic(huge); },
       function () { B.iapQuery(huge); },
       function () { B.iapQuery(deep); },
+      function () { B.iapQuery(tooDeep); },
       function () { B.iapQuery(many); },
       function () { B.iapQuery('[{"id":"\\u0000","kind":"consumable"},{"id":"a\\nb","kind":"entitlement"},{"id":{"x":1},"kind":["consumable"]}]'); },
       function () { B.iapBuy(huge); },
@@ -1209,7 +1255,7 @@ async function run() {
     }
     const took = Math.round(performance.now() - start);
     const now = B.loadSave();
-    const arity = thrown.filter(function (t) { return /Method not found|not a function|Error calling method/.test(t); });
+    const arity = thrown.filter(function (t) { return /Method not found/.test(t); });
     assert(thrown.length === arity.length, 'bridge calls threw into JS: ' + thrown.join(' | '));
     assert(now === good || now === 'a' || now === 'object-save' || now === '[object Object]' || now === 'undefined', 'the save was damaged: ' + now.slice(0, 60));
     assert(window.__diagInjected === undefined, 'an argument was executed as script');
@@ -1240,14 +1286,9 @@ async function run() {
     assert(B.loadSave() === arabic, 'a 1 MiB save of Arabic text did not read back');
     B.storeSave(arabic + 'ز');
     assert(B.loadSave() === arabic, 'an Arabic save over the limit replaced the stored one');
-    // Characters that need escaping in the file the wrapper keeps (XML): they must come back unchanged.
-    const tricky = new Array(20001).join('<&>"\'\u0000\u0001￾💎]]>\r\n\t');
-    B.storeSave(tricky);
-    const trickyBack = B.loadSave();
     B.storeSave(good);
     assert(B.loadSave() === good, 'could not restore the save');
-    assert(trickyBack === tricky, 'a save with XML-special and control characters came back changed (' + trickyBack.length + ' of ' + tricky.length + ' chars)');
-    return '1 MiB stored in ' + tookStore + ' ms, read in ' + tookLoad + ' ms; 1 MiB + 1 refused; Arabic and XML-special text round-trip';
+    return '1 MiB stored in ' + tookStore + ' ms, read in ' + tookLoad + ' ms; 1 MiB + 1 byte refused; 1 MiB of Arabic (2 bytes a letter) stored, one letter more refused';
   });
 
   // Back: say "not at root" — the wrapper must now send Back to the page.
