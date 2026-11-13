@@ -1,7 +1,6 @@
-# Country check: Kuwait (the owner's Google Play account country)
+# Country check: Kuwait
 
-The owner stated on 2026-11-13 that their Google Play developer account is in **Kuwait**.
-Checked the same day directly against Google's live pages:
+Checked on 2026-11-13 directly against Google's live pages for a developer account in **Kuwait**:
 
 | Question | Answer | Source |
 |---|---|---|
@@ -21,15 +20,10 @@ Consequences for the publishing and earnings guide:
   Receiving-bank fees on international wires can be US$0–50 or more, so small monthly balances are best left to accumulate.
 - The Syria findings in billing.md / ads.md / money.md apply to *players* in Syria (who most likely cannot buy), not to this developer account.
 
-## Owner's account status (stated by the owner on 2026-11-13)
-- The owner already has an active Google Play developer account in Kuwait with published apps.
-  So registration, the US$25 fee and identity verification are already done.
-- Still to confirm with the owner (affects the guide, not the build):
-  - RESOLVED: the account dates from 2015, so the closed-testing requirement (12 testers for 14 days, which applies
-    only to personal accounts created after 13 November 2023) does NOT apply. A new app can go to production
-    review directly. An internal or closed test first is still recommended, but it is the owner's choice.
-  - Whether a payments (merchant) profile is already set up. The existing apps are free and sell activation codes
-    outside the store, so it may not be; it is required before in-app products can be created.
-  - RESOLVED: the owner already has an AdMob account with apps on it. What is still needed from them for the
-    `ads` build: a new AdMob app entry for this game (App ID `ca-app-pub-…~…`) and two ad units — one Rewarded,
-    one Interstitial (`ca-app-pub-…/…` each). Requested from the owner on 2026-11-13.
+## Account notes for the guides
+- The developer account predates 13 November 2023, so the closed-testing requirement (12 testers for 14 days,
+  which applies only to personal accounts created after that date) does not apply; an internal test first is
+  still recommended.
+- A payments (merchant) profile is required before in-app products can be created; check it in Play Console.
+- AdMob: a new app entry (App ID) plus one Rewarded and one Interstitial ad unit are needed for the `ads` build;
+  the owner has deferred this until after the first release.
