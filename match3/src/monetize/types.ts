@@ -51,9 +51,9 @@ export type PurchaseOutcome =
 
 /** Where a rewarded ad is offered. Each is strictly opt-in and states the reward before the ad starts. */
 export type AdPlacement =
-  /** lose dialog: +5 moves, once per attempt */
+  /** lose dialog: +3 moves (fewer than the paid continue), once per attempt */
   | 'extraMoves'
-  /** out-of-lives dialog: +1 life */
+  /** out-of-lives dialog: +1 life, limited per day */
   | 'freeLife'
   /** shop: bonus coins, limited per day */
   | 'freeCoins'
@@ -76,9 +76,23 @@ export interface StoreApi {
   // ── ads ──
   /** True when this build contains the ad SDK and consent allows requesting ads. */
   adsAvailable(): boolean;
+  /**
+   * True when a rewarded ad could be shown right now for at least one placement: an ad is loaded,
+   * the player has reached the level where rewarded ads start, and today's total is not used up.
+   */
   rewardedReady(): boolean;
   /** How many more 'freeCoins' ads may be watched today. */
   freeCoinAdsLeft(): number;
+  /**
+   * How many more rewarded ads of this placement may be watched today (its own daily limit and the
+   * daily total, whichever is lower). Says nothing about an ad being loaded: see rewardedReady().
+   * Optional in the contract so that older test doubles stay valid; `createStore` always provides it.
+   */
+  rewardedLeft?(placement: AdPlacement): number;
+  /**
+   * Show a rewarded ad. The store only does the bookkeeping (daily counts): the CALLER applies the
+   * reward when this resolves 'earned'.
+   */
   showRewarded(placement: AdPlacement): Promise<RewardedOutcome>;
   /**
    * Called when a level has ended and the result dialog was dismissed. Shows an interstitial if the
@@ -91,6 +105,11 @@ export interface StoreApi {
 
   /** Fires when products, ownership, ad readiness or consent state change. */
   onChange(listener: () => void): () => void;
+}
+
+/** What `createStore` returns: the contract with every optional member present. */
+export interface FullStoreApi extends StoreApi {
+  rewardedLeft(placement: AdPlacement): number;
 }
 
 // ───────────────────── native bridge (Android wrapper) ─────────────────────
@@ -113,6 +132,13 @@ export interface MonetizeBridge {
   adShowInterstitial(): void;
   /** Open the consent "privacy options" form. → 'ads' event afterwards */
   adPrivacyOptions(): void;
+  /**
+   * Optional (feature-detected). Called once when the page has installed `window.__native.store`:
+   * the wrapper should then (re)send its current 'ads' event, because anything it emitted before
+   * the page was listening is lost. Without this method the wrapper should do the same on the
+   * page's first iapQuery / iapRestore.
+   */
+  storeSync?(): void;
 }
 
 export type StoreEvent =
@@ -126,8 +152,14 @@ export type StoreEvent =
       /** True when the store had already acknowledged it earlier (a restore, not a fresh buy). */
       acknowledged?: boolean;
     }
-  /** Entitlements currently owned (acknowledged, non-consumable). */
-  | { type: 'owned'; ids: string[] }
+  /**
+   * Entitlements currently owned (acknowledged, non-consumable).
+   * `complete: true` (optional) says that `ids` is the whole answer of a SUCCESSFUL query of the
+   * store; only then is ownership of an entitlement that is not listed taken away. Without it the
+   * list can only add ownership — so a store that could not connect, and therefore reports an
+   * empty list, never removes anything.
+   */
+  | { type: 'owned'; ids: string[]; complete?: boolean }
   | { type: 'ads'; canRequestAds: boolean; rewardedReady: boolean; interstitialReady: boolean; privacyOptionsRequired: boolean }
   | { type: 'adResult'; format: 'rewarded' | 'interstitial'; result: 'earned' | 'dismissed' | 'failed' };
 

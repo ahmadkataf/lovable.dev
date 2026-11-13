@@ -12,9 +12,10 @@
  * jingles loudest, the music under all of them.
  */
 import type { SfxName, SfxOptions } from './types.ts';
+import { SFX_LAND_INTERVAL, SFX_MATCH_VOICES, type SfxRequest } from './limiter.ts';
 import { clamp } from './rng.ts';
 import { matchStepIndex, matchStepMidi, matchStepSparkles, midiToFreq, praiseMotif, starStepMidi, stepInRange } from './scale.ts';
-import { Voice, dum, filter, fm, ka, noise, pluck, tek, tone, type VoiceGroup } from './voices.ts';
+import { Voice, dum, filter, fm, ka, noise, pluck, saturator, tek, tone, type VoiceGroup } from './voices.ts';
 
 /**
  * Loudness tier, quietest first:
@@ -57,9 +58,20 @@ export const MATCH_VARIANTS: readonly { cents: number; attack: number }[] = [
 interface SfxDef {
   /** Voice gain; brings the recipe's peak to the tier's level. Set by `audio-check --calibrate`. */
   gain: number;
+  /**
+   * For a stepped sound: a level correction in dB for each step of SFX_STEPS — and, when the
+   * sound has several takes, for each take of each step (step by step, take after take) — so
+   * that every one of them peaks at the tier's level: the recipes differ from step to step,
+   * and a faster attack lets more of the first wave through. Also set by `--calibrate`.
+   */
+  trimDb?: readonly number[];
   tier: SfxTier;
   /** Number of round-robin takes (default 1). */
   variants?: number;
+  /** At most this many voices of the sound at once; the oldest one gives way (default: no own limit). */
+  voices?: number;
+  /** Not started twice within this many seconds (default: the gate's 30 ms). */
+  interval?: number;
   build(v: Voice, step: number | undefined, variant: number): void;
 }
 
@@ -106,9 +118,9 @@ function bell(v: Voice, midi: number, at: number, dur: number, peak: number): vo
  * The weight of a blast: a sine that drops fast through the 150–400 Hz range a phone speaker
  * can still play, with a triangle an octave above so the hit is felt on small speakers too.
  */
-function thump(v: Voice, at: number, from: number, to: number, dur: number, peak: number): void {
-  tone(v, { f: from, f2: to, glide: dur * 0.35, at, dur, peak, attack: 0.002 });
-  tone(v, { type: 'triangle', f: from * 2, f2: to * 2, glide: dur * 0.3, at, dur: dur * 0.5, peak: peak * 0.34, attack: 0.002 });
+function thump(v: Voice, at: number, from: number, to: number, dur: number, peak: number, dest?: AudioNode): void {
+  tone(v, { f: from, f2: to, glide: dur * 0.35, at, dur, peak, attack: 0.002, to: dest });
+  tone(v, { type: 'triangle', f: from * 2, f2: to * 2, glide: dur * 0.3, at, dur: dur * 0.5, peak: peak * 0.34, attack: 0.002, to: dest });
 }
 
 /** A soft chord of triangles through a low-pass that opens a little: warmth under a jingle. */
@@ -129,7 +141,7 @@ function glitter(v: Voice, midis: readonly number[], at: number, spacing: number
 const SFX: Record<SfxName, SfxDef> = {
   // ── interface ──────────────────────────────────────────────────────────
   button: {
-    gain: 0.36,
+    gain: 0.225,
     tier: 'ui',
     build(v) {
       tone(v, { f: 620, f2: 440, glide: 0.04, dur: 0.07, peak: 0.5, attack: 0.002 });
@@ -138,7 +150,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   popupOpen: {
-    gain: 0.36,
+    gain: 0.27,
     tier: 'ui',
     build(v) {
       tone(v, { f: 330, f2: 660, glide: 0.09, dur: 0.14, peak: 0.45, attack: 0.008 });
@@ -147,7 +159,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   popupClose: {
-    gain: 0.36,
+    gain: 0.285,
     tier: 'ui',
     build(v) {
       tone(v, { f: 620, f2: 310, glide: 0.08, dur: 0.12, peak: 0.45, attack: 0.008 });
@@ -157,7 +169,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── moving gems ────────────────────────────────────────────────────────
   select: {
-    gain: 0.46,
+    gain: 0.407,
     tier: 'handle',
     build(v) {
       // A small bright "pick": a rising fifth with a glint on top.
@@ -166,7 +178,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   swap: {
-    gain: 0.5,
+    gain: 0.317,
     tier: 'handle',
     build(v) {
       // A quick "fwip": the tone speaks at once, the air sweeps up behind it.
@@ -176,7 +188,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   invalid: {
-    gain: 0.6,
+    gain: 0.497,
     tier: 'handle',
     build(v) {
       // Two dull, slightly buzzy bumps stepping down: "uh-uh".
@@ -188,8 +200,9 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   land: {
-    gain: 0.3,
+    gain: 0.306,
     tier: 'soft',
+    interval: SFX_LAND_INTERVAL,
     build(v) {
       // A soft tap. The body sits high enough to be heard on a phone speaker.
       tone(v, { type: 'triangle', f: 330, f2: 190, glide: 0.05, dur: 0.08, peak: 0.5, attack: 0.002 });
@@ -198,7 +211,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   hint: {
-    gain: 0.4,
+    gain: 0.346,
     tier: 'soft',
     build(v) {
       // "Over here": two soft notes, a fourth apart, the second left to ring a little.
@@ -210,19 +223,37 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── clears ─────────────────────────────────────────────────────────────
   match: {
-    gain: 0.4,
+    gain: 0.317,
+    trimDb: [
+      -2.2, -0.3, 0.1,
+      -1.2, -0.9, -0.3,
+      -0.7, -0.8, -0.3,
+      -1, -0.3, 0.1,
+      -1.5, -0.4, 0.9,
+      -1.2, 0.2, 1.5,
+      1, 0.9, 0.3,
+      1, 0.7, 0.6,
+      0.9, 0.5, 0.5,
+      0.9, 0.3, 0,
+      0.7, 0.6, 0.3,
+      0.1, -0.1, -0.4,
+      0.1, -0.1, -0.4,
+    ],
     tier: 'clear',
     variants: MATCH_VARIANTS.length,
+    voices: SFX_MATCH_VOICES,
     build(v, step, variant) {
       // A gem pops: a woody pluck that chirps up into its note, a glassy octave above it and
       // a tick of air at the very front. The note climbs the cascade ladder (scale.ts).
       const take = MATCH_VARIANTS[((variant % MATCH_VARIANTS.length) + MATCH_VARIANTS.length) % MATCH_VARIANTS.length];
       const rung = matchStepIndex(step);
       const f = hz(matchStepMidi(step)) * Math.pow(2, take.cents / 1200);
-      fm(v, { f: f * 0.89, f2: f, glide: 0.016, ratio: 2, modOf: f, index: 1.05, indexEnd: 0.02, modDur: 0.05, dur: 0.21, peak: 0.6, attack: take.attack });
-      tone(v, { f: f * 2, dur: 0.13, peak: 0.2 + rung * 0.004, attack: take.attack });
-      // The low rungs get a third harmonic so a phone speaker has something to hold on to.
-      if (rung < 5) tone(v, { f: f * 3, dur: 0.07, peak: 0.1 - rung * 0.012, attack: take.attack });
+      // The low rungs lean on their overtones, which is where a phone speaker can follow
+      // them; towards the top the note is left purer so that it stays sweet, not shrill.
+      const low = Math.max(0, 1 - rung / 7);
+      fm(v, { f: f * 0.89, f2: f, glide: 0.016, ratio: 2, modOf: f, index: 1.05, indexEnd: 0.02, modDur: 0.05, dur: 0.21, peak: 0.6 - 0.1 * low, attack: take.attack });
+      tone(v, { f: f * 2, dur: 0.14, peak: 0.2 + 0.16 * low, attack: take.attack });
+      tone(v, { f: f * 3, dur: 0.09, peak: 0.05 + 0.13 * low, attack: take.attack });
       tone(v, { f: f * 4, dur: 0.045, peak: 0.07, attack: 0.002 });
       noise(v, { type: 'bandpass', f: 3800, q: 1, dur: 0.014, peak: 0.16, attack: 0.001 });
       // Beyond the top of the ladder the note holds and a sparkle layer joins: 2× and 3×, −12 dB.
@@ -233,7 +264,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   coin: {
-    gain: 0.45,
+    gain: 0.414,
     tier: 'clear',
     build(v) {
       // One struck metal ring with shimmering overtones.
@@ -246,7 +277,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── blockers and the board ─────────────────────────────────────────────
   sand: {
-    gain: 0.5,
+    gain: 0.382,
     tier: 'board',
     build(v) {
       // A soft "pff" of grains: mid-band hiss that settles, with a little air above it.
@@ -256,7 +287,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   stone: {
-    gain: 0.6,
+    gain: 0.322,
     tier: 'board',
     build(v) {
       // A knock on rock: pitched tock, grit, and a little weight underneath.
@@ -268,7 +299,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   stoneBreak: {
-    gain: 0.6,
+    gain: 0.313,
     tier: 'board',
     build(v) {
       // The block gives way: a crack, a thud, and pieces tumbling after it.
@@ -286,7 +317,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   chain: {
-    gain: 0.7,
+    gain: 0.679,
     tier: 'board',
     build(v) {
       // Two links knocking: clangorous FM pairs.
@@ -297,7 +328,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   vine: {
-    gain: 0.6,
+    gain: 0.442,
     tier: 'board',
     build(v) {
       // A snip and a rustle of leaves.
@@ -307,7 +338,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   vineGrow: {
-    gain: 0.6,
+    gain: 0.453,
     tier: 'board',
     build(v) {
       // A creeping semitone rise, D → E♭, with a wobble.
@@ -318,7 +349,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   lamp: {
-    gain: 0.6,
+    gain: 0.524,
     tier: 'board',
     build(v) {
       // The lamp arrives: two brass bells, the second one warm and ringing.
@@ -330,7 +361,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   createBeam: {
-    gain: 0.8,
+    gain: 1.137,
     tier: 'board',
     build(v) {
       // A quick upward zip ending in a glint.
@@ -341,7 +372,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   createNova: {
-    gain: 0.6,
+    gain: 0.422,
     tier: 'board',
     build(v) {
       // A swelling charge that settles on a bell.
@@ -352,7 +383,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   createPrism: {
-    gain: 0.6,
+    gain: 0.636,
     tier: 'board',
     build(v) {
       // A run up the scale, each note a small bell; the last one rings.
@@ -366,7 +397,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   shuffle: {
-    gain: 0.7,
+    gain: 0.555,
     tier: 'board',
     build(v) {
       const seq = [D5, G5, Eb5, A5, Fs5, C6, A5, D6];
@@ -378,7 +409,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   movesLow: {
-    gain: 0.6,
+    gain: 0.47,
     tier: 'board',
     build(v) {
       // A gentle nudge: E♭ E♭ D, the scale's leaning tone resolving home.
@@ -391,7 +422,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   lifeLost: {
-    gain: 0.8,
+    gain: 0.579,
     tier: 'board',
     build(v) {
       // A falling sigh: A, then E♭ sinking onto D while the tone darkens.
@@ -405,33 +436,37 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── specials ───────────────────────────────────────────────────────────
   beam: {
-    gain: 0.5,
+    gain: 0.333,
     tier: 'special',
     build(v) {
-      // Line blast: a crack, a streak of noise tearing down the line, and a thump of weight.
-      noise(v, { type: 'highpass', f: 2500, q: 0.7, dur: 0.02, peak: 0.5, attack: 0.001 });
-      noise(v, { type: 'bandpass', f: 5200, f2: 420, q: 1.1, dur: 0.34, peak: 1.1, attack: 0.006 });
-      thump(v, 0, 340, 150, 0.26, 0.85);
-      const lp = filter(v, 'lowpass', 2600, 1, { f2: 500, dur: 0.3 });
-      tone(v, { type: 'sawtooth', f: hz(D5), f2: hz(D3), glide: 0.26, dur: 0.32, peak: 0.3, attack: 0.005, to: lp });
-      tone(v, { f: hz(D6), f2: hz(D4), glide: 0.2, dur: 0.24, peak: 0.2, attack: 0.004 });
+      // Line blast: a crack, a streak of noise tearing down the line, and a thump of weight,
+      // driven into saturation so that the blast is dense rather than spiky.
+      const sat = saturator(v, 1.1);
+      noise(v, { type: 'highpass', f: 2500, q: 0.7, dur: 0.02, peak: 0.4, attack: 0.001 });
+      noise(v, { type: 'bandpass', f: 5200, f2: 420, q: 1.1, dur: 0.34, peak: 1.1, attack: 0.006, to: sat });
+      thump(v, 0, 340, 150, 0.28, 0.85, sat);
+      const lp = filter(v, 'lowpass', 2600, 1, { f2: 500, dur: 0.3 }, sat);
+      tone(v, { type: 'sawtooth', f: hz(D5), f2: hz(D3), glide: 0.26, dur: 0.32, peak: 0.34, attack: 0.005, to: lp });
+      tone(v, { f: hz(D6), f2: hz(D4), glide: 0.2, dur: 0.24, peak: 0.2, attack: 0.004, to: sat });
     },
   },
   nova: {
-    gain: 0.5,
+    gain: 0.332,
     tier: 'special',
     build(v) {
-      // Area blast: a punch you can feel, a burst of air that closes down, a ring that sinks.
-      noise(v, { type: 'bandpass', f: 1800, q: 0.8, dur: 0.03, peak: 0.5, attack: 0.001 });
-      thump(v, 0, 300, 110, 0.44, 0.9);
-      tone(v, { f: 150, f2: 52, glide: 0.3, dur: 0.46, peak: 0.22, attack: 0.004 });
-      tone(v, { type: 'triangle', f: hz(A4), f2: hz(A3), glide: 0.3, dur: 0.4, peak: 0.4, attack: 0.004 });
-      noise(v, { type: 'lowpass', f: 5000, f2: 400, q: 0.9, dur: 0.44, peak: 0.7, attack: 0.005 });
-      fm(v, { f: hz(D5), f2: hz(D4), ratio: 1.41, index: 1.2, indexEnd: 0.05, dur: 0.36, peak: 0.4 });
+      // Area blast: a punch you can feel, a burst of air that closes down, a ring that sinks —
+      // saturated, so the whole of it is heavy and not just its first instant.
+      const sat = saturator(v, 1.1);
+      noise(v, { type: 'bandpass', f: 1800, q: 0.8, dur: 0.03, peak: 0.4, attack: 0.001 });
+      thump(v, 0, 300, 110, 0.44, 0.9, sat);
+      tone(v, { f: 150, f2: 52, glide: 0.3, dur: 0.46, peak: 0.2, attack: 0.004 });
+      tone(v, { type: 'triangle', f: hz(A4), f2: hz(A3), glide: 0.3, dur: 0.4, peak: 0.4, attack: 0.004, to: sat });
+      noise(v, { type: 'lowpass', f: 5000, f2: 400, q: 0.9, dur: 0.44, peak: 0.7, attack: 0.005, to: sat });
+      fm(v, { f: hz(D5), f2: hz(D4), ratio: 1.41, index: 1.2, indexEnd: 0.05, dur: 0.36, peak: 0.4, to: sat });
     },
   },
   prism: {
-    gain: 0.6,
+    gain: 0.698,
     tier: 'special',
     build(v) {
       // Rays: a soft thud, a swirl of air, bright notes darting about above a rising chord.
@@ -448,7 +483,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   booster: {
-    gain: 0.7,
+    gain: 0.812,
     tier: 'special',
     build(v) {
       tone(v, { type: 'triangle', f: hz(D4), f2: hz(D6), glide: 0.26, dur: 0.32, peak: 0.4, attack: 0.03 });
@@ -461,25 +496,29 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── big moments ────────────────────────────────────────────────────────
   bigCombo: {
-    gain: 0.6,
+    gain: 0.337,
     tier: 'big',
     build(v) {
-      // Two specials at once: a heavy impact that falls away under a chord that mellows.
-      noise(v, { type: 'highpass', f: 2200, q: 0.7, dur: 0.025, peak: 0.5, attack: 0.001 });
-      thump(v, 0, 320, 105, 0.5, 0.9);
-      tone(v, { f: 150, f2: 46, glide: 0.4, dur: 0.66, peak: 0.22, attack: 0.004 });
-      noise(v, { type: 'lowpass', f: 7000, f2: 320, q: 0.9, dur: 0.6, peak: 0.65, attack: 0.005 });
-      noise(v, { type: 'bandpass', f: 4200, f2: 700, q: 1.2, at: 0.04, dur: 0.5, peak: 0.5, attack: 0.03 });
-      const lp = filter(v, 'lowpass', 3600, 1.2, { f2: 480, at: 0.02, dur: 0.55 });
+      // Two specials at once: a heavy, saturated impact that falls away under a chord that
+      // mellows and a bell that rings on.
+      const sat = saturator(v, 1.1);
+      noise(v, { type: 'highpass', f: 2200, q: 0.7, dur: 0.025, peak: 0.4, attack: 0.001 });
+      thump(v, 0, 320, 105, 0.5, 0.9, sat);
+      tone(v, { f: 150, f2: 46, glide: 0.4, dur: 0.66, peak: 0.2, attack: 0.004 });
+      noise(v, { type: 'lowpass', f: 7000, f2: 320, q: 0.9, dur: 0.6, peak: 0.65, attack: 0.005, to: sat });
+      noise(v, { type: 'bandpass', f: 4200, f2: 700, q: 1.2, at: 0.04, dur: 0.5, peak: 0.5, attack: 0.03, to: sat });
+      const lp = filter(v, 'lowpass', 3600, 1.2, { f2: 480, at: 0.02, dur: 0.55 }, sat);
       const chord = [D4, A4, D5, Fs5];
       for (let k = 0; k < chord.length; k++) {
         tone(v, { type: 'sawtooth', f: hz(chord[k]), at: 0.02, dur: 0.66, peak: 0.2, attack: 0.012, to: lp });
       }
       bell(v, D5, 0.02, 0.5, 0.36);
+      bell(v, A5, 0.05, 0.44, 0.16);
     },
   },
   praise: {
-    gain: 0.8,
+    gain: 0.86,
+    trimDb: [0.3, 0.9, 1, -2.5],
     tier: 'big',
     build(v, step) {
       // A rising motif of two to five ladder notes, each a bell with a warm octave under it;
@@ -498,11 +537,11 @@ const SFX: Record<SfxName, SfxDef> = {
       tone(v, { f: hz(motif[last] + 12), at: land + 0.02, dur: 0.3, peak: 0.07 + 0.015 * level, attack: 0.004 });
       if (level >= 2) bloom(v, level >= 3 ? [D4, A4, D5] : [D5, A5], land, 0.4, 0.07);
       if (level >= 3) glitter(v, level >= 4 ? [A6, D7, Fs7] : [A6, D7], land + 0.09, 0.06, 0.06, 0.22);
-      if (level >= 4) dum(v, land, 0.4);
+      if (level >= 4) dum(v, land, 0.22);
     },
   },
   goalDone: {
-    gain: 0.8,
+    gain: 0.778,
     tier: 'big',
     build(v) {
       const notes = [D5, A5, D6];
@@ -515,7 +554,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   finale: {
-    gain: 0.8,
+    gain: 0.601,
     tier: 'big',
     build(v) {
       // The bonus begins: the ladder itself runs up in a hurry and lands on a ringing octave.
@@ -538,7 +577,8 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── results and rewards ────────────────────────────────────────────────
   star: {
-    gain: 0.9,
+    gain: 0.869,
+    trimDb: [-0.4, 0.5, 0],
     tier: 'jingle',
     build(v, step) {
       // One bright bell per star, each higher than the last, with more glitter.
@@ -555,7 +595,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   levelStart: {
-    gain: 0.9,
+    gain: 0.655,
     tier: 'jingle',
     build(v) {
       dum(v, 0, 0.6);
@@ -569,7 +609,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   purchase: {
-    gain: 0.9,
+    gain: 0.98,
     tier: 'jingle',
     build(v) {
       // Two metal rings, then a warm chord of confirmation.
@@ -584,7 +624,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   reward: {
-    gain: 0.9,
+    gain: 0.809,
     tier: 'jingle',
     build(v) {
       // A rising arpeggio that blooms into a held, shimmering fifth.
@@ -601,7 +641,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   chest: {
-    gain: 0.9,
+    gain: 0.735,
     tier: 'jingle',
     build(v) {
       // A latch knocks open, the lid swings up and light spills out as a strummed chord.
@@ -623,7 +663,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   caravan: {
-    gain: 0.9,
+    gain: 0.594,
     tier: 'jingle',
     build(v) {
       // The caravan sets off: a walking hand-drum figure under two swinging brass bells.
@@ -646,7 +686,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   win: {
-    gain: 0.9,
+    gain: 0.64,
     tier: 'jingle',
     build(v) {
       // A short original flourish: up the scale to the octave, a drum roll into a ringing,
@@ -675,7 +715,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   lose: {
-    gain: 0.9,
+    gain: 0.756,
     tier: 'jingle',
     build(v) {
       // A slow walk down to the tonic through the scale's flat second, soft and unhurried.
@@ -762,12 +802,38 @@ export function isPrioritySfx(name: SfxName): boolean {
  * ignores it, cannot slip past the limiter as "different" sounds.
  */
 export function sfxKey(name: SfxName, opts?: SfxOptions): string {
+  const step = audibleStep(name, opts);
+  return step === null ? String(name) : name + '#' + step;
+}
+
+/**
+ * The step of a stepped sound as it is heard: brought into the range of SFX_STEPS (a missing
+ * or junk step counts as the lowest). Null for a sound that has no steps.
+ */
+function audibleStep(name: SfxName, opts?: SfxOptions): number | null {
   const steps = isSfxName(name) ? SFX_STEPS[name] : undefined;
-  if (!steps) return String(name);
+  if (!steps) return null;
   const lo = steps[0];
   const hi = steps[steps.length - 1];
   const raw = opts && typeof opts.step === 'number' && isFinite(opts.step) ? Math.round(opts.step) : lo;
-  return name + '#' + Math.min(hi, Math.max(lo, raw));
+  return Math.min(hi, Math.max(lo, raw));
+}
+
+/** The volume asked for, 0..1 (1 when none or junk was given). */
+export function sfxVolume(opts?: SfxOptions): number {
+  return opts && typeof opts.volume === 'number' && isFinite(opts.volume) ? clamp(opts.volume, 0, 1) : 1;
+}
+
+/** What the voice allocator (limiter.ts) needs to know about a sound that wants to start. */
+export function sfxRequest(name: SfxName, opts?: SfxOptions): SfxRequest {
+  const def = defOf(name);
+  const req: SfxRequest = { key: sfxKey(name, opts), rank: sfxRank(name) };
+  if (def && def.voices !== undefined) {
+    req.group = String(name);
+    req.groupLimit = def.voices;
+  }
+  if (def && def.interval !== undefined) req.minInterval = def.interval;
+  return req;
 }
 
 /**
@@ -787,9 +853,18 @@ export function startSfx(
 ): Voice | null {
   const def = defOf(name);
   if (!def) return null;
-  const volume = opts && typeof opts.volume === 'number' && isFinite(opts.volume) ? clamp(opts.volume, 0, 1) : 1;
+  const volume = sfxVolume(opts);
   if (volume <= 0) return null;
-  const v = new Voice(ctx, dest, when, def.gain * volume, group);
+  let trim = 1;
+  const steps = SFX_STEPS[name];
+  const step = audibleStep(name, opts);
+  if (def.trimDb && steps && step !== null) {
+    const takes = Math.max(1, def.variants || 1);
+    const take = (((variant | 0) % takes) + takes) % takes;
+    const db = def.trimDb[(step - steps[0]) * takes + take];
+    if (typeof db === 'number') trim = Math.pow(10, db / 20);
+  }
+  const v = new Voice(ctx, dest, when, def.gain * trim * volume, group);
   try {
     def.build(v, opts ? opts.step : undefined, variant | 0);
   } catch (e) {

@@ -15,8 +15,22 @@
  * Only the engine's random choices are taken from the transcript (spawn colours, which way a
  * piece slid, shuffle result, which gem became a beam) — and those are checked for plausibility.
  *
- * Used by tests/engine/hardening*.test.ts: `build()` makes hand-written boards, `Referee`
- * audits one game call by call, `playAudited()` fuzzes whole games.
+ * Used by tests/engine/hardening*.test.ts:
+ *   `build()` / `audit()`   hand-written boards, the latter with a Referee attached (`Audit`)
+ *   `Referee`               audits one game call by call
+ *   `quietRun()`            picks a seed whose random refill does not disturb a hand-built scenario
+ *   `playAudited()`         one whole game played by a seeded bot (valid moves, boosters, illegal
+ *                           and out-of-turn calls, continues, end bonus), every call audited
+ *   `probeSwaps()`          swap() ⇔ validMoves() ⇔ canSwap() ⇔ the reference rules, for every
+ *                           adjacent pair of a board
+ *   `checkDeterminism()`    byte-identical replay, no hidden state after refused calls, clone()
+ *
+ * Where the design leaves room the Referee follows the engine's documented decisions (header of
+ * src/engine/game.ts): a special made by a match is immune to blasts until the next fall; vines
+ * spread only after moves, and a vine cut by a booster counts for the next move; a hammer needs
+ * something to hit; freeSwap refuses identical pieces; lamps enter through gap-free columns; a
+ * board on which no move can ever exist ends the level; the cascade counter grows with every
+ * fall step (also the one after a lamp was collected).
  */
 import { Game, SCORE } from '../../src/engine/index.ts';
 import type {
@@ -500,6 +514,8 @@ export class Referee {
   private lastLampMove = 0;
   private moveCount = 0;
   private bonusDone = false;
+  /** §2.7 — a vine was destroyed (by a booster) since the last move settled: it counts for the next move. */
+  private vineCutSinceMove = false;
 
   constructor(level: LevelDef, start: Snapshot, o: RefereeOptions = {}) {
     this.level = level;
@@ -611,13 +627,19 @@ export class Referee {
     if (prisms !== levelPrisms + (boosters.prism ? 1 : 0)) this.bump('start:prismBoosterNotPlaced');
     if (beams !== levelBeams + (boosters.beamNova ? 1 : 0)) this.bump('start:beamBoosterNotPlaced');
     if (novas !== levelNovas + (boosters.beamNova ? 1 : 0)) this.bump('start:novaBoosterNotPlaced');
-    if (s.movesLeft !== level.moves + (boosters.extraMoves ? 3 : 0)) die(`movesLeft ${s.movesLeft}`);
+    const startMoves = Math.max(0, Math.floor(level.moves)) + (boosters.extraMoves ? 3 : 0);
+    if (s.movesLeft !== startMoves) die(`movesLeft ${s.movesLeft}`);
     if (s.score !== 0) die('score is not 0');
     const w: W = { cols: s.cols, rows: s.rows, cells: copyCells(s.cells) };
     const moves = refMoves(w);
     if (s.status === 'playing') {
       if (refHasMatch(w)) die('the board starts with a match');
       if (moves.length === 0) die("no valid move although the status is 'playing'");
+    } else if (s.status === 'lost' && startMoves <= 0 && moves.length > 0) {
+      // a level without moves (bad data) starts out of moves; addMoves() resumes it
+      if (s.canContinue !== true) die('a level that starts out of moves on a playable board can be continued');
+      if (refHasMatch(w)) die('the board starts with a match');
+      this.bump('start:noMoves');
     } else if (s.status === 'lost') {
       if (s.canContinue !== false || moves.length > 0) die("a level may only start 'lost' when no move can ever exist");
       this.bump('start:dead');
@@ -638,7 +660,7 @@ export class Referee {
       falls: 0,
       fresh: new Set<number>(),
       pending: [],
-      vineCut: false,
+      vineCut: this.vineCutSinceMove,
       score: before.score,
       bonus: false,
     };
@@ -722,6 +744,8 @@ export class Referee {
       }
     }
     if (ctx.k !== ctx.steps.length) die(`unexpected extra step '${ctx.steps[ctx.k].type}' at index ${ctx.k}`);
+    // A move ends the vines' turn; whatever a booster cut is remembered for the move that follows.
+    this.vineCutSinceMove = call.op === 'swap' ? false : ctx.vineCut;
 
     // The transcript must reproduce the snapshot exactly.
     const after = res.snapshot;
@@ -1438,7 +1462,7 @@ export class Referee {
         w.cells[to].piece = { ...p };
         this.bump('vine:grew');
       } else if (next !== null && next.type === 'grow') {
-        die(`a vine spread although ${!isMove ? 'this was not a move' : ctx.vineCut ? 'a vine was destroyed this turn' : 'no vine has a plain gem next to it'}`);
+        die(`a vine spread although ${!isMove ? 'this was not a move' : ctx.vineCut ? 'a vine was destroyed since the last move' : 'no vine has a plain gem next to it'}`);
       }
       // §2.8: no move left → shuffle
       if (refMoves(w).length === 0) {
@@ -1755,11 +1779,76 @@ export function replayLog(log: GameLog, upTo: number = log.calls.length): Game {
 
 export interface Played {
   log: GameLog;
-  /** JSON of every TurnResult, in order. */
+  /** Every TurnResult, in call order. */
+  results: TurnResult[];
+  /** JSON of `results`. */
   transcript: string;
   game: Game;
   turns: number;
   accepted: number;
+}
+
+export interface PlayOptions {
+  maxCalls?: number;
+  /**
+   * Every `probeEvery` calls (while playing) try EVERY pair of adjacent cells, in both orders, on
+   * copies of the game: swap() must accept exactly the pairs validMoves() lists — and the
+   * reference rules allow — charge exactly one move, and leave a refused copy untouched.
+   */
+  probeEvery?: number;
+}
+
+/**
+ * swap() ⇔ validMoves() ⇔ the reference rules, for every adjacent pair of the current board.
+ * Works on `game.clone()` copies; one pair per call is cross-checked on a game rebuilt from the
+ * log instead (so a broken clone() cannot hide a broken swap()).
+ */
+export function probeSwaps(game: Game, log: GameLog, d: Dice, stats: Record<string, number>): void {
+  const s = game.snapshot();
+  if (s.status !== 'playing') return;
+  const listed = new Set(game.validMoves().map(moveKey));
+  const w = { cols: s.cols, rows: s.rows, cells: s.cells };
+  const before = JSON.stringify(s);
+  const pairs: [Pos, Pos][] = [];
+  for (let r = 0; r < s.rows; r++) {
+    for (let c = 0; c < s.cols; c++) {
+      if (c + 1 < s.cols) pairs.push([at(c, r), at(c + 1, r)]);
+      if (r + 1 < s.rows) pairs.push([at(c, r), at(c, r + 1)]);
+    }
+  }
+  const rebuilt = pairs.length > 0 ? d.int(pairs.length) : -1;
+  pairs.forEach(([a, b], n) => {
+    const key = moveKey({ a, b });
+    const want = listed.has(key);
+    if (refCanSwap(w, a, b) !== want) throw new Error(`probe: validMoves() ${want ? 'lists' : 'omits'} ${key} against the rules\n${picture(s).join('\n')}`);
+    for (const [x, y] of [[a, b], [b, a]] as const) {
+      const copy = game.clone();
+      const res = copy.swap(x, y);
+      if (res.accepted !== want) throw new Error(`probe: swap(${posKey(x)} → ${posKey(y)}) accepted=${String(res.accepted)} but validMoves() ${want ? 'lists' : 'does not list'} it\n${picture(s).join('\n')}`);
+      if (game.canSwap(x, y) !== want) throw new Error(`probe: canSwap(${posKey(x)} → ${posKey(y)}) disagrees with validMoves()`);
+      if (res.accepted) {
+        if (res.snapshot.movesLeft !== s.movesLeft - 1) throw new Error('probe: an accepted swap must cost exactly one move');
+        const first = res.steps[0];
+        if (first.type !== 'swap' || !first.valid || posKey(first.a) !== posKey(x) || posKey(first.b) !== posKey(y)) throw new Error('probe: an accepted swap must start with its swap step');
+      } else {
+        if (JSON.stringify(res.snapshot) !== before || JSON.stringify(copy.snapshot()) !== before) throw new Error('probe: a refused swap changed the state');
+        const bothExist = s.cells[x.r * s.cols + x.c].exists && s.cells[y.r * s.cols + y.c].exists;
+        if (!bothExist) {
+          if (res.steps.length !== 0) throw new Error('probe: a swap with a hole is no swap at all: no step');
+        } else if (res.steps.length !== 1 || res.steps[0].type !== 'swap' || res.steps[0].valid) {
+          throw new Error('probe: a refused swap of two existing adjacent cells returns one swap step with valid:false');
+        }
+      }
+      stats[want ? 'probe:accepted' : 'probe:refused'] = (stats[want ? 'probe:accepted' : 'probe:refused'] ?? 0) + 1;
+      if (n === rebuilt && x === a) {
+        const fresh = replayLog(log);
+        if (JSON.stringify(fresh.snapshot()) !== before) throw new Error('probe: replaying the log does not reproduce the game');
+        if (JSON.stringify(fresh.swap(x, y)) !== JSON.stringify(res)) throw new Error('probe: a clone and a replayed game answer the same swap differently');
+        stats['probe:rebuilt'] = (stats['probe:rebuilt'] ?? 0) + 1;
+      }
+    }
+  });
+  if (JSON.stringify(game.snapshot()) !== before) throw new Error('probe: probing changed the game');
 }
 
 /**
@@ -1767,7 +1856,10 @@ export interface Played {
  * (sometimes the hint), and mixes in boosters, illegal swaps, calls in the wrong status,
  * continues after losing and the end bonus.
  */
-export function playAudited(level: LevelDef, seed: number, botSeed: number, stats: Record<string, number>, maxCalls = 260): Played {
+export function playAudited(level: LevelDef, seed: number, botSeed: number, stats: Record<string, number>, options: PlayOptions | number = {}): Played {
+  const o: PlayOptions = typeof options === 'number' ? { maxCalls: options } : options;
+  const maxCalls = o.maxCalls ?? 260;
+  const prober = dice(botSeed ^ 0x5bd1e995);
   const bot = dice(botSeed);
   const boosters: StartBoosters = {};
   if (bot.chance(0.25)) boosters.extraMoves = true;
@@ -1800,6 +1892,7 @@ export function playAudited(level: LevelDef, seed: number, botSeed: number, stat
 
   for (let guard = 0; guard < maxCalls; guard++) {
     const status = game.snapshot().status;
+    if (o.probeEvery !== undefined && guard % o.probeEvery === 0) probeSwaps(game, log, prober, stats);
     if (status === 'won') {
       run({ op: 'swap', a: anyCell(), b: anyCell() });
       run({ op: 'addMoves', n: 3 });
@@ -1840,7 +1933,33 @@ export function playAudited(level: LevelDef, seed: number, botSeed: number, stat
     const flip = bot.chance(0.5);
     run({ op: 'swap', a: flip ? move.b : move.a, b: flip ? move.a : move.b });
   }
-  return { log, transcript: JSON.stringify(results), game, turns, accepted };
+  return { log, results, transcript: JSON.stringify(results), game, turns, accepted };
+}
+
+/**
+ * §2.12 and "a refused call changes nothing": replay a played game on fresh engines.
+ *  - the full log gives a byte-identical transcript;
+ *  - the log WITHOUT its refused calls gives byte-identical results for the accepted ones, i.e.
+ *    refused calls (and the queries in between) leave no hidden trace, not even in the RNG;
+ *  - a clone taken half-way continues exactly like the original.
+ */
+export function checkDeterminism(played: Played): void {
+  const { log, results } = played;
+  const again = new Game(log.level, { seed: log.seed, boosters: log.boosters });
+  const lean = new Game(log.level, { seed: log.seed, boosters: log.boosters });
+  const half = Math.floor(log.calls.length / 2);
+  let fork: Game | null = null;
+  log.calls.forEach((call, n) => {
+    if (n === half) fork = again.clone();
+    const want = JSON.stringify(results[n]);
+    if (JSON.stringify(perform(again, call)) !== want) throw new Error(`determinism: call ${n} (${JSON.stringify(call)}) gives a different result on replay`);
+    if (results[n].accepted && JSON.stringify(perform(lean, call)) !== want) {
+      throw new Error(`hidden state: call ${n} (${JSON.stringify(call)}) gives a different result when the refused calls before it are left out`);
+    }
+    if (fork !== null && JSON.stringify(perform(fork, call)) !== want) throw new Error(`clone: call ${n} (${JSON.stringify(call)}) gives a different result on a clone taken at call ${half}`);
+  });
+  const end = JSON.stringify(played.game.snapshot());
+  if (JSON.stringify(again.snapshot()) !== end || JSON.stringify(lean.snapshot()) !== end) throw new Error('determinism: final snapshots differ');
 }
 
 // ───────────────────────────── audited hand-built games ─────────────────────────────

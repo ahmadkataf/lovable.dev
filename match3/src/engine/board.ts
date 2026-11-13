@@ -369,6 +369,7 @@ export function fillRandom(b: Board, cells: readonly number[], colors: number, r
 // ───────────────────────────── reshuffle (§2.8) ─────────────────────────────
 
 const PERMUTE_TRIES = 40;
+/** Planted-move candidates tried by the quick recolouring passes; the last-resort pass tries them all. */
 const RECOLOR_TRIES = 48;
 
 export interface Reshuffle {
@@ -384,7 +385,9 @@ export interface Reshuffle {
  * Stage 1 permutes the free gems (greedy placement + local repair, a bounded number of tries).
  * Stage 2 — only when no permutation works, e.g. too few gems of any one colour — plants a
  * guaranteed move by recolouring its gems (and, if that alone leaves a match, the other free
- * gems around it).
+ * gems around it). It first samples a bounded number of places for the planted move; only when
+ * all of those fail does it go through EVERY place and EVERY colour, so that null really means
+ * "no recolouring of the free gems gives a playable board" and not "the sample was unlucky".
  * Returns null when neither is possible (nothing on the board can ever form a move); the board
  * is then left exactly as it was. Never loops: every stage has a fixed budget.
  *
@@ -430,12 +433,19 @@ export function reshuffle(b: Board, rng: Rng, colors: number, mustChange: boolea
   };
   const patterns = movePatterns(b);
   rng.shuffle(patterns);
-  const tries = Math.min(patterns.length, RECOLOR_TRIES);
+  const sample = Math.min(patterns.length, RECOLOR_TRIES);
   // Pass 0 is gentle: only the gems of the planted move change colour. Pass 1 recolours every
   // free gem around the planted move (needed when the old colours would leave a match).
-  for (let pass = 0; pass < 2; pass++) {
+  // Pass 2 is the last resort and exhaustive: the places the sample left out with the gentle
+  // recolouring, then every place with every colour and a full recolouring.
+  for (let pass = 0; pass < 3; pass++) {
+    const tries = pass === 2 ? patterns.length * 2 : sample;
     for (let attempt = 0; attempt < tries; attempt++) {
-      const pattern = patterns[attempt] as number[];
+      // In pass 2 the first round over the patterns is gentle, the second one recolours everything.
+      const full = pass === 1 || (pass === 2 && attempt >= patterns.length);
+      const index = pass === 2 ? attempt % patterns.length : attempt;
+      if (pass === 2 && !full && index < sample) continue; // already tried by pass 0
+      const pattern = patterns[index] as number[];
       restore();
       // Members that cannot be recoloured (specials, chained gems) dictate the colour.
       let fixed = -1;
@@ -450,7 +460,10 @@ export function reshuffle(b: Board, rng: Rng, colors: number, mustChange: boolea
       const candidates: number[] = [];
       if (fixed >= 0) candidates.push(fixed);
       else if (pass === 1) candidates.push(rng.int(colors));
-      else {
+      else if (pass === 2 && full) {
+        const first = rng.int(colors);
+        for (let k = 0; k < colors; k++) candidates.push((first + k) % colors);
+      } else {
         // the members' own colours, the one two of them already share first
         const own = pattern.map((m) => (pieces[m] as Piece).color);
         if (own[0] === own[1] || own[0] === own[2]) candidates.push(own[0] as number);
@@ -459,9 +472,9 @@ export function reshuffle(b: Board, rng: Rng, colors: number, mustChange: boolea
       }
       for (const color of candidates) {
         restore();
-        if (pass === 1) for (const p of original) p.color = -1;
+        if (full) for (const p of original) p.color = -1;
         for (const m of pattern) (pieces[m] as Piece).color = color as Color;
-        if (pass === 1) {
+        if (full) {
           for (const i of cells) {
             const p = pieces[i] as Piece;
             if (p.color < 0) p.color = colourWithoutMatch(b, i, colors, rng);

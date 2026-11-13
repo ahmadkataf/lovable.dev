@@ -121,7 +121,7 @@ export function createShell(deps: ShellDeps): Shell {
   let paused = false;
   let lastRoot: boolean | null = null;
   /** What the profile looked like when the current level was started (to tell a first clear from a replay). */
-  let lastPlay: { level: number; frontier: number; stars: number } | null = null;
+  let lastPlay: { level: number; stars: number } | null = null;
   let dailyOffered = false;
 
   // one of each dialog at a time
@@ -329,7 +329,7 @@ export function createShell(deps: ShellDeps): Shell {
       kit.closeAll();
       introOpen = null;
       const record = profile.record(id);
-      lastPlay = { level: id, frontier: profile.highestUnlocked(), stars: record ? record.stars : 0 };
+      lastPlay = { level: id, stars: record ? record.stars : 0 };
       try {
         const p = ensurePlay();
         if (kind === 'play') p.stop();

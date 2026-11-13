@@ -14,10 +14,24 @@ import { isThenable, now } from './core.ts';
 import { detach, el, reflow, replay } from './dom.ts';
 import type { ConfirmOptions, DialogButton, DialogHandle, DialogOptions, KitButton, ToastOptions } from './types.ts';
 
-/** Exit animation length; the overlay keeps swallowing taps for this long after it closed. */
+/** Exit animation length. */
 const CLOSE_MS = 170;
+/**
+ * A closed dialog's (by then invisible) overlay keeps swallowing taps this long — also with reduced
+ * motion — so the second tap of a double tap on a dialog button can never reach what is underneath.
+ * Matches the kit buttons' own double-activation cooldown.
+ */
+const SHIELD_MS = 350;
+/**
+ * A new dialog ignores pointer input this long (its open animation and a moment more: a double tap
+ * can be up to ~300 ms apart), so the second tap of a double tap on whatever opened it cannot land
+ * on one of the dialog's buttons.
+ */
+const ARM_MS = 320;
+/** When a closed dialog's overlay leaves the DOM. */
+const REMOVE_MS = Math.max(CLOSE_MS, SHIELD_MS);
 /** Backdrop taps are ignored this long after opening, so a stray tap cannot dismiss a new dialog. */
-const BACKDROP_GRACE_MS = 320;
+const BACKDROP_GRACE_MS = 400;
 /** Below this visible body height (design units) a squeezed dialog scrolls as a whole. */
 const FLOW_BELOW_UNITS = 100;
 const TOAST_MAX = 3;
@@ -183,6 +197,26 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
     return layer;
   }
 
+  /** The layers only exist while they hold something: an idle screen has no kit nodes next to it. */
+  function dropLayerIfEmpty(): void {
+    if (layer && !layer.firstChild) detach(layer);
+  }
+
+  function dropToastHostIfEmpty(): void {
+    if (toastHost && !toastHost.firstChild) detach(toastHost);
+  }
+
+  function blurInside(root: HTMLElement): void {
+    const active = document.activeElement as HTMLElement | null;
+    if (active && active !== document.body && root.contains(active) && typeof active.blur === 'function') {
+      try {
+        active.blur();
+      } catch {
+        // nothing to blur
+      }
+    }
+  }
+
   // ───────────────────────────── dialogs ─────────────────────────────
 
   function openDialog<T = unknown>(opts: DialogOptions<T>): DialogHandle<T> {
@@ -250,18 +284,32 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
       silentClose: () => finish(undefined, true),
     };
 
+    let armTimer = 0;
+
     function finish(result: T | undefined, quiet: boolean): void {
       if (entry.closed) return;
       entry.closed = true;
       const at = stack.indexOf(entry);
+      const wasTop = at >= 0 && at === stack.length - 1;
       if (at >= 0) stack.splice(at, 1);
-      root.classList.remove('k-open');
+      window.clearTimeout(armTimer);
+      // k-closing also takes the panel out of hit testing: nothing in a closing dialog can be pressed
+      root.classList.remove('k-open', 'k-arming');
       root.classList.add('k-closing');
       if (!opts.silent && !quiet) core.sfx('popupClose');
+      // a key press must not reach a button of the dialog that is going away
+      blurInside(root);
       sync();
+      // the dialog underneath is the top one again: keyboard focus moves into it
+      const next = stack[stack.length - 1];
+      if (wasTop && next) focusPanel(next.panel);
       if (observer) observer.disconnect();
       window.removeEventListener('resize', refit);
-      window.setTimeout(() => detach(root), core.reducedMotion() ? 0 : CLOSE_MS);
+      // The exit animation takes CLOSE_MS; the (then transparent) overlay stays on as a tap shield.
+      window.setTimeout(() => {
+        detach(root);
+        dropLayerIfEmpty();
+      }, REMOVE_MS);
       if (opts.onClose) {
         try {
           opts.onClose(result);
@@ -342,14 +390,32 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
       );
     }
 
+    // Nothing inside a dialog that has closed may still be activated (its exit animation is running):
+    // the stylesheet takes the panel out of hit testing; this also covers content that opted back in.
+    root.addEventListener(
+      'click',
+      (ev: MouseEvent) => {
+        if (entry.closed && ev.isTrusted) {
+          ev.stopPropagation();
+          ev.preventDefault();
+        }
+      },
+      true,
+    );
+
     // backdrop: a tap that starts and ends outside the panel
     const openedAt = now();
     let downOutside = false;
+    /** Over the panel's box? (While the panel is not hit-testable — arming — its taps land on the overlay.) */
+    const overPanel = (ev: MouseEvent): boolean => {
+      const r = panel.getBoundingClientRect();
+      return ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+    };
     root.addEventListener('pointerdown', (ev: PointerEvent) => {
-      downOutside = ev.target === root || ev.target === dim;
+      downOutside = (ev.target === root || ev.target === dim) && !overPanel(ev);
     });
     root.addEventListener('click', (ev: MouseEvent) => {
-      const outside = ev.target === root || ev.target === dim;
+      const outside = (ev.target === root || ev.target === dim) && !overPanel(ev);
       if (!outside || !downOutside || entry.closed) return;
       downOutside = false;
       if (now() - openedAt < BACKDROP_GRACE_MS) return;
@@ -425,17 +491,23 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
         });
       });
       if (body.firstElementChild) observer.observe(body.firstElementChild);
+      // … and when the room for it changed (a title set later, buttons that re-stacked)
+      observer.observe(body);
+      if (foot) observer.observe(foot);
     }
 
     // show
     if (stack.length === 0) returnFocus = document.activeElement;
     stack.push(entry);
+    root.classList.add('k-arming');
     parent.appendChild(root);
+    // focus first, then hide the background: nothing that is aria-hidden may still hold the focus
+    focusPanel(panel);
     sync();
     refit();
     reflow(root);
     root.classList.add('k-open');
-    focusPanel(panel);
+    armTimer = window.setTimeout(() => root.classList.remove('k-arming'), ARM_MS);
     if (!opts.silent) core.sfx('popupOpen');
     return handle;
   }
@@ -492,6 +564,7 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
         detach(entry.node);
         const at = toasts.indexOf(entry);
         if (at >= 0) toasts.splice(at, 1);
+        dropToastHostIfEmpty();
         for (const r of rest) {
           const delta = r.top - r.node.getBoundingClientRect().top;
           if (Math.abs(delta) < 0.5) continue;

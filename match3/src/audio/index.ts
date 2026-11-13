@@ -23,41 +23,84 @@
  * Importing this module touches neither the DOM nor an AudioContext, so it loads under Node.
  */
 import type { AudioApi, MusicTrack, SfxName, SfxOptions } from './types.ts';
-import { SfxGate } from './limiter.ts';
+import { SFX_MAX_VOICES } from './limiter.ts';
+import { SfxMixer } from './mixer.ts';
 import { createMusicPlayer, type MusicPlayer } from './music.ts';
 import { LEVELS, createOutputChain, type OutputChain } from './output.ts';
-import { isPrioritySfx, isSfxName, renderSfx, sfxClass, sfxKey } from './sfx.ts';
-import { BASE_LOOKAHEAD, lookaheadFor, type TransportStats } from './transport.ts';
-import { LEAD_MIDI, killVoices, pluckBuffer, voiceCensus, type Voice, type VoiceGroup } from './voices.ts';
+import { isSfxName } from './sfx.ts';
+import { lookaheadFor, type TransportStats } from './transport.ts';
+import { LEAD_MIDI, killVoices, pluckBuffer, voiceCensus, type VoiceGroup } from './voices.ts';
 
 export type { AudioApi, MusicTrack, SfxName, SfxOptions } from './types.ts';
-export { SFX_NAMES, SFX_STEPS, isPrioritySfx, isSfxName, renderSfx, sfxClass, sfxKey, type SfxClass } from './sfx.ts';
+export {
+  MATCH_VARIANTS,
+  SFX_NAMES,
+  SFX_STEPS,
+  SFX_TIERS,
+  SFX_TIER_PEAK_DB,
+  isPrioritySfx,
+  isSfxName,
+  renderSfx,
+  sfxClass,
+  sfxDucksMusic,
+  sfxKey,
+  sfxPeakDb,
+  sfxRank,
+  sfxRequest,
+  sfxTier,
+  sfxVariants,
+  startSfx,
+  type SfxClass,
+  type SfxTier,
+} from './sfx.ts';
+export { LATE_MARGIN, MUSIC_DUCK_DB, MUSIC_DUCK_HOLD, STEAL_FADE, SfxMixer, type SfxMixerStats } from './mixer.ts';
 export { MUSIC_MIX, createMusicPlayer, type MusicLayers, type MusicPlayer, type MusicPlayerOptions } from './music.ts';
 export {
   GUARD_CEILING,
   GUARD_KNEE,
   LEVELS,
+  LIMITER,
   LIMITER_MAKEUP,
+  LIMITER_ONSET,
+  MUSIC_CEILING,
+  MUSIC_GLUE,
+  MUSIC_KNEE,
+  MUSIC_PEAK_DB,
   STARTUP_BYPASS,
   STARTUP_FADE,
   createOutputChain,
   guardCurve,
   type OutputChain,
+  type OutputChainOptions,
 } from './output.ts';
 export { voiceCensus, type VoiceCensus } from './voices.ts';
-export { SFX_MAX_VOICES, SFX_MIN_INTERVAL, SFX_PRIORITY_EXTRA, SfxGate, type SfxGateOptions } from './limiter.ts';
-export { BASE_LOOKAHEAD, MAX_LOOKAHEAD, Transport, lookaheadFor, type MusicEvent, type TransportStats } from './transport.ts';
+export {
+  SFX_LAND_INTERVAL,
+  SFX_MATCH_VOICES,
+  SFX_MAX_VOICES,
+  SFX_MIN_INTERVAL,
+  SfxGate,
+  type SfxGateOptions,
+  type SfxRequest,
+  type SfxSlot,
+} from './limiter.ts';
+export { BASE_LOOKAHEAD, MAX_LOOKAHEAD, MIN_LEAD, Transport, lookaheadFor, type MusicEvent, type TransportStats } from './transport.ts';
 export { TRACK_STYLES, createComposer, type Bar, type Composer, type LeadNote, type PercHit, type TrackStyle } from './phrase.ts';
 export {
   HIJAZ,
   MATCH_DEGREES,
+  MATCH_LADDER,
   MATCH_MAX_STEP,
+  PRAISE_MOTIFS,
   TONIC_MIDI,
   degreeToMidi,
   isHijazPitch,
+  isLadderPitch,
   matchStepFreq,
   matchStepMidi,
+  matchStepSparkles,
   midiToFreq,
+  praiseMotif,
   starStepMidi,
 } from './scale.ts';
 
@@ -66,10 +109,23 @@ export const TICK_MS = 25;
 /** Cross-fade between music tracks, and the music fade when it is switched on or off (s). */
 export const CROSSFADE = 0.6;
 
-/** A new track begins this far ahead of "now" (s). */
-const START_DELAY = 0.06;
-/** Effects start this far ahead of "now" so their attack is never clipped by a late render (s). */
-const SFX_DELAY = 0.005;
+/**
+ * A new track begins this far ahead of "now" (s). Its first notes are scheduled by the next
+ * scheduler tick, not by the call that asked for the track: a burst of track changes in one
+ * frame then builds no notes at all, and one change spreads its work over two frames.
+ */
+const START_DELAY = 0.09;
+/**
+ * Effects start a little ahead of "now", so that their attack is never clipped by a render
+ * that had already begun: one device buffer (the context's baseLatency) plus a margin,
+ * within these bounds (s). The audio clock moves a whole device buffer at a time, so
+ * anything aimed closer than that can find its start already in the past.
+ */
+export const SFX_LEAD_MIN = 0.008;
+export const SFX_LEAD_MAX = 0.03;
+const SFX_LEAD_MARGIN = 0.003;
+/** Used when the context does not say how large its buffer is. */
+const SFX_LEAD_DEFAULT = 0.013;
 /** Effects fired while the context is still starting are queued for at most this long (ms). */
 const PENDING_WINDOW_MS = 400;
 /**
@@ -77,8 +133,6 @@ const PENDING_WINDOW_MS = 400;
  * launched gives it a tune of its own. Later starts move on to fresh material.
  */
 export const MENU_SIGNATURE_SEED = 13;
-/** While a jingle (win, lose, reward …) plays, the music bus drops to this share of its level. */
-const JINGLE_DUCK = 0.4;
 /** Pause between two plucked-string buffers synthesised in the background (ms). */
 const WARMUP_GAP_MS = 60;
 /** This far into its fade-in (s) a new track is still inaudible (under 4 % of its level). */
@@ -130,8 +184,16 @@ export interface AudioDebugInfo {
   /** Effect voices sounding now / the cap. */
   voices: number;
   maxVoices: number;
+  /** 'match' voices sounding now (they have a cap of their own). */
+  matchVoices: number;
   sfxPlayed: number;
   sfxDropped: number;
+  /** Voices that were faded out to make room for a new effect. */
+  sfxStolen: number;
+  /** Voices built a second time because the main thread was held up while building them. */
+  sfxRebuilt: number;
+  /** How far ahead of the clock effects are started (s). */
+  sfxLead: number;
   music: TransportStats | null;
   /** Current gain of the music bus (it dips while a jingle plays). */
   musicLevel: number;
@@ -174,8 +236,9 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
   let lastTick = -1;
   let musicStarts = 0;
   let menuPlayed = false;
-  let sfxPlayed = 0;
-  let sfxDropped = 0;
+  let mixer: SfxMixer | null = null;
+  /** Effects counted by the mixers of earlier contexts. */
+  const before = { played: 0, dropped: 0, stolen: 0, rebuilt: 0 };
   let resumeAskedAt = -1;
   let pendingSince = -1;
   let listening = false;
@@ -185,11 +248,6 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
   /** A ctx.suspend() has been asked for and has not settled yet (and when it was asked, ms). */
   let suspending = false;
   let suspendAskedAt = 0;
-  /** Context time until which the music is held down for a jingle. */
-  let duckEnd = 0;
-  const gate = new SfxGate();
-  /** Effect voices that are scheduled or sounding, so that a cut really stops them. */
-  let sfxVoices: VoiceGroup = new Set<Voice>();
   const baseSeed = options.seed === undefined ? (Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0 : options.seed >>> 0;
 
   function wall(): number {
@@ -224,10 +282,21 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
     }
   }
 
+  /** The mixer of a context that is gone: stop its voices, keep its counts. */
+  function retireMixer(): void {
+    if (!mixer) return;
+    mixer.killAll();
+    before.played += mixer.stats.played;
+    before.dropped += mixer.stats.dropped;
+    before.stolen += mixer.stats.stolen;
+    before.rebuilt += mixer.stats.rebuilt;
+    mixer = null;
+  }
+
   function ensureContext(): boolean {
     if (ctx && stateOf() !== 'closed') return true;
     dropPlayers();
-    killVoices(sfxVoices);
+    retireMixer();
     const made = makeContext();
     if (!made) {
       ctx = null;
@@ -236,9 +305,11 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
     }
     try {
       chain = createOutputChain(made);
+      mixer = new SfxMixer(made, chain);
     } catch {
       ctx = null;
       chain = null;
+      mixer = null;
       try {
         const p = made.close();
         if (p && typeof p.then === 'function') p.then(undefined, () => undefined);
@@ -249,9 +320,7 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
     }
     ctx = made;
     suspending = false;
-    duckEnd = 0;
     pendingSince = -1;
-    gate.reset();
     try {
       made.onstatechange = onState;
     } catch {
@@ -340,6 +409,10 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
     } else if (st !== 'closed' && shouldRun()) {
       // Stopped by the system (an interruption, an autoplay rule): resume() is asked for
       // below, and in case that needs a user gesture the next tap brings the sound back.
+      // An effect that was sounding is cut: its frozen remainder would otherwise play, out
+      // of place, whenever the sound returns. (Effects queued for a context that is still
+      // starting are another matter: they are waiting to be heard.)
+      if (pendingSince < 0) cutSfx(true);
       listen();
     }
     sync();
@@ -388,9 +461,8 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
         if (target === 'menu' && !menuPlayed && options.seed === undefined) seed = MENU_SIGNATURE_SEED;
         if (target === 'menu') menuPlayed = true;
         try {
-          player = createMusicPlayer(ctx, chain.musicBus, target, { seed, startAt: now + START_DELAY, fadeIn: CROSSFADE });
+          player = createMusicPlayer(ctx, chain.musicIn, target, { seed, startAt: now + START_DELAY, fadeIn: CROSSFADE });
           lastTick = -1;
-          player.schedule(now + START_DELAY + BASE_LOOKAHEAD);
         } catch {
           // A player that could not be built or started must not be left half-connected.
           if (player) player.dispose();
@@ -473,43 +545,17 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
     }
   }
 
-  /**
-   * Let a jingle speak: pull the music down for its length, then let it rise again. A second
-   * jingle that starts meanwhile never brings the music back before the first has finished.
-   */
-  function duckMusic(from: number, seconds: number): void {
-    if (!chain) return;
-    const g = chain.musicBus.gain;
-    const end = Math.max(duckEnd, from + seconds);
-    duckEnd = end;
-    g.cancelScheduledValues(from);
-    g.setTargetAtTime(LEVELS.music * JINGLE_DUCK, from, 0.05);
-    g.setTargetAtTime(LEVELS.music, end, 0.25);
-  }
-
-  /** The jingle the music was making room for is gone: bring the music back now. */
-  function unduckMusic(): void {
-    if (!ctx || !chain || duckEnd <= 0) return;
-    duckEnd = 0;
-    const g = chain.musicBus.gain;
-    const now = ctx.currentTime;
-    g.cancelScheduledValues(now);
-    g.setTargetAtTime(LEVELS.music, now, 0.08);
-  }
-
   /** Silence every effect that is sounding by swapping in a fresh effects bus. */
   function cutSfx(immediately: boolean): void {
-    gate.reset();
     pendingSince = -1;
-    if (!ctx || !chain) return;
+    if (!ctx || !chain || !mixer) return;
     const old = chain.sfxBus;
-    const cut = sfxVoices;
-    sfxVoices = new Set<Voice>();
+    const cut: VoiceGroup = mixer.detach();
     const fresh = ctx.createGain();
     fresh.gain.value = LEVELS.sfx;
     fresh.connect(chain.master);
     chain.sfxBus = fresh;
-    unduckMusic();
+    mixer.unduck(ctx.currentTime);
     const finish = (): void => {
       try {
         old.disconnect();
@@ -527,6 +573,18 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
     old.gain.setValueAtTime(old.gain.value, t);
     old.gain.linearRampToValueAtTime(0, t + 0.02);
     background(setTimeout(finish, 80));
+  }
+
+  /** The audio clock, for the mixer to see whether it was overtaken while building a voice. */
+  function clock(): number {
+    return ctx ? ctx.currentTime : 0;
+  }
+
+  /** How far ahead of the clock an effect is started (s): one device buffer plus a margin. */
+  function sfxLead(): number {
+    const base = ctx ? (ctx as unknown as { baseLatency?: number }).baseLatency : undefined;
+    if (typeof base !== 'number' || !isFinite(base) || base <= 0) return SFX_LEAD_DEFAULT;
+    return Math.min(SFX_LEAD_MAX, Math.max(SFX_LEAD_MIN, base + SFX_LEAD_MARGIN));
   }
 
   function gesture(): void {
@@ -618,7 +676,7 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
 
     sfx(name: SfxName, opts?: SfxOptions): void {
       try {
-        if (disposed || !sfxOn || paused() || !unlocked || !ctx || !chain) return;
+        if (disposed || !sfxOn || paused() || !unlocked || !ctx || !chain || !mixer) return;
         if (!isSfxName(name)) return;
         if (stateOf() === 'closed') return;
         if (!live()) {
@@ -631,16 +689,7 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
           if (pendingSince < 0) pendingSince = w;
         }
         const now = ctx.currentTime;
-        if (!gate.admit(sfxKey(name, opts), now, isPrioritySfx(name))) {
-          sfxDropped++;
-          return;
-        }
-        const dur = renderSfx(ctx, chain.sfxBus, name, now + SFX_DELAY, opts, sfxVoices);
-        if (dur > 0) {
-          gate.register(now + SFX_DELAY + dur);
-          sfxPlayed++;
-          if (sfxClass(name) === 'jingle') duckMusic(now, dur);
-        }
+        mixer.play(name, opts, now, now + sfxLead(), clock);
       } catch {
         /* audio must never break the game */
       }
@@ -690,10 +739,14 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
         track: wanted,
         playing: player ? player.track : null,
         schedulerRunning: ticker !== null,
-        voices: ctx ? gate.active(ctx.currentTime) : 0,
-        maxVoices: gate.maxVoices + gate.priorityExtra,
-        sfxPlayed,
-        sfxDropped,
+        voices: ctx && mixer ? mixer.active(ctx.currentTime) : 0,
+        maxVoices: mixer ? mixer.maxVoices : SFX_MAX_VOICES,
+        matchVoices: ctx && mixer ? mixer.active(ctx.currentTime, 'match') : 0,
+        sfxPlayed: before.played + (mixer ? mixer.stats.played : 0),
+        sfxDropped: before.dropped + (mixer ? mixer.stats.dropped : 0),
+        sfxStolen: before.stolen + (mixer ? mixer.stats.stolen : 0),
+        sfxRebuilt: before.rebuilt + (mixer ? mixer.stats.rebuilt : 0),
+        sfxLead: sfxLead(),
         music: stats ? { bars: stats.bars, events: stats.events, dropped: stats.dropped, resyncs: stats.resyncs } : null,
         musicLevel: chain ? chain.musicBus.gain.value : 0,
         fading: fading.length,
@@ -715,7 +768,7 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
       warmup = null;
       try {
         dropPlayers();
-        killVoices(sfxVoices);
+        retireMixer();
         if (ctx) {
           ctx.onstatechange = null;
           if (stateOf() !== 'closed') {

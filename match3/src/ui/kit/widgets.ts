@@ -28,6 +28,8 @@ import type {
 /** Delay between two stars popping in (keep in sync with .k-stars--animate in kit.css). */
 const STAR_STEP_MS = 260;
 const STAR_FIRST_MS = 120;
+/** Length of the progress bar's "gain" sheen (keep in sync with .k-progress.k-gain in kit.css). */
+const GAIN_SWEEP_MS = 700;
 
 export interface Widgets {
   chip(opts: ChipOptions): Chip;
@@ -135,11 +137,24 @@ export function createWidgets(core: KitCore): Widgets {
       node.appendChild(mark);
     }
     let max = 1;
+    let shown = -1;
+    let gainAt = 0;
     function set(value: number, newMax?: number): void {
       if (typeof newMax === 'number') max = newMax;
       const top = max > 0 ? max : 1;
       const v = value > 0 ? (value < top ? value : top) : 0;
-      node.style.setProperty('--k-p', String(Math.round((v / top) * 10000) / 10000));
+      const p = Math.round((v / top) * 10000) / 10000;
+      // The bar grew: a band of light runs along it — at most once per sweep, so a value that is
+      // tweened frame by frame costs one restart, not one per frame.
+      if (shown >= 0 && p > shown && node.isConnected && !core.reducedMotion()) {
+        const t = now();
+        if (t - gainAt > GAIN_SWEEP_MS) {
+          gainAt = t;
+          replay(node, 'k-gain');
+        }
+      }
+      shown = p;
+      node.style.setProperty('--k-p', String(p));
       node.setAttribute('aria-valuemax', String(top));
       node.setAttribute('aria-valuenow', String(Math.round(v)));
       for (let i = 0; i < marks.length; i++) {
@@ -185,7 +200,12 @@ export function createWidgets(core: KitCore): Widgets {
       if (sound) {
         for (let i = 0; i < earned; i++) {
           const step = i + 1;
-          timers.push(window.setTimeout(() => core.sfx('star', { step }), STAR_FIRST_MS + i * STAR_STEP_MS + 150));
+          timers.push(
+            window.setTimeout(() => {
+              // (not for a row that has left the screen meanwhile, e.g. its dialog was closed)
+              if (node.isConnected) core.sfx('star', { step });
+            }, STAR_FIRST_MS + i * STAR_STEP_MS + 150),
+          );
         }
       }
     }

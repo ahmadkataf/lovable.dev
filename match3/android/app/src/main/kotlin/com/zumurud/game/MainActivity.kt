@@ -56,9 +56,12 @@ import org.json.JSONObject
  * page cannot do for itself (splash screen, system bars and cutouts, Back, saves, haptics,
  * lifecycle, recovery when the WebView's renderer dies).
  *
- * The page is served from the APK only (see [LocalContent]); it has no way to reach the network.
+ * The page is served from the APK only (see [LocalContent]); it has no way to reach the network —
+ * the app does hold the INTERNET permission (Google Play Billing and, in the "ads" flavour, the ad
+ * SDK bring it), but this WebView blocks every network load and every request to another origin.
+ * Purchases and ads are native ([StoreController]); the page only talks to them over the bridge.
  */
-class MainActivity : ComponentActivity(), GameBridge.Host {
+class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
 
     private lateinit var root: FrameLayout
     private lateinit var assetLoader: WebViewAssetLoader
@@ -117,7 +120,11 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
             insets
         }
 
-        store = StoreControllers.create(this) { eventJson -> runOnUiThread { callPageHook("store", eventJson) } }
+        // Purchases and ads. Events go to the page as window.__native.store("<json>"): the JSON
+        // text is passed as one quoted JavaScript string (see callPageHook / jsString).
+        store = StoreControllers.create(this, this) { eventJson ->
+            runOnUiThread { if (!isDestroyed) callPageHook("store", eventJson) }
+        }
         bridge = GameBridge(this, SaveStore(this), store)
         publishInfo()
 
@@ -302,7 +309,8 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
             domStorageEnabled = true
             allowFileAccess = false
             allowContentAccess = false
-            // The page must never reach the network, whatever permissions a later build merges in.
+            // The page must never reach the network, although the app has the INTERNET permission
+            // (billing and ad libraries need it). Without this line the default would be "allow".
             // Bundled files still load: they are answered by shouldInterceptRequest, not fetched.
             blockNetworkLoads = true
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
@@ -371,7 +379,9 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
 
         override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
             // A fresh document has not said where it is yet: treat it as the root screen.
-            if (view === webView) backToPage.isEnabled = false
+            if (view !== webView) return
+            backToPage.isEnabled = false
+            store.onPageStarted()
         }
 
         override fun onPageFinished(view: WebView, url: String?) {
@@ -570,6 +580,13 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
         false
     } catch (_: SecurityException) {
         false
+    }
+
+    // ───────────────────────── StoreHost (main thread) ─────────────────────────
+
+    /** A full-screen ad or a consent form took the system bars out of hiding: hide them again. */
+    override fun restoreImmersiveMode() {
+        if (!isDestroyed) hideSystemBars()
     }
 
     // ───────────────────────── diagnostics (debug builds only use these) ─────────────────────────

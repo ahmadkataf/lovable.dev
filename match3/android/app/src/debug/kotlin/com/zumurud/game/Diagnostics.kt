@@ -19,6 +19,11 @@ import android.webkit.WebView
  *     … --es diagcmd badurl    main-frame load failure → native error screen
  *     … --es diagcmd retry     press the error screen's Retry button
  *     … --es diagcmd reload    reload the diagnostics page
+ *     … --es diagcmd rate      call AndroidBridge.rate() (opens the store page, or does nothing)
+ *     … --es diagcmd store-query | store-restore | store-buy | store-rewarded | store-interstitial |
+ *                    store-privacy | store-sync       press the matching button of the page's
+ *                                                     "Monetisation" panel (store-buy buys the
+ *                                                     product selected there)
  */
 internal object Diagnostics {
     private const val ROOT = "diag"
@@ -38,8 +43,15 @@ internal object Diagnostics {
     fun splashMaxMs(intent: Intent?): Long? =
         intent?.getIntExtra("splashMs", 0)?.takeIf { it in 1..120_000 }?.toLong()
 
+    /** URLs the request filter refused, newest last (the diagnostics page asks how many matched). */
+    private val blocked = java.util.concurrent.CopyOnWriteArrayList<String>()
+
     fun onWebViewCreated(activity: MainActivity, webView: WebView, startUrl: String) {
         WebView.setWebContentsDebuggingEnabled(true)
+        LocalContent.onBlocked = { url ->
+            if (blocked.size >= 200) blocked.removeAt(0)
+            blocked.add(url)
+        }
         if (startUrl == DIAG_URL) webView.addJavascriptInterface(DiagBridge(activity), "DiagBridge")
     }
 
@@ -53,6 +65,9 @@ internal object Diagnostics {
             "badurl" -> webView?.loadUrl(LocalContent.urlFor("www", "no-such-page.html"))
             "retry" -> activity.retryAfterError()
             "reload" -> webView?.reload()
+            "rate" -> webView?.evaluateJavascript("AndroidBridge.rate()", null)
+            "store-query", "store-restore", "store-buy", "store-rewarded", "store-interstitial", "store-privacy", "store-sync" ->
+                webView?.evaluateJavascript("window.__diagStore&&window.__diagStore('${command.removePrefix("store-")}')", null)
             else -> Log.w(TAG, "unknown command")
         }
     }
@@ -61,6 +76,13 @@ internal object Diagnostics {
     private class DiagBridge(private val activity: MainActivity) {
         @Volatile
         private var snapshot: String = "{}"
+
+        /** How many requests containing [marker] the wrapper's request filter has refused so far. */
+        @JavascriptInterface
+        fun blockedCount(marker: String?): Int {
+            val text = marker?.takeIf { it.isNotEmpty() } ?: return 0
+            return blocked.count { it.contains(text) }
+        }
 
         /** Asynchronous on purpose: the state is read on the main thread, then handed to `callback`. */
         @JavascriptInterface

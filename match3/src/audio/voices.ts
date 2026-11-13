@@ -390,6 +390,35 @@ export function noise(v: Voice, o: NoiseOpts): void {
   v.run(src, t, t + o.dur + 0.02, v.noiseOffset());
 }
 
+const saturationCurves: { [hardness: string]: Float32Array<ArrayBuffer> } = {};
+
+/**
+ * Soft saturation inside a voice: whatever is routed into the returned node is pushed by
+ * `drive` into a tanh curve and can never come out larger than ±1. Quiet parts gain up to
+ * `hardness / tanh(hardness)` on the loud ones, so a blast becomes dense and heavy instead of
+ * one spike with a thin tail — more weight for the same peak level.
+ */
+export function saturator(v: Voice, drive: number, hardness: number = 2, to?: AudioNode): GainNode {
+  const key = String(hardness);
+  let curve = saturationCurves[key];
+  if (!curve) {
+    const n = 2049;
+    curve = new Float32Array(n);
+    const top = Math.tanh(hardness);
+    for (let i = 0; i < n; i++) curve[i] = Math.tanh(hardness * ((2 * i) / (n - 1) - 1)) / top;
+    curve[(n - 1) / 2] = 0;
+    saturationCurves[key] = curve;
+  }
+  const input = v.keep(v.ctx.createGain());
+  input.gain.value = drive;
+  const shaper = v.keep(v.ctx.createWaveShaper());
+  shaper.curve = curve;
+  shaper.oversample = 'none';
+  input.connect(shaper);
+  shaper.connect(to || v.out);
+  return input;
+}
+
 /** A filter inside the voice that other blocks can be routed through (`to`). */
 export function filter(
   v: Voice,
@@ -397,6 +426,7 @@ export function filter(
   f: number,
   q: number,
   sweep?: { f2: number; at?: number; dur: number },
+  to?: AudioNode,
 ): BiquadFilterNode {
   const node = v.keep(v.ctx.createBiquadFilter());
   node.type = type;
@@ -408,7 +438,7 @@ export function filter(
   } else {
     node.frequency.value = f;
   }
-  node.connect(v.out);
+  node.connect(to || v.out);
   return node;
 }
 

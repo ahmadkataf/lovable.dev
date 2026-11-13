@@ -770,6 +770,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   function finishCelebration(): void {
     if (!celebrating) return;
     celebrating = false;
+    root.classList.remove('m-map--busy');
     for (const id of celebrationTimers) window.clearTimeout(id);
     celebrationTimers = [];
     for (const path of litOverlay) if (path.parentNode) path.parentNode.removeChild(path);
@@ -785,6 +786,8 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   function celebrate(w: WonInfo): void {
     celebrating = true;
     celebrationStarted = false;
+    // while it plays, a tap on the bars only skips it (their buttons work again right after)
+    root.classList.add('m-map--busy');
     const next = w.level + 1;
     const hasNext = next <= levelCount;
     afterCelebration = () => {

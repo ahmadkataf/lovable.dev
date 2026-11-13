@@ -53,7 +53,14 @@ export interface MusicPlayer {
 }
 
 /** Relative layer levels inside the music mix. */
-export const MUSIC_MIX = { lead: 0.45, pad: 0.13, perc: 1, echo: 0.2 };
+export const MUSIC_MIX = { lead: 0.45, pad: 0.1, perc: 1.3, echo: 0.2 };
+
+/**
+ * Level of each tone of a drone chord, lowest first. The weight is on the middle of the
+ * chord (A3, D4, A4): the low D is there for headphones, but a phone speaker cannot play it,
+ * and a loud tone nobody hears would only use up the music's small share of the mix.
+ */
+const PAD_LEVELS: readonly number[] = [0.15, 0.3, 0.34, 0.3, 0.2];
 
 export function createMusicPlayer(
   ctx: BaseAudioContext,
@@ -162,9 +169,7 @@ export function createMusicPlayer(
     const v = new Voice(ctx, padBus, t, 1, voices);
     for (let i = 0; i < ev.midis.length; i++) {
       const f = midiToFreq(ev.midis[i]);
-      // Lower tones carry the weight; the upper ones are softer and purer, but they are what
-      // a phone speaker can actually reproduce, so they are not left too faint.
-      const level = (i === 0 ? 0.42 : i === 1 ? 0.34 : i === 2 ? 0.3 : i === 3 ? 0.22 : 0.15) * ev.vel;
+      const level = PAD_LEVELS[Math.min(i, PAD_LEVELS.length - 1)] * ev.vel;
       const g = v.keep(ctx.createGain());
       g.gain.value = 0;
       g.gain.setValueAtTime(0, t);
@@ -187,8 +192,8 @@ export function createMusicPlayer(
         const tg = v.keep(ctx.createGain());
         tg.gain.value = 0;
         tg.gain.setValueAtTime(0, t);
-        tg.gain.linearRampToValueAtTime(level * 0.35, t + attack);
-        tg.gain.setValueAtTime(level * 0.35, t + attack + hold);
+        tg.gain.linearRampToValueAtTime(level * 0.5, t + attack);
+        tg.gain.setValueAtTime(level * 0.5, t + attack + hold);
         tg.gain.linearRampToValueAtTime(0, end);
         twin.connect(tg);
         tg.connect(v.out);

@@ -58,12 +58,6 @@ function getFlags(): Flags {
   return readFlags(search, import.meta.env.DEV === true, (s) => window.atob(s));
 }
 
-/** The store of src/monetize, whatever dependencies its factory takes. */
-function makeStore(deps: { profile: Profile; platform: PlatformApi }): StoreApi {
-  const factory = createStore as unknown as (deps: unknown) => StoreApi;
-  return factory(deps);
-}
-
 /** Wrapper extras that are not part of the platform contract. */
 interface WrapperExtras {
   insets?: () => string;
@@ -133,7 +127,7 @@ async function boot(): Promise<void> {
 
   let store: StoreApi;
   if (flags.mockStore) store = (await import('./ui/dev/mock.ts')).createMockStore(profile);
-  else store = makeStore({ profile, platform });
+  else store = createStore({ profile, platform, now: () => Date.now() });
 
   // ── sound settings: now and whenever they change ──
   let sfxOn: boolean | null = null;

@@ -100,6 +100,12 @@ internal class GameBridge(
     @JavascriptInterface
     fun storeCaps(): String = storeCapsJson
 
+    /** The page listens for StoreEvents now: have the current 'ads' event sent (again). */
+    @JavascriptInterface
+    fun storeSync() = guarded(Unit) {
+        onMain { store.storeSync() }
+    }
+
     @JavascriptInterface
     fun iapQuery(idsJson: String?) = guarded(Unit) {
         if (idsJson == null || idsJson.isEmpty() || idsJson.length > MAX_QUERY_CHARS) return@guarded

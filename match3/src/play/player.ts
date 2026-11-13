@@ -115,7 +115,8 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
 
   // ───────────────────────────── piece exits ─────────────────────────────
 
-  function pop(vp: VPiece, x: number, y: number): void {
+  /** `inBlast`: the gem is one of many cleared by an effect that brings its own light — keep it modest. */
+  function pop(vp: VPiece, x: number, y: number, inBlast: boolean): void {
     vp.dying = true;
     const grow = d(T.popGrow);
     const shrink = d(T.popShrink);
@@ -125,7 +126,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
       const s = s0 + (1.15 - s0) * k;
       vp.sx = s;
       vp.sy = s;
-      vp.flash = 0.7 * k;
+      vp.flash = (inBlast ? 0.45 : 0.7) * k;
     }, outQuad);
     sched.run(
       shrink,
@@ -141,8 +142,12 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     );
     sched.after(grow, () => {
       view.burst(x, y, color, FEEDBACK.particlesPerGem, 4.4, SHAPE_SHARD, { size: 0.27 });
-      view.burst(x, y, PAL_WHITE, 2, 2.6, SHAPE_SPARK, { size: 0.34, gravity: 0, additive: true, life: 300 });
-      view.glow(x, y, 0.5, 1.7, 220, color, 0.75);
+      if (inBlast) {
+        view.glow(x, y, 0.5, 1.4, 200, color, 0.3);
+      } else {
+        view.burst(x, y, PAL_WHITE, 2, 2.6, SHAPE_SPARK, { size: 0.34, gravity: 0, additive: true, life: 300 });
+        view.glow(x, y, 0.5, 1.7, 220, color, 0.75);
+      }
     });
   }
 
@@ -250,7 +255,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
             sounded.vine = true;
             host.sfx('vine');
           }
-        } else pop(vp, x, y);
+        } else pop(vp, x, y, hit.cause === 'blast');
         break;
       case 'activated':
         view.setGrid(c, r, -1);
@@ -376,14 +381,15 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
         if (big) {
           // three rows and three columns, each its own racing streak
           for (let k = -1; k <= 1; k++) {
-            if (ar + k >= 0 && ar + k < rows) view.beam(x, y + k, true, color, 1.25, sweep);
-            if (ac + k >= 0 && ac + k < cols) view.beam(x + k, y, false, color, 1.25, sweep);
+            const a = k === 0 ? 1 : 0.72;
+            if (ar + k >= 0 && ar + k < rows) view.beam(x, y + k, true, color, 1.25, sweep, a);
+            if (ac + k >= 0 && ac + k < cols) view.beam(x + k, y, false, color, 1.25, sweep, a);
           }
         } else {
           view.beam(x, y, true, color, 1.6, sweep);
           view.beam(x, y, false, color, 1.6, sweep);
         }
-        view.glow(x, y, 1, big ? 5 : 4, d(300), color, 0.9);
+        view.glow(x, y, 1, big ? 5 : 4, d(300), color, 0.8);
         view.ring(x, y, 0.4, big ? 4.6 : 3.2, d(T.bigBlast), color, 0.9);
         view.ring(x, y, 0.3, big ? 3.2 : 2.2, d(T.bigBlast), PAL_GOLD, 0.6, d(70));
         view.burst(x, y, PAL_GOLD, 12, 7, SHAPE_SPARK, { size: 0.4, gravity: 0, additive: true, life: 400 });
@@ -864,8 +870,9 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     vp.oy = 0;
   }
 
-  async function doShuffle(step: Extract<Step, { type: 'shuffle' }>): Promise<void> {
-    host.shuffling();
+  async function doShuffle(step: Extract<Step, { type: 'shuffle' }>, byBooster: boolean): Promise<void> {
+    // the banner explains a shuffle the player did not ask for
+    if (!byBooster) host.shuffling();
     host.sfx('shuffle');
     const cx = view.cols() / 2 - 0.5;
     const cy = view.rows() / 2 - 0.5;
@@ -932,6 +939,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     cascade = 1;
     arrival.clear();
     armed.clear();
+    let shuffleBooster = false;
     for (let i = 0; i < steps.length; i++) {
       if (my !== token) return;
       const step = steps[i] as Step;
@@ -960,9 +968,11 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           await doGrow(step);
           break;
         case 'shuffle':
-          await doShuffle(step);
+          await doShuffle(step, shuffleBooster);
+          shuffleBooster = false;
           break;
         case 'booster':
+          if (step.booster === 'shuffle') shuffleBooster = true;
           await doBooster(step);
           break;
         case 'status':

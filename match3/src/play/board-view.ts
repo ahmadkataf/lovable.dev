@@ -82,6 +82,8 @@ interface BeamFx {
   hi: number;
   /** spark emission accumulator */
   emit: number;
+  /** overall brightness (side beams of a wide blast are dimmer than the middle one) */
+  alpha: number;
 }
 
 interface RingFx {
@@ -187,7 +189,7 @@ export interface BoardView {
 
   // effects (cell coordinates)
   burst(x: number, y: number, color: number, count: number, speed: number, shape: number, opts?: BurstOpts): void;
-  beam(x: number, y: number, horizontal: boolean, color: number, thick: number, sweep: number): void;
+  beam(x: number, y: number, horizontal: boolean, color: number, thick: number, sweep: number, alpha?: number): void;
   ring(x: number, y: number, r0: number, r1: number, dur: number, color: number, alpha?: number, delay?: number): void;
   glow(x: number, y: number, s0: number, s1: number, dur: number, color: number, alpha?: number, delay?: number): void;
   ray(x0: number, y0: number, x1: number, y1: number, dur: number, delay: number, color: number): void;
@@ -306,6 +308,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   let handImg: HTMLCanvasElement | null = null;
   let hammerImg: HTMLCanvasElement | null = null;
   let ringImg: HTMLCanvasElement | null = null;
+  let warmed = false;
   const glowTex: (HTMLCanvasElement | null)[] = [];
   const streakTex: (HTMLCanvasElement | null)[] = [];
   const partTex: (HTMLCanvasElement | null)[] = [];
@@ -395,6 +398,29 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     hammerImg = null;
     ringImg = null;
     for (let i = 0; i < list.length; i++) refreshSprite(list[i] as VPiece);
+    warmed = false;
+  }
+
+  /**
+   * Build the light and particle textures the effects will ask for, so the first blast of a level
+   * does not hitch. Called once per cell size, outside any animation.
+   */
+  function warm(): void {
+    if (warmed) return;
+    warmed = true;
+    for (let i = 0; i < PAL_SIZE; i++) {
+      glowOf(i);
+      if (i <= PAL_GOLD) streakOf(i);
+    }
+    for (let c = 0; c < 6; c++) particleTex(c, SHAPE_SHARD);
+    particleTex(PAL_GOLD, SHAPE_SPARK);
+    particleTex(PAL_GOLD, SHAPE_DOT);
+    particleTex(PAL_WHITE, SHAPE_SPARK);
+    particleTex(PAL_SAND, SHAPE_DOT);
+    particleTex(PAL_STONE, SHAPE_CHUNK);
+    particleTex(PAL_LEAF, SHAPE_SHARD);
+    particleTex(PAL_IRON, SHAPE_CHUNK);
+    ringTexture();
   }
 
   function rgb(hex: string): [number, number, number] {
@@ -797,6 +823,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       cs = newCs;
       resetTextures();
     }
+    warm();
     floorDirty = true;
     needsDraw = true;
   }
@@ -942,10 +969,10 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     }
   }
 
-  function beam(x: number, y: number, horizontal: boolean, color: number, thick: number, sweep: number): void {
+  function beam(x: number, y: number, horizontal: boolean, color: number, thick: number, sweep: number, alpha?: number): void {
     const lo = horizontal ? x : y;
     const hi = horizontal ? nCols - x : nRows - y;
-    beams.push({ x, y, horizontal, t: 0, sweep, dur: sweep + 160, color, thick, lo: lo + 0.3, hi: hi + 0.3, emit: 0 });
+    beams.push({ x, y, horizontal, t: 0, sweep, dur: sweep + 160, color, thick, lo: lo + 0.3, hi: hi + 0.3, emit: 0, alpha: alpha === undefined ? 1 : alpha });
   }
 
   function ring(x: number, y: number, r0: number, r1: number, dur: number, color: number, alpha?: number, delay?: number): void {
@@ -1323,7 +1350,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       const tex = streakOf(b.color);
       const cxp = bx + b.x * cs;
       const cyp = by + b.y * cs;
-      ctx.globalAlpha = fade;
+      ctx.globalAlpha = fade * b.alpha;
       if (b.horizontal) {
         ctx.drawImage(tex, cxp - lo * cs, cyp - thick / 2, (lo + hi) * cs, thick);
       } else {
@@ -1332,10 +1359,11 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
         ctx.setTransform(1, 0, 0, 1, offX, offY);
       }
       if (b.t < b.sweep) {
-        // the two racing heads
+        // the two racing heads (they fade in as they leave the firing cell, so crossing beams do
+        // not pile up into a white blot at the centre)
         const head = glowOf(PAL_WHITE);
         const hs = cs * (1.3 + b.thick * 0.5);
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = (p < 0.3 ? p / 0.3 : 1) * b.alpha;
         if (b.horizontal) {
           ctx.drawImage(head, cxp - lo * cs - hs / 2, cyp - hs / 2, hs, hs);
           ctx.drawImage(head, cxp + hi * cs - hs / 2, cyp - hs / 2, hs, hs);

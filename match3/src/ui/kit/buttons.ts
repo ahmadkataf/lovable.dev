@@ -116,7 +116,8 @@ export function createButtons(core: KitCore): Buttons {
         return;
       }
       if (!badgeEl) {
-        badgeEl = el('span', { class: 'k-badge', text });
+        // a badge that turns up on a button already on screen pops in
+        badgeEl = el('span', { class: 'k-badge' + (btn.isConnected ? ' k-bump' : ''), text });
         btn.appendChild(badgeEl);
       } else if (badgeEl.textContent !== text) {
         badgeEl.textContent = text;

@@ -170,6 +170,16 @@ const SCENES = [
     },
   },
   {
+    // the real src/monetize store in its own test mode (shows boosters only until that module supports it)
+    name: 'shop-fakestore',
+    key: false,
+    query: { screen: 'map', fakestore: '1', save: save({ upTo: 46, coins: 1250, dailyDay: today, dailyStreak: 3 }) },
+    run: async (page) => {
+      await sleep(600);
+      await page.evaluate(() => window.__app.goto('shop'));
+    },
+  },
+  {
     name: 'shop-plain',
     key: true,
     query: { screen: 'map', save: save({ upTo: 46, coins: 540, dailyDay: today, dailyStreak: 3 }) },
@@ -259,7 +269,8 @@ async function closeAll(page) {
 }
 
 function urlFor(scene, lang) {
-  const q = Object.assign({ debug: '1', still: '1', lang }, REAL ? {} : { mocklevels: '120', gate: 'off' }, scene.query);
+  // fakestore=0: under the dev server src/monetize would otherwise switch its test store on by itself
+  const q = Object.assign({ debug: '1', still: '1', lang, fakestore: '0' }, REAL ? {} : { mocklevels: '120', gate: 'off' }, scene.query);
   if (q.gate === 'on') delete q.gate;
   if (q.still === '0') delete q.still;
   const parts = [];

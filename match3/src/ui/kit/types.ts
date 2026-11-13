@@ -161,7 +161,10 @@ export interface DialogOptions<T = unknown> {
   icon?: IconName;
   /** A string becomes a centred paragraph (line breaks are kept). */
   body: Node | string;
-  /** Footer buttons; ready-made kit buttons (price / ad buttons) are placed as they are. */
+  /**
+   * Footer buttons; ready-made kit buttons (price / ad buttons) are placed as they are. While the
+   * dialog animates in (first 320 ms) or out, none of them can be pressed.
+   */
   buttons?: readonly (DialogButton<T> | KitButton)[];
   /**
    * Default true: Back, the ✕ button and a tap on the backdrop close it (`closed` resolves with
@@ -196,7 +199,10 @@ export interface DialogHandle<T = unknown> {
   readonly buttons: readonly KitButton[];
   /** Close with an optional result. Safe to call twice. */
   close(result?: T): void;
-  /** Resolves when the dialog is closed (at once — it does not wait for the exit animation). */
+  /**
+   * Resolves when the dialog is closed (at once — it does not wait for the exit animation; the
+   * closed dialog's overlay swallows taps for another 350 ms before it leaves the DOM).
+   */
   readonly closed: Promise<T | undefined>;
   isOpen(): boolean;
   setTitle(title: string): void;

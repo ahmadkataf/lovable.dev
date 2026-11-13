@@ -1,3 +1,4 @@
+import com.android.build.api.variant.BuildConfigField
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -8,15 +9,26 @@ plugins {
 
 // ───────────────────────── configurable values ─────────────────────────
 
-/** Command line (-PNAME=…) wins, then the environment variable NAME, then gradle.properties. */
-fun setting(name: String): String {
+/** android/admob.properties: the AdMob ids of the "ads" flavour (optional; they are not secrets). */
+val adMobFile = Properties().apply {
+    val file = rootProject.file("admob.properties")
+    if (file.isFile) file.inputStream().use { load(it) }
+}
+
+/**
+ * Command line (-PNAME=…) wins, then the environment variable NAME, then android/admob.properties,
+ * then gradle.properties. Blank values count as "not set".
+ */
+fun optionalSetting(name: String): String? {
     val fromCommandLine = gradle.startParameter.projectProperties[name]
     val fromEnvironment = providers.environmentVariable(name).orNull
-    return listOf(fromCommandLine, fromEnvironment, providers.gradleProperty(name).orNull)
+    return listOf(fromCommandLine, fromEnvironment, adMobFile.getProperty(name), providers.gradleProperty(name).orNull)
         .firstOrNull { !it.isNullOrBlank() }
         ?.trim()
-        ?: throw GradleException("Missing build setting $name (see android/gradle.properties)")
 }
+
+fun setting(name: String): String =
+    optionalSetting(name) ?: throw GradleException("Missing build setting $name (see android/gradle.properties)")
 
 val appId = setting("APP_ID")
 val appVersionCode = setting("VERSION_CODE").toIntOrNull()?.takeIf { it in 1..2_100_000_000 }
@@ -56,6 +68,62 @@ fun findUploadKey(): UploadKey? {
 
 val uploadKey = findUploadKey()
 
+// ───────────────────────── AdMob ids ("ads" flavour) ─────────────────────────
+// ADMOB_APP_ID, ADMOB_REWARDED_ID, ADMOB_INTERSTITIAL_ID: -P, environment, android/admob.properties
+// or gradle.properties. None of them set → Google's public SAMPLE ids, which only ever show test
+// ads: fine for development, and a release build of that kind is refused unless -PallowTestAds=true.
+
+class AdMobIds(val appId: String, val rewardedId: String, val interstitialId: String, val test: Boolean, val problem: String?)
+
+/** Google's documented sample ids (developers.google.com/admob/android/test-ads): test ads only. */
+val sampleAdMobIds = AdMobIds(
+    appId = "ca-app-pub-3940256099942544~3347511713",
+    rewardedId = "ca-app-pub-3940256099942544/5224354917",
+    interstitialId = "ca-app-pub-3940256099942544/1033173712",
+    test = true,
+    problem = null,
+)
+
+fun findAdMobIds(): AdMobIds {
+    val names = listOf("ADMOB_APP_ID", "ADMOB_REWARDED_ID", "ADMOB_INTERSTITIAL_ID")
+    val values = names.map { optionalSetting(it) }
+    if (values.all { it == null }) return sampleAdMobIds
+    fun broken(problem: String) = AdMobIds(sampleAdMobIds.appId, sampleAdMobIds.rewardedId, sampleAdMobIds.interstitialId, true, problem)
+    val missing = names.filterIndexed { index, _ -> values[index] == null }
+    if (missing.isNotEmpty()) {
+        return broken("The AdMob ids are half configured: ${missing.joinToString()} ${if (missing.size == 1) "is" else "are"} missing. Set all three of ${names.joinToString()} or none.")
+    }
+    val (app, rewarded, interstitial) = values.map { it!! }
+    if (!Regex("ca-app-pub-\\d{16}~\\d{10}").matches(app)) {
+        return broken("ADMOB_APP_ID does not look like an AdMob app id (ca-app-pub-0000000000000000~0000000000): the app id has a '~', ad unit ids have a '/'.")
+    }
+    for ((name, unit) in listOf("ADMOB_REWARDED_ID" to rewarded, "ADMOB_INTERSTITIAL_ID" to interstitial)) {
+        if (!Regex("ca-app-pub-\\d{16}/\\d{10}").matches(unit)) {
+            return broken("$name does not look like an AdMob ad unit id (ca-app-pub-0000000000000000/0000000000).")
+        }
+    }
+    if (rewarded == interstitial) return broken("ADMOB_REWARDED_ID and ADMOB_INTERSTITIAL_ID are the same ad unit: each format needs its own.")
+    // Google's own sample publisher: still test ads, whoever typed the ids in.
+    val samplePublisher = sampleAdMobIds.appId.substringBefore('~')
+    val test = listOf(app, rewarded, interstitial).any { it.startsWith(samplePublisher) }
+    return AdMobIds(app, rewarded, interstitial, test, null)
+}
+
+val adMob = findAdMobIds()
+val allowTestAds = optionalSetting("allowTestAds").equals("true", ignoreCase = true)
+
+/** Debug builds only: devices that get test ads / the test consent flow with real ids (comma separated). */
+val adsTestDevices = optionalSetting("ADS_TEST_DEVICE_IDS").orEmpty()
+/** Debug builds only: pretend to be in a consent region — "EEA", "REGULATED_US_STATE", "OTHER" or empty. */
+val umpDebugGeography = optionalSetting("UMP_DEBUG_GEOGRAPHY").orEmpty().uppercase()
+
+/**
+ * Verification builds only (-PadsDiagForceInit=true, sample ids required): the ad SDK is started and
+ * asked for ads even without a consent answer, so its start-up and failure paths can be exercised on
+ * an emulator that has no network. Never set it for anything that leaves the test bench.
+ */
+val adsDiagForceInit = optionalSetting("adsDiagForceInit").equals("true", ignoreCase = true)
+
 // ───────────────────────── Android ─────────────────────────
 
 android {
@@ -78,6 +146,26 @@ android {
                 keyAlias = uploadKey.keyAlias
                 keyPassword = uploadKey.keyPassword
             }
+        }
+    }
+
+    buildFeatures {
+        // BuildConfig carries the ad unit ids of the "ads" flavour.
+        buildConfig = true
+    }
+
+    // One dimension: with or without the ad SDK. Both flavours contain Google Play Billing.
+    //   plain  purchases only; no ad SDK and no advertising-id permission in the app
+    //   ads    purchases + AdMob (GMA Next-Gen SDK) + Google's consent SDK (UMP)
+    flavorDimensions += "ads"
+    productFlavors {
+        create("plain") {
+            dimension = "ads"
+        }
+        create("ads") {
+            dimension = "ads"
+            // The consent SDK reads the AdMob app id from the manifest (src/ads/AndroidManifest.xml).
+            manifestPlaceholders["admobAppId"] = adMob.appId
         }
     }
 
@@ -136,6 +224,10 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.splashscreen)
+    implementation(libs.play.billing)
+
+    "adsImplementation"(libs.gma.nextgen)
+    "adsImplementation"(libs.ump)
 }
 
 // ───────────────────────── bundled web game ─────────────────────────
@@ -192,6 +284,24 @@ androidComponents {
     onVariants { variant ->
         // Every variant packages the game; AGP makes its asset merging depend on the copy task.
         variant.sources.assets?.addGeneratedSourceDirectory(copyWebAssets, CopyWebAssets::outputDir)
+
+        if (variant.productFlavors.any { (dimension, flavour) -> dimension == "ads" && flavour == "ads" }) {
+            fun text(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+            val debuggable = variant.buildType == "debug"
+            val fields = variant.buildConfigFields
+                ?: throw GradleException("BuildConfig generation is switched off: the ads flavour needs it")
+            fields.put("ADMOB_APP_ID", BuildConfigField("String", text(adMob.appId), "AdMob app id"))
+            fields.put("ADMOB_REWARDED_ID", BuildConfigField("String", text(adMob.rewardedId), "rewarded ad unit"))
+            fields.put("ADMOB_INTERSTITIAL_ID", BuildConfigField("String", text(adMob.interstitialId), "interstitial ad unit"))
+            fields.put("ADS_TEST", BuildConfigField("boolean", adMob.test.toString(), "true = Google's sample ids: test ads only"))
+            fields.put(
+                "ADS_DIAG_FORCE_INIT",
+                BuildConfigField("boolean", (adsDiagForceInit && adMob.test).toString(), "verification builds only"),
+            )
+            // Test devices and the pretended consent region exist in debug builds only.
+            fields.put("ADS_TEST_DEVICE_IDS", BuildConfigField("String", text(if (debuggable) adsTestDevices else ""), "debug only"))
+            fields.put("UMP_DEBUG_GEOGRAPHY", BuildConfigField("String", text(if (debuggable) umpDebugGeography else ""), "debug only"))
+        }
     }
 }
 
@@ -211,6 +321,36 @@ if (uploadKey == null) {
     }
 }
 
+// The "ads" flavour: refuse what must never be uploaded, and say loudly when test ads are in use.
+gradle.taskGraph.whenReady {
+    val mine = allTasks.filter { it.project == project }
+    // Every task of an ads variant carries the flavour in its name (compileAdsDebugKotlin, bundleAdsRelease…).
+    val buildsAds = mine.any { Regex("[a-z]\\w*Ads(Debug|Release)\\w*").matches(it.name) }
+    if (!buildsAds) return@whenReady
+    adMob.problem?.let { throw GradleException("$it\n(-P, environment, android/admob.properties or gradle.properties.)") }
+    if (adsDiagForceInit && !adMob.test) {
+        throw GradleException("-PadsDiagForceInit=true is for verification builds with Google's sample ad ids only; remove it or remove the real AdMob ids.")
+    }
+    if (!adMob.test) return@whenReady
+
+    // The tasks that package a release APK or bundle of the ads flavour.
+    val packagesAdsRelease = mine.any { Regex("package\\w*AdsRelease(Bundle)?|sign\\w*AdsReleaseBundle").matches(it.name) }
+    if (packagesAdsRelease && !allowTestAds) {
+        throw GradleException(
+            "The ads flavour has no AdMob ids, so this release would ship Google's SAMPLE ids and show test ads only.\n" +
+                "Set ADMOB_APP_ID, ADMOB_REWARDED_ID and ADMOB_INTERSTITIAL_ID (-P, environment, android/admob.properties\n" +
+                "or gradle.properties) — or, for a test build that must never be uploaded, add -PallowTestAds=true.",
+        )
+    }
+    logger.warn(
+        "\n" + "!".repeat(78) + "\n" +
+            "!! TEST ADS: no AdMob ids are configured, the ads flavour uses Google's SAMPLE ids.\n" +
+            "!! It shows test ads only and earns nothing — NOT FOR GOOGLE PLAY.\n" +
+            (if (adsDiagForceInit) "!! adsDiagForceInit: the ad SDK starts WITHOUT a consent answer — test bench only.\n" else "") +
+            "!".repeat(78) + "\n",
+    )
+}
+
 // Machine-readable summary for tools/android/build.sh.
 tasks.register("buildInfo") {
     description = "Prints the application id, version and signing mode."
@@ -221,6 +361,7 @@ tasks.register("buildInfo") {
         "versionCode=$appVersionCode",
         "targetSdk=$appTargetSdk",
         "signing=${if (uploadKey != null) "upload-key" else "debug-key"}",
+        "ads=${if (adMob.problem != null) "misconfigured" else if (adMob.test) "test-ids" else "real-ids"}",
     )
     doLast { lines.forEach { println(it) } }
 }

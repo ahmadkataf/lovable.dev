@@ -4,29 +4,43 @@
  * context state by hand. No sound is produced.
  */
 
-class FakeParam {
+/** One automation call on a parameter. */
+export interface ParamCall {
+  method: 'set' | 'linear' | 'exponential' | 'target' | 'cancel';
+  value: number;
+  time: number;
+}
+
+export class FakeParam {
   value = 0;
-  setValueAtTime(v: number): this {
+  /** Every automation call, in order (tests look at what was scheduled, and for when). */
+  calls: ParamCall[] = [];
+  setValueAtTime(v: number, t: number = 0): this {
     this.value = v;
+    this.calls.push({ method: 'set', value: v, time: t });
     return this;
   }
-  linearRampToValueAtTime(v: number): this {
+  linearRampToValueAtTime(v: number, t: number = 0): this {
     this.value = v;
+    this.calls.push({ method: 'linear', value: v, time: t });
     return this;
   }
-  exponentialRampToValueAtTime(v: number): this {
+  exponentialRampToValueAtTime(v: number, t: number = 0): this {
     this.value = v;
+    this.calls.push({ method: 'exponential', value: v, time: t });
     return this;
   }
-  setTargetAtTime(): this {
+  setTargetAtTime(v: number = 0, t: number = 0): this {
+    this.calls.push({ method: 'target', value: v, time: t });
     return this;
   }
-  cancelScheduledValues(): this {
+  cancelScheduledValues(t: number = 0): this {
+    this.calls.push({ method: 'cancel', value: 0, time: t });
     return this;
   }
 }
 
-class FakeNode {
+export class FakeNode {
   context: FakeAudioContext;
   gain = new FakeParam();
   frequency = new FakeParam();
@@ -64,8 +78,9 @@ class FakeNode {
     this.context.started++;
   }
   stop(when?: number): void {
+    // As in Web Audio, a later call replaces the stop time set by an earlier one.
     this.stopAt = when === undefined ? this.context.currentTime : when;
-    this.context.sources.push(this);
+    if (this.context.sources.indexOf(this) < 0) this.context.sources.push(this);
   }
 }
 
@@ -79,6 +94,10 @@ export class FakeAudioContext {
   allowResume = true;
   /** When set, node creation throws (a broken audio stack). */
   broken = false;
+  /** Size of the device buffer in seconds, as a real context reports it (undefined: not reported). */
+  baseLatency: number | undefined = undefined;
+  /** Every gain node created, in order (the output chain's buses are the first ones). */
+  gains: FakeNode[] = [];
   resumeCalls = 0;
   suspendCalls = 0;
   closeCalls = 0;
@@ -95,7 +114,9 @@ export class FakeAudioContext {
     return new FakeNode(this);
   }
   createGain(): FakeNode {
-    return this.node();
+    const g = this.node();
+    this.gains.push(g);
+    return g;
   }
   createOscillator(): FakeNode {
     return this.node();

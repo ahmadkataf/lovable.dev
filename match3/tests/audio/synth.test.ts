@@ -1,10 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import { aWeight, analyze, detectOnsets, encodeWav, fftInPlace, longestSilence, sliceRmsDb, spectrogram } from '../../src/audio/analysis.ts';
-import { GUARD_CEILING, GUARD_KNEE, guardCurve } from '../../src/audio/output.ts';
+import { attackTime, crestDb, loudness, pitchNear, strongestIn } from '../../src/audio/analysis.ts';
+import {
+  GUARD_CEILING,
+  GUARD_KNEE,
+  LEVELS,
+  LIMITER,
+  LIMITER_MAKEUP,
+  LIMITER_ONSET,
+  MUSIC_CEILING,
+  MUSIC_KNEE,
+  MUSIC_PEAK_DB,
+  createOutputChain,
+  guardCurve,
+} from '../../src/audio/output.ts';
 import { midiToFreq } from '../../src/audio/scale.ts';
-import { SFX_NAMES, SFX_STEPS, renderSfx, sfxClass } from '../../src/audio/sfx.ts';
-import { pluckSeconds, synthPluck } from '../../src/audio/voices.ts';
-import { FakeAudioContext } from './fake-context.ts';
+import {
+  MATCH_VARIANTS,
+  SFX_NAMES,
+  SFX_STEPS,
+  SFX_TIERS,
+  SFX_TIER_PEAK_DB,
+  renderSfx,
+  sfxClass,
+  sfxPeakDb,
+  sfxTier,
+  sfxVariants,
+  startSfx,
+  type SfxTier,
+} from '../../src/audio/sfx.ts';
+import { Voice, pluckSeconds, synthPluck, tone } from '../../src/audio/voices.ts';
+import { FakeAudioContext, type FakeNode } from './fake-context.ts';
 
 const SR = 44100;
 
@@ -63,10 +89,12 @@ describe('plucked string synthesis', () => {
       const f = midiToFreq(midi);
       const x = synthPluck(SR, f, pluckSeconds(f), 1000 + midi);
       let peak = 0;
+      let finite = true;
       for (let i = 0; i < x.length; i++) {
-        expect(Number.isFinite(x[i])).toBe(true);
+        if (!Number.isFinite(x[i])) finite = false;
         peak = Math.max(peak, Math.abs(x[i]));
       }
+      expect(finite).toBe(true);
       expect(peak).toBeLessThanOrEqual(0.9001);
       expect(peak).toBeGreaterThan(0.6);
       expect(Math.abs(x[0])).toBe(0);
@@ -92,54 +120,120 @@ describe('plucked string synthesis', () => {
   });
 });
 
-describe('output guard curve', () => {
-  it('is the identity below the knee and never reaches full scale', () => {
+describe('output chain', () => {
+  it('guard: the identity below the knee, never above the −1 dBFS ceiling', () => {
     const n = 4097;
     const curve = guardCurve(n);
     expect(curve.length).toBe(n);
     expect(curve[(n - 1) / 2]).toBe(0);
+    expect(GUARD_CEILING).toBeLessThanOrEqual(Math.pow(10, -1 / 20)); // −1 dBFS
+    expect(GUARD_CEILING).toBeGreaterThan(Math.pow(10, -1.1 / 20));
+    let bad = 0;
     for (let i = 0; i < n; i++) {
       const x = (2 * i) / (n - 1) - 1;
       const y = curve[i];
-      if (Math.abs(x) <= GUARD_KNEE) expect(y).toBeCloseTo(x, 6);
-      expect(Math.abs(y)).toBeLessThanOrEqual(GUARD_CEILING);
-      expect(Math.abs(y)).toBeLessThan(0.99);
-      expect(curve[n - 1 - i]).toBeCloseTo(-y, 6); // odd symmetry: no DC is added
-      if (i > 0) expect(y).toBeGreaterThanOrEqual(curve[i - 1]); // monotonic
+      if (Math.abs(x) <= GUARD_KNEE && Math.abs(y - x) > 1e-6) bad++;
+      if (Math.abs(y) > GUARD_CEILING) bad++;
+      if (Math.abs(curve[n - 1 - i] + y) > 1e-6) bad++; // odd symmetry: no DC is added
+      if (i > 0 && y < curve[i - 1]) bad++; // monotonic
     }
-    expect(curve[n - 1]).toBeGreaterThan(0.9);
+    expect(bad).toBe(0);
+    expect(curve[n - 1]).toBeGreaterThan(GUARD_KNEE + 0.1);
     // smooth at the knee: slope continues at ~1
     const k = Math.round(((GUARD_KNEE + 1) / 2) * (n - 1));
     const slope = (curve[k + 4] - curve[k]) / (8 / (n - 1));
     expect(slope).toBeGreaterThan(0.9);
     expect(slope).toBeLessThanOrEqual(1.0001);
   });
+
+  it('is transparent from bus to output below the limiter', () => {
+    // master × the limiter's own make-up gain × trim = exactly 1: tier levels are bus levels
+    expect(LEVELS.master * LIMITER_MAKEUP * LEVELS.trim).toBeCloseTo(1, 12);
+    expect(LIMITER_MAKEUP).toBeCloseTo(Math.pow(10, (0.6 * 5.7) / 20), 9);
+    expect(LIMITER.threshold).toBe(-6);
+    // one effect on its own never reaches the limiter: the loudest tier peaks under its onset
+    const loudest = Math.max(...SFX_TIERS.map((t) => SFX_TIER_PEAK_DB[t]));
+    expect(loudest).toBe(-5);
+    expect(20 * Math.log10(LIMITER_ONSET)).toBeGreaterThan(loudest + 0.5);
+    // … and what the limiter lets through at its onset is still under the guard's knee
+    expect(LIMITER_ONSET).toBeLessThan(GUARD_KNEE);
+  });
+
+  it('holds the music 20 dB down, whatever it plays', () => {
+    expect(MUSIC_PEAK_DB).toBe(-20);
+    // the clipper's ceiling times the bus gain is the music's peak level
+    expect(20 * Math.log10(MUSIC_CEILING * LEVELS.music)).toBeCloseTo(-20, 9);
+    const curve = guardCurve(4097, MUSIC_KNEE, MUSIC_CEILING);
+    let top = 0;
+    for (let i = 0; i < curve.length; i++) top = Math.max(top, Math.abs(curve[i]));
+    expect(top).toBeLessThanOrEqual(MUSIC_CEILING);
+    expect(top).toBeGreaterThan(MUSIC_CEILING * 0.95);
+  });
+
+  it('builds on any context: buses, the music path, limiter, guard', () => {
+    const ctx = new FakeAudioContext();
+    const chain = createOutputChain(ctx as unknown as BaseAudioContext);
+    expect((chain.sfxBus as unknown as FakeNode).gain.value).toBe(LEVELS.sfx);
+    expect((chain.musicBus as unknown as FakeNode).gain.value).toBeCloseTo(LEVELS.music, 12);
+    expect((chain.musicIn as unknown as FakeNode).gain.value).toBe(1);
+    expect(chain.musicGlue).not.toBeNull();
+    expect(chain.musicClip).not.toBeNull();
+    expect((chain.limiter as unknown as FakeNode).threshold.value).toBe(LIMITER.threshold);
+    const bare = createOutputChain(new FakeAudioContext() as unknown as BaseAudioContext, undefined, { musicGlue: false, musicClip: false });
+    expect(bare.musicGlue).toBeNull();
+    expect(bare.musicClip).toBeNull();
+  });
 });
 
+/** Length window of each loudness tier (s) — the same numbers tools/audio-check.cjs enforces. */
+const TIER_SECONDS: Record<SfxTier, [number, number]> = {
+  ui: [0.04, 0.25],
+  soft: [0.04, 0.4],
+  handle: [0.08, 0.3],
+  clear: [0.08, 0.25],
+  board: [0.08, 0.7],
+  special: [0.25, 0.9],
+  big: [0.4, 1.2],
+  jingle: [0.4, 2.2],
+};
+
 describe('effect recipes (structure, on a fake context)', () => {
-  it('every effect builds, reports a sensible duration and releases its nodes', () => {
+  it('every effect builds, has the length of its tier and releases its nodes', () => {
     for (const name of SFX_NAMES) {
       const steps = SFX_STEPS[name] || [undefined];
       for (const step of steps) {
-        const ctx = new FakeAudioContext();
-        const dest = ctx.createGain();
-        const dur = renderSfx(ctx as unknown as BaseAudioContext, dest as unknown as AudioNode, name, 1, step === undefined ? undefined : { step });
-        const cls = sfxClass(name);
-        expect(dur).toBeGreaterThan(cls === 'jingle' ? 0.4 : 0.04);
-        expect(dur).toBeLessThan(cls === 'ui' ? 0.25 : cls === 'jingle' ? 2.2 : 0.9);
-        expect(ctx.started).toBeGreaterThan(0);
-        expect(ctx.started).toBeLessThanOrEqual(48); // a handful of sources, not hundreds
-        // every source has a stop time: nothing can sound forever
-        expect(ctx.sources.length).toBe(ctx.started);
-        for (const s of ctx.sources) {
-          expect(s.startAt).toBeGreaterThanOrEqual(1);
-          expect(s.stopAt).toBeLessThanOrEqual(1 + dur + 1e-9);
-          expect(s.stopAt).toBeGreaterThan(s.startAt);
+        for (let take = 0; take < sfxVariants(name); take++) {
+          const ctx = new FakeAudioContext();
+          const dest = ctx.createGain();
+          const dur = renderSfx(ctx as unknown as BaseAudioContext, dest as unknown as AudioNode, name, 1, step === undefined ? undefined : { step }, undefined, take);
+          const [lo, hi] = TIER_SECONDS[sfxTier(name)];
+          expect(dur, name).toBeGreaterThanOrEqual(lo);
+          expect(dur, name).toBeLessThanOrEqual(hi);
+          expect(ctx.started).toBeGreaterThan(0);
+          expect(ctx.started).toBeLessThanOrEqual(64); // a handful of sources, not hundreds
+          // every source has a stop time: nothing can sound forever
+          expect(ctx.sources.length).toBe(ctx.started);
+          let bad = 0;
+          for (const s of ctx.sources) {
+            if (!(s.startAt >= 1) || !(s.stopAt <= 1 + dur + 1e-9) || !(s.stopAt > s.startAt)) bad++;
+          }
+          expect(bad, name).toBe(0);
+          const before = ctx.disconnects;
+          ctx.advance(1 + dur + 0.01);
+          expect(ctx.sources.length).toBe(0);
+          expect(ctx.disconnects).toBeGreaterThan(before); // the voice disconnected itself
         }
-        const before = ctx.disconnects;
-        ctx.advance(1 + dur + 0.01);
-        expect(ctx.sources.length).toBe(0);
-        expect(ctx.disconnects).toBeGreaterThan(before); // the voice disconnected itself
+      }
+    }
+  });
+
+  it('the sounds heard all the time are short: 80–250 ms', () => {
+    for (const name of ['button', 'select', 'swap', 'match', 'land'] as const) {
+      for (const step of SFX_STEPS[name] || [undefined]) {
+        const ctx = new FakeAudioContext();
+        const dur = renderSfx(ctx as unknown as BaseAudioContext, ctx.createGain() as unknown as AudioNode, name, 0, step === undefined ? undefined : { step });
+        expect(dur, name).toBeGreaterThanOrEqual(0.08);
+        expect(dur, name).toBeLessThanOrEqual(0.25);
       }
     }
   });
@@ -149,8 +243,64 @@ describe('effect recipes (structure, on a fake context)', () => {
       'button', 'select', 'swap', 'invalid', 'match', 'land', 'createBeam', 'createNova', 'createPrism', 'beam', 'nova', 'prism',
       'bigCombo', 'sand', 'stone', 'stoneBreak', 'chain', 'vine', 'vineGrow', 'lamp', 'shuffle', 'booster', 'praise', 'goalDone',
       'star', 'win', 'lose', 'coin', 'reward', 'purchase', 'lifeLost', 'levelStart', 'popupOpen', 'popupClose', 'movesLow',
+      // added with the strategy study
+      'finale', 'chest', 'caravan', 'hint',
     ];
     expect(SFX_NAMES.slice().sort()).toEqual(contract.slice().sort());
+  });
+
+  it('puts every sound in a loudness tier of the strategy study', () => {
+    expect(SFX_TIERS.map((t) => SFX_TIER_PEAK_DB[t])).toEqual([-18, -16, -14, -12, -10, -8, -6, -5]);
+    const tierOf: { [name: string]: SfxTier } = {
+      button: 'ui', popupOpen: 'ui', popupClose: 'ui',
+      land: 'soft',
+      select: 'handle', swap: 'handle',
+      match: 'clear',
+      sand: 'board', stone: 'board', stoneBreak: 'board', chain: 'board', vine: 'board', vineGrow: 'board',
+      beam: 'special', nova: 'special', prism: 'special',
+      bigCombo: 'big', praise: 'big',
+      win: 'jingle', lose: 'jingle', star: 'jingle',
+    };
+    for (const name of Object.keys(tierOf)) expect(sfxTier(name as never), name).toBe(tierOf[name]);
+    expect(sfxPeakDb('button')).toBe(-18);
+    expect(sfxPeakDb('land')).toBe(-16);
+    expect(sfxPeakDb('match')).toBe(-12);
+    expect(sfxPeakDb('stone')).toBe(-10);
+    expect(sfxPeakDb('beam')).toBe(-8);
+    expect(sfxPeakDb('praise')).toBe(-6);
+    expect(sfxPeakDb('win')).toBe(-5);
+    // the coarse class the lab page uses follows from the tier
+    expect(sfxClass('button')).toBe('ui');
+    expect(sfxClass('match')).toBe('game');
+    expect(sfxClass('win')).toBe('jingle');
+  });
+
+  it("'match' has three takes: ±6 cents, attacks of 4, 6 and 8 ms", () => {
+    expect(sfxVariants('match')).toBe(3);
+    expect(sfxVariants('beam')).toBe(1);
+    expect(MATCH_VARIANTS.map((v) => v.cents)).toEqual([0, 6, -6]);
+    expect(MATCH_VARIANTS.map((v) => v.attack)).toEqual([0.004, 0.006, 0.008]);
+    // the take changes the pitch the body settles on by exactly its detune
+    const settled = (take: number): number => {
+      const ctx = new FakeAudioContext();
+      const made: FakeNode[] = [];
+      const original = ctx.createOscillator.bind(ctx);
+      ctx.createOscillator = () => {
+        const o = original();
+        made.push(o);
+        return o;
+      };
+      startSfx(ctx as unknown as BaseAudioContext, ctx.createGain() as unknown as AudioNode, 'match', 0, { step: 4 }, undefined, take);
+      // the first oscillator is the body's carrier; its last frequency event is the settled note
+      const calls = made[0].frequency.calls;
+      return calls[calls.length - 1].value;
+    };
+    const a4 = 440;
+    expect(settled(0)).toBeCloseTo(a4, 6);
+    expect(1200 * Math.log2(settled(1) / a4)).toBeCloseTo(6, 6);
+    expect(1200 * Math.log2(settled(2) / a4)).toBeCloseTo(-6, 6);
+    expect(settled(3)).toBeCloseTo(a4, 6); // takes wrap around
+    expect(settled(-1)).toBeCloseTo(settled(2), 9);
   });
 
   it('volume scales the voice and zero volume builds nothing', () => {
@@ -159,6 +309,52 @@ describe('effect recipes (structure, on a fake context)', () => {
     expect(renderSfx(ctx as unknown as BaseAudioContext, dest as unknown as AudioNode, 'match', 0, { volume: 0 })).toBe(0);
     expect(ctx.started).toBe(0);
     expect(renderSfx(ctx as unknown as BaseAudioContext, dest as unknown as AudioNode, 'nope' as never, 0)).toBe(0);
+    const full = startSfx(ctx as unknown as BaseAudioContext, dest as unknown as AudioNode, 'beam', 0) as Voice;
+    const half = startSfx(ctx as unknown as BaseAudioContext, dest as unknown as AudioNode, 'beam', 0, { volume: 0.5 }) as Voice;
+    const gainOf = (v: Voice): number => (v.out as unknown as FakeNode).gain.value;
+    expect(gainOf(half)).toBeCloseTo(gainOf(full) * 0.5, 9);
+    expect(gainOf(startSfx(ctx as unknown as BaseAudioContext, dest as unknown as AudioNode, 'beam', 0, { volume: 7 }) as Voice)).toBeCloseTo(gainOf(full), 9);
+  });
+});
+
+describe('a voice that is stolen', () => {
+  function voiceWithTones(ctx: FakeAudioContext, t0: number): Voice {
+    const v = new Voice(ctx as unknown as BaseAudioContext, ctx.createGain() as unknown as AudioNode, t0, 0.5);
+    tone(v, { f: 440, dur: 0.5, peak: 0.5 });
+    tone(v, { f: 880, at: 0.3, dur: 0.4, peak: 0.2 }); // a note that only starts later
+    tone(v, { f: 660, dur: 0.05, peak: 0.2 }); // a short one that ends by itself
+    return v;
+  }
+
+  it('fades out and stops every source, including the ones that had not started', () => {
+    const ctx = new FakeAudioContext();
+    const v = voiceWithTones(ctx, 1);
+    expect(v.endTime).toBeCloseTo(1.72, 6);
+    ctx.advance(1.1); // now 1.1: the short tone has ended, the late one has not begun
+    v.fadeOut(1.1, 0.012);
+    const out = (v.out as unknown as FakeNode).gain.calls;
+    expect(out.map((c) => c.method)).toEqual(['cancel', 'set', 'linear']);
+    expect(out[1].value).toBeCloseTo(0.5, 9);
+    expect(out[2].value).toBe(0);
+    expect(out[2].time).toBeCloseTo(1.112, 9);
+    expect(v.endTime).toBeCloseTo(1.115, 9);
+    for (const s of ctx.sources) expect(s.stopAt).toBeLessThanOrEqual(1.115 + 1e-9);
+    expect(v.done).toBe(false);
+    ctx.advance(0.02);
+    expect(v.done).toBe(true); // every source ended: the voice gave its nodes back
+    expect(ctx.sources.length).toBe(0);
+    // a second call is harmless
+    expect(() => v.fadeOut(2, 0.01)).not.toThrow();
+  });
+
+  it('is simply removed when it has not begun to sound', () => {
+    const ctx = new FakeAudioContext();
+    const v = voiceWithTones(ctx, 1);
+    const before = ctx.disconnects;
+    v.fadeOut(1, 0.012);
+    expect(v.done).toBe(true);
+    expect(ctx.disconnects).toBeGreaterThan(before);
+    expect((v.out as unknown as FakeNode).gain.calls.length).toBe(0); // no fade was needed
   });
 });
 
@@ -231,5 +427,47 @@ describe('measurement helpers', () => {
     expect(view.getUint16(34, true)).toBe(16);
     expect(view.getUint32(40, true)).toBe(wav.length - 44);
     expect(wav.length).toBe(44 + 4410 * 2);
+  });
+});
+
+describe('mix measurements', () => {
+  it('programme loudness follows ITU-R BS.1770', () => {
+    // a full-scale 997 Hz sine in one channel reads −3.01 LUFS; the same on two channels 0 LUFS
+    const full = sine(997, 3, 1);
+    expect(loudness(full, SR, 1).integrated).toBeCloseTo(-3.01, 1);
+    expect(loudness(full, SR, 2).integrated).toBeCloseTo(0, 1);
+    // 20 dB quieter reads 20 LU lower
+    expect(loudness(sine(997, 3, 0.1), SR, 1).integrated).toBeCloseTo(-23.01, 1);
+    // silence between bursts is gated out: half the time silent changes little
+    const gated = new Float32Array(SR * 4);
+    gated.set(sine(997, 2, 0.5), 0);
+    const g = loudness(gated, SR, 1);
+    expect(g.integrated).toBeCloseTo(-9.03, 0);
+    expect(g.ungated).toBeLessThan(g.integrated - 2);
+    expect(g.momentaryMax).toBeCloseTo(-9.03, 0);
+    // K-weighting: bass counts less, presence a little more
+    expect(loudness(sine(60, 3, 0.5), SR, 1).integrated).toBeLessThan(loudness(sine(997, 3, 0.5), SR, 1).integrated - 2);
+    expect(loudness(sine(4000, 3, 0.5), SR, 1).integrated).toBeGreaterThan(loudness(sine(997, 3, 0.5), SR, 1).integrated + 2);
+    expect(loudness(new Float32Array(SR), SR, 1).integrated).toBeLessThanOrEqual(-70);
+  });
+
+  it('measures attack time, crest factor and fine pitch', () => {
+    // a tone that ramps up over 20 ms: 10 % → 70 % of the peak takes 12 ms
+    const x = sine(1000, 0.3, 0.8);
+    for (let i = 0; i < x.length; i++) x[i] *= Math.min(1, i / (0.02 * SR));
+    expect(attackTime(x, SR)).toBeGreaterThan(0.009);
+    expect(attackTime(x, SR)).toBeLessThan(0.015);
+    // an abrupt start has (almost) none
+    expect(attackTime(sine(1000, 0.3, 0.8), SR)).toBeLessThan(0.001);
+    expect(crestDb(sine(500, 0.5, 0.5))).toBeCloseTo(3.01, 1);
+    // six cents sharp of A4 is found to the cent
+    const f = 440 * Math.pow(2, 6 / 1200);
+    expect(1200 * Math.log2(pitchNear(sine(f, 0.4, 0.5), SR, 440, 0.05, 0.35) / 440)).toBeCloseTo(6, 0);
+    // which of two notes sounds in which half
+    const melody = new Float32Array(SR);
+    melody.set(sine(880, 0.5, 0.5), 0);
+    melody.set(sine(1175, 0.5, 0.5), SR / 2);
+    expect(Math.abs(strongestIn(melody, SR, 0.05, 0.4, 500, 1700) - 880)).toBeLessThan(6);
+    expect(Math.abs(strongestIn(melody, SR, 0.55, 0.9, 500, 1700) - 1175)).toBeLessThan(6);
   });
 });

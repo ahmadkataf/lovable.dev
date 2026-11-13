@@ -84,59 +84,90 @@ describe('composer: determinism', () => {
 });
 
 describe('composer: every bar is well formed', () => {
+  /**
+   * Everything that is wrong with a bar, as text. The bars are checked with plain
+   * comparisons and the test asserts once on the list: 2000 bars hold about 40 000 notes, and
+   * one expect() per property of each (as this test used to do) took several seconds — long
+   * enough to hit the test time-out whenever the machine was busy.
+   */
+  function problemsOf(bar: Bar, i: number): string[] {
+    const bad: string[] = [];
+    const at = 'bar ' + i + ': ';
+    if (bar.index !== i) bad.push(at + 'index ' + bar.index);
+    if (bar.phrase !== Math.floor(i / BARS_PER_PHRASE)) bad.push(at + 'phrase ' + bar.phrase);
+    if (bar.barInPhrase !== i % BARS_PER_PHRASE) bad.push(at + 'barInPhrase ' + bar.barInPhrase);
+    let prevStep = -1;
+    for (const n of bar.lead) {
+      const note = at + n.kind + ' degree ' + n.degree + ' at step ' + n.step + ': ';
+      if (!isHijazPitch(n.midi)) bad.push(note + 'not in the scale (midi ' + n.midi + ')');
+      if (n.midi !== degreeToMidi(n.degree)) bad.push(note + 'midi ' + n.midi + ' does not match its degree');
+      if (n.kind === 'bass') {
+        if (n.degree !== BASS_DEGREE) bad.push(note + 'bass off the open string');
+      } else if (n.degree < LEAD_LOW || n.degree > LEAD_HIGH + 2) {
+        bad.push(note + 'out of range');
+      }
+      if (!(n.step >= 0 && n.step < STEPS_PER_BAR)) bad.push(note + 'off the grid');
+      if (!(n.len > 0)) bad.push(note + 'length ' + n.len);
+      if (!(n.step + n.len <= STEPS_PER_BAR + 1e-9)) bad.push(note + 'runs over the bar line');
+      if (!(n.vel > 0 && n.vel <= 1)) bad.push(note + 'velocity ' + n.vel);
+      if (n.step < prevStep) bad.push(note + 'out of order');
+      prevStep = n.step;
+    }
+    const hits = ['dum', 'tek', 'ka', 'shake'];
+    for (const h of bar.perc) {
+      const hit = at + h.kind + ' at step ' + h.step + ': ';
+      if (!Number.isInteger(h.step) || h.step < 0 || h.step >= STEPS_PER_BAR) bad.push(hit + 'off the grid');
+      if (hits.indexOf(h.kind) < 0) bad.push(hit + 'unknown stroke');
+      if (!(h.vel > 0 && h.vel <= 1.1)) bad.push(hit + 'velocity ' + h.vel);
+    }
+    if (bar.percMode === 'off') {
+      if (bar.perc.length !== 0) bad.push(at + 'drum hits while the drum rests');
+    } else if (!bar.perc.some((h) => h.kind === 'dum' && h.step === 0)) {
+      bad.push(at + 'no dum on the downbeat');
+    }
+    // the drone: a new chord every two bars, always with D3 in the bass
+    if (bar.barInPhrase % 2 === 0) {
+      if (!bar.pad) bad.push(at + 'no drone chord');
+      else {
+        if (bar.pad.midis[0] !== 50) bad.push(at + 'drone bass is not D3');
+        if (bar.pad.bars !== 2) bad.push(at + 'drone lasts ' + bar.pad.bars + ' bars');
+        for (const m of bar.pad.midis) if (!isHijazPitch(m)) bad.push(at + 'drone tone ' + m + ' not in the scale');
+      }
+    } else if (bar.pad) {
+      bad.push(at + 'drone chord on an odd bar');
+    }
+    return bad;
+  }
+
   for (const track of TRACKS) {
     it(track + ': 2000 bars stay in key, in range and on the grid', () => {
       for (const seed of [1, 77, 20240521]) {
         const bars = take(track, seed, 2000);
+        const bad: string[] = [];
         let emptyRun = 0;
-        bars.forEach((bar, i) => {
-          expect(bar.index).toBe(i);
-          expect(bar.phrase).toBe(Math.floor(i / BARS_PER_PHRASE));
-          expect(bar.barInPhrase).toBe(i % BARS_PER_PHRASE);
-          let prevStep = -1;
-          for (const n of bar.lead) {
-            expect(isHijazPitch(n.midi)).toBe(true);
-            expect(n.midi).toBe(degreeToMidi(n.degree));
-            if (n.kind === 'bass') {
-              expect(n.degree).toBe(BASS_DEGREE);
-            } else {
-              expect(n.degree).toBeGreaterThanOrEqual(LEAD_LOW);
-              expect(n.degree).toBeLessThanOrEqual(LEAD_HIGH + 2);
-            }
-            expect(n.step).toBeGreaterThanOrEqual(0);
-            expect(n.step).toBeLessThan(STEPS_PER_BAR);
-            expect(n.len).toBeGreaterThan(0);
-            expect(n.step + n.len).toBeLessThanOrEqual(STEPS_PER_BAR + 1e-9);
-            expect(n.vel).toBeGreaterThan(0);
-            expect(n.vel).toBeLessThanOrEqual(1);
-            expect(n.step).toBeGreaterThanOrEqual(prevStep);
-            prevStep = n.step;
-          }
-          for (const h of bar.perc) {
-            expect(Number.isInteger(h.step)).toBe(true);
-            expect(h.step).toBeGreaterThanOrEqual(0);
-            expect(h.step).toBeLessThan(STEPS_PER_BAR);
-            expect(['dum', 'tek', 'ka', 'shake']).toContain(h.kind);
-            expect(h.vel).toBeGreaterThan(0);
-            expect(h.vel).toBeLessThanOrEqual(1.1);
-          }
-          if (bar.percMode === 'off') expect(bar.perc.length).toBe(0);
-          else expect(bar.perc.some((h) => h.kind === 'dum' && h.step === 0)).toBe(true);
-          // the drone: a new chord every two bars, always with D3 in the bass
-          if (bar.barInPhrase % 2 === 0) {
-            expect(bar.pad).not.toBeNull();
-            expect(bar.pad!.midis[0]).toBe(50);
-            expect(bar.pad!.bars).toBe(2);
-            for (const m of bar.pad!.midis) expect(isHijazPitch(m)).toBe(true);
-          } else {
-            expect(bar.pad).toBeNull();
-          }
-          emptyRun = bar.lead.length === 0 ? emptyRun + 1 : 0;
-          expect(emptyRun).toBeLessThanOrEqual(1);
-        });
+        let notes = 0;
+        for (let i = 0; i < bars.length; i++) {
+          const found = problemsOf(bars[i], i);
+          for (const f of found) if (bad.length < 20) bad.push(f);
+          notes += bars[i].lead.length;
+          emptyRun = bars[i].lead.length === 0 ? emptyRun + 1 : 0;
+          if (emptyRun > 1 && bad.length < 20) bad.push('bar ' + i + ': second empty bar in a row');
+        }
+        expect(bad).toEqual([]);
+        expect(bars.length).toBe(2000);
+        expect(notes).toBeGreaterThan(4000); // the checks above did look at something
       }
     });
   }
+
+  it('the bar check itself notices what is wrong', () => {
+    const good = take('level', 1, 4)[0];
+    expect(problemsOf(good, 0)).toEqual([]);
+    const off = { ...good, lead: good.lead.map((n, k) => (k === 0 ? { ...n, midi: n.midi + 1 } : n)) };
+    expect(problemsOf(off, 0).length).toBeGreaterThan(0);
+    expect(problemsOf(good, 3).length).toBeGreaterThan(0); // wrong running number
+    expect(problemsOf({ ...good, pad: null }, 0)).toContain('bar 0: no drone chord');
+  });
 
   it('never plays the same main note three times running inside a bar', () => {
     for (const track of TRACKS) {
@@ -160,10 +191,9 @@ describe('composer: every bar is well formed', () => {
 });
 
 describe('composer: musical shape', () => {
-  it('menu is ~90 BPM and calmer; level is a little faster and busier', () => {
+  it('menu is 90 BPM and calmer; level is 108 BPM and busier', () => {
     expect(TRACK_STYLES.menu.bpm).toBe(90);
-    expect(TRACK_STYLES.level.bpm).toBeGreaterThan(TRACK_STYLES.menu.bpm);
-    expect(TRACK_STYLES.level.bpm).toBeLessThanOrEqual(112);
+    expect(TRACK_STYLES.level.bpm).toBe(108);
     const density = (track: MusicTrack): number => {
       const bars = take(track, 11, 400);
       return bars.reduce((a, b) => a + mainNotes(b), 0) / bars.length;

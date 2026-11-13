@@ -142,7 +142,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
   let detachGlobal: (() => void) | null = null;
 
   // frame statistics (dev overlay / tests) and the low-end switch
-  const perf = { frames: 0, total: 0, worst: 0, winFrames: 0, winTotal: 0, lowEnd: false };
+  const perf = { frames: 0, total: 0, worst: 0, winFrames: 0, winTotal: 0, slowWindows: 0, lowEnd: false };
 
   // ───────────────────────────── services ─────────────────────────────
 
@@ -214,7 +214,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     view.step(gameDt);
     view.draw();
 
-    // measured frame interval → low-end mode (fewer particles) when it stays above 22 ms
+    // measured frame interval → low-end mode (fewer particles) when it stays above 22 ms: two
+    // 2-second windows in a row, so a hitch while a level builds its sprites does not count
     if (dt > 0) {
       perf.frames++;
       perf.total += dt;
@@ -223,7 +224,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       perf.winTotal += dt;
       if (perf.winTotal >= FEEDBACK.lowEndWindow) {
         const mean = perf.winTotal / perf.winFrames;
-        if (!perf.lowEnd && mean > FEEDBACK.lowEndFrame) {
+        perf.slowWindows = mean > FEEDBACK.lowEndFrame ? perf.slowWindows + 1 : 0;
+        if (!perf.lowEnd && perf.slowWindows >= 2) {
           perf.lowEnd = true;
           view.setLowEnd(true);
         }

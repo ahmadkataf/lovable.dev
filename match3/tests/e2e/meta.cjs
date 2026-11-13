@@ -90,6 +90,9 @@ function watch(page) {
 
 const ONLY = process.env.META_ONLY || '';
 
+/** Contexts opened by the running test: closed when it ends, also when it threw. */
+let openContexts = [];
+
 async function test(name, fn) {
   if (ONLY && name.indexOf(ONLY) < 0) return;
   currentTest = name;
@@ -102,6 +105,9 @@ async function test(name, fn) {
     failures++;
     console.log('    ✗ threw: ' + (err && err.stack ? err.stack.split('\n').slice(0, 2).concat(err.stack.split('\n').filter((l) => l.indexOf('meta.cjs') >= 0).slice(0, 2)).join(' | ') : err));
   }
+  for (const context of openContexts) await context.close().catch(() => undefined);
+  openContexts = [];
+  await sleep(50);
   const bad = failures - before + (problems.length - seen);
   console.log((bad === 0 ? '  ✓ ' : '  ✗ ') + name + '  (' + (Date.now() - t0) + ' ms)');
   for (let i = seen; i < problems.length; i++) console.log('    ! ' + problems[i]);
@@ -147,6 +153,7 @@ function url(query) {
 
 async function open(browser, query, opts) {
   const context = await browser.newContext(Object.assign({ viewport: { width: 360, height: 640 }, hasTouch: true, deviceScaleFactor: 1 }, (opts && opts.context) || {}));
+  openContexts.push(context);
   await context.addInitScript(() => {
     document.addEventListener('securitypolicyviolation', (e) => {
       console.error('CSP violation: ' + e.violatedDirective + ' blocked ' + (e.blockedURI || 'inline'));
@@ -206,6 +213,7 @@ const boosterCount = (page, id) => page.evaluate((b) => window.__app.profile.boo
 async function hotReloadTest(browser) {
   await test('dev server with hot reload: boots under the CSP, the reload socket connects', async () => {
     const context = await browser.newContext({ viewport: { width: 360, height: 640 } });
+    openContexts.push(context);
     await context.addInitScript(() => {
       document.addEventListener('securitypolicyviolation', (e) => {
         console.error('CSP violation: ' + e.violatedDirective + ' blocked ' + (e.blockedURI || 'inline'));
@@ -446,6 +454,75 @@ async function devTests(browser) {
     eq(await page.locator('.m-dialog-shop [data-product]').count(), 0, 'no real-money offers without a store');
     eq(await page.locator('[data-act="free-coins"]').count(), 0, 'no ad offer without ads');
     eq(await page.locator('.m-dialog-shop [data-booster]').count(), 6, 'the boosters stay');
+    await context.close();
+  });
+
+  await test('the real store in its test mode (?fakestore=1): purchase, remove ads, rewarded coins', async () => {
+    const { context, page } = await open(browser, { mocklevels: '120', gate: 'off', fakestore: '1', screen: 'map', save: saveParam({ upTo: 46, coins: 3000, dailyDay: today, dailyStreak: 2 }) });
+    await page.waitForFunction(() => window.__app.store.iapAvailable(), null, { timeout: 8000 }).catch(() => undefined);
+    const caps = await page.evaluate(() => ({ iap: window.__app.store.iapAvailable(), ads: window.__app.store.adsAvailable(), ready: window.__app.store.rewardedReady(), products: window.__app.store.products().length }));
+    if (!caps.iap) {
+      console.log('    (src/monetize offers no test store yet: skipped)');
+      await context.close();
+      return;
+    }
+    await tap(page, '[data-act="shop"]');
+    await page.waitForSelector('.m-dialog-shop', { timeout: 5000 });
+    await sleep(420);
+    ok((await page.locator('.m-dialog-shop [data-product]').count()) >= 5, 'the store’s products are listed (' + caps.products + ')');
+    ok((await page.locator('.m-dialog-shop [data-product="coins_small"] .k-price').innerText()).length > 0, 'with the store’s own price string');
+
+    // cancel in the store sheet: nothing happens
+    let coins = (await state(page)).coins;
+    await tap(page, '[data-product="coins_small"] .k-btn');
+    await tap(page, '[data-testid="fake-cancel"]');
+    await sleep(500);
+    eq((await state(page)).coins, coins, 'a cancelled purchase grants nothing');
+    ok(!(await page.locator('[data-product="coins_small"] .k-btn').isDisabled()), 'the button is usable again');
+
+    // buy: granted once
+    const grant = await page.evaluate(() => {
+      const p = window.__app.store.products().filter((x) => x.def.id === 'coins_small')[0];
+      return p.def.grants.filter((g) => g.kind === 'coins').reduce((sum, g) => sum + g.amount, 0);
+    });
+    await tap(page, '[data-product="coins_small"] .k-btn');
+    await tap(page, '[data-testid="fake-buy"]');
+    await page.waitForFunction((c) => window.__app.profile.coins() > c, coins, { timeout: 8000 });
+    await sleep(900);
+    eq((await state(page)).coins, coins + grant, 'the pack grants its coins exactly once');
+
+    // remove ads (shown only when this store has ads)
+    if (caps.ads && (await page.locator('[data-product="remove_ads"]').count()) === 1) {
+      await tap(page, '[data-product="remove_ads"] .k-btn');
+      await tap(page, '[data-testid="fake-buy"]');
+      await page.waitForFunction(() => window.__app.store.owns('remove_ads'), null, { timeout: 8000 });
+      await sleep(500);
+      eq(await page.locator('.m-dialog-shop [data-product="remove_ads"]').count(), 0, 'remove ads is owned and its offer hidden');
+    }
+
+    // free coins for a rewarded ad: watched to the end, then closed early
+    if (caps.ads && (await page.locator('[data-act="free-coins"]').count()) === 1) {
+      coins = (await state(page)).coins;
+      const left = await page.evaluate(() => window.__app.store.rewardedLeft('freeCoins'));
+      await tap(page, '[data-act="free-coins"]');
+      await page.waitForSelector('[data-testid="fake-ad"]', { timeout: 5000 });
+      await page.waitForSelector('[data-testid="fake-ad-close"]', { state: 'visible', timeout: 6000 });
+      await tap(page, '[data-testid="fake-ad-close"]');
+      await page.waitForFunction((c) => window.__app.profile.coins() > c, coins, { timeout: 5000 });
+      await sleep(400);
+      const gained = (await state(page)).coins - coins;
+      ok(gained > 0 && gained <= 500, 'a watched ad pays the coin reward once (' + gained + ')');
+      eq(await page.evaluate(() => window.__app.store.rewardedLeft('freeCoins')), left - 1, 'and uses one of today’s ads');
+      if (left - 1 > 0) {
+        await sleep(600);
+        coins = (await state(page)).coins;
+        await tap(page, '[data-act="free-coins"]');
+        await tap(page, '[data-testid="fake-ad-skip"]');
+        await sleep(700);
+        eq((await state(page)).coins, coins, 'an ad closed early pays nothing');
+      }
+    }
+    await page.evaluate(() => window.__app.kit.closeAll());
     await context.close();
   });
 
@@ -692,7 +769,7 @@ async function devTests(browser) {
 
   await test('feature gating: an early profile sees a bare map', async () => {
     // only meaningful once the profile implements featureUnlocked(); otherwise everything is on
-    const { context, page } = await open(browser, { mocklevels: '120', screen: 'map', save: saveParam({ upTo: 2, coins: 2000 }) });
+    const { context, page } = await open(browser, { mocklevels: '120', screen: 'map', save: saveParam({ upTo: 2, coins: 2000, dailyDay: today, dailyStreak: 1 }) });
     const gated = await page.evaluate(() => typeof window.__app.profile.featureUnlocked === 'function');
     if (gated) {
       eq(await page.locator('[data-act="lives"]').count(), 0, 'no lives chip before level 6');
@@ -734,6 +811,7 @@ async function devTests(browser) {
       window.__app.goto('map');
     });
     await waitScreen(page, 'map');
+    await sleep(800); // an automatic pop-up (daily reward) may still be on its way
     await page.evaluate(() => window.__app.kit.closeAll());
     await sleep(200);
     await tap(page, '[data-act="home"]');
@@ -800,6 +878,7 @@ async function devTests(browser) {
 
   await test('compatibility guard: a module that never starts shows the update message', async () => {
     const context = await browser.newContext({ viewport: { width: 360, height: 640 } });
+    openContexts.push(context);
     const page = await context.newPage();
     tolerate++;
     await page.route('**/src/main.ts*', (route) => route.abort());
@@ -876,6 +955,7 @@ async function prodTests(browser) {
 
   await test('production build: debug hooks stay off without ?debug=1', async () => {
     const context = await browser.newContext({ viewport: { width: 360, height: 640 }, hasTouch: true });
+    openContexts.push(context);
     const page = await context.newPage();
     watch(page);
     await page.goto(BASE + '?lang=ar&mocklevels=5', { waitUntil: 'load' });
@@ -931,11 +1011,14 @@ async function main() {
         throw new Error('a dev server is running on port ' + PORT + ': stop it before the production part');
       }
       if (!existing) {
-        const build = spawnSync(process.execPath, [VITE, 'build'], { cwd: ROOT, encoding: 'utf8' });
+        // The in-process dev server above set NODE_ENV=development for this process: do not hand
+        // that to the build, or it would compile `import.meta.env.DEV` to true.
+        const env = Object.assign({}, process.env, { NODE_ENV: 'production' });
+        const build = spawnSync(process.execPath, [VITE, 'build'], { cwd: ROOT, encoding: 'utf8', env });
         if (build.status !== 0) throw new Error('vite build failed:\n' + (build.stdout || '') + (build.stderr || ''));
         const tail = (build.stdout || '').trim().split('\n').slice(-3).join(' | ');
         console.log('    build: ' + tail.replace(/\s+/g, ' '));
-        server = spawn(process.execPath, [VITE, 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' });
+        server = spawn(process.execPath, [VITE, 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore', env });
         if (!(await waitForServer(isProdHtml))) throw new Error('vite preview did not start');
       }
       await prodTests(browser);
@@ -950,6 +1033,10 @@ async function main() {
   }
   const bad = failures + problems.length;
   console.log('');
+  if (problems.length) {
+    console.log('console problems:');
+    for (const p of problems) console.log('  ! ' + p);
+  }
   console.log(bad === 0 ? 'PASS  ' + checks + ' checks, no console errors, no CSP violations' : 'FAIL  ' + failures + ' failed check(s), ' + problems.length + ' console problem(s)');
   process.exitCode = bad === 0 ? 0 : 1;
 }

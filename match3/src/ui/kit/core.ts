@@ -15,6 +15,8 @@ export const UNIT_PER_VMIN_PX = 0.002778;
 
 /** A press shows for at least this long, so even the quickest tap gives visible feedback. */
 const MIN_PRESS_MS = 90;
+/** A finger that slides this far (CSS px) off a pressed control lets it go: no tap will follow. */
+const SLIDE_OFF_PX = 14;
 
 export interface KitCore {
   readonly art: ArtApi;
@@ -114,6 +116,13 @@ export function createCore(deps: { art: ArtApi; audio: AudioApi; i18n: I18nApi; 
     node.addEventListener('pointerup', release);
     node.addEventListener('pointercancel', release);
     node.addEventListener('pointerleave', release);
+    // Touch pointers are captured by the element they went down on, so `pointerleave` only comes
+    // with the release: watch the finger instead, and let go as soon as it has left the control.
+    node.addEventListener('pointermove', (ev: PointerEvent) => {
+      if (ev.pointerType === 'mouse' || !node.classList.contains('k-pressed')) return;
+      const r = node.getBoundingClientRect();
+      if (ev.clientX < r.left - SLIDE_OFF_PX || ev.clientX > r.right + SLIDE_OFF_PX || ev.clientY < r.top - SLIDE_OFF_PX || ev.clientY > r.bottom + SLIDE_OFF_PX) release();
+    });
     node.addEventListener('keydown', (ev: KeyboardEvent) => {
       if ((ev.key === ' ' || ev.key === 'Enter') && !ev.repeat) press();
     });

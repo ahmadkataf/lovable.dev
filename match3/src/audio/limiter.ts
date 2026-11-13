@@ -84,6 +84,12 @@ export class SfxGate<H = unknown> {
     return n;
   }
 
+  /** Loudness ranks of the voices sounding at `now`, in the order they started. */
+  ranks(now: number): number[] {
+    this.prune(now);
+    return this.slots.map((s) => s.rank);
+  }
+
   /**
    * May this sound start at `now`? `null`: no, drop it. Otherwise the voices that have to
    * make room for it (usually none) — the caller fades them out — and the start is recorded

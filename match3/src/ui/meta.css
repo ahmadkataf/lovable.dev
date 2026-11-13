@@ -904,6 +904,12 @@
   filter: grayscale(0.85) brightness(0.8);
 }
 
+/* during the win celebration a tap on the bars only skips it */
+.m-map--busy .m-top__panel,
+.m-map--busy .m-tray__panel {
+  pointer-events: none;
+}
+
 /* ───────────────────────────── map: bottom tray ───────────────────────────── */
 
 .m-tray {

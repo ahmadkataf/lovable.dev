@@ -17,6 +17,12 @@ import {
 export const MAX_BOARD_SIZE = 9;
 export const MIN_COLORS = 3;
 export const MAX_COLORS = 6;
+/**
+ * The most columns / rows `parseLevel` will ever build, whatever the level claims. Far above the
+ * design's 9 × 9 (which `validateLevel` enforces); it only keeps a typo such as `cols: 1e9` from
+ * allocating gigabytes — "the Game never crashes on bad data" includes not running out of memory.
+ */
+export const PARSE_SIZE_LIMIT = 32;
 
 /** A level turned into per-cell data (row-major, index = r * cols + c). */
 export interface ParsedLevel {
@@ -77,7 +83,7 @@ export function pieceSpecFor(ch: string): PieceSpec | 'hole' | null {
 }
 
 function dimension(value: unknown): number {
-  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 0;
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? Math.min(value, PARSE_SIZE_LIMIT) : 0;
 }
 
 /**
@@ -206,6 +212,8 @@ export function validateLevel(def: LevelDef): string[] {
   const say = (text: string): void => {
     problems.push(text);
   };
+  // The validator reports problems, it never throws — whatever it is handed.
+  if (def === null || typeof def !== 'object') return ['the level is not an object'];
 
   if (!isInt(def.id) || def.id < 1) say(`id must be a positive integer (got ${String(def.id)})`);
 
@@ -306,8 +314,13 @@ export function validateLevel(def: LevelDef): string[] {
   }
 
   // ── lamp settings ──
-  const lampCfg = def.lamps;
+  let lampCfg = def.lamps;
   let lampCfgOk = true;
+  if (lampCfg !== undefined && (lampCfg === null || typeof lampCfg !== 'object')) {
+    say('lamps must be an object { total, maxOnBoard, everyMoves }');
+    lampCfg = undefined;
+    lampCfgOk = false;
+  }
   if (lampCfg !== undefined) {
     if (!isInt(lampCfg.total) || lampCfg.total < 1) {
       say(`lamps.total must be a positive integer (got ${String(lampCfg.total)})`);

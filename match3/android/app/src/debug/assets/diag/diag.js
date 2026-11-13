@@ -112,6 +112,7 @@ hooks.insets = function (json) {
 };
 hooks.store = function (json) {
   seen.store.push(json);
+  onStoreEvent(json);
 };
 window.__native = hooks;
 document.addEventListener('visibilitychange', function () {
@@ -206,6 +207,191 @@ function checkInsets() {
   });
 }
 
+// ───────────────────────── monetisation: purchases and ads ─────────────────────────
+// Every StoreEvent the wrapper sends is kept, shown in the "store" panel and logged
+// ("DIAG STORE ← …"). The panel's buttons call the MonetizeBridge methods one by one; the same
+// actions can be sent from a computer: adb shell am start … --es diagcmd store-query (etc.).
+
+const PRODUCTS = [
+  { id: 'coins_small', kind: 'consumable' },
+  { id: 'coins_medium', kind: 'consumable' },
+  { id: 'coins_large', kind: 'consumable' },
+  { id: 'coins_xl', kind: 'consumable' },
+  { id: 'coins_mega', kind: 'consumable' },
+  { id: 'starter_pack', kind: 'entitlement' },
+  { id: 'remove_ads', kind: 'entitlement' },
+];
+
+const storeEvents = [];
+const storeWaiters = [];
+const storeEl = document.getElementById('store');
+const storeLogEl = document.getElementById('store-log');
+const storeCapsEl = document.getElementById('store-caps');
+const productEl = document.getElementById('store-product');
+const tabEl = document.getElementById('tab');
+
+function clock() {
+  const d = new Date();
+  function two(n) { return (n < 10 ? '0' : '') + n; }
+  return two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds()) + '.' + ('00' + d.getMilliseconds()).slice(-3);
+}
+
+/** Purchase tokens are secrets of a sort: show only their start. */
+function maskToken(text) {
+  return String(text).replace(/("token":")([^"]{0,6})[^"]*(")/g, '$1$2…$3');
+}
+
+function storeLog(kind, text) {
+  const shown = maskToken(text);
+  console.log('DIAG STORE ' + kind + ' ' + shown);
+  if (!storeLogEl) return;
+  const line = document.createElement('div');
+  line.className = kind === '←' ? 'event' : 'call';
+  line.textContent = clock() + ' ' + kind + ' ' + shown;
+  storeLogEl.insertBefore(line, storeLogEl.firstChild); // newest on top
+  while (storeLogEl.childNodes.length > 60) storeLogEl.removeChild(storeLogEl.lastChild);
+}
+
+function onStoreEvent(json) {
+  let event = null;
+  try {
+    event = JSON.parse(json);
+  } catch (_) {
+    event = null;
+  }
+  storeLog('←', typeof json === 'string' ? json : String(json));
+  if (!event || typeof event !== 'object') {
+    set('store-events', 'FAIL', 'a StoreEvent that is not JSON: ' + String(json).slice(0, 80));
+    return;
+  }
+  storeEvents.push(event);
+  // A paid purchase would be granted and saved by the game here; the page only finishes it, so a
+  // test purchase does not stay open (Play refunds unfinished test purchases after 3 minutes).
+  if (event.type === 'purchase' && event.state === 'purchased' && typeof event.token === 'string' && autoFinish) {
+    storeLog('→', 'iapFinish("' + event.token.slice(0, 6) + '…")');
+    B.iapFinish(event.token);
+  }
+  for (const waiter of storeWaiters.slice()) waiter();
+}
+
+let autoFinish = true;
+
+/** Resolves with the first event at index >= from that matches. */
+function waitStore(from, match, ms, what) {
+  return new Promise(function (resolve, reject) {
+    function look() {
+      for (let i = from; i < storeEvents.length; i++) {
+        if (match(storeEvents[i])) {
+          done();
+          resolve(storeEvents[i]);
+          return true;
+        }
+      }
+      return false;
+    }
+    function done() {
+      clearTimeout(timer);
+      const at = storeWaiters.indexOf(look);
+      if (at >= 0) storeWaiters.splice(at, 1);
+    }
+    const timer = setTimeout(function () {
+      done();
+      reject(new Error('no ' + what + ' within ' + ms + ' ms'));
+    }, ms);
+    storeWaiters.push(look);
+    look();
+  });
+}
+
+function lastStoreEvent(type) {
+  for (let i = storeEvents.length - 1; i >= 0; i--) if (storeEvents[i].type === type) return storeEvents[i];
+  return null;
+}
+
+/** Wait until no StoreEvent has arrived for `ms`. */
+async function storeQuiet(ms) {
+  let count = -1;
+  while (count !== storeEvents.length) {
+    count = storeEvents.length;
+    await sleep(ms);
+  }
+}
+
+function showStore(on) {
+  if (!storeEl) return;
+  storeEl.hidden = !on;
+  outEl.hidden = on;
+  if (tabEl) tabEl.textContent = on ? '◂ checks' : 'store ▸';
+  if (on && storeCapsEl && B && typeof B.storeCaps === 'function') storeCapsEl.textContent = 'storeCaps() = ' + B.storeCaps();
+}
+
+const storeActions = {
+  show: function () {},
+  sync: function () {
+    storeLog('→', 'storeSync()');
+    B.storeSync();
+  },
+  query: function () {
+    const ids = JSON.stringify(PRODUCTS);
+    storeLog('→', 'iapQuery(' + PRODUCTS.length + ' products)');
+    B.iapQuery(ids);
+  },
+  restore: function () {
+    storeLog('→', 'iapRestore()');
+    B.iapRestore();
+  },
+  buy: function () {
+    const id = productEl && productEl.value ? productEl.value : PRODUCTS[0].id;
+    storeLog('→', 'iapBuy("' + id + '")');
+    B.iapBuy(id);
+  },
+  rewarded: function () {
+    storeLog('→', 'adShowRewarded("freeCoins")');
+    B.adShowRewarded('freeCoins');
+  },
+  interstitial: function () {
+    storeLog('→', 'adShowInterstitial()');
+    B.adShowInterstitial();
+  },
+  privacy: function () {
+    storeLog('→', 'adPrivacyOptions()');
+    B.adPrivacyOptions();
+  },
+};
+
+window.__diagStore = function (action) {
+  if (action === 'hide') return showStore(false);
+  const run = storeActions[action];
+  if (!run || !B) return;
+  showStore(true);
+  try {
+    run();
+  } catch (err) {
+    storeLog('→', action + ' THREW ' + (err && err.message ? err.message : err));
+    set('store-call', 'FAIL', action + ' threw into JS: ' + (err && err.message ? err.message : err));
+  }
+};
+
+if (productEl) {
+  for (const p of PRODUCTS) {
+    const option = document.createElement('option');
+    option.value = p.id;
+    option.textContent = p.id + ' (' + p.kind + ')';
+    productEl.appendChild(option);
+  }
+}
+if (storeEl) {
+  storeEl.addEventListener('click', function (e) {
+    const action = e.target && e.target.getAttribute ? e.target.getAttribute('data-act') : null;
+    if (action) window.__diagStore(action);
+  });
+}
+if (tabEl) {
+  tabEl.addEventListener('click', function () {
+    showStore(storeEl.hidden);
+  });
+}
+
 // ───────────────────────── the checks ─────────────────────────
 
 async function run() {
@@ -213,7 +399,7 @@ async function run() {
 
   await check('bridge', function () {
     assert(B && typeof B === 'object', 'window.AndroidBridge is missing');
-    const names = ['loadSave', 'storeSave', 'haptic', 'setAtRoot', 'info', 'rate', 'ready', 'insets', 'storeCaps', 'iapQuery', 'iapBuy', 'iapFinish', 'iapRestore', 'adShowRewarded', 'adShowInterstitial', 'adPrivacyOptions'];
+    const names = ['loadSave', 'storeSave', 'haptic', 'setAtRoot', 'info', 'rate', 'ready', 'insets', 'storeCaps', 'storeSync', 'iapQuery', 'iapBuy', 'iapFinish', 'iapRestore', 'adShowRewarded', 'adShowInterstitial', 'adPrivacyOptions'];
     const missing = names.filter(function (n) {
       return typeof B[n] !== 'function';
     });
@@ -300,13 +486,18 @@ async function run() {
     return 'fetch + XHR of a bundled file work (origin ' + location.origin + ')';
   });
 
-  await check('net-image', function () {
-    return withTimeout(new Promise(function (resolve, reject) {
+  await check('net-image', async function () {
+    const nonce = 'diag-img-' + Date.now();
+    await withTimeout(new Promise(function (resolve, reject) {
       const img = new Image();
       img.onload = function () { reject(new Error('an external image LOADED')); };
-      img.onerror = function () { resolve('external https image refused'); };
-      img.src = 'https://example.com/favicon.ico?' + Date.now();
+      img.onerror = function () { resolve(); };
+      img.src = 'https://example.com/favicon.ico?' + nonce;
     }), 8000, 'external image');
+    // Debug builds can ask the wrapper: the request must have been answered by its filter, not by a server.
+    const byFilter = D && typeof D.blockedCount === 'function' ? D.blockedCount(nonce) : -1;
+    assert(byFilter !== 0, 'the image failed, but not because the request filter refused it');
+    return 'external https image refused' + (byFilter > 0 ? ' by the request filter (403 ×' + byFilter + ')' : '');
   });
 
   await check('net-fetch', async function () {
@@ -327,6 +518,38 @@ async function run() {
       img.onerror = function () { resolve('cleartext http image refused'); };
       img.src = 'http://example.com/favicon.ico?' + Date.now();
     }), 8000, 'http image');
+  });
+
+  await check('net-iframe', async function () {
+    // A frame pointing at another origin must stay empty: the page policy (frame-src) refuses it
+    // before any request is made, and the wrapper's request filter would answer 403 if it got through.
+    const nonce = 'diag-frame-' + Date.now();
+    const url = 'https://example.com/?' + nonce;
+    const before = cspViolations.length;
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'position:absolute;left:-9999px;width:10px;height:10px;border:0';
+    const settled = new Promise(function (resolve) {
+      frame.onload = function () { resolve('load'); };
+      frame.onerror = function () { resolve('error'); };
+      setTimeout(function () { resolve('timeout'); }, 4000);
+    });
+    frame.src = url;
+    document.body.appendChild(frame);
+    const how = await settled;
+    await sleep(300);
+    const byPolicy = cspViolations.slice(before).some(function (v) { return v.indexOf('frame-src') === 0 && v.indexOf('example.com') > 0; });
+    const byFilter = D && typeof D.blockedCount === 'function' ? D.blockedCount(nonce) : 0;
+    let readable = false;
+    try {
+      // A refused frame holds an empty error document; the real page would be cross-origin either way.
+      readable = !!(frame.contentDocument && frame.contentDocument.body && frame.contentDocument.body.childNodes.length > 0);
+    } catch (_) {
+      readable = false;
+    }
+    document.body.removeChild(frame);
+    assert(byPolicy || byFilter > 0, 'an external https iframe was neither refused by the page policy nor by the request filter (' + how + ')');
+    assert(!readable, 'the external frame has content');
+    return 'external https iframe refused' + (byPolicy ? ' by the page policy (frame-src)' : '') + (byFilter > 0 ? ' by the request filter (403 ×' + byFilter + ')' : '');
   });
 
   await check('net-websocket', function () {
@@ -413,6 +636,13 @@ async function run() {
       function () { B.iapFinish(null); },
       function () { B.adShowRewarded(null); },
       function () { B.adShowRewarded('<script>'); },
+      function () { B.iapQuery('not json'); },
+      function () { B.iapQuery('[{"id":"../x","kind":"consumable"},{"id":"ok_id","kind":"weird"},7,null,{"kind":"consumable"}]'); },
+      function () { B.iapQuery('{"id":"coins_small"}'); },
+      function () { B.iapFinish(new Array(5000).join('t')); },
+      function () { B.iapFinish(''); },
+      function () { B.adShowRewarded(new Array(100).join('p')); },
+      function () { B.iapBuy(42); },
     ];
     const good = window.__diagSave ? window.__diagSave.text : B.loadSave();
     let thrown = 0;
@@ -450,22 +680,81 @@ async function run() {
   onInsets();
 
   await check('store', async function () {
-    const caps = JSON.parse(B.storeCaps());
-    assert(typeof caps.billing === 'boolean' && typeof caps.ads === 'boolean', 'storeCaps: ' + B.storeCaps());
-    const start = seen.store.length;
-    B.iapQuery(JSON.stringify([{ id: 'coins_small', kind: 'consumable' }]));
-    B.iapRestore();
-    B.iapBuy('coins_small');
-    B.adShowRewarded('freeCoins');
-    B.adShowInterstitial();
-    B.adPrivacyOptions();
-    B.iapFinish('token');
-    await sleep(500);
-    const events = seen.store.slice(start).map(function (json) { return JSON.parse(json).type; });
-    if (!caps.billing && !caps.ads) {
-      assert(events.join(',') === 'products,owned,purchase,adResult,adResult,ads', 'events without a store: ' + events.join(','));
+    // Purchases and ads, end to end through the bridge. Where Google Play billing is not available
+    // (an emulator without the Play Store) and no ad is ready, every request must still be answered:
+    // an empty product list, purchase → unavailable/error, adResult → failed. Where products ARE on
+    // sale or an ad IS ready, the buying and showing is left to the buttons of the store panel.
+    const capsRaw = B.storeCaps();
+    const caps = JSON.parse(capsRaw);
+    assert(caps.billing === true, 'storeCaps(): billing is not true: ' + capsRaw);
+    assert(typeof caps.ads === 'boolean', 'storeCaps(): ads is not a boolean: ' + capsRaw);
+    if (storeCapsEl) storeCapsEl.textContent = 'storeCaps() = ' + capsRaw;
+    await storeQuiet(1200);
+
+    let from = storeEvents.length;
+    storeActions.sync();
+    const ads = await waitStore(from, function (e) { return e.type === 'ads'; }, 20000, "'ads' event after storeSync()");
+    for (const key of ['canRequestAds', 'rewardedReady', 'interstitialReady', 'privacyOptionsRequired']) {
+      assert(typeof ads[key] === 'boolean', "'ads' event: " + key + ' is not a boolean');
     }
-    return 'caps ' + B.storeCaps() + '; events via __native.store: ' + (events.join(',') || 'none yet');
+    if (!caps.ads) assert(!ads.canRequestAds && !ads.rewardedReady && !ads.interstitialReady && !ads.privacyOptionsRequired, "a build without ads sent a positive 'ads' event");
+
+    from = storeEvents.length;
+    storeActions.query();
+    const products = await waitStore(from, function (e) { return e.type === 'products'; }, 60000, "'products' event");
+    assert(Array.isArray(products.products), "'products' event without a list");
+    for (const item of products.products) {
+      assert(PRODUCTS.some(function (p) { return p.id === item.id; }), 'unknown product in the answer: ' + item.id);
+      assert(typeof item.price === 'string' && item.price.length > 0, 'product without a price text: ' + item.id);
+    }
+
+    from = storeEvents.length;
+    storeActions.restore();
+    const owned = await waitStore(from, function (e) { return e.type === 'owned'; }, 60000, "'owned' event");
+    assert(Array.isArray(owned.ids), "'owned' event without a list");
+
+    let bought = 'not tried (products are on sale: use the store panel)';
+    if (products.products.length === 0) {
+      from = storeEvents.length;
+      storeActions.buy();
+      const purchase = await waitStore(from, function (e) { return e.type === 'purchase' && e.id === PRODUCTS[0].id; }, 60000, "'purchase' event");
+      assert(purchase.state === 'unavailable' || purchase.state === 'error', 'a purchase without billing ended as "' + purchase.state + '"');
+      assert(purchase.token === undefined, 'a failed purchase carries a token');
+      bought = purchase.state;
+    }
+
+    const adsNow = lastStoreEvent('ads') || ads;
+    let rewarded = 'not tried (an ad is ready: use the store panel)';
+    if (!adsNow.rewardedReady) {
+      from = storeEvents.length;
+      storeActions.rewarded();
+      const result = await waitStore(from, function (e) { return e.type === 'adResult' && e.format === 'rewarded'; }, 30000, "rewarded 'adResult' event");
+      assert(result.result === 'failed', 'a rewarded ad that was not ready ended as "' + result.result + '"');
+      rewarded = result.result;
+    }
+    let interstitial = 'not tried (an ad is ready: use the store panel)';
+    if (!adsNow.interstitialReady) {
+      from = storeEvents.length;
+      storeActions.interstitial();
+      const result = await waitStore(from, function (e) { return e.type === 'adResult' && e.format === 'interstitial'; }, 30000, "interstitial 'adResult' event");
+      assert(result.result === 'failed', 'an interstitial that was not ready ended as "' + result.result + '"');
+      interstitial = result.result;
+    }
+    let privacy = 'not tried (a privacy form is required here: use the store panel)';
+    if (!adsNow.privacyOptionsRequired) {
+      from = storeEvents.length;
+      storeActions.privacy();
+      await waitStore(from, function (e) { return e.type === 'ads'; }, 60000, "'ads' event after adPrivacyOptions()");
+      privacy = "'ads' event";
+    }
+    B.iapFinish('diag-no-such-token'); // unknown to the store: must be ignored quietly
+    await sleep(300);
+
+    return 'caps ' + capsRaw + '; products ' + products.products.length +
+      (products.products.length ? ' with prices' : ' (billing not available here)') +
+      '; owned [' + owned.ids.join(',') + ']' + (owned.complete ? ' complete' : '') +
+      '; iapBuy → ' + bought + '; rewarded → ' + rewarded + '; interstitial → ' + interstitial + '; privacy → ' + privacy +
+      '; ads ' + JSON.stringify({ can: adsNow.canRequestAds, rew: adsNow.rewardedReady, int: adsNow.interstitialReady, priv: adsNow.privacyOptionsRequired });
   });
 
   await check('audio', async function () {

@@ -3,11 +3,13 @@ package com.zumurud.game
 import android.content.Context
 import android.content.res.AssetManager
 import android.net.Uri
+import android.util.Log
 import android.webkit.WebResourceResponse
 import androidx.webkit.WebViewAssetLoader
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Everything the WebView is allowed to load.
@@ -16,7 +18,8 @@ import java.util.Locale
  * (https://appassets.androidplatform.net/assets/www/…) so it gets a real same-origin policy, ES
  * modules, fetch() and localStorage — and nothing else is reachable: every request that is not a
  * bundled file is answered right here with an empty error response, so no request ever gets as
- * far as the network stack.
+ * far as the network stack. That matters: the app holds the INTERNET permission for Google Play
+ * Billing (and, in the "ads" flavour, for the ad SDK), and the page must still be offline.
  */
 internal object LocalContent {
     const val HOST: String = WebViewAssetLoader.DEFAULT_DOMAIN
@@ -51,21 +54,37 @@ internal object LocalContent {
      * `null` means "let the WebView handle it" and is only returned for URLs that live in memory.
      */
     fun respond(loader: WebViewAssetLoader, url: Uri?): WebResourceResponse? {
-        if (url == null) return blocked()
+        if (url == null) return blocked(null)
         when (url.scheme?.lowercase(Locale.ROOT)) {
             // In-memory URLs (canvas.toDataURL images, Blob URLs): no network involved.
             "data", "blob", "about" -> return null
         }
-        if (!isLocalOrigin(url)) return blocked()
+        if (!isLocalOrigin(url)) return blocked(url)
         return loader.shouldInterceptRequest(url) ?: notFound()
     }
+
+    /** Debug builds count refused requests here (the diagnostics page asks for them). */
+    @Volatile
+    var onBlocked: ((String) -> Unit)? = null
+
+    private val blockedLogLines = AtomicInteger()
 
     private fun isLocalOrigin(url: Uri): Boolean =
         url.scheme.equals("https", ignoreCase = true) &&
             url.host.equals(HOST, ignoreCase = true) &&
             (url.port == -1 || url.port == 443)
 
-    private fun blocked() = empty(403, "Blocked")
+    /**
+     * The page asked for something outside the APK. The bundled game never does, so the first few
+     * are worth a line in the log (scheme and host only).
+     */
+    private fun blocked(url: Uri?): WebResourceResponse {
+        if (blockedLogLines.incrementAndGet() <= MAX_BLOCKED_LOG_LINES) {
+            Log.w(TAG, "blocked a request of the page to ${url?.scheme}://${url?.host}")
+        }
+        onBlocked?.invoke(url?.toString().orEmpty())
+        return empty(403, "Blocked")
+    }
 
     private fun notFound() = empty(404, "Not Found")
 
@@ -110,13 +129,17 @@ internal object LocalContent {
 
     /**
      * Sent with every bundled HTML page: fetch / XMLHttpRequest / WebSocket / EventSource /
-     * sendBeacon may only talk to the bundled origin. It is a second lock on top of the request
-     * filter above and of WebSettings.blockNetworkLoads, and the only one that also covers
-     * WebSockets should a later build carry the INTERNET permission for its ad or billing library.
+     * sendBeacon may only talk to the bundled origin, and frames may only show bundled pages.
+     * It is a second lock on top of the request filter above and of WebSettings.blockNetworkLoads,
+     * and the only one that also covers WebSockets now that the app carries the INTERNET permission
+     * for its billing and ad libraries.
      */
     private val HTML_HEADERS: Map<String, String> = mapOf(
-        "Content-Security-Policy" to "connect-src 'self' data: blob:",
+        "Content-Security-Policy" to "connect-src 'self' data: blob:; frame-src 'self' data: blob:",
     )
+
+    private const val TAG = "Zumurud"
+    private const val MAX_BLOCKED_LOG_LINES = 20
 
     private val MIME_TYPES: Map<String, String> = mapOf(
         "html" to "text/html",

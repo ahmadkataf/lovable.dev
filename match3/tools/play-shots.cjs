@@ -230,7 +230,7 @@ const SCENES = {
   },
 
   async lose(browser, size, lang, tag) {
-    const page = await open(browser, size, lang, 'level=hard&seed=11&tut=0&inv=0&fast=1&ads=1&coins=2000');
+    const page = await open(browser, size, lang, 'level=hard&seed=11&tut=0&inv=0&fast=1&ads=1&coins=2000&caravan=3');
     await idle(page);
     await playHints(page, 5);
     await page.waitForFunction(() => window.__play.state() === 'lost', null, { timeout: 20000 });

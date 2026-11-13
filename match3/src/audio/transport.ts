@@ -22,8 +22,12 @@ export type MusicEvent =
 export const BASE_LOOKAHEAD = 0.15;
 /** Upper bound of the window when the timer is throttled. */
 export const MAX_LOOKAHEAD = 1.6;
-/** Events closer to "now" than this are treated as late. */
-export const MIN_LEAD = 0.004;
+/**
+ * Events closer to "now" than this are treated as late. The audio clock advances a whole
+ * device buffer at a time (10–20 ms on phones), so a note aimed nearer than that may find its
+ * start already in the past and come in clipped.
+ */
+export const MIN_LEAD = 0.02;
 /** Falling further behind than this restarts the bar grid instead of skipping note by note. */
 export const RESYNC_AFTER = 0.35;
 /** After a restart the next bar begins this far ahead. */

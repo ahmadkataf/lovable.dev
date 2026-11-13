@@ -121,6 +121,10 @@ export interface Metrics {
   hfShare: number;
   /** Share of the energy below 150 Hz (0..1): boom that a phone speaker cannot even play. */
   lfShare: number;
+  /** Share of the energy between 150 and 400 Hz (0..1): the body a phone speaker can still play. */
+  bodyShare: number;
+  /** Share of the energy below 120 Hz (0..1): nothing essential may live here. */
+  subShare: number;
   /** |sample| ≥ 0.99 anywhere. */
   clips: boolean;
   /** RMS < 0.003. */
@@ -131,6 +135,10 @@ export interface Metrics {
 export const HARSH_HZ = 6000;
 /** … and below this one as "boom". */
 export const BOOM_HZ = 150;
+/** The weight of a blast lives between BOOM_HZ and here, where a phone speaker still plays. */
+export const BODY_TOP_HZ = 400;
+/** Nothing essential may sit below this. */
+export const SUB_HZ = 120;
 
 export function analyze(x: Float32Array, sampleRate: number): Metrics {
   let peak = 0;
@@ -217,10 +225,15 @@ export function analyze(x: Float32Array, sampleRate: number): Metrics {
   let total = 0;
   let high = 0;
   let low = 0;
+  let body = 0;
+  let sub = 0;
   for (let k = 1; k < bins; k++) {
+    const hz = k * binHz;
     total += avg[k];
-    if (k * binHz >= HARSH_HZ) high += avg[k];
-    if (k * binHz < BOOM_HZ) low += avg[k];
+    if (hz >= HARSH_HZ) high += avg[k];
+    if (hz < BOOM_HZ) low += avg[k];
+    if (hz >= BOOM_HZ && hz < BODY_TOP_HZ) body += avg[k];
+    if (hz < SUB_HZ) sub += avg[k];
   }
 
   // Strongest peak of the average spectrum above 60 Hz, refined by parabolic interpolation.
@@ -250,6 +263,8 @@ export function analyze(x: Float32Array, sampleRate: number): Metrics {
     pitch,
     hfShare: total > 0 ? high / total : 0,
     lfShare: total > 0 ? low / total : 0,
+    bodyShare: total > 0 ? body / total : 0,
+    subShare: total > 0 ? sub / total : 0,
     clips: peak >= 0.99,
     silent: rms < 0.003,
   };
@@ -449,4 +464,201 @@ export function encodeWav(x: Float32Array, sampleRate: number): Uint8Array {
     view.setInt16(44 + i * 2, Math.round(s * 32767), true);
   }
   return bytes;
+}
+
+/**
+ * Attack time (s): how long the sound takes to get from 10 % to 70 % of its peak, measured on
+ * the peak envelope (largest |sample| in a sliding 1.5 ms window). A sound that "speaks at
+ * once" does so within a few milliseconds.
+ */
+export function attackTime(x: Float32Array, sampleRate: number): number {
+  let peak = 0;
+  for (let i = 0; i < x.length; i++) {
+    const a = Math.abs(x[i]);
+    if (a > peak) peak = a;
+  }
+  if (peak <= 0) return 0;
+  const win = Math.max(1, Math.round(sampleRate * 0.0015));
+  let start = -1;
+  for (let i = 0; i < x.length; i++) {
+    let env = 0;
+    for (let j = Math.max(0, i - win + 1); j <= i; j++) {
+      const a = Math.abs(x[j]);
+      if (a > env) env = a;
+    }
+    if (start < 0 && env >= peak * 0.1) start = i;
+    if (env >= peak * 0.7) return (i - Math.max(0, start)) / sampleRate;
+  }
+  return 0;
+}
+
+interface Biquad {
+  b0: number;
+  b1: number;
+  b2: number;
+  a1: number;
+  a2: number;
+}
+
+function runBiquad(x: Float32Array | Float64Array, c: Biquad): Float64Array {
+  const y = new Float64Array(x.length);
+  let x1 = 0;
+  let x2 = 0;
+  let y1 = 0;
+  let y2 = 0;
+  for (let i = 0; i < x.length; i++) {
+    const v = c.b0 * x[i] + c.b1 * x1 + c.b2 * x2 - c.a1 * y1 - c.a2 * y2;
+    x2 = x1;
+    x1 = x[i];
+    y2 = y1;
+    y1 = v;
+    y[i] = v;
+  }
+  return y;
+}
+
+/** The two filters of ITU-R BS.1770 "K" weighting, designed for any sample rate. */
+function kWeighting(sampleRate: number): [Biquad, Biquad] {
+  // Stage 1: high shelf, +4 dB above about 1.7 kHz (the acoustic effect of the head).
+  const f1 = 1681.974450955533;
+  const gain = 3.999843853973347;
+  const q1 = 0.7071752369554196;
+  const k1 = Math.tan((Math.PI * f1) / sampleRate);
+  const vh = Math.pow(10, gain / 20);
+  const vb = Math.pow(vh, 0.4996667741545416);
+  const a01 = 1 + k1 / q1 + k1 * k1;
+  const shelf: Biquad = {
+    b0: (vh + (vb * k1) / q1 + k1 * k1) / a01,
+    b1: (2 * (k1 * k1 - vh)) / a01,
+    b2: (vh - (vb * k1) / q1 + k1 * k1) / a01,
+    a1: (2 * (k1 * k1 - 1)) / a01,
+    a2: (1 - k1 / q1 + k1 * k1) / a01,
+  };
+  // Stage 2: high-pass at about 38 Hz.
+  const f2 = 38.13547087602444;
+  const q2 = 0.5003270373238773;
+  const k2 = Math.tan((Math.PI * f2) / sampleRate);
+  const a02 = 1 + k2 / q2 + k2 * k2;
+  const high: Biquad = { b0: 1, b1: -2, b2: 1, a1: (2 * (k2 * k2 - 1)) / a02, a2: (1 - k2 / q2 + k2 * k2) / a02 };
+  return [shelf, high];
+}
+
+export interface Loudness {
+  /** Integrated programme loudness, LUFS (gated as in ITU-R BS.1770-4). */
+  integrated: number;
+  /** Loudest 400 ms block, LUFS. */
+  momentaryMax: number;
+  /** Ungated loudness of the whole signal, LUFS. */
+  ungated: number;
+}
+
+/**
+ * Programme loudness after ITU-R BS.1770-4: K-weighting, 400 ms blocks overlapping by 75 %,
+ * an absolute gate at −70 LUFS and a relative gate 10 LU under the level of what passed the
+ * first. `channels` is how many loudspeakers play this same signal: 1 for a single channel,
+ * 2 for the usual case of mono sound sent to both sides of a stereo output (+3 LU).
+ */
+export function loudness(x: Float32Array, sampleRate: number, channels: number = 2): Loudness {
+  const [shelf, high] = kWeighting(sampleRate);
+  const y = runBiquad(runBiquad(x, shelf), high);
+  const block = Math.round(sampleRate * 0.4);
+  const hop = Math.round(sampleRate * 0.1);
+  const powers: number[] = [];
+  let total = 0;
+  for (let i = 0; i < y.length; i++) total += y[i] * y[i];
+  for (let s = 0; s + block <= y.length; s += hop) {
+    let e = 0;
+    for (let i = s; i < s + block; i++) e += y[i] * y[i];
+    powers.push((e / block) * channels);
+  }
+  const lufs = (p: number): number => -0.691 + 10 * Math.log10(Math.max(p, 1e-12));
+  const ungated = lufs((total / Math.max(1, y.length)) * channels);
+  if (powers.length === 0) return { integrated: ungated, momentaryMax: ungated, ungated };
+  let momentary = 0;
+  for (let i = 0; i < powers.length; i++) if (powers[i] > momentary) momentary = powers[i];
+  const mean = (list: number[]): number => {
+    let s = 0;
+    for (let i = 0; i < list.length; i++) s += list[i];
+    return list.length ? s / list.length : 0;
+  };
+  const absolute = powers.filter((p) => lufs(p) > -70);
+  if (absolute.length === 0) return { integrated: -70, momentaryMax: lufs(momentary), ungated };
+  const relative = lufs(mean(absolute)) - 10;
+  const gated = absolute.filter((p) => lufs(p) > relative);
+  return { integrated: lufs(mean(gated.length ? gated : absolute)), momentaryMax: lufs(momentary), ungated };
+}
+
+/** Crest factor (dB): how far the peak stands above the RMS level. */
+export function crestDb(x: Float32Array): number {
+  let peak = 0;
+  let sq = 0;
+  for (let i = 0; i < x.length; i++) {
+    const a = Math.abs(x[i]);
+    if (a > peak) peak = a;
+    sq += a * a;
+  }
+  const rms = Math.sqrt(sq / Math.max(1, x.length));
+  return toDb(peak) - toDb(rms);
+}
+
+/**
+ * Frequency (Hz) of the strongest component within ±`cents` of `near`, over [from, to)
+ * seconds: a fine-grained look at one note (1-cent steps, Hann window), for checking tuning.
+ */
+export function pitchNear(x: Float32Array, sampleRate: number, near: number, from: number, to: number, cents: number = 80): number {
+  const a = Math.max(0, Math.floor(from * sampleRate));
+  const b = Math.min(x.length, Math.floor(to * sampleRate));
+  const n = b - a;
+  if (n < 16 || !(near > 0)) return 0;
+  let best = -1;
+  let at = near;
+  for (let c = -cents; c <= cents; c++) {
+    const f = near * Math.pow(2, c / 1200);
+    const w = (2 * Math.PI * f) / sampleRate;
+    let re = 0;
+    let im = 0;
+    for (let i = 0; i < n; i++) {
+      const h = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / n);
+      const v = x[a + i] * h;
+      re += v * Math.cos(w * i);
+      im -= v * Math.sin(w * i);
+    }
+    const p = re * re + im * im;
+    if (p > best) {
+      best = p;
+      at = f;
+    }
+  }
+  return at;
+}
+
+/**
+ * Strongest spectral peak (Hz) between `lo` and `hi` in [from, to) seconds — which note is
+ * sounding in a short slice of a melody.
+ */
+export function strongestIn(x: Float32Array, sampleRate: number, from: number, to: number, lo: number, hi: number): number {
+  const a = Math.max(0, Math.floor(from * sampleRate));
+  const b = Math.min(x.length, Math.floor(to * sampleRate));
+  let size = 1024;
+  while (size < b - a) size <<= 1;
+  size <<= 1; // zero padding: finer frequency grid
+  const re = new Float64Array(size);
+  const im = new Float64Array(size);
+  const n = b - a;
+  for (let i = 0; i < n; i++) re[i] = x[a + i] * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / Math.max(1, n - 1)));
+  fftInPlace(re, im);
+  const binHz = sampleRate / size;
+  let best = 0;
+  let at = 0;
+  for (let k = Math.max(1, Math.ceil(lo / binHz)); k <= Math.min(size / 2 - 1, Math.floor(hi / binHz)); k++) {
+    const p = re[k] * re[k] + im[k] * im[k];
+    if (p > best) {
+      best = p;
+      at = k;
+    }
+  }
+  if (at <= 1) return at * binHz;
+  const pw = (k: number): number => Math.log(re[k] * re[k] + im[k] * im[k] + 1e-30);
+  const d = pw(at - 1) - 2 * pw(at) + pw(at + 1);
+  return (at + (d !== 0 ? (0.5 * (pw(at - 1) - pw(at + 1))) / d : 0)) * binHz;
 }

@@ -26,7 +26,9 @@
  * endBonus = [transform 'endBonus'] → (activate → clear → …settle)* until no special is left.
  *
  * Decisions where DESIGN.md §2 leaves room (all covered by tests/engine):
- * - Vines spread only after a real move (a valid swap), never after a booster.
+ * - Vines spread only after a real move (a valid swap), never after a booster. A turn, for the
+ *   vines, runs from one settled move to the next: a vine destroyed with a booster (hammer, free
+ *   swap) before a move counts for that move, so nothing spreads after it.
  * - freeSwap may move a lamp; a hammer on a lamp, an empty cell or a hole with no sand to remove
  *   is refused, as is any booster call that would change nothing.
  * - Lamps drop in through columns that run without a gap from spawner to exit, as the last
@@ -40,6 +42,11 @@
  * - The end-of-turn shuffle also runs on the turn that uses up the last move, so the board is
  *   ready when addMoves() resumes the level.
  * - From cascade 8 on, refills avoid completing a match (see CALM_CASCADE): turns always end.
+ * - A refused call (`accepted: false`) changes nothing at all, the random sequence included: the
+ *   game continues exactly as if the call had never been made.
+ * - Bad level data never crashes or hangs the engine (`validateLevel` reports it instead): a
+ *   level whose move count is not positive starts 'lost' with `canContinue` true; the colour
+ *   count is clamped to 3..6 and the board to PARSE_SIZE_LIMIT cells a side.
  *
  * ./replay.ts applies such a transcript to a snapshot; the tests use it to prove that every
  * transcript is complete.
@@ -69,7 +76,7 @@ import type {
 } from './types.ts';
 import { createRng, type Rng } from './rng.ts';
 import { EXTRA_MOVES_BOOSTER, SCORE, cascadeMultiplier, specialBonus, starsFor } from './score.ts';
-import { createBoard, lampColumns, parseLevel } from './level.ts';
+import { MAX_COLORS, MIN_COLORS, createBoard, lampColumns, parseLevel } from './level.ts';
 import {
   RANDOM_COLOR,
   colourWithoutMatch,
@@ -151,7 +158,8 @@ export class Game implements GameApi {
   readonly level: LevelDef;
 
   private readonly b: Board;
-  private readonly rng: Rng;
+  /** Replaced only to roll the sequence back when a request is refused (see the shuffle booster). */
+  private rng: Rng;
   private readonly colors: number;
   /** The level's goals, minus anything that is not a goal object (the Game never crashes on bad data). */
   private readonly goals: Goal[];
@@ -174,6 +182,7 @@ export class Game implements GameApi {
   /** While 'lost': can addMoves() resume? False when no move can ever exist on the board again. */
   private resumable = true;
   private lampSpawnsOff = false;
+  /** A vine was destroyed since the last move settled (boosters used before a move count for it). */
   private vineCut = false;
   private hintForward = true;
 
@@ -194,7 +203,9 @@ export class Game implements GameApi {
   constructor(level: LevelDef, opts: GameOptions, debug?: GameDebug) {
     this.level = level;
     this.rng = createRng(opts ? opts.seed : 0);
-    this.colors = Number.isInteger(level.colors) ? Math.min(6, Math.max(1, level.colors)) : 6;
+    // 3..6 (the validator's range): with fewer than three colours no refill can avoid a match and a
+    // single move would cascade until the settle guard stops it — thousands of steps.
+    this.colors = Number.isInteger(level.colors) ? Math.min(MAX_COLORS, Math.max(MIN_COLORS, level.colors)) : MAX_COLORS;
     this.goals = Array.isArray(level.goals) ? level.goals.filter((g) => g !== null && typeof g === 'object' && typeof g.kind === 'string') : [];
     const stars = level.stars as unknown;
     this.starLimits =
@@ -281,6 +292,9 @@ export class Game implements GameApi {
         this.resumable = false;
       }
     }
+    // A level without moves (bad data) cannot be played: it starts out of moves — 'lost', and
+    // addMoves() resumes it — instead of 'playing' with a move counter that would go negative.
+    if (this.status === 'playing' && this.movesLeft <= 0) this.status = 'lost';
   }
 
   // ───────────────────────────── queries ─────────────────────────────
@@ -405,7 +419,6 @@ export class Game implements GameApi {
     }
     this.movesLeft--;
     this.moveCount++;
-    this.vineCut = false;
     const t = this.newTurn();
     this.performSwap(i, j, t);
     this.finishTurn(t, true);
@@ -457,8 +470,14 @@ export class Game implements GameApi {
     }
 
     if (booster === 'shuffle') {
+      // A refused request must leave no trace — not even in the random sequence, or the game
+      // would continue differently from one in which the button was never pressed.
+      const saved = this.rng.clone();
       const outcome = reshuffle(board, this.rng, this.colors, true);
-      if (outcome === null) return this.rejected();
+      if (outcome === null) {
+        this.rng = saved;
+        return this.rejected();
+      }
       const t = this.newTurn();
       t.steps.push({ type: 'booster', booster: 'shuffle', at: null });
       this.pushShuffle(t.steps, outcome);
@@ -626,6 +645,8 @@ export class Game implements GameApi {
         this.status = 'lost';
       }
     }
+    // The next move starts a new turn for the vines (§2.7); a booster turn does not.
+    if (isMove) this.vineCut = false;
     if (this.status !== 'playing') t.steps.push({ type: 'status', status: this.status });
   }
 

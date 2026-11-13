@@ -5,7 +5,7 @@
 هذه نصوص صفحة اللعبة على Google Play باللغة الإنجليزية، وهي **اللغة الافتراضية** للبطاقة (Google Play يجعل الإنجليزية الأمريكية en-US هي الافتراضية عند الرفع).
 انسخ محتوى كل مربّع كما هو والصقه في الخانة المذكورة فوقه في صفحة بطاقة المتجر الرئيسية (`Main store listing`) في Play Console.
 
-- أعداد الأحرف المكتوبة تحت كل مربّع **محسوبة آليًّا** بالأمر `node tools/store/check-kit.cjs` (لا تخمين). إذا عدّلت نصًّا فأعد تشغيل الأمر مع `--write-counts` ليحدّث الأرقام ويتأكد من الحدود.
+- أعداد الأحرف المكتوبة تحت كل مربّع **محسوبة آليًّا** بالأمر `node tools/store/check-kit.cjs` (لا تخمين). إذا عدّلت نصًّا فأعد تشغيل الأمر مع <span dir="ltr">`--write-counts`</span> ليحدّث الأرقام ويتأكد من الحدود.
 - حدود Google Play: الاسم 30 حرفًا، الوصف القصير 80، الوصف الكامل 4000، ملاحظات الإصدار 500 لكل لغة.
 - النصوص تلتزم بسياسة البيانات الوصفية: لا رموز تعبيرية، لا كلمات بأحرف كبيرة للتشديد، لا كلمات ترتيب أو سعر أو ترويج، لا ذكر لأي لعبة أخرى ولا مقارنة بها، ولا تكرار للوصف القصير داخل الوصف الكامل.
 
@@ -14,9 +14,14 @@
 ## 1) اسم التطبيق — `App name`
 
 <!-- field: title | limit: 30 -->
+<div dir="ltr">
+
 ```text
 Zumurud: Gem Match Puzzle
 ```
+
+</div>
+
 **عدد الأحرف:** 25 / 30
 
 > الاسم نفسه موصى به في بحث التسمية (`docs/research/naming-ip.md`): كلمة العلامة «Zumurud» مع ذيل وصفي بحت يتجنّب التشابه مع ألعاب أخرى. لا تختصر الاسم أبدًا إلى أول ثلاثة أحرف أو أربعة منه.
@@ -24,14 +29,21 @@ Zumurud: Gem Match Puzzle
 ## 2) الوصف القصير — `Short description`
 
 <!-- field: short | limit: 80 -->
+<div dir="ltr">
+
 ```text
 Swap gems, forge beams and novas, and cross 120 levels of a desert oasis.
 ```
+
+</div>
+
 **عدد الأحرف:** 73 / 80
 
 ## 3) الوصف الكامل — `Full description`
 
 <!-- field: full | limit: 4000 -->
+<div dir="ltr">
+
 ```text
 Zumurud is a match-3 puzzle game set among the jewels of a desert oasis. Line up three or more gems of a kind by swapping two neighbours, and finish each level's goal before you run out of moves. Your journey starts beside the water at dawn and climbs, chapter by chapter, to a sky full of stars.
 
@@ -67,15 +79,20 @@ You can install Zumurud and complete every level without paying. The game offers
 
 Zumurud is the Arabic word for emerald.
 ```
+
+</div>
+
 **عدد الأحرف:** 2787 / 4000
 
-> إذا نشرت النسخة التي **لا تحتوي إعلانات** (`plain`) فقط، فاحذف الجملتين الأخيرتين من فقرة «Purchases and ads» (من `If the version you install shows ads` إلى آخر الفقرة) واحذف عبارة `, and an option that removes the ads shown between levels`، ثم أعد حساب الأحرف.
+> إذا نشرت النسخة التي **لا تحتوي إعلانات** (`plain`) فقط، فاحذف الجملتين الأخيرتين من فقرة «Purchases and ads» (من `If the version you install shows ads` إلى آخر الفقرة) واحذف عبارة <span dir="ltr">`, and an option that removes the ads shown between levels`</span>، ثم أعد حساب الأحرف.
 
 ## 4) ملاحظات الإصدار 1.0.0 — `Release notes` (ما الجديد)
 
 تُكتب في صفحة الإصدار نفسها (عند إنشاء الإصدار)، لا في بطاقة المتجر.
 
 <!-- field: whatsnew | limit: 500 -->
+<div dir="ltr">
+
 ```text
 Welcome to the first release of Zumurud.
 - 120 levels across six chapters, from the Oasis to the Starlit Sky
@@ -83,6 +100,9 @@ Welcome to the first release of Zumurud.
 - Six boosters, the Caravan win streak and a daily reward
 - English and Arabic
 ```
+
+</div>
+
 **عدد الأحرف:** 262 / 500
 
 ---
@@ -115,7 +135,7 @@ Welcome to the first release of Zumurud.
 | الخانة في Play Console | الملف |
 |---|---|
 | `App icon` (512×512) | `store/graphics/icon-512.png` |
-| `Feature graphic` (1024×500) | `store/graphics/feature-graphic.png` |
-| `Phone screenshots` (1080×1920) | `store/screenshots/en/*.png` — تُلتقط لاحقًا بالأمر `node tools/store/make-screenshots.cjs` |
+| `Feature graphic` (<span dir="ltr">1024×500</span>) | `store/graphics/feature-graphic.png` |
+| `Phone screenshots` (<span dir="ltr">1080×1920</span>) | `store/screenshots/en/*.png` — تُلتقط لاحقًا بالأمر `node tools/store/make-screenshots.cjs` |
 
 </div>

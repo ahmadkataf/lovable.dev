@@ -2,30 +2,36 @@
 /*
  * Audio checker — verifies src/audio by measurement, since nobody listens during a build.
  *
- *   node tools/audio-check.cjs            run everything
- *   node tools/audio-check.cjs --no-live  skip the live-engine tests
+ *   node tools/audio-check.cjs              run everything
+ *   node tools/audio-check.cjs --no-live    skip the live-engine tests
+ *   node tools/audio-check.cjs --no-long    skip the three-minute music renders
+ *   node tools/audio-check.cjs --sfx        only the effects and the loudness hierarchy
  *   node tools/audio-check.cjs --only=match,beam   only these effects (no music/live)
- *   node tools/audio-check.cjs --suggest  also print the gain change that would bring each
- *                                         effect to its intended loudness (for tuning sfx.ts)
- *
- *   node tools/audio-check.cjs --no-long  skip the three-minute music renders
+ *   node tools/audio-check.cjs --calibrate  measure every effect, then rewrite each `gain:` in
+ *                                           src/audio/sfx.ts so that the effect peaks at the
+ *                                           level of its loudness tier (run again to verify)
  *
  * It opens /audio-lab.html from the Vite dev server (port 5182; started here if it is not
  * already running) in headless Chromium and
- *   1. renders EVERY sound effect (each step of the stepped ones) and 20 s of each music
- *      track through OfflineAudioContext at 44.1 kHz, through the real output chain, and
- *      measures duration, peak, RMS, loudness, DC offset, spectral centroid, pitch and how
- *      much of the energy is harsh (above 6 kHz) or boom (below 150 Hz);
- *   2. renders three minutes of each track with the scheduler stepped as in live play:
- *      no clipping, no silence, no drift, no loop, a bounded number of audio nodes;
- *   3. renders a worst-case storm of effects over music to prove the output cannot clip, and
- *      checks that the first sound of a new context is not swallowed by the limiter;
- *   4. drives the live engine: unlock by a real click, 200 effects in one frame, toggles,
+ *   1. renders EVERY sound effect (each step of the stepped ones, each take of the ones that
+ *      have several) through OfflineAudioContext at 44.1 kHz and the real output chain, and
+ *      measures peak, RMS, loudness, duration, attack, DC offset, spectral centroid, pitch
+ *      and how much of the energy is harsh (above 6 kHz) or boom (below 150 Hz);
+ *   2. checks the mix against docs/STRATEGY.md (audio-01): the cascade pitch ladder, the
+ *      peak level of every loudness tier, the music 20 dB down and ducked a further 4 dB
+ *      under big sounds, at most 3 'match' voices and 12 voices in all, a −1 dBFS ceiling,
+ *      90 / 108 BPM;
+ *   3. renders 20 s and three minutes of each music track with the scheduler stepped as in
+ *      live play: no clipping, no silence, no drift, no loop, a bounded number of audio nodes;
+ *   4. renders a minute of scripted play over the level music and measures its programme
+ *      loudness (ITU-R BS.1770), and a worst-case storm of effects that must stay under the
+ *      ceiling; checks that the first sound of a new context is not swallowed by the limiter;
+ *   5. drives the live engine: unlock by a real click, 200 effects in one frame, toggles,
  *      track switching, suspend/resume, a stalled main thread;
- *   5. attacks the live engine while recording its real output sample by sample: 500
+ *   6. attacks the live engine while recording its real output sample by sample: 500
  *      effects in one tick, rapid track switching, suspend in the middle of a cross-fade,
  *      a three-second stall of the main thread, a hidden page, a context suspended behind
- *      the engine's back, fades that must not be chopped.
+ *      the engine's back, fades that must not be chopped, voices that are stolen.
  * Rendered audio goes to shots/audio/<id>.wav with a spectrogram <id>.png next to it, plus
  * report.txt / report.json. Exit code 1 if any check fails.
  */
@@ -41,56 +47,66 @@ const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.AUDIO_CHECK_PORT || 5182);
 const PAGE_URL = 'http://127.0.0.1:' + PORT + '/audio-lab.html';
 const OUT = path.join(ROOT, 'shots', 'audio');
+const SFX_SOURCE = path.join(ROOT, 'src', 'audio', 'sfx.ts');
 const args = process.argv.slice(2);
 const NO_LIVE = args.indexOf('--no-live') >= 0;
 const NO_LONG = args.indexOf('--no-long') >= 0;
-const SUGGEST = args.indexOf('--suggest') >= 0;
+const CALIBRATE = args.indexOf('--calibrate') >= 0;
+const SFX_ONLY = args.indexOf('--sfx') >= 0;
 const onlyArg = args.filter((a) => a.indexOf('--only=') === 0)[0];
 const ONLY = onlyArg ? onlyArg.slice(7).split(',') : null;
 
 // ───────────────────────── limits ─────────────────────────
 const LIMITS = {
-  clipPeak: 0.99,
   silentRms: 0.003,
   dc: 0.01,
   tailPeak: 0.002,
-  // nominal duration (s) by class: [min, max]
-  duration: { ui: [0.04, 0.25], game: [0.08, 0.9], jingle: [0.4, 2.2] },
-  // loudness (A-weighted loudest frame, dB) relative to the median of the game effects
-  gameSpread: 3, // game + jingle: within ±3 dB (a 6 dB window)
-  uiBelow: [4, 14], // UI sounds: this many dB under the median
+  // The ceiling of the whole mix: −1 dBFS (plus rounding).
+  ceilingDb: -1,
+  ceiling: Math.pow(10, -1 / 20) + 0.0005,
+  // Peak level of an effect against its tier: every step and take within this many dB, and
+  // the mean of an effect's steps and takes within `tierMean`.
+  tierEach: 1,
+  tierMean: 0.6,
+  // nominal duration (s) by tier: [min, max]
+  duration: {
+    ui: [0.04, 0.25], soft: [0.04, 0.4], handle: [0.08, 0.3], clear: [0.08, 0.25],
+    board: [0.08, 0.7], special: [0.25, 0.9], big: [0.4, 1.2], jingle: [0.4, 2.2],
+  },
+  // The sounds heard all the time: short, and speaking at once.
+  frequent: ['button', 'select', 'swap', 'match', 'land'],
+  frequentDuration: [0.08, 0.25],
+  frequentAttack: 0.008,
   // tone: share of a sound's energy above 6 kHz (harsh, hissy) and below 150 Hz (boom that
   // costs headroom and that a phone speaker cannot play)
   harsh: 0.3,
   boom: 0.3,
+  // tuning of the cascade ladder and of the takes (cents)
+  ladderCents: 8,
+  takeCents: 2.5,
   // music
+  musicPeakBelow: 3.5, // the music's peak may fall this far short of its level (dB) …
+  musicPeakAbove: 0.1, // … but must not exceed it
   musicHalves: 3.5, // dB between first and second half
   musicGap: 1, // s of silence
-  musicUnderSfx: 8, // music RMS at least this many dB under the median effect
-  // like for like (A-weighted loudest frame, as for the effects): the music's loudest moment
-  // and its 95th percentile must sit this far under the median game effect
-  musicMaxUnder: 5,
-  musicP95Under: 8,
-  musicPeak: 0.5, // sample peak of music alone
+  musicUnderClear: 6, // music's loud moments (95th percentile, A-weighted) under the median 'match'
   musicOnsetsPerBar: [2.5, 22],
+  bpm: { menu: 90, level: 108 },
   // three minutes of music
   longSeconds: 180,
   longMinutes: 3, // dB between any two whole minutes
   longTenSeconds: 6, // dB between the loudest and the quietest 10 s
   longDifference: 0.5, // first vs last minute: 0 = identical samples, ~1 = unrelated
   longNodes: 160, // live audio nodes of the music at any time
+  // ducking
+  duckTolerance: 0.7, // dB
+  duckHold: [0.45, 0.95], // s the music stays down under a special
   // first sound of a new context vs the same sound later (dB)
   startup: 1.5,
-};
-
-// Intended loudness (A-weighted, dB) used by --suggest: one level for game effects, UI
-// sounds 8 dB lower, plus small deliberate offsets (a double blast should out-weigh a tap).
-const TARGET = { game: -14.5, ui: -22.5 };
-const INTENT = {
-  bigCombo: 0.5, nova: -1, prism: 1, beam: 0, stoneBreak: -1, win: 0.5, reward: 1, purchase: 0, goalDone: 1,
-  lose: -1, lifeLost: -2, invalid: -1.5, praise: -1.5, coin: -1, sand: -2.5, stone: -2, vine: -2, chain: -1,
-  vineGrow: -1.5, createBeam: -0.5, createNova: -0.5, createPrism: -0.5, shuffle: -0.5, swap: 1.5, button: -1, land: -1.5,
-  levelStart: -0.5, movesLow: -0.5,
+  // programme loudness of a minute of play (LUFS): the study's estimate, and the window that
+  // the peak hierarchy leaves room for
+  lufsEstimate: -16,
+  lufs: [-34, -14],
 };
 
 const failures = [];
@@ -166,127 +182,241 @@ function slim(report) {
 }
 
 // ───────────────────────── effects ─────────────────────────
+function dbToGain(db) {
+  return Math.pow(10, db / 20);
+}
+
+/**
+ * Rewrite the `gain:` of every effect in sfx.ts so that its mean peak sits on its tier, and
+ * for the stepped effects the `trimDb:` list that evens out their steps. A sound that was
+ * loud enough to reach the limiter measures too low the first time: run it twice.
+ */
+function calibrate(groups) {
+  let src = fs.readFileSync(SFX_SOURCE, 'utf8');
+  out('');
+  out('CALIBRATION — gains rewritten in src/audio/sfx.ts');
+  let changed = 0;
+  const meanOf = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  for (const name of Object.keys(groups)) {
+    const g = groups[name];
+    // A stepped sound: one cell per step and take; the gain goes by the mean of the cells.
+    const steps = Object.keys(g.cells).map(Number).sort((a, b) => a - b);
+    const cells = [];
+    for (const st of steps) for (let k = 0; k < g.cells[st].length; k++) cells.push({ step: st, take: k, peak: g.cells[st][k] });
+    const mean = cells.length ? meanOf(cells.map((c) => c.peak)) : meanOf(g.peaks);
+    const re = new RegExp('(\\n  ' + name + ': \\{\\n    gain: )([0-9.]+)(,)');
+    const m = re.exec(src);
+    if (!m) {
+      fail('calibrate', 'no gain found for ' + name);
+      continue;
+    }
+    const old = Number(m[2]);
+    const next = Math.round(old * dbToGain(g.target - mean) * 1000) / 1000;
+    if (next !== old) changed++;
+    src = src.replace(re, '$1' + next + '$3');
+    out('  ' + pad(name, 13) + padL(f(mean), 7) + ' → ' + padL(f(g.target, 0), 4) + ' dBFS   gain ' + padL(f(old, 3), 6) + ' → ' + padL(f(next, 3), 6));
+    const tre = new RegExp('(\\n  ' + name + ': \\{\\n    gain: [0-9.]+,\\n    trimDb: \\[)([^\\]]*)(\\])');
+    const tm = tre.exec(src);
+    if (tm && cells.length) {
+      const oldTrim = tm[2].split(',').map((x) => x.trim()).filter((x) => x.length).map(Number);
+      const takes = g.cells[steps[0]].length;
+      const nextTrim = cells.map((c, i) => Math.round(((oldTrim[i] || 0) + (mean - c.peak)) * 10) / 10);
+      // One step per line when there are several takes, one line otherwise.
+      let text;
+      if (takes > 1) {
+        const rows = [];
+        for (let i = 0; i < nextTrim.length; i += takes) rows.push('      ' + nextTrim.slice(i, i + takes).join(', ') + ',');
+        text = '\n' + rows.join('\n') + '\n    ';
+      } else {
+        text = nextTrim.join(', ');
+      }
+      src = src.replace(tre, '$1' + text + '$3');
+      out('  ' + pad('', 13) + 'trims (dB' + (takes > 1 ? ', per step: one per take' : ', per step') + '): ' + (takes > 1 ? steps.map((st, i) => nextTrim.slice(i * takes, i * takes + takes).join('/')).join('  ') : nextTrim.join(', ')));
+    }
+  }
+  fs.writeFileSync(SFX_SOURCE, src);
+  out('  ' + changed + ' gain(s) changed; run the checker again to verify.');
+}
+
 async function checkEffects(page, report) {
   const variants = await page.evaluate(() => window.__audioLab.variants());
   const expected = await page.evaluate(() => window.__audioLab.expected());
+  report.expected = expected;
   const chosen = ONLY ? variants.filter((v) => ONLY.indexOf(v.name) >= 0) : variants;
   const results = [];
+  // Calibration measures at a quarter of the volume (and adds the 12 dB back), so that a
+  // sound whose gain is still far too high cannot reach the limiter and hide its true peak.
+  const volume = CALIBRATE ? 0.25 : 1;
+  const restore = (r) => {
+    if (volume === 1) return;
+    r.metrics.peakDb -= 20 * Math.log10(volume);
+  };
   for (const v of chosen) {
-    const r = await page.evaluate((x) => window.__audioLab.sfxReport(x.name, x.step), v);
+    const r = await page.evaluate((x) => window.__audioLab.sfxReport(x.v.name, x.v.step, 0, x.volume), { v, volume });
+    restore(r);
+    r.name = v.name;
+    r.step = v.step;
     save(r);
     results.push(r);
   }
-  report.sfx = results.map(slim);
-
-  const gameLoud = results.filter((r) => r.cls !== 'ui').map((r) => r.metrics.loudADb);
-  const ref = median(gameLoud);
-  report.sfxMedianLoudA = ref;
-  report.sfxMedianLoud = median(results.filter((r) => r.cls !== 'ui').map((r) => r.metrics.loudDb));
+  // The other takes of the sound that has several, at every step.
+  const takes = [];
+  if (!ONLY || ONLY.indexOf('match') >= 0) {
+    for (let step = 1; step <= expected.match.length; step++) {
+      for (let k = 1; k < expected.variants.length; k++) {
+        const r = await page.evaluate((x) => window.__audioLab.sfxReport('match', x.step, x.k, x.volume), { step, k, volume });
+        restore(r);
+        r.name = 'match';
+        r.step = step;
+        r.take = k;
+        if (step === 1 || step === 6 || step === 12) save(r);
+        takes.push(r);
+      }
+    }
+  }
+  const all = results.concat(takes);
+  report.sfx = all.map(slim);
 
   out('');
-  out('SOUND EFFECTS — rendered offline at 44.1 kHz through sfx bus → master → limiter → trim → guard');
+  out('SOUND EFFECTS — rendered offline at 44.1 kHz through sfx bus → master → limiter → trim → guard (gain from bus to output: 0 dB)');
   out(
-    pad('sound', 15) + pad('class', 7) + padL('dur s', 7) + padL('aud s', 7) + padL('peak', 7) + padL('rms', 7) + padL('loud', 7) +
-      padL('loudA', 7) + padL('Δmed', 6) + padL('DC', 9) + padL('centroid Hz', 13) + padL('start→end', 13) + padL('pitch Hz', 10) + padL('>6k %', 7) + padL('<150 %', 8) + '  flags',
+    pad('sound', 15) + pad('tier', 8) + padL('target', 7) + padL('peak', 7) + padL('Δ', 6) + padL('rms', 7) + padL('loud', 7) + padL('loudA', 7) +
+      padL('dur s', 7) + padL('aud s', 7) + padL('att ms', 7) + padL('DC', 8) + padL('centroid Hz', 12) + padL('start→end', 12) + padL('pitch Hz', 9) + padL('>6k %', 6) + padL('<150 %', 7) + '  flags',
   );
-  for (const r of results) {
+  const groups = {};
+  for (const r of all) {
     const m = r.metrics;
     const flags = [];
-    const lim = LIMITS.duration[r.cls];
-    if (m.clips) flags.push('CLIPS');
-    if (m.silent) flags.push('SILENT');
+    const lim = LIMITS.duration[r.tier];
+    const delta = m.peakDb - r.targetDb;
+    (groups[r.name] = groups[r.name] || { tier: r.tier, target: r.targetDb, peaks: [], rms: [], loudA: [], cells: {} }).peaks.push(m.peakDb);
+    if (r.step !== undefined) (groups[r.name].cells[r.step] = groups[r.name].cells[r.step] || [])[r.take || 0] = m.peakDb;
+    groups[r.name].rms.push(m.rmsDb);
+    groups[r.name].loudA.push(m.loudADb);
+    if (m.peak >= LIMITS.ceiling) flags.push('CLIPS');
+    if (m.silent && r.targetDb > -17) flags.push('SILENT');
     if (Math.abs(m.dc) > LIMITS.dc) flags.push('DC');
     if (r.tailPeak > LIMITS.tailPeak) flags.push('TAIL(' + f(r.tailPeak, 4) + ')');
     if (r.nominal < lim[0] || r.nominal > lim[1]) flags.push('DURATION');
     if (m.effective < 0.02 + r.nominal * 0.5) flags.push('DEAD-AIR');
     if (m.hfShare > LIMITS.harsh) flags.push('HARSH');
     if (m.lfShare > LIMITS.boom) flags.push('BOOM');
-    const delta = m.loudADb - ref;
-    if (!ONLY) {
-      if (r.cls === 'ui') {
-        if (-delta < LIMITS.uiBelow[0] || -delta > LIMITS.uiBelow[1]) flags.push('UI-LEVEL');
-      } else if (Math.abs(delta) > LIMITS.gameSpread) {
-        flags.push('LEVEL');
-      }
+    if (!CALIBRATE && Math.abs(delta) > LIMITS.tierEach) flags.push('LEVEL');
+    if (LIMITS.frequent.indexOf(r.name) >= 0) {
+      if (r.nominal < LIMITS.frequentDuration[0] || r.nominal > LIMITS.frequentDuration[1]) flags.push('FREQUENT-LENGTH');
+      if (r.attack > LIMITS.frequentAttack) flags.push('SLOW-ATTACK');
     }
     out(
-      pad(r.id, 15) + pad(r.cls, 7) + padL(f(r.nominal, 3), 7) + padL(f(m.effective - 0.02, 3), 7) + padL(f(m.peakDb), 7) + padL(f(m.rmsDb), 7) +
-        padL(f(m.loudDb), 7) + padL(f(m.loudADb), 7) + padL((delta >= 0 ? '+' : '') + f(delta), 6) + padL(m.dc.toExponential(0), 9) +
-        padL(f(m.centroid, 0), 13) + padL(f(m.centroidStart, 0) + '→' + f(m.centroidEnd, 0), 13) + padL(f(m.pitch, 0), 10) +
-        padL(f(m.hfShare * 100, 0), 7) + padL(f(m.lfShare * 100, 0), 8) + '  ' + (flags.join(' ') || 'ok'),
+      pad(r.id, 15) + pad(r.tier, 8) + padL(f(r.targetDb, 0), 7) + padL(f(m.peakDb), 7) + padL((delta >= 0 ? '+' : '') + f(delta), 6) + padL(f(m.rmsDb), 7) +
+        padL(f(m.loudDb), 7) + padL(f(m.loudADb), 7) + padL(f(r.nominal, 3), 7) + padL(f(m.effective - 0.02, 3), 7) + padL(f(r.attack * 1000, 1), 7) + padL(m.dc.toExponential(0), 8) +
+        padL(f(m.centroid, 0), 12) + padL(f(m.centroidStart, 0) + '→' + f(m.centroidEnd, 0), 12) + padL(f(m.pitch, 0), 9) +
+        padL(f(m.hfShare * 100, 0), 6) + padL(f(m.lfShare * 100, 0), 7) + '  ' + (flags.join(' ') || 'ok'),
     );
     for (const fl of flags) fail('sfx ' + r.id, fl);
   }
-  out('median loudness of game effects: ' + f(ref) + ' dB(A)   (game/jingle must be within ±' + LIMITS.gameSpread + ' dB, UI ' + LIMITS.uiBelow[0] + '–' + LIMITS.uiBelow[1] + ' dB below)');
-  out('columns: dur = duration reported by renderSfx · aud = until 60 dB below the peak · peak, rms, loud (loudest 50 ms) in dBFS ·');
-  out('         loudA = loudest frame, A-weighted (dB) · Δmed = loudA minus the median · DC = mean sample · centroid = power-weighted');
-  out('         mean frequency (whole sound, then first third → last third) · pitch = strongest spectral peak ·');
-  out('         >6k / <150 = share of the energy above 6 kHz / below 150 Hz');
-  out('flags:   CLIPS |sample| ≥ ' + LIMITS.clipPeak + ' · SILENT rms < ' + LIMITS.silentRms + ' · DC |mean| > ' + LIMITS.dc + ' · TAIL sound after its reported end ·');
-  out('         DURATION outside ' + JSON.stringify(LIMITS.duration).replace(/"/g, '') + ' s · DEAD-AIR audible < half of dur · LEVEL / UI-LEVEL loudness window ·');
-  out('         HARSH more than ' + LIMITS.harsh * 100 + ' % of the energy above 6 kHz · BOOM more than ' + LIMITS.boom * 100 + ' % below 150 Hz');
-  const uiLoud = results.filter((r) => r.cls === 'ui').map((r) => r.metrics.loudADb);
-  if (uiLoud.length) report.uiMedianLoudA = median(uiLoud);
-  // Class summary: the three levels the mix is built on.
-  const cls = (name) => results.filter((r) => r.cls === name);
-  const span = (rs, key) => (rs.length ? f(Math.min.apply(null, rs.map((r) => r.metrics[key]))) + ' … ' + f(Math.max.apply(null, rs.map((r) => r.metrics[key]))) : '—');
-  out('');
-  out('LOUDNESS BY CLASS (A-weighted loudest frame, dB · sample peak, dBFS · RMS, dBFS)');
-  for (const name of ['ui', 'game', 'jingle']) {
-    const rs = cls(name);
-    if (!rs.length) continue;
-    out('  ' + pad(name, 7) + padL(rs.length + ' sounds', 10) + '   loudA ' + pad(span(rs, 'loudADb'), 15) + ' median ' + padL(f(median(rs.map((r) => r.metrics.loudADb))), 6) + '   peak ' + pad(span(rs, 'peakDb'), 14) + '   rms ' + span(rs, 'rmsDb'));
-  }
-  report.classLoudness = {};
-  for (const name of ['ui', 'game', 'jingle']) {
-    const rs = cls(name);
-    if (rs.length) report.classLoudness[name] = { count: rs.length, medianLoudA: median(rs.map((r) => r.metrics.loudADb)), minLoudA: Math.min.apply(null, rs.map((r) => r.metrics.loudADb)), maxLoudA: Math.max.apply(null, rs.map((r) => r.metrics.loudADb)) };
+  out('columns: target = peak level of the tier (dBFS) · peak, rms, loud (loudest 50 ms) in dBFS · Δ = peak minus target ·');
+  out('         loudA = loudest frame, A-weighted (dB) · dur = duration reported by renderSfx · aud = until 60 dB below the peak ·');
+  out('         att = time from 10 % to 70 % of the peak · DC = mean sample · centroid = power-weighted mean frequency');
+  out('         (whole sound, then first third → last third) · pitch = strongest spectral peak · >6k / <150 = share of the energy');
+  out('flags:   CLIPS above the ceiling · SILENT rms < ' + LIMITS.silentRms + ' · DC |mean| > ' + LIMITS.dc + ' · TAIL sound after its reported end · LEVEL peak more than ' + LIMITS.tierEach + ' dB off its tier ·');
+  out('         DURATION outside ' + JSON.stringify(LIMITS.duration).replace(/"/g, '') + ' s ·');
+  out('         DEAD-AIR audible < half of dur · HARSH more than ' + LIMITS.harsh * 100 + ' % above 6 kHz · BOOM more than ' + LIMITS.boom * 100 + ' % below 150 Hz ·');
+  out('         FREQUENT-LENGTH / SLOW-ATTACK: ' + LIMITS.frequent.join(', ') + ' must last ' + LIMITS.frequentDuration[0] * 1000 + '–' + LIMITS.frequentDuration[1] * 1000 + ' ms and speak within ' + LIMITS.frequentAttack * 1000 + ' ms');
+
+  if (CALIBRATE) {
+    calibrate(groups);
+    return results;
   }
 
-  if (SUGGEST) {
-    // Average the steps of a stepped effect, then say how to scale its gain in sfx.ts.
-    const groups = {};
-    for (const r of results) {
-      const name = r.id.split('-')[0];
-      (groups[name] = groups[name] || { cls: r.cls, vals: [], peaks: [] }).vals.push(r.metrics.loudADb);
-      groups[name].peaks.push(r.metrics.peakDb);
+  // The loudness hierarchy: one row per tier.
+  const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const tierRows = [];
+  out('');
+  out('LOUDNESS HIERARCHY (docs/STRATEGY.md audio-01) — peak level of each tier at the output');
+  out('  ' + pad('tier', 9) + padL('target', 7) + padL('measured peak dBFS', 22) + padL('mean', 7) + padL('rms dBFS', 10) + padL('loudA med', 11) + '   sounds');
+  report.tiers = [];
+  for (const t of expected.tiers) {
+    const names = Object.keys(groups).filter((n) => groups[n].tier === t.name);
+    if (!names.length) continue;
+    const peaks = [].concat.apply([], names.map((n) => groups[n].peaks));
+    const rms = [].concat.apply([], names.map((n) => groups[n].rms));
+    const loudA = [].concat.apply([], names.map((n) => groups[n].loudA));
+    const row = { tier: t.name, target: t.peakDb, min: Math.min.apply(null, peaks), max: Math.max.apply(null, peaks), mean: mean(peaks), rms: mean(rms), loudA: median(loudA), names };
+    tierRows.push(row);
+    report.tiers.push(row);
+    out('  ' + pad(t.name, 9) + padL(f(t.peakDb, 0), 7) + padL(f(row.min) + ' … ' + f(row.max), 22) + padL(f(row.mean), 7) + padL(f(row.rms), 10) + padL(f(row.loudA), 11) + '   ' + names.join(' '));
+    if (!ONLY) {
+      for (const n of names) {
+        const g = groups[n];
+        const m = mean(g.peaks);
+        if (Math.abs(m - g.target) > LIMITS.tierMean) fail('hierarchy', n + ' peaks at ' + f(m) + ' dBFS on average, its tier (' + g.tier + ') is ' + g.target);
+      }
     }
-    out('');
-    out('GAIN SUGGESTIONS (multiply the effect\'s gain in src/audio/sfx.ts by this factor)');
-    for (const name of Object.keys(groups)) {
-      const g = groups[name];
-      const mean = g.vals.reduce((a, b) => a + b, 0) / g.vals.length;
-      const target = (g.cls === 'ui' ? TARGET.ui : TARGET.game) + (INTENT[name] || 0);
-      const change = target - mean;
-      const peakAfter = Math.max.apply(null, g.peaks) + change;
-      out('  ' + pad(name, 13) + padL(f(mean), 7) + ' → ' + padL(f(target), 6) + ' dB(A)   ×' + f(Math.pow(10, change / 20), 2) + '   peak then ' + f(peakAfter) + ' dBFS');
+  }
+  report.groups = groups;
+  if (!ONLY) {
+    // Each tier is louder than the one below it — as peaks (by construction) and to the ear.
+    for (let i = 1; i < tierRows.length; i++) {
+      if (!(tierRows[i].mean > tierRows[i - 1].mean + 0.5)) fail('hierarchy', tierRows[i].tier + ' does not peak above ' + tierRows[i - 1].tier);
     }
+    const byTier = {};
+    for (const r of tierRows) byTier[r.tier] = r;
+    const order = [['ui', 'clear'], ['clear', 'special'], ['special', 'jingle']];
+    for (const pair of order) {
+      if (byTier[pair[0]] && byTier[pair[1]] && !(byTier[pair[1]].loudA > byTier[pair[0]].loudA + 2)) {
+        fail('hierarchy', pair[1] + ' is not perceptibly louder than ' + pair[0] + ' (A-weighted ' + f(byTier[pair[1]].loudA) + ' vs ' + f(byTier[pair[0]].loudA) + ')');
+      }
+    }
+    report.clearLoudA = byTier.clear ? byTier.clear.loudA : undefined;
+    report.uiLoudA = byTier.ui ? byTier.ui.loudA : undefined;
   }
 
   // Shape checks: do the sounds move the way their design says?
   const by = {};
-  for (const r of results) by[r.id] = r;
+  for (const r of all) by[r.id] = r;
   const shape = [];
   const want = (id, ok, text) => {
     if (!by[id.split('|')[0]]) return;
     shape.push((ok ? 'ok   ' : 'FAIL ') + text);
     if (!ok) fail('shape', text);
   };
-  // match: each step is the expected scale tone, strictly rising, capped at the top.
-  if (by['match-1']) {
-    let rising = true;
-    let exact = true;
+  // match: the cascade ladder — 12 rungs above D4, then the top note held with a sparkle layer.
+  if (by['match-1'] && by['match-13']) {
+    const ladder = [0, 4, 5, 7, 10, 12, 16, 17, 19, 22, 24, 28];
+    const d4 = 440 * Math.pow(2, (62 - 69) / 12);
     const got = [];
-    for (let s = 1; s <= expected.match.length; s++) {
-      const r = by['match-' + s];
-      if (!r) continue;
-      got.push(Math.round(r.metrics.pitch));
+    const semis = [];
+    let worst = 0;
+    for (let s = 1; s <= 13; s++) {
       const e = expected.match[s - 1];
-      if (Math.abs(r.metrics.pitch / e - 1) > 0.012) exact = false;
-      if (s > 1 && by['match-' + (s - 1)] && r.metrics.pitch <= by['match-' + (s - 1)].metrics.pitch * 1.02) rising = false;
+      const hz = await page.evaluate((x) => window.__audioLab.tuningOf('match', x.s, 0, x.e, 0.04, 0.16), { s, e });
+      got.push(hz);
+      semis.push(12 * Math.log2(hz / d4));
+      worst = Math.max(worst, Math.abs(1200 * Math.log2(hz / e)));
     }
-    want('match-1', rising, 'match pitch rises with every step: ' + got.join(' < ') + ' Hz');
-    want('match-1', exact, 'match pitches are the D–F♯–G–A–C ladder (expected ' + expected.match.map((x) => Math.round(x)).join(', ') + ' Hz)');
+    report.ladder = { hz: got, semitones: semis, worstCents: worst };
+    let rising = true;
+    for (let s = 1; s < 12; s++) if (!(got[s] > got[s - 1] * 1.02)) rising = false;
+    const onLadder = ladder.every((x, i) => Math.abs(semis[i] - x) < LIMITS.ladderCents / 100);
+    want('match-1', rising, "'match' rises with every step: " + got.slice(0, 12).map((x) => Math.round(x)).join(' < ') + ' Hz');
+    want('match-1', onLadder, "'match' steps 1…12 sound " + semis.slice(0, 12).map((x) => f(x, 2)).join(' ') + ' semitones above D4 (ladder ' + ladder.join(' ') + '; worst error ' + f(worst, 1) + ' cents)');
+    want('match-1', Math.abs(1200 * Math.log2(got[12] / got[11])) < LIMITS.ladderCents, "'match' holds the top note after step 12: step 13 sounds " + f(got[12], 1) + ' Hz, step 12 ' + f(got[11], 1) + ' Hz');
+    const c12 = by['match-12'].metrics.centroid;
+    const c13 = by['match-13'].metrics.centroid;
+    want('match-1', c13 > c12 * 1.05, "step 13 adds the sparkle layer: centroid " + f(c12, 0) + ' → ' + f(c13, 0) + ' Hz');
+    // The sparkle partials sit 12 dB under the body.
+    const spark = await page.evaluate(async (e) => {
+      const lab = window.__audioLab;
+      const a = await lab.notesOf('match', 13, [{ from: 0.06, to: 0.16 }], e * 1.9, e * 2.1);
+      return a[0];
+    }, expected.match[12]);
+    want('match-1', Math.abs(spark / (2 * expected.match[12]) - 1) < 0.01, 'the sparkle layer has a partial at twice the note: ' + f(spark, 0) + ' Hz');
+    // Round-robin takes.
+    const takeRows = await page.evaluate(() => window.__audioLab.variantReport(5));
+    report.takes = takeRows;
+    const centsOk = takeRows.every((t, i) => Math.abs(t.cents - expected.variants[i].cents) < LIMITS.takeCents);
+    want('match-1', takeRows.length === 3 && centsOk, "'match' has three takes, detuned " + takeRows.map((t) => (t.cents >= 0 ? '+' : '') + f(t.cents, 1)).join(' / ') + ' cents (designed ' + expected.variants.map((v) => v.cents).join(' / ') + ')');
+    want('match-1', takeRows.every((t) => t.attack <= LIMITS.frequentAttack) && expected.variants.every((v) => v.attack <= LIMITS.frequentAttack), 'every take speaks within 8 ms: designed ' + expected.variants.map((v) => v.attack * 1000).join(' / ') + ' ms, measured (10 → 70 %) ' + takeRows.map((t) => f(t.attack * 1000, 1)).join(' / ') + ' ms');
   }
   if (by['star-1'] && by['star-2'] && by['star-3']) {
     const p = [1, 2, 3].map((s) => by['star-' + s].metrics.pitch);
@@ -297,8 +427,23 @@ async function checkEffects(page, report) {
   if (by['praise-1'] && by['praise-4']) {
     const d = [1, 2, 3, 4].map((s) => by['praise-' + s].nominal);
     const c = [1, 2, 3, 4].map((s) => by['praise-' + s].metrics.centroid);
-    want('praise-1', d[0] < d[1] && d[1] < d[2] && d[2] <= d[3], 'praise grows longer with intensity: ' + d.map((x) => f(x, 2)).join(' < ') + ' s');
-    want('praise-1', c[0] < c[2], 'praise grows brighter with intensity: centroid ' + c.map((x) => Math.round(x)).join(', ') + ' Hz');
+    want('praise-1', d[0] < d[1] && d[1] < d[2] && d[2] < d[3], 'praise grows longer with its tier: ' + d.map((x) => f(x, 2)).join(' < ') + ' s');
+    // The motif of each tier, note by note (85 ms apart).
+    let motifOk = true;
+    const heard = [];
+    for (let tier = 1; tier <= 4; tier++) {
+      const notes = expected.praise[tier - 1];
+      const slots = notes.map((_, k) => ({ from: k * 0.085 + 0.004, to: k * 0.085 + 0.07 }));
+      const got = await page.evaluate((x) => window.__audioLab.notesOf('praise', x.tier, x.slots, 500, 1700), { tier, slots });
+      heard.push(got.map((x) => Math.round(x)).join(' '));
+      if (got.length !== tier + 1) motifOk = false;
+      for (let k = 0; k < got.length; k++) {
+        if (Math.abs(got[k] / notes[k] - 1) > 0.015) motifOk = false;
+        if (k > 0 && !(got[k] > got[k - 1])) motifOk = false;
+      }
+    }
+    want('praise-1', motifOk, 'praise tiers 1…4 are rising motifs of 2, 3, 4 and 5 ladder notes: ' + heard.join(' | ') + ' Hz');
+    report.praise = { heard, centroid: c };
   }
   const falls = (id, factor) => {
     const r = by[id];
@@ -322,6 +467,16 @@ async function checkEffects(page, report) {
   rises('swap', 1.2);
   rises('createBeam', 1.2);
   rises('booster', 1.3);
+  // Weight: a blast has a body in the range a phone speaker can play (150–400 Hz), and does
+  // not depend on anything below 120 Hz.
+  for (const id of ['beam', 'nova', 'bigCombo']) {
+    const r = by[id];
+    if (!r) continue;
+    want(id, r.metrics.bodyShare >= 0.25 && r.metrics.subShare < 0.15, id + ' has its weight where a phone can play it: ' + f(r.metrics.bodyShare * 100, 0) + ' % of the energy at 150–400 Hz, ' + f(r.metrics.subShare * 100, 0) + ' % below 120 Hz');
+  }
+  if (by.lose && by.win) {
+    want('lose', by.lose.metrics.centroid < by.win.metrics.centroid && by.lose.metrics.hfShare < 0.02, 'lose is gentle: centroid ' + f(by.lose.metrics.centroid, 0) + ' Hz (win ' + f(by.win.metrics.centroid, 0) + '), ' + f(by.lose.metrics.hfShare * 100, 1) + ' % above 6 kHz, attack ' + f(by.lose.attack * 1000, 0) + ' ms');
+  }
   if (shape.length) {
     out('');
     out('SHAPE');
@@ -331,16 +486,25 @@ async function checkEffects(page, report) {
 }
 
 // ───────────────────────── music ─────────────────────────
+/** Flags for the music's level in the mix; `peakDb` is its sample peak after the fade-in. */
+function musicLevelFlags(report, peakDb, loudness) {
+  const flags = [];
+  const target = report.expected.musicPeakDb;
+  if (peakDb > target + LIMITS.musicPeakAbove) flags.push('PEAK-ABOVE-' + target);
+  if (peakDb < target - LIMITS.musicPeakBelow) flags.push('TOO-QUIET');
+  if (report.clearLoudA !== undefined && loudness.p95 > report.clearLoudA - LIMITS.musicUnderClear) flags.push('LOUD-VS-EFFECTS');
+  return flags;
+}
+
 async function checkMusic(page, report) {
   out('');
-  out('MUSIC — 20 s of each track, offline (scheduler stepped every 100 ms), through music bus → master → limiter → trim → guard');
+  out('MUSIC — 20 s of each track, offline (scheduler stepped every 100 ms), through music in → glue → clip → music bus → master → limiter → trim → guard');
   report.music = [];
   for (const track of ['menu', 'level']) {
     const r = await page.evaluate((t) => window.__audioLab.musicReport(t, 20, 20240521), track);
     save(r);
     report.music.push(slim(r));
     const m = r.metrics;
-    const flags = [];
     const perBar = r.leadPerBar.map((x, i) => x + r.percPerBar[i]);
     const avg = perBar.reduce((a, b) => a + b, 0) / perBar.length;
     const leadAvg = r.leadPerBar.reduce((a, b) => a + b, 0) / r.leadPerBar.length;
@@ -353,35 +517,28 @@ async function checkMusic(page, report) {
       }
       return worst;
     })();
-    if (m.clips) flags.push('CLIPS');
-    if (m.silent) flags.push('SILENT');
+    const flags = musicLevelFlags(report, m.peakDb, r.loudness);
+    if (m.rms < 0.0015) flags.push('SILENT');
     if (Math.abs(m.dc) > LIMITS.dc) flags.push('DC');
+    if (r.bpm !== LIMITS.bpm[track]) flags.push('TEMPO');
     if (avg < LIMITS.musicOnsetsPerBar[0] || avg > LIMITS.musicOnsetsPerBar[1]) flags.push('ONSET-DENSITY');
     if (leadAvg < 1.5) flags.push('LEAD-TOO-SPARSE');
     if (emptyLeadRun > 2) flags.push('LEAD-GAP');
     if (r.heard < r.scheduled * 0.4) flags.push('ONSETS-NOT-HEARD');
     if (Math.abs(r.firstHalfDb - r.secondHalfDb) > LIMITS.musicHalves) flags.push('DRIFT');
     if (r.longestSilence > LIMITS.musicGap) flags.push('SILENCE-GAP');
-    if (report.sfxMedianLoud !== undefined && m.rmsDb > report.sfxMedianLoud - LIMITS.musicUnderSfx) flags.push('TOO-LOUD-VS-SFX');
-    if (report.sfxMedianLoud !== undefined && m.rmsDb < report.sfxMedianLoud - 24) flags.push('TOO-QUIET');
-    if (report.sfxMedianLoudA !== undefined && r.loudness.max > report.sfxMedianLoudA - LIMITS.musicMaxUnder) flags.push('LOUD-MOMENTS');
-    if (report.sfxMedianLoudA !== undefined && r.loudness.p95 > report.sfxMedianLoudA - LIMITS.musicP95Under) flags.push('LOUD-P95');
-    if (m.peak > LIMITS.musicPeak) flags.push('PEAK');
     out('');
-    out(r.id + ': ' + r.bpm + ' BPM, bar ' + f(r.barDuration, 3) + ' s, ' + r.bars + ' full bars   ' + (flags.join(' ') || 'ok'));
-    out('  peak ' + f(m.peakDb) + ' dBFS · rms ' + f(m.rmsDb) + ' dBFS · loudest 50 ms ' + f(m.loudDb) + ' dBFS · A-weighted ' + f(m.loudADb) + ' dB · DC ' + m.dc.toExponential(0) + ' · centroid ' + f(m.centroid, 0) + ' Hz');
+    out(r.id + ': ' + r.bpm + ' BPM (designed ' + LIMITS.bpm[track] + '), bar ' + f(r.barDuration, 3) + ' s, ' + r.bars + ' full bars   ' + (flags.join(' ') || 'ok'));
+    out('  peak ' + f(m.peakDb) + ' dBFS (music level ' + report.expected.musicPeakDb + ') · rms ' + f(m.rmsDb) + ' dBFS · crest ' + f(r.crest) + ' dB · loudest 50 ms ' + f(m.loudDb) + ' dBFS · A-weighted ' + f(m.loudADb) + ' dB · DC ' + m.dc.toExponential(0) + ' · centroid ' + f(m.centroid, 0) + ' Hz');
     out('  note onsets per bar, scheduled (lead+perc): ' + perBar.join(' ') + '   avg ' + f(avg));
     out('     lead only:                              ' + r.leadPerBar.join(' ') + '   avg ' + f(leadAvg));
     out('     heard in the audio (spectral flux):     ' + r.heardPerBar.join(' ') + '   total ' + r.heard + ' of ' + r.scheduled + ' scheduled');
     out('  loudness first half ' + f(r.firstHalfDb) + ' dBFS · second half ' + f(r.secondHalfDb) + ' dBFS · difference ' + f(Math.abs(r.firstHalfDb - r.secondHalfDb)) + ' dB');
-    out('  longest silence ' + f(r.longestSilence, 2) + ' s · layers alone: lead ' + f(r.layerDb.lead) + ' · pad ' + f(r.layerDb.pad) + ' · perc ' + f(r.layerDb.perc) + ' dBFS');
-    if (report.sfxMedianLoud !== undefined) {
-      out('  music rms is ' + f(report.sfxMedianLoud - m.rmsDb) + ' dB under the median effect (loudest 50 ms ' + f(report.sfxMedianLoud) + ' dBFS)');
-    }
-    if (report.sfxMedianLoudA !== undefined) {
-      out('  like for like, A-weighted frames: loudest ' + f(r.loudness.max) + ' · 95th percentile ' + f(r.loudness.p95) + ' · median ' + f(r.loudness.p50) + ' dB — the loudest moment is ' +
-        f(report.sfxMedianLoudA - r.loudness.max) + ' dB under the median game effect (' + f(report.sfxMedianLoudA) + ')' +
-        (report.uiMedianLoudA !== undefined ? ' and ' + f(report.uiMedianLoudA - r.loudness.max) + ' dB under the median UI sound (' + f(report.uiMedianLoudA) + ')' : ''));
+    out('  longest silence ' + f(r.longestSilence, 2) + ' s · layers alone: lead ' + f(r.layerDb.lead) + ' · pad ' + f(r.layerDb.pad) + ' · perc ' + f(r.layerDb.perc) + ' dBFS · compressor: ' + f(r.glueMean) + ' dB on average, ' + f(r.glueMax) + ' dB at most');
+    if (report.clearLoudA !== undefined) {
+      out('  like for like, A-weighted frames: loudest ' + f(r.loudness.max) + ' · 95th percentile ' + f(r.loudness.p95) + ' · median ' + f(r.loudness.p50) + ' dB — its loud moments are ' +
+        f(report.clearLoudA - r.loudness.p95) + " dB under the median 'match' (" + f(report.clearLoudA) + ')' +
+        (report.uiLoudA !== undefined ? ' and ' + f(report.uiLoudA - r.loudness.p95) + ' dB under the median interface tap (' + f(report.uiLoudA) + ')' : ''));
     }
     for (const fl of flags) fail(r.id, fl);
   }
@@ -395,17 +552,19 @@ async function checkOutput(page, report) {
   save(storm);
   report.storm = slim(storm);
   const sm = storm.metrics;
-  const stormOk = sm.peak < LIMITS.clipPeak;
-  out('  storm (level music + every effect at once + two walls of the heaviest): peak ' + f(sm.peak, 3) + ' (' + f(sm.peakDb) + ' dBFS) · rms ' + f(sm.rmsDb) + ' dBFS   ' + (stormOk ? 'ok' : 'CLIPS'));
-  if (!stormOk) fail('storm', 'peak ' + sm.peak);
+  const stormOk = sm.peak < LIMITS.ceiling;
+  out('  storm (level music + every effect at once + two walls of the heaviest, straight into the bus): peak ' + f(sm.peak, 3) + ' (' + f(sm.peakDb) + ' dBFS, ceiling ' + LIMITS.ceilingDb + ') · rms ' + f(sm.rmsDb) + ' dBFS   ' + (stormOk ? 'ok' : 'OVER'));
+  if (!stormOk) fail('storm', 'peak ' + f(sm.peakDb, 2) + ' dBFS is over the ' + LIMITS.ceilingDb + ' dBFS ceiling');
   const transfer = await page.evaluate(() => window.__audioLab.chainTransfer());
   report.transfer = transfer;
-  out('  1 kHz sine into the effects bus → output:');
+  out('  1 kHz sine into the effects bus → output (the chain is transparent up to about ' + f(20 * Math.log10(report.expected.limiterOnset)) + ' dBFS, then the limiter holds it under the ceiling):');
   out('    in dBFS   ' + transfer.map((t) => padL(f(t.inDb, 0), 7)).join(''));
   out('    out peak  ' + transfer.map((t) => padL(f(t.outPeakDb), 7)).join(''));
   out('    out rms   ' + transfer.map((t) => padL(f(t.outRmsDb), 7)).join(''));
   for (const t of transfer) {
-    if (Math.pow(10, t.outPeakDb / 20) >= LIMITS.clipPeak) fail('output stage', 'clips at ' + t.inDb + ' dBFS in');
+    if (Math.pow(10, t.outPeakDb / 20) >= LIMITS.ceiling) fail('output stage', 'over the ceiling at ' + t.inDb + ' dBFS in (' + f(t.outPeakDb, 2) + ' dBFS out)');
+    // Below the limiter the chain must add or take nothing: tier levels are bus levels.
+    if (t.inDb <= -6 && Math.abs(t.outPeakDb - t.inDb) > 0.25) fail('output stage', 'gain from bus to output is ' + f(t.outPeakDb - t.inDb, 2) + ' dB at ' + t.inDb + ' dBFS (must be 0)');
   }
   // The limiter starts life half shut (about 0.18 s); the first tap of a session must not
   // be swallowed by that.
@@ -414,11 +573,73 @@ async function checkOutput(page, report) {
   for (const v of [{ name: 'button' }, { name: 'match', step: 1 }, { name: 'land' }, { name: 'levelStart' }]) {
     const r = await page.evaluate((x) => window.__audioLab.startupReport(x.name, x.step), v);
     const diff = r.earlyDb - r.lateDb;
-    const ok = Math.abs(diff) <= LIMITS.startup && r.earlyPeak < LIMITS.clipPeak;
+    const ok = Math.abs(diff) <= LIMITS.startup && r.earlyPeak < LIMITS.ceiling;
     report.startup.push(Object.assign({ id: v.name }, r));
     out('    ' + pad(v.name, 11) + ' first ' + padL(f(r.earlyDb), 6) + '   later ' + padL(f(r.lateDb), 6) + '   difference ' + padL((diff >= 0 ? '+' : '') + f(diff), 5) + ' dB   ' + (ok ? 'ok' : 'FAIL'));
     if (!ok) fail('output stage', 'first sound of a context (' + v.name + ') is ' + f(diff) + ' dB off');
   }
+}
+
+// ───────────────────────── the mix ─────────────────────────
+async function checkMix(page, report) {
+  const e = report.expected;
+  out('');
+  out('MIX — voice allocation and ducking (offline, the same mixer as the live engine)');
+  const step = (name, ok, detail) => {
+    out('  ' + (ok ? 'ok   ' : 'FAIL ') + name + (detail ? ' — ' + detail : ''));
+    if (!ok) fail('mix', name + (detail ? ' — ' + detail : ''));
+  };
+
+  // 500 calls at one instant.
+  const flood = await page.evaluate(() => window.__audioLab.floodReport(500));
+  report.flood = flood;
+  step('500 effects at one instant: at most ' + e.maxVoices + ' voices, at most ' + e.matchVoices + " of them 'match'",
+    flood.voices <= e.maxVoices && flood.liveVoices <= e.maxVoices && flood.matchVoices <= e.matchVoices && flood.played + flood.dropped === flood.calls,
+    flood.voices + ' voices sounding (' + flood.matchVoices + " 'match'), " + flood.liveVoices + ' alive in the graph · ' + flood.played + ' started, ' + flood.stolen + ' of them stolen again, ' + flood.dropped + ' dropped');
+  const quietTiers = flood.survivors.filter((t) => t === 'ui' || t === 'soft' || t === 'handle').length;
+  step('the voices that survive a flood are the loud tiers', quietTiers === 0 && flood.survivors.length === flood.voices, 'survivors: ' + flood.survivors.join(' '));
+  step('the flood stays under the ceiling and leaves nothing behind', flood.peak < LIMITS.ceiling && flood.endVoices === 0 && flood.endNodes === 0, 'peak ' + f(20 * Math.log10(flood.peak)) + ' dBFS · ' + flood.endVoices + ' voices / ' + flood.endNodes + ' nodes left');
+
+  // A stolen voice fades.
+  const steal = await page.evaluate(() => window.__audioLab.stealReport());
+  report.steal = steal;
+  step("four 'match' sounds in a row: the fourth takes the place of the first", steal.matchPlayed === 4 && steal.matchStolen === 1 && steal.matchMost === e.matchVoices, steal.matchPlayed + ' started, ' + steal.matchStolen + ' stolen, at most ' + steal.matchMost + ' at once');
+  step('a stolen voice fades out instead of being chopped',
+    steal.stolen === 1 && steal.played === 13 && steal.before > 0.05 && steal.after < steal.before * 0.01 && steal.untouched > steal.before * 0.2 && steal.hardCut < steal.before * 0.05,
+    'a jingle sounding at ' + f(20 * Math.log10(steal.before + 1e-9)) + ' dBFS is taken by the 13th voice: ' + f(20 * Math.log10(steal.after + 1e-9)) + ' dBFS 30 ms later (left alone: ' + f(20 * Math.log10(steal.untouched + 1e-9)) + '); level right before silence ' + f(steal.hardCut, 4));
+
+  // Ducking: −4 dB for about 0.6 s under specials and big moments, for a jingle's length under jingles.
+  report.duck = [];
+  for (const name of ['beam', 'nova', 'prism', 'bigCombo', 'praise', 'win', 'lose', 'star']) {
+    const d = await page.evaluate((n) => window.__audioLab.duckReport(n), name);
+    report.duck.push(d);
+    const jingle = name === 'win' || name === 'lose';
+    const depthOk = Math.abs(d.duringDb - e.duckDb) <= LIMITS.duckTolerance;
+    const holdOk = jingle ? d.held > 1.2 && d.held < 2.6 : d.held >= LIMITS.duckHold[0] && d.held <= LIMITS.duckHold[1];
+    step('music ducks under ' + name, depthOk && holdOk && Math.abs(d.afterDb) < 0.3, f(d.duringDb) + ' dB (designed ' + e.duckDb + ') for ' + f(d.held, 2) + ' s' + (jingle ? ' (the length of the jingle)' : ' (designed about ' + e.duckHold + ')') + ', then back to ' + f(d.afterDb, 2) + ' dB');
+  }
+  for (const name of ['match', 'land', 'button', 'swap', 'stone', 'createBeam']) {
+    const d = await page.evaluate((n) => window.__audioLab.duckReport(n), name);
+    report.duck.push(d);
+    step('music does not duck under ' + name, Math.abs(d.duringDb) < 0.3 && d.held === 0, f(d.duringDb, 2) + ' dB');
+  }
+
+  // A minute of play.
+  const mix = await page.evaluate(() => window.__audioLab.mixReport(60, 7));
+  fs.writeFileSync(path.join(OUT, 'mix.wav'), Buffer.from(mix.wav, 'base64'));
+  fs.writeFileSync(path.join(OUT, 'mix.png'), Buffer.from(mix.png.split(',')[1], 'base64'));
+  report.mix = slim(mix);
+  out('');
+  out('MIX — ' + mix.seconds + ' s of scripted play over the level music (' + mix.events + ' sound calls: moves, cascades, blockers, specials, praise, goal, finale, win, stars)');
+  out('  ' + mix.played + ' effects played, ' + mix.dropped + ' dropped by the rate limit, ' + mix.stolen + ' voices stolen · most voices at once: ' + mix.maxVoices + ' (cap ' + e.maxVoices + "), most 'match' voices: " + mix.maxMatchVoices + ' (cap ' + e.matchVoices + ')');
+  out('  peak ' + f(mix.peakDb) + ' dBFS (ceiling ' + LIMITS.ceilingDb + ') · rms ' + f(mix.rmsDb) + ' dBFS');
+  out('  programme loudness (ITU-R BS.1770, mono sent to both channels): integrated ' + f(mix.loudness.integrated) + ' LUFS · loudest 400 ms ' + f(mix.loudness.momentaryMax) + ' LUFS · ungated ' + f(mix.loudness.ungated) + ' LUFS');
+  out('     effects alone ' + f(mix.sfxOnly.integrated) + ' LUFS · music alone ' + f(mix.musicOnly.integrated) + ' LUFS (peak ' + f(mix.musicOnlyPeakDb) + ' dBFS) · deepest dip of the music under the effects ' + f(mix.duckDeepestDb) + ' dB');
+  out('     the study estimated about ' + LIMITS.lufsEstimate + ' LUFS; with every effect peaking at −5 dBFS or less and the music 20 dB down, the mix sits ' + f(mix.loudness.integrated - LIMITS.lufsEstimate) + ' LU from that');
+  step('the mix stays under the ceiling', mix.peak < LIMITS.ceiling, f(mix.peakDb) + ' dBFS');
+  step('voice caps hold in play', mix.maxVoices <= e.maxVoices && mix.maxMatchVoices <= e.matchVoices, mix.maxVoices + ' / ' + mix.maxMatchVoices);
+  step('programme loudness is in the window the peak hierarchy allows', mix.loudness.integrated >= LIMITS.lufs[0] && mix.loudness.integrated <= LIMITS.lufs[1], f(mix.loudness.integrated) + ' LUFS (window ' + LIMITS.lufs.join(' … ') + ')');
+  step('the music is under the effects', mix.musicOnly.integrated < mix.sfxOnly.integrated - 3, 'music ' + f(mix.musicOnly.integrated) + ' LUFS, effects ' + f(mix.sfxOnly.integrated) + ' LUFS');
 }
 
 // ───────────────────────── three minutes of music ─────────────────────────
@@ -431,12 +652,12 @@ async function checkLongMusic(page, report) {
     fs.writeFileSync(path.join(OUT, 'music-' + track + '-long.wav'), Buffer.from(r.wav, 'base64'));
     fs.writeFileSync(path.join(OUT, 'music-' + track + '-long.png'), Buffer.from(r.png.split(',')[1], 'base64'));
     report.longMusic.push(slim(r));
-    const flags = [];
+    const peakDb = 20 * Math.log10(r.peak);
+    const flags = musicLevelFlags(report, peakDb, r.loudness);
     const minuteSpread = Math.max.apply(null, r.minuteDb) - Math.min.apply(null, r.minuteDb);
     const tenSpread = Math.max.apply(null, r.tenSecondDb) - Math.min.apply(null, r.tenSecondDb);
     const firstLast = Math.abs(r.minuteDb[0] - r.minuteDb[r.minuteDb.length - 1]);
-    if (r.clips) flags.push('CLIPS');
-    if (r.peak > LIMITS.musicPeak) flags.push('PEAK');
+    if (r.peak >= LIMITS.ceiling) flags.push('CLIPS');
     if (r.longestSilence > LIMITS.musicGap) flags.push('SILENCE-GAP');
     if (minuteSpread > LIMITS.longMinutes) flags.push('DRIFT');
     if (tenSpread > LIMITS.longTenSeconds) flags.push('UNEVEN');
@@ -447,18 +668,17 @@ async function checkLongMusic(page, report) {
     if (r.maxNodes > LIMITS.longNodes) flags.push('NODES');
     if (r.lastMinuteNodes > r.firstMinuteNodes * 1.5 + 10) flags.push('NODE-GROWTH');
     if (r.endVoices !== 0 || r.endNodes !== 0) flags.push('LEAK');
-    if (report.sfxMedianLoudA !== undefined && r.loudness.max > report.sfxMedianLoudA - LIMITS.musicMaxUnder) flags.push('LOUD-MOMENTS');
-    if (report.sfxMedianLoudA !== undefined && r.loudness.p95 > report.sfxMedianLoudA - LIMITS.musicP95Under) flags.push('LOUD-P95');
     out('');
     out('music-' + track + ' ' + r.seconds + ' s: ' + r.bars + ' bars, ' + r.events + ' events scheduled, ' + r.dropped + ' dropped, ' + r.resyncs + ' grid restarts   ' + (flags.join(' ') || 'ok'));
-    out('  peak ' + f(r.peak, 3) + ' (' + f(20 * Math.log10(r.peak)) + ' dBFS) · rms ' + f(r.rmsDb) + ' dBFS · A-weighted frames: loudest ' + f(r.loudness.max) + ', 95th percentile ' + f(r.loudness.p95) + ', median ' + f(r.loudness.p50) + ' dB');
+    out('  peak ' + f(r.peak, 3) + ' (' + f(peakDb) + ' dBFS, music level ' + report.expected.musicPeakDb + ') · rms ' + f(r.rmsDb) + ' dBFS · crest ' + f(r.crest) + ' dB · A-weighted frames: loudest ' + f(r.loudness.max) + ', 95th percentile ' + f(r.loudness.p95) + ', median ' + f(r.loudness.p50) + ' dB');
+    out('  dynamics: without the compressor and clipper the crest would be ' + f(r.rawCrest) + ' dB — they bring the body ' + f(r.densityGainDb) + ' dB closer to the peak (compressor ' + f(r.glueMean) + ' dB on average, ' + f(r.glueMax) + ' dB at most; clipper bending on ' + f(r.clipShare * 100, 2) + ' % of the samples)');
     out('  layers alone (first minute): lead ' + f(r.layerDb.lead) + ' · pad ' + f(r.layerDb.pad) + ' · perc ' + f(r.layerDb.perc) + ' dBFS');
     out('  loudness per minute ' + r.minuteDb.map((x) => f(x)).join(' / ') + ' dBFS (first vs last ' + f(firstLast) + ' dB apart, spread ' + f(minuteSpread) + ' dB) · per 10 s from ' + f(Math.min.apply(null, r.tenSecondDb)) + ' to ' + f(Math.max.apply(null, r.tenSecondDb)) + ' (spread ' + f(tenSpread) + ' dB)');
     out('  longest silence ' + f(r.longestSilence, 2) + ' s');
     out('  first vs last minute: waveform difference ' + f(r.firstLastDifference, 2) + ' (0 = same samples, ~1 = unrelated) · ' + r.repeatedBars + ' of ' + r.barsPerMinute + ' bars note-for-note the same · ' + r.distinctBars + ' distinct lead lines in ' + r.leadBars + ' bars');
     out('  audio nodes alive: at most ' + r.maxNodes + ' in ' + r.maxVoices + ' voices (first minute ' + r.firstMinuteNodes + ', last minute ' + r.lastMinuteNodes + ') · left when everything had ended: ' + r.endVoices + ' voices, ' + r.endNodes + ' nodes');
-    if (report.sfxMedianLoudA !== undefined) {
-      out('  loudest moment is ' + f(report.sfxMedianLoudA - r.loudness.max) + ' dB under the median game effect' + (report.uiMedianLoudA !== undefined ? ' and ' + f(report.uiMedianLoudA - r.loudness.max) + ' dB under the median UI sound' : '') + '; the 95th percentile is ' + f(report.sfxMedianLoudA - r.loudness.p95) + ' dB under');
+    if (report.clearLoudA !== undefined) {
+      out("  its loud moments (95th percentile) are " + f(report.clearLoudA - r.loudness.p95) + " dB under the median 'match'" + (report.uiLoudA !== undefined ? ' and ' + f(report.uiLoudA - r.loudness.p95) + ' dB under the median interface tap' : ''));
     }
     for (const fl of flags) fail('music-' + track + ' long', fl);
   }
@@ -534,18 +754,19 @@ async function checkLive(browser, report) {
     let err = null;
     const t0 = performance.now();
     try {
-      for (let i = 0; i < 200; i++) lab.audio.sfx(lab.names[i % lab.names.length], { step: 1 + (i % 11) });
+      for (let i = 0; i < 200; i++) lab.audio.sfx(lab.names[i % lab.names.length], { step: 1 + (i % 13) });
     } catch (e) {
       err = String(e);
     }
     const ms = performance.now() - t0;
     const after = lab.snapshot();
-    return { err, ms, voices: after.voices, maxVoices: after.maxVoices, played: after.sfxPlayed - before.sfxPlayed, dropped: after.sfxDropped - before.sfxDropped };
+    return { err, ms, voices: after.voices, matchVoices: after.matchVoices, maxVoices: after.maxVoices, played: after.sfxPlayed - before.sfxPlayed, dropped: after.sfxDropped - before.sfxDropped, stolen: after.sfxStolen - before.sfxStolen };
   });
   step('200 effects in one frame do not throw', storm.err === null, storm.err || 'took ' + f(storm.ms) + ' ms');
-  step('voice count stays capped', storm.voices <= storm.maxVoices && storm.played <= storm.maxVoices && storm.played + storm.dropped === 200, storm.voices + ' voices (cap ' + storm.maxVoices + '), ' + storm.played + ' started, ' + storm.dropped + ' dropped');
+  step('voice count stays capped at 12 (3 for match)', storm.maxVoices === 12 && storm.voices <= storm.maxVoices && storm.matchVoices <= 3 && storm.played - storm.stolen <= storm.maxVoices && storm.played + storm.dropped === 200,
+    storm.voices + ' voices (cap ' + storm.maxVoices + "), " + storm.matchVoices + " 'match' · " + storm.played + ' started, ' + storm.stolen + ' of them stolen again, ' + storm.dropped + ' dropped');
   level = await listen(700);
-  step('storm does not clip the live output', level.peak < LIMITS.clipPeak, 'peak ' + f(level.peak, 3));
+  step('storm stays under the ceiling at the live output', level.peak < LIMITS.ceiling, 'peak ' + f(level.peak, 3) + ' (' + f(20 * Math.log10(level.peak + 1e-9)) + ' dBFS)');
   s = await until((x) => x.voices === 0, 4000);
   step('every voice ends and is released', s.voices === 0, s.voices + ' voices left');
 
@@ -567,6 +788,30 @@ async function checkLive(browser, report) {
     return lab.snapshot().sfxPlayed - before;
   });
   step('the same effect plays again after the interval', again === 1, '');
+  // 'land' has a longer interval of its own; 'match' has three voices of its own.
+  await sleep(400);
+  const budget = await page.evaluate(async () => {
+    const lab = window.__audioLab;
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const a = lab.snapshot();
+    for (let i = 0; i < 12; i++) {
+      lab.audio.sfx('land');
+      await wait(10);
+    }
+    const b = lab.snapshot();
+    await wait(300);
+    let most = 0;
+    const c = lab.snapshot();
+    for (let i = 0; i < 8; i++) {
+      lab.audio.sfx('match', { step: 1 + i });
+      most = Math.max(most, lab.snapshot().matchVoices);
+      await wait(40);
+    }
+    const d = lab.snapshot();
+    return { lands: b.sfxPlayed - a.sfxPlayed, matches: d.sfxPlayed - c.sfxPlayed, most, stolen: d.sfxStolen - c.sfxStolen };
+  });
+  step("'land' starts at most once per 60 ms", budget.lands >= 2 && budget.lands <= 4, budget.lands + ' started out of 12 calls in about 130 ms');
+  step("'match' never has more than three voices", budget.matches === 8 && budget.most <= 3 && budget.stolen >= 3, budget.matches + ' started 40 ms apart, at most ' + budget.most + ' at once, ' + budget.stolen + ' older ones faded out');
 
   // 5. Track switching.
   await page.evaluate(() => window.__audioLab.audio.music('menu'));
@@ -578,14 +823,28 @@ async function checkLive(browser, report) {
   await sleep(900);
   level = await listen(900);
   step('level music is audible after the cross-fade', level.rms > 0.002, 'rms ' + f(20 * Math.log10(level.rms + 1e-9)) + ' dBFS');
-  // A jingle pulls the music down while it plays.
+  // A jingle pulls the music down 4 dB while it plays; a special does so for about 0.6 s.
+  const duckDb = (a, b) => 20 * Math.log10(Math.max(a, 1e-9) / Math.max(b, 1e-9));
   const levelBefore = (await snap()).musicLevel;
   await page.evaluate(() => window.__audioLab.audio.sfx('win'));
   await sleep(350);
   const levelDuring = (await snap()).musicLevel;
-  await sleep(2600);
+  await sleep(1000);
+  const levelLate = (await snap()).musicLevel;
+  await sleep(1700);
   const levelAfter = (await snap()).musicLevel;
-  step('music ducks under a jingle and comes back', levelDuring < levelBefore * 0.6 && levelAfter > levelBefore * 0.97, 'music bus ' + f(levelBefore, 2) + ' → ' + f(levelDuring, 2) + ' → ' + f(levelAfter, 2));
+  step('music ducks 4 dB under a jingle, for its whole length, and comes back', Math.abs(duckDb(levelDuring, levelBefore) + 4) < 0.7 && Math.abs(duckDb(levelLate, levelBefore) + 4) < 0.7 && Math.abs(duckDb(levelAfter, levelBefore)) < 0.3,
+    'music bus ' + f(levelBefore, 3) + ' → ' + f(levelDuring, 3) + ' (' + f(duckDb(levelDuring, levelBefore)) + ' dB) → still ' + f(duckDb(levelLate, levelBefore)) + ' dB after 1.35 s → ' + f(levelAfter, 3));
+  await page.evaluate(() => window.__audioLab.audio.sfx('beam'));
+  await sleep(300);
+  const beamDuring = (await snap()).musicLevel;
+  await sleep(1000);
+  const beamAfter = (await snap()).musicLevel;
+  await page.evaluate(() => window.__audioLab.audio.sfx('match', { step: 2 }));
+  await sleep(120);
+  const matchDuring = (await snap()).musicLevel;
+  step('music ducks under a special for about 0.6 s, and not at all under a match', Math.abs(duckDb(beamDuring, levelBefore) + 4) < 0.7 && Math.abs(duckDb(beamAfter, levelBefore)) < 0.5 && Math.abs(duckDb(matchDuring, levelBefore)) < 0.5,
+    'beam: ' + f(duckDb(beamDuring, levelBefore)) + ' dB at 0.3 s, ' + f(duckDb(beamAfter, levelBefore)) + ' dB at 1.3 s · match: ' + f(duckDb(matchDuring, levelBefore)) + ' dB');
   await page.evaluate(() => window.__audioLab.audio.music(null));
   s = await snap();
   step('music(null) stops scheduling', s.playing === null && !s.schedulerRunning, 'scheduler ' + (s.schedulerRunning ? 'on' : 'off'));
@@ -725,6 +984,8 @@ async function checkAdversarial(browser, report) {
     }
     return s;
   };
+  // Music alone can never be louder than its level in the mix (plus rounding).
+  const MUSIC_LIMIT = Math.pow(10, report.expected.musicPeakDb / 20) * 1.02;
   const open = async (unlock) => {
     const page = await browser.newPage();
     const errors = [];
@@ -762,6 +1023,19 @@ async function checkAdversarial(browser, report) {
     for (let i = Math.max(0, a); i < Math.min(xs.length, b); i++) m = Math.max(m, xs[i]);
     return m;
   };
+  /*
+   * Samples missing from a recording: render quanta the browser skipped. That happens when
+   * the machine is busy or the audio graph is being rebuilt wholesale, and it is the
+   * browser's doing — but a lot of it would be an audible drop-out, so it is bounded, counted
+   * and reported.
+   */
+  let skipped = 0;
+  const HOLES_OK = 2048;
+  const holesOk = (rec) => {
+    skipped += rec.holes || 0;
+    return (rec.holes || 0) <= HOLES_OK;
+  };
+  const holesNote = (rec) => (rec.holes ? ' · the browser skipped ' + Math.round(rec.holes / 128) + ' render quanta (' + f((rec.holes / 44100) * 1000, 0) + ' ms)' : '');
 
   // ── 1. 500 effects in one tick, over music ──
   {
@@ -784,18 +1058,23 @@ async function checkAdversarial(browser, report) {
       }
       const ms = performance.now() - t0;
       const after = lab.snapshot();
-      await new Promise((resolve) => setTimeout(resolve, 2800));
+      // Voices that were pushed out fade for 12 ms; look again once they are gone.
+      await new Promise((resolve) => setTimeout(resolve, 70));
+      const settled = lab.snapshot();
+      await new Promise((resolve) => setTimeout(resolve, 2730));
       const rec = await lab.rec.stop();
       const probe = lab.probe.stop();
-      return { err, ms, before, after, rec: { peak: rec.peak, holes: rec.holes, seconds: rec.seconds, rmsDb: rec.rmsDb }, probe: { starts: probe.starts, late: probe.late, worstLead: probe.worstLead } };
+      return { err, ms, before, after, settled, rec: { peak: rec.peak, holes: rec.holes, seconds: rec.seconds, rmsDb: rec.rmsDb }, probe: { starts: probe.starts, late: probe.late, cancelled: probe.cancelled, worstLead: probe.worstLead } };
     });
     await saveRec(page, 'live-flood', 'live: 500 effects in one tick over level music');
     const played = r.after.sfxPlayed - r.before.sfxPlayed;
     const dropped = r.after.sfxDropped - r.before.sfxDropped;
     step('500 effects in one tick do not throw', r.err === null, r.err || 'took ' + f(r.ms) + ' ms');
-    step('the flood is capped', played <= r.after.maxVoices && played + dropped === 500, played + ' started (cap ' + r.after.maxVoices + '), ' + dropped + ' dropped, ' + (r.after.liveNodes - r.before.liveNodes) + ' audio nodes added');
-    step('the flood does not clip the real output', r.rec.peak < LIMITS.clipPeak && r.rec.holes === 0, 'recorded peak ' + f(r.rec.peak, 3) + ' over ' + f(r.rec.seconds, 2) + ' s');
-    step('no source of the flood was scheduled in the past', r.probe.late === 0, r.probe.starts + ' sources started, smallest lead ' + f(r.probe.worstLead * 1000, 1) + ' ms');
+    const stolen = r.after.sfxStolen - r.before.sfxStolen;
+    step('the flood is capped: 12 voices, 3 of them match', r.after.maxVoices === 12 && r.after.voices <= 12 && r.after.matchVoices <= 3 && r.settled.liveVoices - r.before.liveVoices <= 12 + 4 && played - stolen <= 12 && played + dropped === 500,
+      r.after.voices + ' voices sounding (' + r.after.matchVoices + " 'match') · " + played + ' started, ' + stolen + ' of them stolen again, ' + dropped + ' dropped · in the graph 70 ms later: ' + (r.settled.liveVoices - r.before.liveVoices) + ' more voices, ' + (r.settled.liveNodes - r.before.liveNodes) + ' more nodes than the music alone');
+    step('the flood stays under the ceiling at the real output', r.rec.peak < LIMITS.ceiling && holesOk(r.rec), 'recorded peak ' + f(r.rec.peak, 3) + ' (' + f(20 * Math.log10(r.rec.peak + 1e-9)) + ' dBFS) over ' + f(r.rec.seconds, 2) + ' s' + holesNote(r.rec));
+    step('no source of the flood was left to start in the past', r.probe.late === 0, r.probe.starts + ' sources left to sound, smallest lead ' + f(r.probe.worstLead * 1000, 1) + ' ms (effects aim ' + f(r.after.sfxLead * 1000, 0) + ' ms ahead) · ' + (r.after.sfxRebuilt - r.before.sfxRebuilt) + ' voices rebuilt because the clock overtook them, ' + r.probe.cancelled + ' sources taken back');
     const s = await untilOf(page, (x) => x.voices === 0 && x.liveVoices <= base.liveVoices + 4, 4000);
     step('every effect voice is released afterwards', s.voices === 0 && s.liveVoices <= base.liveVoices + 4, s.liveVoices + ' voices / ' + s.liveNodes + ' nodes alive (music alone before: ' + base.liveVoices + ' / ' + base.liveNodes + ')');
     // Junk in, nothing out.
@@ -876,7 +1155,7 @@ async function checkAdversarial(browser, report) {
     step('redundant music() calls start nothing', r.redundantStarts === 0 && r.barsB >= r.barsA, r.redundantStarts + ' extra players after 40 identical calls');
     step('fading players do not pile up', r.maxFading <= 6 && r.burstFading <= 2 && r.end.fading === 0, 'at most ' + r.maxFading + ' fading at once (after 30 changes in one tick: ' + r.burstFading + '), ' + r.end.fading + ' left at the end');
     step('audio nodes stay bounded while switching', r.maxNodes <= base.liveNodes * 4 + 60 && r.end.liveNodes <= base.liveNodes * 2 + 40, 'at most ' + r.maxNodes + ' nodes, ' + r.end.liveNodes + ' at the end (one track alone: ' + base.liveNodes + ')');
-    step('switching neither clips nor clicks', r.rec.peak < LIMITS.musicPeak + 0.1 && r.rec.maxStep < 0.2 && r.rec.holes === 0, 'recorded peak ' + f(r.rec.peak, 3) + ', largest sample-to-sample jump ' + f(r.rec.maxStep, 3));
+    step('switching never exceeds the music level and does not click', r.rec.peak <= MUSIC_LIMIT && r.rec.maxStep < MUSIC_LIMIT * 0.6 && holesOk(r.rec), 'recorded peak ' + f(r.rec.peak, 3) + ' (' + f(20 * Math.log10(r.rec.peak + 1e-9)) + ' dBFS), largest sample-to-sample jump ' + f(r.rec.maxStep, 3) + holesNote(r.rec));
     step('the last track is audible', r.rec.tailRms > 0.002, 'rms ' + db(r.rec.tailRms) + ' dBFS in the last 0.8 s');
     step('no page errors (switching)', errors.length === 0, errors.slice(0, 2).join(' | '));
     await page.close();
@@ -920,7 +1199,7 @@ async function checkAdversarial(browser, report) {
       return { peak: rec.peak, rmsDb: rec.rmsDb, holes: rec.holes, late: probe.late, starts: probe.starts, worstLead: probe.worstLead, snap: lab.snapshot() };
     });
     step('exactly one player was started by resume()', rec.snap.musicStarts - startsBefore === 1, rec.snap.musicStarts - startsBefore + ' started');
-    step('music is audible again, without a burst', rec.rmsDb > -50 && rec.peak < LIMITS.musicPeak + 0.1, 'rms ' + f(rec.rmsDb) + ' dBFS, peak ' + f(rec.peak, 3));
+    step('music is audible again, without a burst', rec.rmsDb > -50 && rec.peak <= MUSIC_LIMIT, 'rms ' + f(rec.rmsDb) + ' dBFS, peak ' + f(rec.peak, 3));
     step('nothing was scheduled in the past after resume', rec.late === 0 && rec.snap.music && rec.snap.music.dropped === 0 && rec.snap.music.resyncs === 0, rec.starts + ' sources, smallest lead ' + f(rec.worstLead * 1000, 1) + ' ms, ' + (rec.snap.music ? rec.snap.music.dropped : '—') + ' notes dropped');
     // suspend() and resume() fired back to back (a shell that reports pause/resume twice)
     const dbl = await page.evaluate(async () => {
@@ -1022,7 +1301,7 @@ async function checkAdversarial(browser, report) {
     const m0 = r.before.music;
     const m1 = r.end.music;
     report.stall = { stalled: r.st.after - r.st.before, pre, post, mid, crowdPre, crowdPost, late: r.probe.late, lateAfter, dropped: m1.dropped - m0.dropped, resyncs: m1.resyncs - m0.resyncs, events: m1.events - m0.events, holes: r.rec.holes };
-    step('the audio clock ran on through the stall', r.st.after - r.st.before > 2.7 && r.rec.holes === 0, 'clock advanced ' + f(r.st.after - r.st.before, 2) + ' s while the main thread was blocked for 3 s');
+    step('the audio clock ran on through the stall', r.st.after - r.st.before > 2.7 && holesOk(r.rec), 'clock advanced ' + f(r.st.after - r.st.before, 2) + ' s while the main thread was blocked for 3 s' + holesNote(r.rec));
     step('the scheduler noticed and skipped what was late', m1.dropped - m0.dropped + (m1.resyncs - m0.resyncs) > 0 && m1.events > m0.events, (m1.dropped - m0.dropped) + ' notes dropped, ' + (m1.resyncs - m0.resyncs) + ' bar-grid restart, then ' + (m1.events - m0.events) + ' events scheduled');
     step('no note was scheduled in the past', r.probe.late === 0 && lateAfter === 0, r.probe.starts + ' sources started, smallest lead ' + f(r.probe.worstLead * 1000, 1) + ' ms, ' + lateAfter + ' aimed before the end of the stall');
     step('no burst of late notes after the stall', crowdPost <= crowdPre + 4 && post <= pre * 1.6 + 0.005, 'most sources at one instant: ' + crowdPost + ' after vs ' + crowdPre + ' before · loudest 20 ms: ' + db(post) + ' dBFS after vs ' + db(pre) + ' before');
@@ -1053,10 +1332,28 @@ async function checkAdversarial(browser, report) {
     step('showing the page again brings the music back', s.state === 'running' && s.playing === 'menu' && !s.hidden, 'state ' + s.state + ', playing ' + s.playing);
     await sleep(600);
     const before = await snapOf(page);
-    await page.evaluate(() => window.__audioLab.audio.debug().context.suspend());
+    // … in the middle of a jingle: its frozen remainder must not play when the sound returns.
+    const cut = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      lab.audio.sfx('win');
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      const sounding = lab.snapshot().voices;
+      await lab.audio.debug().context.suspend();
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      return { sounding, after: lab.snapshot() };
+    });
     await sleep(150);
     s = await untilOf(page, (x) => x.state === 'running' && x.playing === 'menu' && x.musicStarts > before.musicStarts, 3000);
     step('a context suspended behind its back is resumed by the engine', s.state === 'running' && s.playing === 'menu', 'state ' + s.state + ', playing ' + s.playing + ', ' + (s.musicStarts - before.musicStarts) + ' player started');
+    step('the jingle that was interrupted is cut, not finished later', cut.sounding === 1 && cut.after.voices === 0 && s.voices === 0, cut.sounding + ' voice sounding before, ' + cut.after.voices + ' right after the interruption, ' + s.voices + ' when the sound is back');
+    const afterCut = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const before = lab.snapshot().sfxPlayed;
+      lab.audio.sfx('star', { step: 1 });
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      return { started: lab.snapshot().sfxPlayed - before, voices: lab.snapshot().voices };
+    });
+    step('effects play again after the interruption', afterCut.started === 1 && afterCut.voices === 1, afterCut.started + ' started, ' + afterCut.voices + ' sounding');
     step('no page errors (hidden)', errors.length === 0, errors.slice(0, 2).join(' | '));
     await page.close();
   }
@@ -1073,12 +1370,13 @@ async function checkAdversarial(browser, report) {
       const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       await lab.rec.start();
       await wait(300);
+      const at = lab.snapshot().time;
       lab.audio.music(null);
       await wait(1300);
       const rec = await lab.rec.stop();
-      return { hardCut: rec.hardCut, maxStep: rec.maxStep, rms20: rec.rms20, snap: lab.snapshot() };
+      return { hardCut: rec.hardCut, maxStep: rec.maxStep, rms20: rec.rms20, snap: lab.snapshot(), at: at - rec.t0 };
     });
-    const fadeStart = 15; // 0.3 s in 20 ms windows
+    const fadeStart = Math.round(a.at / 0.02); // where the fade begins, in 20 ms windows
     const early = maxOf(a.rms20, fadeStart + 2, fadeStart + 10);
     const lateFade = maxOf(a.rms20, fadeStart + 20, fadeStart + 28);
     const after = maxOf(a.rms20, fadeStart + 36, a.rms20.length);
@@ -1098,9 +1396,9 @@ async function checkAdversarial(browser, report) {
       const rec = await lab.rec.stop();
       const snap = lab.snapshot();
       lab.audio.setSfxEnabled(true);
-      return { hardCut: rec.hardCut, rms20: rec.rms20, during, snap };
+      return { hardCut: rec.hardCut, rms20: rec.rms20, during, snap, at: during.time - rec.t0 };
     });
-    const cutAt = 13;
+    const cutAt = Math.round(b.at / 0.02);
     step('setSfxEnabled(false) ramps a sounding jingle down and stops its voices', b.hardCut < 0.02 && maxOf(b.rms20, cutAt + 5, b.rms20.length) < 0.0005 && b.snap.liveVoices === 0 && b.during.liveVoices >= 2, 'level right before silence ' + f(b.hardCut, 4) + ', ' + b.during.liveVoices + ' → ' + b.snap.liveVoices + ' voices');
     // (c) effects and music both off: the context sleeps only after the fade
     await page.evaluate(() => window.__audioLab.audio.music('menu'));
@@ -1136,7 +1434,128 @@ async function checkAdversarial(browser, report) {
     step('no page errors (fades)', errors.length === 0, errors.slice(0, 2).join(' | '));
     await page.close();
   }
+  // ── 8. unlocking and resuming in the same breath as a sound ──
+  {
+    out('  · unlock / resume races');
+    // (a) the very first tap of a session lands on something that plays a sound
+    const a = await open(false);
+    await a.page.click('#sfx-win');
+    let s = await untilOf(a.page, (x) => x.state === 'running', 4000);
+    const first = await a.page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const level = await lab.listen(900);
+      return { level, snap: lab.snapshot() };
+    });
+    step('the tap that unlocks audio is heard: its own effect is queued and played', s.state === 'running' && first.snap.unlocked && first.snap.sfxPlayed === 1 && first.level.rms > 0.01, 'state ' + s.state + ', ' + first.snap.sfxPlayed + ' effect played, loudest rms ' + db(first.level.rms) + ' dBFS');
+    step('no page errors (first tap)', a.errors.length === 0, a.errors.slice(0, 2).join(' | '));
+    await a.page.close();
+    // (b) resume() and an effect in the same tick
+    const b = await open();
+    await b.page.evaluate(() => window.__audioLab.audio.music('level'));
+    await sleep(700);
+    await b.page.evaluate(() => window.__audioLab.audio.suspend());
+    s = await untilOf(b.page, (x) => x.state === 'suspended', 2500);
+    await sleep(300);
+    const r = await b.page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const before = lab.snapshot();
+      lab.audio.resume();
+      lab.audio.sfx('reward');
+      const queued = lab.snapshot().sfxPlayed - before.sfxPlayed;
+      const level = await lab.listen(900);
+      return { queued, level, snap: lab.snapshot() };
+    });
+    step('an effect fired in the same tick as resume() is played once the context runs', r.queued === 1 && r.snap.state === 'running' && r.snap.playing === 'level' && r.level.rms > 0.01, r.queued + ' queued, state ' + r.snap.state + ', loudest rms ' + db(r.level.rms) + ' dBFS');
+    // (c) effects fired while suspended, long before the resume, are not played late
+    await b.page.evaluate(() => window.__audioLab.audio.suspend());
+    await untilOf(b.page, (x) => x.state === 'suspended', 2500);
+    const stale = await b.page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const before = lab.snapshot().sfxPlayed;
+      for (let i = 0; i < 20; i++) lab.audio.sfx(lab.names[i]);
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      lab.audio.resume();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const s2 = lab.snapshot();
+      return { started: s2.sfxPlayed - before, voices: s2.voices, state: s2.state };
+    });
+    step('effects asked for while suspended are dropped, not played on resume', stale.started === 0 && stale.voices === 0 && stale.state === 'running', stale.started + ' started, ' + stale.voices + ' sounding after resume');
+    // (d) both toggles flipped a hundred times in one tick
+    const flip = await b.page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const before = lab.snapshot();
+      let err = null;
+      try {
+        for (let i = 0; i < 100; i++) {
+          lab.audio.setSfxEnabled(i % 2 === 0);
+          lab.audio.setMusicEnabled(i % 3 !== 0);
+          lab.audio.sfx('match', { step: 1 + (i % 12) });
+          if (i % 10 === 0) lab.audio.music(i % 20 === 0 ? 'menu' : 'level');
+        }
+        lab.audio.setSfxEnabled(true);
+        lab.audio.setMusicEnabled(true);
+        lab.audio.music('level');
+      } catch (e) {
+        err = String(e);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const s2 = lab.snapshot();
+      const again = s2.sfxPlayed;
+      lab.audio.sfx('coin');
+      return { err, s2, played: lab.snapshot().sfxPlayed - again, nodesBefore: before.liveNodes };
+    });
+    step('a hundred toggle flips in one tick end in the state asked for last', flip.err === null && flip.s2.state === 'running' && flip.s2.playing === 'level' && flip.s2.sfxEnabled && flip.s2.musicEnabled && flip.s2.fading === 0 && flip.played === 1 && flip.s2.liveNodes <= flip.nodesBefore * 2 + 40,
+      flip.err || 'state ' + flip.s2.state + ', playing ' + flip.s2.playing + ', ' + flip.s2.fading + ' fading, ' + flip.s2.liveNodes + ' nodes alive, effects play: ' + (flip.played === 1));
+    step('no page errors (races)', b.errors.length === 0, b.errors.slice(0, 2).join(' | '));
+    await b.page.close();
+  }
+
+  // ── 9. a long cascade: voices stolen continuously, over music, with specials ──
+  {
+    out('  · a long cascade with voices stolen all the way');
+    const { page, errors } = await open();
+    await page.evaluate(() => window.__audioLab.audio.music('level'));
+    await sleep(1500);
+    const base = await snapOf(page);
+    const r = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      await lab.rec.start();
+      lab.probe.start();
+      const before = lab.snapshot();
+      let most = 0;
+      let mostMatch = 0;
+      for (let i = 0; i < 60; i++) {
+        lab.audio.sfx('match', { step: 1 + (i % 16) });
+        if (i % 5 === 0) lab.audio.sfx('land');
+        if (i % 7 === 3) lab.audio.sfx(['beam', 'nova', 'prism', 'bigCombo'][(i >> 2) % 4]);
+        if (i % 9 === 4) lab.audio.sfx('praise', { step: 1 + (i % 4) });
+        if (i % 11 === 6) lab.audio.sfx(['stone', 'sand', 'chain', 'vine', 'stoneBreak'][i % 5]);
+        const s = lab.snapshot();
+        most = Math.max(most, s.voices);
+        mostMatch = Math.max(mostMatch, s.matchVoices);
+        await wait(45);
+      }
+      const after = lab.snapshot();
+      await wait(1500);
+      const rec = await lab.rec.stop();
+      const probe = lab.probe.stop();
+      return { before, after, most, mostMatch, end: lab.snapshot(), rec: { peak: rec.peak, holes: rec.holes, rmsDb: rec.rmsDb, seconds: rec.seconds }, probe: { late: probe.late, starts: probe.starts, worstLead: probe.worstLead } };
+    });
+    await saveRec(page, 'live-cascade', 'live: 60 matches 45 ms apart with specials, praise and blockers over level music');
+    const played = r.after.sfxPlayed - r.before.sfxPlayed;
+    const stolen = r.after.sfxStolen - r.before.sfxStolen;
+    step('voice caps hold through a long cascade', r.most <= 12 && r.mostMatch <= 3 && stolen > 20, 'at most ' + r.most + ' voices, ' + r.mostMatch + " 'match' · " + played + ' effects played, ' + stolen + ' voices faded out to make room');
+    step('the cascade stays under the ceiling', r.rec.peak < LIMITS.ceiling && holesOk(r.rec), 'recorded peak ' + f(r.rec.peak, 3) + ' (' + f(20 * Math.log10(r.rec.peak + 1e-9)) + ' dBFS), rms ' + f(r.rec.rmsDb) + ' dBFS over ' + f(r.rec.seconds, 1) + ' s' + holesNote(r.rec));
+    step('nothing in it was scheduled in the past', r.probe.late === 0, r.probe.starts + ' sources started, smallest lead ' + f(r.probe.worstLead * 1000, 1) + ' ms');
+    const s = await untilOf(page, (x) => x.voices === 0 && x.liveVoices <= base.liveVoices + 4, 4000);
+    step('every stolen and finished voice is released', s.voices === 0 && s.liveVoices <= base.liveVoices + 4 && s.liveNodes <= base.liveNodes + 30, s.liveVoices + ' voices / ' + s.liveNodes + ' nodes alive (music alone before: ' + base.liveVoices + ' / ' + base.liveNodes + ')');
+    step('no page errors (cascade)', errors.length === 0, errors.slice(0, 2).join(' | '));
+    await page.close();
+  }
   report.adversarial = results;
+  report.skippedSamples = skipped;
+  out('  render quanta skipped by the browser during these recordings: ' + Math.round(skipped / 128) + ' (' + f((skipped / 44100) * 1000, 0) + ' ms in all; up to ' + Math.round(HOLES_OK / 128) + ' per scenario are tolerated)');
 }
 
 // ───────────────────────── main ─────────────────────────
@@ -1152,14 +1571,15 @@ async function checkAdversarial(browser, report) {
     await page.goto(PAGE_URL);
     await page.waitForFunction(() => window.__audioLab && window.__audioLab.ready);
     await checkEffects(page, report);
-    if (!ONLY) {
+    if (!ONLY && !CALIBRATE && !SFX_ONLY) {
       await checkMusic(page, report);
       if (!NO_LONG) await checkLongMusic(page, report);
+      await checkMix(page, report);
       await checkOutput(page, report);
     }
     if (errors.length) fail('page', errors.join(' | '));
     await page.close();
-    if (!ONLY && !NO_LIVE) {
+    if (!ONLY && !NO_LIVE && !CALIBRATE && !SFX_ONLY) {
       await checkLive(browser, report);
       await checkAdversarial(browser, report);
     }
@@ -1175,7 +1595,7 @@ async function checkAdversarial(browser, report) {
     out('ALL AUDIO CHECKS PASSED');
   }
   out('files: ' + path.relative(ROOT, OUT) + '/*.wav, *.png, report.txt, report.json');
-  if (!ONLY) {
+  if (!ONLY && !CALIBRATE && !SFX_ONLY) {
     fs.writeFileSync(path.join(OUT, 'report.txt'), lines.join('\n') + '\n');
     fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 1));
   }

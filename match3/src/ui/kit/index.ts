@@ -49,17 +49,27 @@
  *       → { el, body, buttons, close(result?), closed: Promise<result | undefined>, isOpen(), setTitle() }
  *       buttons: [{ label, icon?, variant?, result?, onClick?(dialog) (return false to stay open),
  *                   keepOpen?, disabled?, … }] or ready-made kit buttons
- *       'popupOpen' / 'popupClose' sounds; the body scrolls inside when taller than the viewport.
+ *       'popupOpen' / 'popupClose' sounds; the body scrolls inside when taller than the viewport
+ *       (on a very short viewport — a phone in landscape — the whole panel scrolls instead).
+ *       Double-tap safety: a new dialog takes no pointer input for its first 320 ms (class
+ *       `k-arming`: the second tap of a double tap on its opener cannot hit one of its buttons), a
+ *       closing dialog takes none at all, and its transparent overlay (class `k-closing`) stays in
+ *       the DOM for 350 ms as a tap shield, so the second tap cannot reach the screen underneath.
+ *       Tests: wait for `.k-overlay:not(.k-closing)` / no `.k-overlay` rather than fixed times.
  *   confirm({ title, message, yes, no, danger?, icon? }) → Promise<boolean>   (Back / ✕ ⇒ false)
  *   toast(text, { icon?, duration? })   non-blocking, stacked (max 3), auto-dismiss
  *   closeTop() → boolean                Back button: closes the top dialog if it is dismissible;
  *                                       returns true whenever a dialog is open (false = nothing to close)
  *   closeAll()                          drop every dialog silently (navigation)
  *   hasOverlay() → boolean
+ *   The dialog layer (.k-layer) and the toast layer (.k-toasts) exist in the DOM only while they
+ *   hold something. Keyboard focus is trapped in the top dialog and goes back to the dialog
+ *   underneath / the opener when it closes.
  *
  * Widgets
  *   chip({ icon, text, onClick?, plus?, ariaLabel? }) → { el, set(text, bump?), bump() }
- *   progress({ value, max, notches?, tone? })        → { el, set(value, max?) }   notches = star marks
+ *   progress({ value, max, notches?, tone? })        → { el, set(value, max?) }   notches = star marks;
+ *       a growing value gets a short sheen (at most one per 700 ms, however often set() is called)
  *   starRow(count, { size?, max?, animate?, sound? }) → { el, set(count, animate?) }
  *   toggle({ checked, onChange, label, icon?, disabled? }) → { el, get(), set(), setIcon(), setLabel(), setDisabled() }
  *   segmented(items, { value, onChange, ariaLabel? }) → { el, get(), set() }   items: [{ value, label?, icon? }]
@@ -83,6 +93,19 @@
  *
  * CSS helper classes: k-row / k-col (+ k-gap-4|12|16, k-center, k-wrap, k-grow), k-grid2 / k-grid3,
  * k-scroll, k-title, k-text (+ --muted, --sm, --center, --gold), k-num (LTR numbers), k-selectable.
+ * `k-still` on any ancestor (e.g. <html>) freezes the endless call-to-action animations of `shine`
+ * buttons — for screenshots and visual tests.
+ *
+ * ── Motion ───────────────────────────────────────────────────────────────────────────────────
+ * Transform / opacity only, 120–250 ms (350 at most), all of it off under prefers-reduced-motion:
+ * buttons dip and spring back, `shine` buttons get a light sweep and a slow breath, dialogs pop in
+ * and their footer buttons rise in behind them (settled 340 ms after opening), chips / badges /
+ * quantities bump when they change, stars pop one by one, the progress bar gets a sheen when it
+ * grows, toggles and segmented thumbs spring across.
+ *
+ * ── Browser floor ────────────────────────────────────────────────────────────────────────────
+ * Chrome / Android WebView 80. `node tools/kit-shots.cjs check` audits kit.css against a vetted
+ * property list and runs every behaviour check with newer APIs deleted and `inert` neutralised.
  */
 import './kit.css';
 import type { Child, ElProps } from './dom.ts';

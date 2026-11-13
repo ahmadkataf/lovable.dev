@@ -28,7 +28,8 @@ const fs = require('fs');
 const path = require('path');
 const { ROOT, pngInfo, decodePng } = require('./lib.cjs');
 
-const STORE = path.join(ROOT, 'store');
+/** STORE_DIR=<dir> checks a copy of the kit somewhere else (used to prove that the checks really fail). */
+const STORE = process.env.STORE_DIR ? path.resolve(process.env.STORE_DIR) : path.join(ROOT, 'store');
 const args = process.argv.slice(2);
 const WRITE = args.includes('--write-counts');
 const groups = args.filter((a) => !a.startsWith('--'));
@@ -63,12 +64,32 @@ const BANNED = {
     'العب الآن', 'نزّل الآن', 'الأكثر', 'الأشهر', 'جائزة',
   ],
 };
-/** Names and vocabulary of other games that must never appear (docs/research/naming-ip.md, action items). */
-const OTHER_GAMES = [
-  'candy', 'crush', 'saga', 'king', 'soda', 'jelly', 'sugar', 'sweet', 'tasty', 'delicious', 'divine', 'lollipop',
-  'bonbon', 'gummy', 'bubblegum', 'striped', 'wrapped', 'zuma', 'bejeweled', 'royal', 'blast', 'toon', 'homescapes',
-  'gardenscapes', 'township', 'fishdom', 'كاندي', 'كراش', 'ساغا', 'حلوى', 'زوما',
-];
+/**
+ * Names and vocabulary of other games that must never appear in the listing. They are deliberately
+ * not spelled out in this file (no other game's name is written anywhere in this project's own
+ * files): the list is read from the action items of the naming research, which quotes them.
+ */
+function otherGamesVocabulary() {
+  const file = path.join(ROOT, 'docs', 'research', 'naming-ip.md');
+  if (!fs.existsSync(file)) return null;
+  const text = fs.readFileSync(file, 'utf8');
+  const out = new Set();
+  const add = (chunk) => {
+    for (const raw of chunk.split(/,| plus | or |, and the praise words | and the praise words /)) {
+      const w = raw.replace(/['"`.()]/g, '').trim().toLowerCase();
+      if (w && w.length >= 3 && w.split(' ').length <= 3) out.add(w);
+    }
+  };
+  const keepOut = /^- Keep these words out of[^:]*:(.*)$/m.exec(text);
+  if (keepOut) add(keepOut[1]);
+  const tokens = /no third-party brand tokens \(([^)]*)\)/.exec(text);
+  if (tokens) add(tokens[1]);
+  // never shorten the brand to its first three or four letters (naming research, second caveat)
+  const shortened = /Never shorten the name to "([^"]+)" or "([^"]+)"/.exec(text);
+  if (shortened) add(shortened[1] + ',' + shortened[2]);
+  return out.size ? Array.from(out) : null;
+}
+const OTHER_GAMES = otherGamesVocabulary();
 
 function countChars(text) {
   return { points: Array.from(text).length, units: text.length };
@@ -82,10 +103,16 @@ function wordHit(text, word) {
 }
 
 function checkListing(lang) {
+  if (lang === 'en') {
+    if (OTHER_GAMES) ok('vocabulary of other games: ' + OTHER_GAMES.length + ' words and phrases read from docs/research/naming-ip.md');
+    else note('docs/research/naming-ip.md not found: the check for other games\' names and vocabulary was skipped');
+  }
   const file = path.join(STORE, 'listing', lang + '.md');
   if (!fs.existsSync(file)) return fail('listing/' + lang + '.md is missing');
   let src = fs.readFileSync(file, 'utf8');
-  const re = /<!-- field: (\w+) \| limit: (\d+) -->\r?\n```text\r?\n([\s\S]*?)\r?\n```\r?\n\*\*عدد الأحرف:\*\* (\d+) \/ (\d+)/g;
+  // a field: marker, the text in a fenced block (optionally wrapped in <div dir="ltr"> so English
+  // stays left-to-right inside the right-to-left page), then the counted length
+  const re = /<!-- field: (\w+) \| limit: (\d+) -->\r?\n(?:<div dir="ltr">\r?\n\r?\n)?```text\r?\n([\s\S]*?)\r?\n```\r?\n(?:\r?\n<\/div>\r?\n\r?\n)?\*\*عدد الأحرف:\*\* (\d+) \/ (\d+)/g;
   const fields = {};
   let m;
   let changed = false;
@@ -113,7 +140,7 @@ function checkListing(lang) {
     const caps = text.match(/\b[A-Z]{3,}\b/g);
     if (caps) fail(lang + '.' + name + ': words in capitals: ' + caps.join(', '));
     for (const w of BANNED[lang]) if (wordHit(text, w)) fail(lang + '.' + name + ': ranking / price / promotion wording: "' + w + '"');
-    for (const w of OTHER_GAMES) if (wordHit(text, w)) fail(lang + '.' + name + ': name or vocabulary of another game: "' + w + '"');
+    for (const w of OTHER_GAMES || []) if (wordHit(text, w)) fail(lang + '.' + name + ': name or vocabulary of another game: "' + w + '"');
   }
   if (changed) {
     for (const [from, to] of edits) src = src.replace(from, to);
@@ -271,9 +298,7 @@ async function checkPrivacy() {
     const context = await browser.newContext({ viewport: { width: 390, height: 800 }, javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto('file://' + file, { waitUntil: 'load' });
-    const both = await page.evaluate
-      ? await page.locator('#en').isVisible().then(async (en) => en && (await page.locator('#ar').isVisible()))
-      : false;
+    const both = (await page.locator('#en').isVisible()) && (await page.locator('#ar').isVisible());
     if (both) ok('privacy page without JavaScript: both languages are shown one after the other');
     else fail('privacy page without JavaScript: a language is hidden');
     await context.close();

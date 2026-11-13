@@ -13,3 +13,4 @@ android/app/src/main/assets/www
 android/keystore.properties
 *.keystore
 *.jks
+release

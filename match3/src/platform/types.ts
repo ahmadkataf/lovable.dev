@@ -2,6 +2,8 @@
  * Platform contract: the only place that knows whether the game runs inside the Android
  * WebView wrapper or in a plain browser (dev, tests, screenshots).
  */
+import type { MonetizeBridge } from '../monetize/types.ts';
+
 export type HapticKind = 'light' | 'medium' | 'heavy' | 'success' | 'error';
 
 export interface AppInfo {
@@ -39,8 +41,10 @@ export interface PlatformApi {
 /**
  * Object injected by the Android wrapper as `window.AndroidBridge` (addJavascriptInterface).
  * Every method is synchronous and must never throw into JS.
+ * The purchase / ad methods (MonetizeBridge in src/monetize/types.ts) are optional members:
+ * feature-detect `storeCaps` before using any of them.
  */
-export interface AndroidBridge {
+export interface AndroidBridge extends Partial<MonetizeBridge> {
   /** "" when nothing saved. */
   loadSave(): string;
   storeSave(json: string): void;
@@ -71,6 +75,7 @@ export interface AndroidBridge {
  *   window.__native.resume() — Activity.onResume
  *   window.__native.insets(json) — the insets changed (also sent once when the page has loaded);
  *                                  same JSON as AndroidBridge.insets()
+ *   window.__native.store(json)  — a JSON-encoded StoreEvent (src/monetize/types.ts): purchases, ads
  */
 export interface NativeHooks {
   back(): void;
@@ -78,6 +83,8 @@ export interface NativeHooks {
   resume(): void;
   /** Optional: install it to follow inset changes (rotation, cutout, bars shown or hidden). */
   insets?(json: string): void;
+  /** Optional: installed by the store (src/monetize) to receive StoreEvents. */
+  store?(json: string): void;
 }
 
 declare global {

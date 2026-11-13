@@ -4,7 +4,7 @@
 
 هذه نصوص صفحة اللعبة على Google Play باللغة العربية. تُضاف **ترجمةً** إلى بطاقة المتجر الرئيسية (`Main store listing`) بعد إدخال النص الإنجليزي الافتراضي (`store/listing/en.md`): أضف اللغة العربية (`Arabic – ar`) من زر إدارة الترجمات في الصفحة نفسها، ثم الصق كل مربّع في خانته. Google Play يسمح باسم مترجَم واحد لكل لغة.
 
-- أعداد الأحرف المكتوبة تحت كل مربّع **محسوبة آليًّا** بالأمر `node tools/store/check-kit.cjs` (لا تخمين). إذا عدّلت نصًّا فأعد تشغيل الأمر مع `--write-counts` ليحدّث الأرقام ويتأكد من الحدود.
+- أعداد الأحرف المكتوبة تحت كل مربّع **محسوبة آليًّا** بالأمر `node tools/store/check-kit.cjs` (لا تخمين). إذا عدّلت نصًّا فأعد تشغيل الأمر مع <span dir="ltr">`--write-counts`</span> ليحدّث الأرقام ويتأكد من الحدود.
 - حدود Google Play: الاسم 30 حرفًا، الوصف القصير 80، الوصف الكامل 4000، ملاحظات الإصدار 500 لكل لغة.
 - النصوص تلتزم بسياسة البيانات الوصفية: لا رموز تعبيرية، لا كلمات ترتيب أو سعر أو ترويج، لا ذكر لأي لعبة أخرى ولا مقارنة بها، ولا تكرار للوصف القصير داخل الوصف الكامل.
 
@@ -95,7 +95,7 @@
 | الخانة في Play Console | الملف |
 |---|---|
 | `App icon` (512×512) | `store/graphics/icon-512.png` (الأيقونة نفسها لكل اللغات) |
-| `Feature graphic` (1024×500) | `store/graphics/feature-graphic-ar.png` |
-| `Phone screenshots` (1080×1920) | `store/screenshots/ar/*.png` — تُلتقط لاحقًا بالأمر `node tools/store/make-screenshots.cjs` |
+| `Feature graphic` (<span dir="ltr">1024×500</span>) | `store/graphics/feature-graphic-ar.png` |
+| `Phone screenshots` (<span dir="ltr">1080×1920</span>) | `store/screenshots/ar/*.png` — تُلتقط لاحقًا بالأمر `node tools/store/make-screenshots.cjs` |
 
 </div>

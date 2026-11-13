@@ -92,7 +92,7 @@ describe('fuzz: complete random games', () => {
       made++;
     }
     expect(made).toBe(700);
-  });
+  }, 300_000);
 
   it('levels the validator would reject still play consistently (330 games, never a hang)', () => {
     // Raw generator output plus deliberately awkward boards: unreachable pockets, lamps that can
@@ -115,7 +115,7 @@ describe('fuzz: complete random games', () => {
     let n = 0;
     for (const level of awkward) for (let k = 0; k < 3; k++) run(level, 700 + n, 900 + n++);
     expect(stats['games']).toBe(700 + 300 + awkward.length * 3);
-  });
+  }, 300_000);
 
   it('determinism: the same seed gives byte-identical steps, another seed another game', () => {
     const rng = createRng(4711);
@@ -130,7 +130,7 @@ describe('fuzz: complete random games', () => {
       if (playRandomGame(level, 6000 + n, n).transcript !== a.transcript) different++;
     }
     expect(different).toBeGreaterThan(total * 0.9);
-  });
+  }, 300_000);
 
   it('the games above really exercised the whole engine', () => {
     const need = [

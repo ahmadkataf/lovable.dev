@@ -209,6 +209,16 @@ if (q.get('mute') === '1') {
   audio.setMusicEnabled(profile.settings().music);
 }
 
+// Progress: by default the harness profile has cleared level 119, so every booster and feature is
+// unlocked (the harness levels use other ids and are still first clears). `progress=0` = a new player.
+const progress = q.get('progress') === null ? 119 : Math.max(0, Math.floor(Number(q.get('progress')) || 0));
+if (progress > 0 && !profile.record(progress)) profile.recordWin(progress, 1, 1, 0);
+// `caravan=n`: a win streak of n (first clears made while the Caravan is unlocked).
+const streak = Math.max(0, Math.floor(Number(q.get('caravan')) || 0));
+for (let i = 1; i <= streak && progress - i > 0; i++) {
+  if (!profile.record(progress - i)) profile.recordWin(progress - i, 1, 1, 0);
+}
+
 const coins = q.get('coins');
 if (coins !== null && isFinite(Number(coins))) {
   const want = Math.max(0, Math.floor(Number(coins)));

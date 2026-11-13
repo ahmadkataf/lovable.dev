@@ -253,16 +253,23 @@ body {
 /* ───────────────────────────── text ───────────────────────────── */
 
 .k-title {
-  margin: 0;
+  /*
+   * The text is painted with the background, so nothing outside the element's box would show:
+   * Arabic marks above tall letters (ٌ ّ آ) and deep tails leave a 1.25 line box. The padding gives
+   * them room to be painted; the equal negative margin keeps the layout exactly as without it.
+   */
+  margin: -0.3em 0 -0.2em;
+  padding: 0.3em 0 0.2em;
   font-size: calc(var(--k-u) * 24);
   font-weight: 800;
   line-height: 1.25;
   text-align: center;
   color: var(--k-gold-light);
-  /* one gradient per text line (the tile is exactly one line box tall) */
+  /* one gradient per text line (the tile is exactly one line box tall, starting at the first line) */
   background-image: linear-gradient(180deg, #fff8dc 0%, #ffe08a 48%, #f2b744 100%);
   background-size: 100% 1.25em;
   background-repeat: repeat-y;
+  background-origin: content-box;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -499,7 +506,8 @@ body {
 
 .k-btn__cap {
   min-width: 0;
-  font-size: 0.62em;
+  /* 0.62 of the label, but never below 11.5 units (small buttons: Arabic stays readable) */
+  font-size: max(0.62em, calc(var(--k-u) * 11.5));
   font-weight: 700;
   line-height: 1.15;
   opacity: 0.92;
@@ -707,6 +715,28 @@ body {
 
 .k-btn--shine:disabled .k-btn__face::after {
   animation: none;
+}
+
+/* … and the button itself breathes with each sweep (not while held: the press must read at once) */
+.k-btn--shine:not(.k-pressed) {
+  animation: k-breathe 3600ms ease-in-out 900ms infinite;
+}
+
+.k-btn--shine:disabled {
+  animation: none;
+}
+
+/*
+ * Screenshots and visual tests: `.k-still` on any ancestor (e.g. <html>) holds the endless
+ * call-to-action animations (and the entrance of such a button), so a frame never depends on when
+ * it was taken.
+ */
+.k-still .k-btn--shine {
+  animation-name: none !important;
+}
+
+.k-still .k-btn--shine .k-btn__face::after {
+  animation: none !important;
 }
 
 /* count / attention badge on a button corner */
@@ -928,6 +958,7 @@ body {
   width: 100%;
   height: 100%;
   border-radius: calc(var(--k-u) * 8);
+  overflow: hidden;
   background: linear-gradient(180deg, #fff1c0 0%, #f9d064 45%, #e9a932 100%);
   transform: translateX(calc((var(--k-p) - 1) * 100%));
   transition: transform 350ms var(--k-ease-out);
@@ -946,6 +977,31 @@ body {
   height: calc(var(--k-u) * 4);
   border-radius: calc(var(--k-u) * 2);
   background: rgba(255, 255, 255, 0.55);
+}
+
+/*
+ * A band of light runs along the bar when its value grows (class set by the kit). The band is
+ * 34% of the track wide and crosses only the visible part of the fill, from its tail to its tip.
+ */
+.k-progress.k-gain .k-progress__fill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 34%;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 50%, rgba(255, 255, 255, 0) 100%);
+  transform: translateX(320%) skewX(-18deg);
+  animation: k-sheen 700ms cubic-bezier(0.3, 0, 0.3, 1) both;
+  pointer-events: none;
+}
+
+[dir='rtl'] .k-progress.k-gain .k-progress__fill::before {
+  transform: translateX(-110%) skewX(-18deg);
+}
+
+[dir='rtl'] .k-progress.k-gain .k-progress__fill::before {
+  animation-name: k-sheen-rtl;
 }
 
 .k-progress--success .k-progress__fill {
@@ -1219,6 +1275,16 @@ body {
   touch-action: manipulation;
 }
 
+/* an option is 44 units tall inside the 52-unit control: its touch target takes the full height */
+.k-seg__opt::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--k-u) * -4);
+  right: 0;
+  bottom: calc(var(--k-u) * -4);
+  left: 0;
+}
+
 .k-seg__in {
   display: inline-flex;
   align-items: center;
@@ -1339,6 +1405,15 @@ body {
 
 .k-overlay.k-open .k-dialog.k-nudge {
   animation: k-nudge 260ms var(--k-ease-out);
+}
+
+/*
+ * Not hit-testable while it animates in ("arming", set by the kit for the first moments) or out:
+ * taps meant for whatever was there before / after land on the overlay, which swallows them.
+ */
+.k-overlay.k-arming .k-dialog,
+.k-overlay.k-closing .k-dialog {
+  pointer-events: none;
 }
 
 .k-dialog__inner {
@@ -1536,6 +1611,26 @@ body {
   margin-bottom: calc(var(--k-u) * 10);
 }
 
+/* the footer buttons rise in right behind the panel, one after the other (all settled by 340 ms) */
+.k-overlay.k-open .k-dialog__foot > .k-btn {
+  animation: k-rise 230ms var(--k-ease-back) 40ms backwards;
+}
+
+.k-overlay.k-open .k-dialog__foot > .k-btn:nth-child(2) {
+  animation-delay: 75ms;
+}
+
+.k-overlay.k-open .k-dialog__foot > .k-btn:nth-child(n + 3) {
+  animation-delay: 110ms;
+}
+
+/* (the CTA keeps breathing once it has landed) */
+.k-overlay.k-open .k-dialog__foot > .k-btn--shine:not(.k-pressed):not(:disabled) {
+  animation:
+    k-rise 230ms var(--k-ease-back) 40ms backwards,
+    k-breathe 3600ms ease-in-out 900ms infinite;
+}
+
 /* close button on the top end corner */
 .k-dialog__x {
   position: absolute;
@@ -1561,6 +1656,14 @@ body {
   right: -7px;
   bottom: -7px;
   left: -7px;
+}
+
+.k-dialog__x .k-btn__icon {
+  transition: transform var(--k-med) var(--k-ease-back);
+}
+
+.k-dialog__x.k-pressed .k-btn__icon {
+  transform: rotate(90deg);
 }
 
 /* medallion: an eight-pointed gold star holding the dialog's icon, riding the top edge */
@@ -1620,6 +1723,55 @@ body {
 
 .k-overlay.k-open .k-medal {
   animation: k-medal-in 420ms var(--k-ease-out) 80ms both;
+}
+
+/*
+ * Short viewports (a phone in landscape): tighter chrome, so that small dialogs fit without
+ * scrolling and bigger ones lose less of their height to padding.
+ */
+@media (max-height: 420px) {
+  .k-overlay {
+    padding-top: calc(var(--safe-top) + var(--k-u) * 10);
+    padding-bottom: calc(var(--safe-bottom) + var(--k-u) * 8);
+  }
+
+  .k-dialog__head {
+    padding-top: calc(var(--k-u) * 10);
+  }
+
+  .k-dialog--medal {
+    margin-top: calc(var(--k-u) * 34);
+    max-height: calc(100% - var(--k-u) * 34);
+  }
+
+  .k-dialog--medal .k-dialog__head {
+    padding-top: calc(var(--k-u) * 36);
+  }
+
+  .k-dialog--medal .k-dialog__inner > .k-dialog__bodywrap:first-child {
+    padding-top: calc(var(--k-u) * 28);
+  }
+
+  .k-dialog__body {
+    padding-top: calc(var(--k-u) * 8);
+    padding-bottom: calc(var(--k-u) * 4);
+  }
+
+  .k-dialog__inner > .k-dialog__bodywrap:last-child .k-dialog__body {
+    padding-bottom: calc(var(--k-u) * 12);
+  }
+
+  .k-dialog__foot {
+    padding-top: calc(var(--k-u) * 6);
+    padding-bottom: calc(var(--k-u) * 12);
+  }
+
+  .k-medal {
+    top: calc(var(--k-u) * -32);
+    width: calc(var(--k-u) * 54);
+    height: calc(var(--k-u) * 54);
+    margin-left: calc(var(--k-u) * -27);
+  }
 }
 
 /* ───────────────────────────── toasts ───────────────────────────── */
@@ -1855,6 +2007,9 @@ body {
 
 .k-ribbon span {
   display: block;
+  /* room for Arabic marks above / below the line inside the clipping box */
+  margin: -0.3em 0 -0.2em;
+  padding: 0.3em 0 0.2em;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -2118,6 +2273,43 @@ body {
   28%,
   100% {
     transform: translateX(340%) skewX(-18deg);
+  }
+}
+
+@keyframes k-breathe {
+  0%,
+  22%,
+  100% {
+    transform: scale(1);
+  }
+  11% {
+    transform: scale(1.035);
+  }
+}
+
+@keyframes k-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(calc(var(--k-u) * 12)) scale(0.9);
+  }
+}
+
+/* 294% of the band's width = the whole track; the fill's visible part starts (1 - p) tracks in */
+@keyframes k-sheen {
+  0% {
+    transform: translateX(calc((1 - var(--k-p)) * 294% - 110%)) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(320%) skewX(-18deg);
+  }
+}
+
+@keyframes k-sheen-rtl {
+  0% {
+    transform: translateX(calc(var(--k-p) * 294% + 10%)) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(-110%) skewX(-18deg);
   }
 }
 
