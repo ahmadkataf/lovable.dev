@@ -20,7 +20,12 @@ export function createTitleScreen(ui: Ui): Screen {
 
   /** The very first launch goes straight into level 1: no map detour, no pop-ups. */
   const isFirstRun = (): boolean => profile.highestUnlocked() <= 1 && profile.record(1) === null;
-  const caption = (): string | null => (isFirstRun() ? null : ui.t('common.level', { n: focusLevel(profile.highestUnlocked(), ui.world.levels.length) }));
+  /** "Level N" under Play names the level the journey has reached — nothing on a first run or when every level is won. */
+  const caption = (): string | null => {
+    if (isFirstRun()) return null;
+    const next = focusLevel(profile.highestUnlocked(), ui.world.levels.length);
+    return profile.record(next) ? null : ui.t('common.level', { n: next });
+  };
 
   const playButton = kit.button({
     label: ui.t('common.play'),

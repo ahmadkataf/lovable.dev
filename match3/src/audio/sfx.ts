@@ -517,12 +517,12 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   praise: {
-    gain: 0.86,
-    trimDb: [0.3, 0.9, 1, -2.5],
+    gain: 0.911,
+    trimDb: [-0.2, 0.4, 0.5, -0.8],
     tier: 'big',
     build(v, step) {
       // A rising motif of two to five ladder notes, each a bell with a warm octave under it;
-      // the last note rings, and bigger praise brings a soft chord, glitter and a drum.
+      // the last note rings, and bigger praise brings a soft chord, glitter and a rim tap.
       const level = stepInRange(step, 1, 4, 1);
       const motif = praiseMotif(step);
       const spacing = 0.085;
@@ -537,7 +537,9 @@ const SFX: Record<SfxName, SfxDef> = {
       tone(v, { f: hz(motif[last] + 12), at: land + 0.02, dur: 0.3, peak: 0.07 + 0.015 * level, attack: 0.004 });
       if (level >= 2) bloom(v, level >= 3 ? [D4, A4, D5] : [D5, A5], land, 0.4, 0.07);
       if (level >= 3) glitter(v, level >= 4 ? [A6, D7, Fs7] : [A6, D7], land + 0.09, 0.06, 0.06, 0.22);
-      if (level >= 4) dum(v, land, 0.22);
+      // The highest tier gets a rim tap as a pick-up into its last note. (Anything struck on
+      // the landing itself would take the peak and leave the tune quieter than tier 3.)
+      if (level >= 4) tek(v, land - spacing / 2, 0.3);
     },
   },
   goalDone: {

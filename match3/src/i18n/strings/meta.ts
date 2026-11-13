@@ -26,7 +26,7 @@ const table: StringTable = {
     // ── level intro ──
     'meta.intro.hard': 'Hard level',
     'meta.intro.moves': '{n, plural, one {1 move} other {{n} moves}}',
-    'meta.intro.best': 'Your best',
+    'meta.intro.best': 'Best',
     'meta.intro.boosters': 'Start with a boost',
     'meta.intro.buyHint': 'You have none left. Buy one and start this level with it?',
 
@@ -154,7 +154,7 @@ const table: StringTable = {
     // ── level intro ──
     'meta.intro.hard': 'مرحلة صعبة',
     'meta.intro.moves': '{n, plural, one {حركة واحدة} two {حركتان} few {{n} حركات} other {{n} حركة}}',
-    'meta.intro.best': 'أفضل نتيجة لك',
+    'meta.intro.best': 'أفضل نتيجة',
     'meta.intro.boosters': 'ابدأ بمعزّز',
     'meta.intro.buyHint': 'لم يبقَ لديك منه شيء. هل تشتري واحدًا لتبدأ به هذه المرحلة؟',
 

@@ -87,6 +87,8 @@ export interface SessionOptions {
   storeSync?: boolean;
   /** A clock for the STORE that differs from the machine's (the profile always uses the machine's). */
   storeNow?: () => number;
+  /** Do not call store.start() yet (the test does, after it has hooked up what it needs). */
+  deferStart?: boolean;
 }
 
 /** Start the app on the machine: a profile loaded from its disk and a store on a scripted bridge. */
@@ -154,7 +156,7 @@ export function startSession(machine: Machine, options: SessionOptions = {}): Se
   session.kill = () => {
     session.alive = false;
   };
-  session.store.start();
+  if (options.deferStart !== true) session.store.start();
   return session;
 }
 

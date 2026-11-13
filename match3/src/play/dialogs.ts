@@ -189,6 +189,7 @@ export function openBuyBooster(
   }
   buttons.push(buy);
   dialog = tag(deps.track(kit.openDialog<BuyChoice>({ title: i18n.t('play.buy.title', { name }), icon: opts.id, body, buttons, buttonLayout: 'column' })), 'buy');
+  dialog.el.dataset.booster = opts.id;
   return dialog;
 }
 

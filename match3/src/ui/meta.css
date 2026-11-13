@@ -1210,6 +1210,7 @@
 .m-best__text {
   display: flex;
   align-items: baseline;
+  white-space: nowrap;
   margin-inline-start: calc(var(--k-u) * 10);
   font-size: calc(var(--k-u) * 13);
   font-weight: 700;
