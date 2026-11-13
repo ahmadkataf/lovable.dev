@@ -68,7 +68,7 @@ function bell(v: Voice, midi: number, at: number, dur: number, peak: number): vo
 const SFX: Record<SfxName, SfxDef> = {
   // ── interface ──────────────────────────────────────────────────────────
   button: {
-    gain: 0,
+    gain: 0.6,
     cls: 'ui',
     build(v) {
       tone(v, { f: 620, f2: 440, glide: 0.04, dur: 0.07, peak: 0.5, attack: 0.002 });
@@ -432,7 +432,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── rewards ────────────────────────────────────────────────────────────
   coin: {
-    gain: 3,
+    gain: 0.77,
     cls: 'game',
     build(v) {
       // One struck metal ring with shimmering overtones.

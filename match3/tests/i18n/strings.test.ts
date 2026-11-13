@@ -29,6 +29,51 @@ function shortName(file: string): string {
 /** Numbers that reach every plural category of both languages. */
 const SAMPLE_COUNTS = [0, 1, 2, 3, 7, 10, 11, 25, 99, 100, 101, 102, 103, 111, 1000, 12345];
 
+/** An Arabic word standing on its own: optional one-letter prefixes and the article, optional pronoun / dual endings. */
+function arabicWord(stems: string): RegExp {
+  return new RegExp('(?<![\\u0621-\\u0652])[وفبكل]{0,2}(?:ال|لل)?(?:' + stems + ')(?:ك|ه|ها|نا|كم|ين|ان)?(?![\\u0621-\\u0652])');
+}
+
+/**
+ * One Arabic word per concept, in every file. Each rule names synonyms that must not be used and
+ * the word to use instead — the full vocabulary is at the top of src/i18n/strings/common.ts.
+ */
+const VOCABULARY: { avoid: RegExp; use: string }[] = [
+  { avoid: arabicWord('أرواح|حيوات'), use: 'a life is قلب / قلوب' },
+  // "حياة" only where it counts lives (next to a number, or "an extra / a free life") — the word itself is ordinary Arabic.
+  { avoid: /(?:\d|\})\s*حياة|حياة\s*(?:إضافية|مجانية|واحدة|\{|\d)/, use: 'a life is قلب / قلوب' },
+  { avoid: arabicWord('مستويات'), use: 'a level is مرحلة / مراحل' },
+  { avoid: /المستوى\s*(?:\{|\d)/, use: 'a level is مرحلة ("المرحلة {n}")' },
+  { avoid: arabicWord('نقلة|نقلات'), use: 'a move is حركة / حركات' },
+  { avoid: /معز(?!\u0651)ز/, use: 'a booster is written معزّز, with the shadda' },
+  { avoid: arabicWord('بوستر|بوسترات|تعزيزات'), use: 'a booster is معزّز / معزّزات' },
+  { avoid: arabicWord('مصباح|مصابيح|قنديل|قناديل'), use: 'the lamp is فانوس / فوانيس' },
+  { avoid: arabicWord('موشور|مواشير'), use: 'the prism is منشور' },
+  { avoid: arabicWord('كوينز|كوين'), use: 'a coin is عملة / عملات' },
+];
+
+/** A "+" or "-" that starts the text or follows a space / bracket, directly before a digit or placeholder, without U+200E. */
+const UNMARKED_SIGN = /(?:^|[\s(\[«"'])[+\-\u2212](?=\d|\{\w+\})/;
+
+describe('the Arabic style rules themselves', () => {
+  it('catch the synonyms and let the chosen words through', () => {
+    const hits = (text: string): number => VOCABULARY.filter((rule) => rule.avoid.test(text)).length;
+    for (const good of ['المرحلة {n}', 'القلوب مكتملة', 'قلب واحد', '{n} حركات', 'المعزّزات', 'معزّز مجاني', 'أنزل الفانوسين', 'منشور', 'عملاتك لا تكفي', 'مستوى الصوت', 'استمتع بالحياة']) {
+      expect(hits(good), good).toBe(0);
+    }
+    for (const bad of ['الأرواح', 'أرواحك', 'حياة إضافية', '+1 حياة', '{n} حياة', 'حياة مجانية', 'المستويات', 'المستوى {n}', 'المستوى 5', '5 نقلات', 'نقلة واحدة', 'المعززات', 'معزز', 'بوستر', 'المصباح', 'مصابيح', 'القنديل', 'الموشور', 'كوينز']) {
+      expect(hits(bad), bad).toBeGreaterThan(0);
+    }
+  });
+
+  it('catch a sign that right-to-left text would draw after its number', () => {
+    for (const bad of ['+{n}', '-{n}', '+25 عملة', 'احصل على +{n}', 'الرصيد (-5)', '\u2212{n}']) expect(UNMARKED_SIGN.test(bad), bad).toBe(true);
+    for (const good of ['\u200E+{n}', '\u200E-{n}', 'احصل على \u200E+{n}', '{a}-{b}', '3-5', 'بـ 3 حركات', 'تبديل-حر', '{n, plural, one {x} other {y}}', '- ملاحظة']) {
+      expect(UNMARKED_SIGN.test(good), good).toBe(false);
+    }
+  });
+});
+
 describe('string tables', () => {
   it('are found (at least the shared vocabulary)', () => {
     expect(files.length).toBeGreaterThan(0);
@@ -131,6 +176,53 @@ describe.each(files.map((file) => [shortName(file), file] as const))('strings/%s
           }
         }
       }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('Arabic uses one word per concept (the vocabulary at the top of strings/common.ts)', () => {
+    const { ar } = tableOf(file);
+    const bad: string[] = [];
+    for (const key of Object.keys(ar)) {
+      const value = ar[key];
+      if (typeof value !== 'string') continue;
+      for (const rule of VOCABULARY) {
+        const hit = rule.avoid.exec(value);
+        if (hit) bad.push(`ar ${key}: "${hit[0]}" — ${rule.use}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('Arabic keeps a sign on the correct side of its number (U+200E before a leading + or -)', () => {
+    const { ar } = tableOf(file);
+    const bad: string[] = [];
+    for (const key of Object.keys(ar)) {
+      const value = ar[key];
+      if (typeof value === 'string' && UNMARKED_SIGN.test(value)) bad.push(`ar ${key}: write "\\u200E" before the sign in "${value}"`);
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('uses the punctuation of its language', () => {
+    const { en, ar } = tableOf(file);
+    const bad: string[] = [];
+    for (const key of Object.keys(ar)) {
+      const value = ar[key];
+      if (typeof value !== 'string') continue;
+      // A Latin comma, semicolon or question mark right after an Arabic letter: must be ، ؛ ؟
+      const hit = /[\u0621-\u0652][,;?]/.exec(value);
+      if (hit) bad.push(`ar ${key}: "${hit[0]}" — use the Arabic mark (، ؛ ؟)`);
+    }
+    for (const [lang, dict] of [['en', en], ['ar', ar]] as const) {
+      for (const key of Object.keys(dict)) {
+        const value = dict[key];
+        if (typeof value === 'string' && value.indexOf('...') >= 0) bad.push(`${lang} ${key}: write the ellipsis as one character (…)`);
+      }
+    }
+    for (const key of Object.keys(en)) {
+      const value = en[key];
+      if (typeof value === 'string' && /[،؛؟\u0621-\u064A]/.test(value)) bad.push(`en ${key}: contains Arabic text or punctuation`);
     }
     expect(bad).toEqual([]);
   });

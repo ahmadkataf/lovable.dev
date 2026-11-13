@@ -198,17 +198,23 @@ function variable(vars: Vars | undefined, name: string): string | number | undef
   return v === null ? undefined : v;
 }
 
+/**
+ * Plural blocks may contain plural blocks, but only this deep; anything nested further is left as
+ * text. Real strings need one level, two at most — the limit keeps hostile input cheap and finite.
+ */
+const MAX_NESTING = 8;
+
 /** Fill a message template (see the syntax at the top of this file). Never throws. */
 export function formatMessage(template: string, vars: Vars | undefined, lang: Lang): string {
   if (typeof template !== 'string') return '';
   try {
-    return fill(template, vars, lang);
+    return fill(template, vars, lang, 0);
   } catch {
-    return template; // only reachable with absurd nesting (stack overflow): show the raw text
+    return template; // nothing known reaches this; if something does, the raw text beats an exception
   }
 }
 
-function fill(template: string, vars: Vars | undefined, lang: Lang): string {
+function fill(template: string, vars: Vars | undefined, lang: Lang, depth: number): string {
   if (template.indexOf('{') < 0) return template;
   let out = '';
   let i = 0;
@@ -230,7 +236,8 @@ function fill(template: string, vars: Vars | undefined, lang: Lang): string {
     }
     const block = parsePlural(template, open);
     if (block) {
-      out += fill(choose(block, variable(vars, block.name), lang), vars, lang);
+      const variant = choose(block, variable(vars, block.name), lang);
+      out += depth < MAX_NESTING ? fill(variant, vars, lang, depth + 1) : variant;
       i = block.end;
       continue;
     }
@@ -240,7 +247,7 @@ function fill(template: string, vars: Vars | undefined, lang: Lang): string {
   return out;
 }
 
-function collectNames(template: string, into: Record<string, true>): void {
+function collectNames(template: string, into: Record<string, true>, depth: number): void {
   let i = 0;
   for (;;) {
     const open = template.indexOf('{', i);
@@ -255,7 +262,7 @@ function collectNames(template: string, into: Record<string, true>): void {
     const block = parsePlural(template, open);
     if (block) {
       into[block.name] = true;
-      for (const option of block.options) collectNames(option[1], into);
+      if (depth < MAX_NESTING) for (const option of block.options) collectNames(option[1], into, depth + 1);
       i = block.end;
       continue;
     }
@@ -269,13 +276,13 @@ function collectNames(template: string, into: Record<string, true>): void {
  */
 export function placeholderNames(template: string): string[] {
   const found: Record<string, true> = Object.create(null);
-  collectNames(template, found);
+  if (typeof template === 'string') collectNames(template, found, 0);
   return Object.keys(found).sort();
 }
 
 const CATEGORIES: readonly string[] = ['zero', 'one', 'two', 'few', 'many', 'other'];
 
-function collectProblems(template: string, into: string[]): void {
+function collectProblems(template: string, into: string[], depth: number): void {
   let i = 0;
   for (;;) {
     const open = template.indexOf('{', i);
@@ -293,11 +300,12 @@ function collectProblems(template: string, into: string[]): void {
       continue;
     }
     const seen: Record<string, true> = Object.create(null);
+    if (depth >= MAX_NESTING) into.push('plural blocks are nested too deeply (more than ' + MAX_NESTING + ' levels)');
     for (const [selector, text] of block.options) {
       if (seen[selector]) into.push('plural variant "' + selector + '" is defined twice');
       seen[selector] = true;
       if (selector.charAt(0) !== '=' && CATEGORIES.indexOf(selector) < 0) into.push('unknown plural variant "' + selector + '"');
-      collectProblems(text, into);
+      if (depth < MAX_NESTING) collectProblems(text, into, depth + 1);
     }
     if (!seen.other) into.push('plural block for {' + block.name + '} has no "other" variant');
     i = block.end;
@@ -310,7 +318,8 @@ function collectProblems(template: string, into: string[]): void {
  */
 export function messageProblems(template: string): string[] {
   const problems: string[] = [];
-  collectProblems(template, problems);
+  if (typeof template !== 'string') return ['not a string'];
+  collectProblems(template, problems, 0);
   return problems;
 }
 

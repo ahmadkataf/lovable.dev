@@ -96,8 +96,9 @@ describe('formatNumber', () => {
 
   it('never shows nonsense', () => {
     expect(formatNumber(NaN)).toBe('0');
-    expect(formatNumber(Infinity)).toBe('0');
-    expect(formatNumber(-Infinity)).toBe('0');
+    // An unbounded value is shown as such — never as "0", which would make an unbounded price look free.
+    expect(formatNumber(Infinity)).toBe('∞');
+    expect(formatNumber(-Infinity)).toBe('-∞');
     expect(formatNumber('12' as unknown as number)).toBe('0');
     expect(formatNumber(1e21)).toBe('1e+21');
   });
@@ -150,7 +151,11 @@ describe('pluralCategory', () => {
   it('English: one / other', () => {
     expect(pluralCategory('en', 1)).toBe('one');
     for (const n of [0, 2, 3, 11, 21, 100, 101, 1.5]) expect(pluralCategory('en', n)).toBe('other');
-    expect(pluralCategory('en', -1)).toBe('one');
+    // Counts are never negative; if one is, the variant that prints the number is used ("-1 moves"),
+    // not the one that spells out "1 move".
+    expect(pluralCategory('en', -1)).toBe('other');
+    expect(pluralCategory('ar', -1)).toBe('other');
+    expect(pluralCategory('ar', -2)).toBe('other');
   });
 
   it('Arabic: zero / one / two / few / many / other', () => {

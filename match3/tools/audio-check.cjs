@@ -187,6 +187,11 @@ async function checkEffects(page, report) {
     for (const fl of flags) fail('sfx ' + r.id, fl);
   }
   out('median loudness of game effects: ' + f(ref) + ' dB(A)   (game/jingle must be within ±' + LIMITS.gameSpread + ' dB, UI ' + LIMITS.uiBelow[0] + '–' + LIMITS.uiBelow[1] + ' dB below)');
+  out('columns: dur = duration reported by renderSfx · aud = until 60 dB below the peak · peak, rms, loud (loudest 50 ms) in dBFS ·');
+  out('         loudA = loudest frame, A-weighted (dB) · Δmed = loudA minus the median · DC = mean sample · centroid = power-weighted');
+  out('         mean frequency (whole sound, then first third → last third) · pitch = strongest spectral peak');
+  out('flags:   CLIPS |sample| ≥ ' + LIMITS.clipPeak + ' · SILENT rms < ' + LIMITS.silentRms + ' · DC |mean| > ' + LIMITS.dc + ' · TAIL sound after its reported end ·');
+  out('         DURATION outside ' + JSON.stringify(LIMITS.duration).replace(/"/g, '') + ' s · DEAD-AIR audible < half of dur · LEVEL / UI-LEVEL loudness window');
 
   if (SUGGEST) {
     // Average the steps of a stepped effect, then say how to scale its gain in sfx.ts.
@@ -460,6 +465,14 @@ async function checkLive(browser, report) {
   await sleep(900);
   level = await listen(900);
   step('level music is audible after the cross-fade', level.rms > 0.002, 'rms ' + f(20 * Math.log10(level.rms + 1e-9)) + ' dBFS');
+  // A jingle pulls the music down while it plays.
+  const levelBefore = (await snap()).musicLevel;
+  await page.evaluate(() => window.__audioLab.audio.sfx('win'));
+  await sleep(350);
+  const levelDuring = (await snap()).musicLevel;
+  await sleep(2600);
+  const levelAfter = (await snap()).musicLevel;
+  step('music ducks under a jingle and comes back', levelDuring < levelBefore * 0.6 && levelAfter > levelBefore * 0.97, 'music bus ' + f(levelBefore, 2) + ' → ' + f(levelDuring, 2) + ' → ' + f(levelAfter, 2));
   await page.evaluate(() => window.__audioLab.audio.music(null));
   s = await snap();
   step('music(null) stops scheduling', s.playing === null && !s.schedulerRunning, 'scheduler ' + (s.schedulerRunning ? 'on' : 'off'));

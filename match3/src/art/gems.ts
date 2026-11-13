@@ -23,7 +23,7 @@ export interface GemTone {
 }
 
 export const GEM_TONES: readonly GemTone[] = [
-  { deep: '#6a0624', dark: '#c40d38', base: '#ff3350', light: '#ff7480', pale: '#ffd9d6' },
+  { deep: '#6a0624', dark: '#c00a36', base: '#ff2f4c', light: '#ff6e7b', pale: '#ffd6d2' },
   { deep: '#7c3400', dark: '#ea7200', base: '#ffa21a', light: '#ffcd40', pale: '#fff4c4' },
   { deep: '#05482d', dark: '#0b9852', base: '#1fd072', light: '#66f09c', pale: '#d6ffe2' },
   { deep: '#0b1f80', dark: '#184ee0', base: '#2f80ff', light: '#6cb0ff', pale: '#dcecff' },
@@ -537,20 +537,21 @@ function centred(ctx: Ctx, k: number, cy: number): void {
 
 /** Double-headed arrow of light along the x axis through (50, 50). */
 function drawStreak(ctx: Ctx, px: number): void {
-  const sh = 3.9; // shaft half thickness
-  const hh = 10.5; // head half height
-  const x0 = 4.4; // tip (leaves room for the halo inside the sprite)
-  const x1 = 16; // back of the head
+  const hh = 11.5; // head half height
+  const x0 = 5.4; // tip (leaves room for the halo inside the sprite)
+  const x1 = 17.5; // back of the head
+  const neck = 3.1; // shaft half thickness where it meets a head
+  const waist = 5.2; // shaft half thickness in the middle: the streak swells like a flare
   const p = new Path2D();
   p.moveTo(x0, 50);
   p.lineTo(x1, 50 - hh);
-  p.lineTo(x1 - 2.2, 50 - sh);
-  p.lineTo(100 - x1 + 2.2, 50 - sh);
+  p.lineTo(x1 - 2.4, 50 - neck);
+  p.quadraticCurveTo(50, 50 - waist * 2 + neck, 100 - x1 + 2.4, 50 - neck);
   p.lineTo(100 - x1, 50 - hh);
   p.lineTo(100 - x0, 50);
   p.lineTo(100 - x1, 50 + hh);
-  p.lineTo(100 - x1 + 2.2, 50 + sh);
-  p.lineTo(x1 - 2.2, 50 + sh);
+  p.lineTo(100 - x1 + 2.4, 50 + neck);
+  p.quadraticCurveTo(50, 50 + waist * 2 - neck, x1 - 2.4, 50 + neck);
   p.lineTo(x1, 50 + hh);
   p.closePath();
 
@@ -558,39 +559,47 @@ function drawStreak(ctx: Ctx, px: number): void {
   // wide soft glow of the streak
   const g = ctx.createLinearGradient(0, 50 - 15, 0, 50 + 15);
   g.addColorStop(0, 'rgba(255,214,96,0)');
-  g.addColorStop(0.5, 'rgba(255,226,130,0.6)');
+  g.addColorStop(0.5, 'rgba(255,232,150,0.6)');
   g.addColorStop(1, 'rgba(255,214,96,0)');
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.moveTo(7, 50);
-  ctx.quadraticCurveTo(50, 50 - 30, 93, 50);
-  ctx.quadraticCurveTo(50, 50 + 30, 7, 50);
+  ctx.moveTo(5, 50);
+  ctx.quadraticCurveTo(50, 50 - 30, 95, 50);
+  ctx.quadraticCurveTo(50, 50 + 30, 5, 50);
   ctx.fill();
 
   ctx.lineJoin = 'round';
-  ctx.shadowColor = 'rgba(255,205,80,0.95)';
-  ctx.shadowBlur = px * 0.04;
+  ctx.shadowColor = 'rgba(255,200,70,0.95)';
+  ctx.shadowBlur = px * 0.034;
   ctx.strokeStyle = '#6a3f06';
-  ctx.lineWidth = 2.6;
+  ctx.lineWidth = 3;
   ctx.stroke(p);
   ctx.shadowBlur = 0;
   ctx.shadowColor = 'transparent';
   ctx.fillStyle = lGrad(ctx, 0, 50 - hh, 0, 50 + hh, [
-    [0, '#ffc02e'],
-    [0.32, '#ffe58f'],
+    [0, '#ffb81f'],
+    [0.3, '#ffe27e'],
     [0.5, '#ffffff'],
-    [0.68, '#ffe58f'],
-    [1, '#ffc02e'],
+    [0.7, '#ffe27e'],
+    [1, '#ffb81f'],
   ]);
   ctx.fill(p);
   // hot core
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 2.4;
+  ctx.lineWidth = 2.8;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(10.5, 50);
   ctx.lineTo(89.5, 50);
   ctx.stroke();
+  // a hot spot where the streak crosses the heart of the gem (stretched along the beam, so it
+  // never hints at the other axis)
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(50 - 15, 50);
+  ctx.quadraticCurveTo(50, 50 - 9.5, 50 + 15, 50);
+  ctx.quadraticCurveTo(50, 50 + 9.5, 50 - 15, 50);
+  ctx.fill();
   ctx.restore();
 }
 

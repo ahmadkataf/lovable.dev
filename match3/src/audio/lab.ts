@@ -618,6 +618,7 @@ function snapshot(audio: AudioEngine): { [key: string]: unknown } {
     sfxPlayed: d.sfxPlayed,
     sfxDropped: d.sfxDropped,
     music: d.music,
+    musicLevel: d.musicLevel,
     time: d.context ? d.context.currentTime : 0,
   };
 }

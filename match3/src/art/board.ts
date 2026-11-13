@@ -5,8 +5,8 @@
 import type { Ctx } from './util.ts';
 import { PAL, TAU, khatam, lGrad, rgba, rrect } from './util.ts';
 
-export const TILE_A = '#2e2a78';
-export const TILE_B = '#252065';
+export const TILE_A = '#34308a';
+export const TILE_B = '#2a2672';
 
 /** One checkerboard cell. `alt` = the darker of the two tones. */
 export function drawTile(ctx: Ctx, alt: boolean): void {
@@ -101,12 +101,15 @@ export function drawSelect(ctx: Ctx, px: number): void {
   ctx.restore();
 }
 
-/** Hint glow: a soft, ring-shaped halo (transparent in the middle so it never washes out the gem). */
+/**
+ * Hint glow: a soft, ring-shaped halo that sits out near the cell edge, so it shows all round a
+ * piece that fills most of the cell and never washes out the piece itself.
+ */
 export function drawHint(ctx: Ctx): void {
-  const g = ctx.createRadialGradient(50, 50, 19, 50, 50, 47.5);
+  const g = ctx.createRadialGradient(50, 50, 28, 50, 50, 50);
   g.addColorStop(0, 'rgba(255,246,220,0)');
-  g.addColorStop(0.5, 'rgba(255,240,190,0.5)');
-  g.addColorStop(0.74, 'rgba(255,250,225,0.95)');
+  g.addColorStop(0.42, 'rgba(255,240,190,0.5)');
+  g.addColorStop(0.72, 'rgba(255,252,232,0.98)');
   g.addColorStop(0.88, 'rgba(255,225,140,0.5)');
   g.addColorStop(1, 'rgba(255,210,100,0)');
   ctx.fillStyle = g;

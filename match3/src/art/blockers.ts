@@ -649,33 +649,36 @@ function ripples(ctx: Ctx, count: number, first: number, gap: number, dark: stri
 
 /**
  * Sand floor overlay (drawn over the tile, under the piece).
- * 2 layers: the whole cell is buried — bright, rippled, with a raised lip.
- * 1 layer: a thin see-through drift that no longer reaches the corners, so the tile shows there.
+ * 2 layers: the whole cell is buried — pale, softly rippled, with a raised lip.
+ * 1 layer: a thinner, flatter drift that has worn back from the corners, so the tile shows there.
+ * Both are kept pale and quiet on purpose: the saturated gems (the amber above all) have to stay
+ * the loudest thing in the cell.
  */
 export function drawSand(ctx: Ctx, layers: number): void {
   const thick = layers >= 2;
   const rnd = mulberry32(thick ? 0x5a4d2 : 0x5a4d1);
   const shape = new Path2D();
   if (thick) {
-    rrect(shape, 0.8, 0.8, 98.4, 98.4, 9);
+    rrect(shape, 0.8, 0.8, 98.4, 98.4, 10);
   } else {
-    // worn drift: a soft squircle with a gently wavering edge
-    const n = 72;
+    // worn drift: reaches almost to the cell edge (so it still shows around a big gem), with soft
+    // rounded corners and a gently wavering edge
+    const n = 96;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU;
       const c = Math.cos(a);
       const sn = Math.sin(a);
-      const r = 46 / Math.pow(Math.pow(Math.abs(c), 3.4) + Math.pow(Math.abs(sn), 3.4), 1 / 3.4);
-      const rr = r + Math.sin(a * 6 + 1.3) * 0.9;
+      const r = 47 / Math.pow(Math.pow(Math.abs(c), 5) + Math.pow(Math.abs(sn), 5), 1 / 5);
+      const rr = r + Math.sin(a * 9 + 1.3) * 1.2;
       if (i === 0) shape.moveTo(50 + c * rr, 50 + sn * rr);
       else shape.lineTo(50 + c * rr, 50 + sn * rr);
     }
     shape.closePath();
     // loose grains scattered into the bare corners
-    for (let i = 0; i < 26; i++) {
-      const cx = i % 2 === 0 ? 5 + rnd() * 9 : 95 - rnd() * 9;
-      const cy = i % 4 < 2 ? 5 + rnd() * 9 : 95 - rnd() * 9;
-      ctx.fillStyle = rnd() < 0.5 ? 'rgba(236,200,130,0.85)' : 'rgba(200,154,86,0.85)';
+    for (let i = 0; i < 16; i++) {
+      const cx = i % 2 === 0 ? 3 + rnd() * 6 : 97 - rnd() * 6;
+      const cy = i % 4 < 2 ? 3 + rnd() * 6 : 97 - rnd() * 6;
+      ctx.fillStyle = rnd() < 0.5 ? 'rgba(244,226,180,0.8)' : 'rgba(214,180,120,0.8)';
       ctx.beginPath();
       ctx.arc(cx, cy, 0.7 + rnd() * 0.9, 0, TAU);
       ctx.fill();
@@ -684,29 +687,29 @@ export function drawSand(ctx: Ctx, layers: number): void {
 
   ctx.save();
   ctx.clip(shape);
-  ctx.globalAlpha = thick ? 0.96 : 0.84;
+  ctx.globalAlpha = thick ? 0.97 : 0.95;
   ctx.fillStyle = lGrad(ctx, 0, 0, 100, 100, thick
     ? [
-        [0, '#f0d294'],
-        [0.5, '#e2bb77'],
-        [1, '#cc9c55'],
+        [0, '#f8e7ba'],
+        [0.5, '#eed59f'],
+        [1, '#dfbf84'],
       ]
     : [
-        [0, '#e2ba72'],
-        [1, '#c99a52'],
+        [0, '#d8bd8c'],
+        [1, '#bf9f6e'],
       ]);
   ctx.fillRect(0, 0, 100, 100);
 
-  if (thick) ripples(ctx, 5, 15, 17.5, 'rgba(150,98,40,0.55)', 'rgba(255,244,208,0.7)');
-  else ripples(ctx, 3, 24, 26, 'rgba(140,90,36,0.3)', 'rgba(250,226,170,0.35)');
+  if (thick) ripples(ctx, 4, 17, 21.5, 'rgba(176,126,62,0.34)', 'rgba(255,252,232,0.62)');
+  else ripples(ctx, 2, 33, 33, 'rgba(150,104,50,0.2)', 'rgba(250,236,196,0.26)');
 
   // grains
-  const n = thick ? 150 : 120;
+  const n = thick ? 90 : 70;
   for (let i = 0; i < n; i++) {
     const x = rnd() * 100;
     const y = rnd() * 100;
-    const r = 0.55 + rnd() * (thick ? 1.1 : 1);
-    ctx.fillStyle = rnd() < 0.5 ? 'rgba(120,76,28,0.45)' : thick ? 'rgba(255,248,222,0.7)' : 'rgba(250,228,172,0.7)';
+    const r = 0.5 + rnd() * (thick ? 1 : 0.9);
+    ctx.fillStyle = rnd() < 0.5 ? 'rgba(150,104,50,0.34)' : thick ? 'rgba(255,252,236,0.7)' : 'rgba(250,236,196,0.6)';
     ctx.beginPath();
     ctx.arc(x, y, r, 0, TAU);
     ctx.fill();
@@ -714,17 +717,17 @@ export function drawSand(ctx: Ctx, layers: number): void {
   ctx.globalAlpha = 1;
   if (thick) {
     // raised lip: lit along the top, shaded along the foot
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 5.4;
     ctx.strokeStyle = lGrad(ctx, 0, 0, 0, 100, [
-      [0, 'rgba(255,248,222,0.9)'],
-      [0.5, 'rgba(255,238,196,0.2)'],
-      [1, 'rgba(110,66,22,0.75)'],
+      [0, 'rgba(255,253,238,0.95)'],
+      [0.5, 'rgba(255,244,210,0.25)'],
+      [1, 'rgba(130,84,34,0.7)'],
     ]);
     ctx.stroke(shape);
   } else {
     // thin sand simply darkens a touch where it peters out
-    ctx.lineWidth = 3.2;
-    ctx.strokeStyle = rgba('#7a4c1c', 0.3);
+    ctx.lineWidth = 3.4;
+    ctx.strokeStyle = rgba('#7a4c1c', 0.34);
     ctx.stroke(shape);
   }
   ctx.restore();

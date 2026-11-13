@@ -147,7 +147,11 @@ export type HitResult =
   | 'damaged'
   /** the chain broke, the piece stays */
   | 'unchained'
-  /** a special piece fired (it is removed; its effect is the next 'activate' step) */
+  /**
+   * a special piece fired: it is removed, and its effect is the next 'activate' step. (The two
+   * pieces of a swap combo, and specials fired by the end bonus, are used up by an effect that
+   * is already playing: for them it is the 'activate' step just before this 'clear'.)
+   */
   | 'activated'
   /** only the floor was affected (sand) or nothing happened (e.g. a lamp shrugging off a blast) */
   | 'none';
@@ -208,6 +212,8 @@ export type Step =
   /**
    * One wave of destruction. `cascade` starts at 1 for the wave caused directly by the player's
    * move and grows by one after every 'fall'. `created` specials appear at the end of the wave.
+   * `hits` are in order; when several effects of one wave reach the same cell it is listed once
+   * per effect (e.g. a stone 'damaged' twice), so apply them one after the other.
    */
   | {
       type: 'clear';

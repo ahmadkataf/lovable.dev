@@ -1,4 +1,3 @@
-import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -59,7 +58,7 @@ val uploadKey = findUploadKey()
 
 // ───────────────────────── Android ─────────────────────────
 
-configure<ApplicationExtension> {
+android {
     namespace = "com.zumurud.game"
     compileSdk = 37
 

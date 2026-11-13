@@ -113,6 +113,25 @@ describe('single specials', () => {
     expect(stepsOf(res.steps, 'activate')[0]!.fx[0]!.color).toBe(3);
   });
 
+  it('two prisms going off in the same wave take the two most common colours', () => {
+    const g = board(['d e d e d e', 'fH P e P d e', 'e d e d e d']);
+    const before = g.snapshot();
+    const res = g.useBooster('hammer', P(0, 1));
+    // the beam sweeps row 1 and sets both prisms off; 6 d and 6 e are left → d first (lower colour), then e
+    const acts = stepsOf(res.steps, 'activate');
+    expect(acts[1]!.fx.map((f) => [f.kind, key(f.at), f.color, f.targets.length])).toEqual([
+      ['prism', '1,1', 3, 6],
+      ['prism', '3,1', 4, 6],
+    ]);
+    const wave = stepsOf(res.steps, 'clear')[2]!;
+    expect(wave.hits).toHaveLength(12);
+    expect(wave.popups).toEqual([
+      { at: P(1, 1), value: 120 },
+      { at: P(3, 1), value: 120 },
+    ]);
+    checkTurn(g, before, res, 'booster', undefined, false);
+  });
+
   it('a prism with no gems left to clear still fires (and reaches nothing)', () => {
     const res = board(['P 1 1', '1 1 1']).useBooster('hammer', P(0, 0));
     const fx = stepsOf(res.steps, 'activate')[0]!.fx[0]!;

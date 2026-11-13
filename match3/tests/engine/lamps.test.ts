@@ -167,6 +167,26 @@ describe('lamps', () => {
     expect(firstSpawnAt).toBeGreaterThanOrEqual(4);
   });
 
+  it('a lamp never drops into a column with a gap (it could not fall out of it)', () => {
+    const lamps = { total: 3, maxOnBoard: 3, everyMoves: 0 };
+    const goals = [{ kind: 'lamp' as const, target: 3 }];
+    // only column 1 refills after this move, and column 1 has a hole half-way down
+    const gap = board(['~ f ~ ~', '~ f ~ ~', 'f ~ ~ ~', '~ _ ~ ~', '~ ~ ~ ~'], { ...C3, lamps, goals });
+    const a = gap.swap(P(0, 2), P(1, 2));
+    const first = stepsOf(a.steps, 'fall')[0]!;
+    expect(first.spawns.map((s) => s.from.c)).toEqual([1, 1, 1]);
+    expect(first.spawns.every((s) => s.piece.kind === 'gem')).toBe(true);
+    // the same move on a board without the hole brings the first lamp at once, as the last piece in
+    const open = board(['~ f ~ ~', '~ f ~ ~', 'f ~ ~ ~', '~ ~ ~ ~', '~ ~ ~ ~'], { ...C3, lamps, goals });
+    const b = open.swap(P(0, 2), P(1, 2));
+    const fall = stepsOf(b.steps, 'fall')[0]!;
+    expect(fall.spawns.map((s) => [s.piece.kind, s.from, s.to])).toEqual([
+      ['gem', P(1, -1), P(1, 2)],
+      ['gem', P(1, -2), P(1, 1)],
+      ['lamp', P(1, -3), P(1, 0)],
+    ]);
+  });
+
   it('spawned lamps enter through columns that run without a gap to their exit', () => {
     // columns 0 and 6 have a hole half-way down; lamps must never spawn there
     const pieces = ['.......', '.......', '_....._', '.......', '.......', '.......', '.......'];

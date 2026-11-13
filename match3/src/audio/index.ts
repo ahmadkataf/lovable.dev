@@ -24,7 +24,7 @@ import type { AudioApi, MusicTrack, SfxName, SfxOptions } from './types.ts';
 import { SfxGate } from './limiter.ts';
 import { createMusicPlayer, type MusicPlayer } from './music.ts';
 import { LEVELS, createOutputChain, type OutputChain } from './output.ts';
-import { isPrioritySfx, renderSfx, sfxKey } from './sfx.ts';
+import { isPrioritySfx, renderSfx, sfxClass, sfxKey } from './sfx.ts';
 import { BASE_LOOKAHEAD, lookaheadFor, type TransportStats } from './transport.ts';
 import { LEAD_MIDI, pluckBuffer } from './voices.ts';
 
@@ -64,6 +64,8 @@ const PENDING_WINDOW_MS = 400;
  * launched gives it a tune of its own. Later starts move on to fresh material.
  */
 export const MENU_SIGNATURE_SEED = 13;
+/** While a jingle (win, lose, reward …) plays, the music bus drops to this share of its level. */
+const JINGLE_DUCK = 0.4;
 /** Pause between two plucked-string buffers synthesised in the background (ms). */
 const WARMUP_GAP_MS = 60;
 
@@ -100,6 +102,8 @@ export interface AudioDebugInfo {
   sfxPlayed: number;
   sfxDropped: number;
   music: TransportStats | null;
+  /** Current gain of the music bus (it dips while a jingle plays). */
+  musicLevel: number;
   context: AudioContext | null;
   /** Final node of the output chain (for meters). */
   output: AudioNode | null;
@@ -352,6 +356,15 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
     }
   }
 
+  /** Let a jingle speak: pull the music down for its length, then let it rise again. */
+  function duckMusic(from: number, seconds: number): void {
+    if (!chain) return;
+    const g = chain.musicBus.gain;
+    g.cancelScheduledValues(from);
+    g.setTargetAtTime(LEVELS.music * JINGLE_DUCK, from, 0.05);
+    g.setTargetAtTime(LEVELS.music, from + seconds, 0.25);
+  }
+
   /** Silence every effect that is sounding by swapping in a fresh effects bus. */
   function cutSfx(immediately: boolean): void {
     gate.reset();
@@ -446,6 +459,7 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
         if (dur > 0) {
           gate.register(now + SFX_DELAY + dur);
           sfxPlayed++;
+          if (sfxClass(name) === 'jingle') duckMusic(now, dur);
         }
       } catch {
         /* audio must never break the game */
@@ -497,6 +511,7 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
         sfxPlayed,
         sfxDropped,
         music: stats ? { bars: stats.bars, events: stats.events, dropped: stats.dropped, resyncs: stats.resyncs } : null,
+        musicLevel: chain ? chain.musicBus.gain.value : 0,
         context: ctx,
         output: chain ? chain.output : null,
       };

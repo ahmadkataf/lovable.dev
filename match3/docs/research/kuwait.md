@@ -20,3 +20,14 @@ Consequences for the publishing and earnings guide:
 - The bank account must be in Kuwait and able to receive USD wire transfers; a USD-denominated account is preferred.
   Receiving-bank fees on international wires can be US$0–50 or more, so small monthly balances are best left to accumulate.
 - The Syria findings in billing.md / ads.md / money.md apply to *players* in Syria (who most likely cannot buy), not to this developer account.
+
+## Owner's account status (stated by the owner on 2026-11-13)
+- The owner already has an active Google Play developer account in Kuwait with published apps.
+  So registration, the US$25 fee and identity verification are already done.
+- Still to confirm with the owner (affects the guide, not the build):
+  - Whether the account is a personal account created after 13 November 2023. If so, every new app must first
+    complete a closed test (12 testers opted in for 14 continuous days) before production access; older personal
+    accounts and organisation accounts are exempt. Play Console shows this on the new app's dashboard.
+  - Whether a payments (merchant) profile is already set up. The existing apps are free and sell activation codes
+    outside the store, so it may not be; it is required before in-app products can be created.
+  - Whether an AdMob account exists (needed for the ad unit ids of the `ads` build).

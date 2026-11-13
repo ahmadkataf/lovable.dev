@@ -86,6 +86,8 @@ export function applySteps(before: Snapshot, steps: readonly Step[]): ReplayResu
 
       case 'clear': {
         score += step.score;
+        // Hits apply in order. A cell can appear more than once when several effects of the same
+        // wave reach it (stone damaged twice; piece removed, then the sand under it hit again).
         for (const hit of step.hits) {
           const cell = cellAt(index, step, hit.at);
           const piece = cell.piece;
