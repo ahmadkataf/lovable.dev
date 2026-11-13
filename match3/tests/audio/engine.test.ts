@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CROSSFADE, SFX_MAX_VOICES, SFX_NAMES, SFX_PRIORITY_EXTRA, TICK_MS, createAudio, type AudioEngine } from '../../src/audio/index.ts';
+import { CROSSFADE, SFX_MAX_VOICES, SFX_NAMES, SFX_PRIORITY_EXTRA, TICK_MS, createAudio, type AudioEngine, IDLE_SUSPEND_MS } from '../../src/audio/index.ts';
 import { FakeAudioContext, settle } from './fake-context.ts';
 
 let engines: AudioEngine[] = [];
@@ -289,6 +289,9 @@ describe('audio engine: music', () => {
     audio.setMusicEnabled(false);
     expect(fake.suspendCalls).toBe(0); // effects may still need it
     audio.setSfxEnabled(false);
+    // nothing left to play: the context sleeps, but only once the fades have been heard
+    expect(fake.suspendCalls).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, IDLE_SUSPEND_MS + 60));
     expect(fake.suspendCalls).toBe(1);
     await settle();
     expect(audio.debug().state).toBe('suspended');

@@ -102,6 +102,13 @@ android {
         localeFilters += listOf("en", "ar")
     }
 
+    packaging {
+        resources {
+            // Kotlin's reflection metadata and the coroutines debugger hook: unused at runtime.
+            excludes += setOf("kotlin/**", "DebugProbesKt.bin")
+        }
+    }
+
     bundle {
         // The game has its own language switch, so both languages must be on the device:
         // keep them in the base module instead of letting Play split them out.
@@ -115,10 +122,6 @@ android {
         checkReleaseBuilds = true
         warningsAsErrors = false
         lintConfig = file("lint.xml")
-        textReport = true
-        htmlReport = true
-        xmlReport = false
-        sarifReport = false
     }
 }
 

@@ -696,6 +696,449 @@ async function checkLive(browser, report) {
   await page.close();
 }
 
+// ───────────────────────── adversarial live tests ─────────────────────────
+/*
+ * Every scenario runs in its own page (its own engine and AudioContext), unlocked by a real
+ * click. Two instruments from the lab page look at what really happens:
+ *   rec   — an AudioWorklet that copies every sample leaving the output chain;
+ *   probe — notes every source start: the time it was scheduled for and the audio clock at
+ *           that moment, so a note scheduled in the past (late) or a crowd of notes at one
+ *           instant (a burst) cannot hide.
+ */
+async function checkAdversarial(browser, report) {
+  out('');
+  out('ADVERSARIAL LIVE TESTS (headless Chromium, real AudioContext; output recorded sample by sample)');
+  const results = [];
+  const step = (name, ok, detail) => {
+    results.push({ name, ok, detail });
+    out('  ' + (ok ? 'ok   ' : 'FAIL ') + name + (detail ? ' — ' + detail : ''));
+    if (!ok) fail('adversarial', name + (detail ? ' — ' + detail : ''));
+  };
+  const db = (x) => f(20 * Math.log10(Math.max(x, 1e-9)));
+  const snapOf = (page) => page.evaluate(() => window.__audioLab.snapshot());
+  const untilOf = async (page, pred, ms) => {
+    const end = Date.now() + ms;
+    let s = await snapOf(page);
+    while (!pred(s) && Date.now() < end) {
+      await sleep(30);
+      s = await snapOf(page);
+    }
+    return s;
+  };
+  const open = async (unlock) => {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text());
+    });
+    await page.goto(PAGE_URL);
+    await page.waitForFunction(() => window.__audioLab && window.__audioLab.ready);
+    if (unlock !== false) {
+      await page.click('#unlock');
+      await untilOf(page, (x) => x.state === 'running', 4000);
+    }
+    return { page, errors };
+  };
+  const saveRec = async (page, id, title) => {
+    const files = await page.evaluate((t) => window.__audioLab.rec.files(t), title);
+    if (!files) return;
+    fs.writeFileSync(path.join(OUT, id + '.wav'), Buffer.from(files.wav, 'base64'));
+    fs.writeFileSync(path.join(OUT, id + '.png'), Buffer.from(files.png.split(',')[1], 'base64'));
+  };
+  /** Largest number of entries of `times` inside any window of `width` seconds. */
+  const crowd = (times, width) => {
+    const t = times.slice().sort((a, b) => a - b);
+    let best = 0;
+    let lo = 0;
+    for (let hi = 0; hi < t.length; hi++) {
+      while (t[hi] - t[lo] > width) lo++;
+      best = Math.max(best, hi - lo + 1);
+    }
+    return best;
+  };
+  const maxOf = (xs, a, b) => {
+    let m = 0;
+    for (let i = Math.max(0, a); i < Math.min(xs.length, b); i++) m = Math.max(m, xs[i]);
+    return m;
+  };
+
+  // ── 1. 500 effects in one tick, over music ──
+  {
+    out('  · 500 effects in one tick');
+    const { page, errors } = await open();
+    await page.evaluate(() => window.__audioLab.audio.music('level'));
+    await sleep(1600);
+    const base = await snapOf(page);
+    const r = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      await lab.rec.start();
+      lab.probe.start();
+      const before = lab.snapshot();
+      let err = null;
+      const t0 = performance.now();
+      try {
+        for (let i = 0; i < 500; i++) lab.audio.sfx(lab.names[i % lab.names.length], { step: 1 + (i % 13), volume: 0.5 + (i % 5) * 0.125 });
+      } catch (e) {
+        err = String(e);
+      }
+      const ms = performance.now() - t0;
+      const after = lab.snapshot();
+      await new Promise((resolve) => setTimeout(resolve, 2800));
+      const rec = await lab.rec.stop();
+      const probe = lab.probe.stop();
+      return { err, ms, before, after, rec: { peak: rec.peak, holes: rec.holes, seconds: rec.seconds, rmsDb: rec.rmsDb }, probe: { starts: probe.starts, late: probe.late, worstLead: probe.worstLead } };
+    });
+    await saveRec(page, 'live-flood', 'live: 500 effects in one tick over level music');
+    const played = r.after.sfxPlayed - r.before.sfxPlayed;
+    const dropped = r.after.sfxDropped - r.before.sfxDropped;
+    step('500 effects in one tick do not throw', r.err === null, r.err || 'took ' + f(r.ms) + ' ms');
+    step('the flood is capped', played <= r.after.maxVoices && played + dropped === 500, played + ' started (cap ' + r.after.maxVoices + '), ' + dropped + ' dropped, ' + (r.after.liveNodes - r.before.liveNodes) + ' audio nodes added');
+    step('the flood does not clip the real output', r.rec.peak < LIMITS.clipPeak && r.rec.holes === 0, 'recorded peak ' + f(r.rec.peak, 3) + ' over ' + f(r.rec.seconds, 2) + ' s');
+    step('no source of the flood was scheduled in the past', r.probe.late === 0, r.probe.starts + ' sources started, smallest lead ' + f(r.probe.worstLead * 1000, 1) + ' ms');
+    const s = await untilOf(page, (x) => x.voices === 0 && x.liveVoices <= base.liveVoices + 4, 4000);
+    step('every effect voice is released afterwards', s.voices === 0 && s.liveVoices <= base.liveVoices + 4, s.liveVoices + ' voices / ' + s.liveNodes + ' nodes alive (music alone before: ' + base.liveVoices + ' / ' + base.liveNodes + ')');
+    // Junk in, nothing out.
+    const junk = await page.evaluate(() => {
+      const a = window.__audioLab.audio;
+      const before = window.__audioLab.snapshot().sfxPlayed;
+      try {
+        for (const name of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', '', 'nope', null, undefined, 42, {}, []]) a.sfx(name, { step: 3 });
+        a.sfx('match', null);
+        a.sfx('match', { step: Infinity, volume: -1 });
+        a.sfx('match', { step: -Infinity, volume: NaN });
+        a.sfx('star', { step: 1e9 });
+        a.sfx('praise', { step: '3', volume: '1' });
+        a.music(42);
+        a.music({});
+        a.music('level');
+        a.setSfxEnabled('yes');
+        a.setMusicEnabled(1);
+        return { err: null, played: window.__audioLab.snapshot().sfxPlayed - before };
+      } catch (e) {
+        return { err: String(e), played: 0 };
+      }
+    });
+    step('junk names and options are ignored without throwing', junk.err === null && junk.played <= 5, junk.err || junk.played + ' real effects started out of 16 junk calls');
+    step('no page errors (flood)', errors.length === 0, errors.slice(0, 2).join(' | '));
+    await page.close();
+  }
+
+  // ── 2. rapid music switching ──
+  {
+    out('  · rapid music switching');
+    const { page, errors } = await open();
+    await page.evaluate(() => window.__audioLab.audio.music('menu'));
+    await sleep(1500);
+    const base = await snapOf(page);
+    const r = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      await lab.rec.start();
+      const tracks = ['menu', 'level', null];
+      let seed = 12345;
+      let maxFading = 0;
+      let maxNodes = 0;
+      let changes = 0;
+      let last = 'menu';
+      const startsBefore = lab.snapshot().musicStarts;
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      for (let i = 0; i < 80; i++) {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        const t = tracks[seed % 3];
+        if (t !== last) changes++;
+        last = t;
+        lab.audio.music(t);
+        const s = lab.snapshot();
+        maxFading = Math.max(maxFading, s.fading);
+        maxNodes = Math.max(maxNodes, s.liveNodes);
+        await wait(25);
+      }
+      // thirty changes inside one tick
+      for (let i = 0; i < 30; i++) lab.audio.music(i % 2 ? 'menu' : 'level');
+      const burst = lab.snapshot();
+      lab.audio.music('level');
+      const afterSwitch = lab.snapshot();
+      // … and forty redundant calls
+      for (let i = 0; i < 40; i++) lab.audio.music('level');
+      const afterRedundant = lab.snapshot();
+      await wait(1700);
+      const rec = await lab.rec.stop();
+      return {
+        maxFading, maxNodes, changes, burstFading: burst.fading, burstNodes: burst.liveNodes,
+        starts: afterSwitch.musicStarts - startsBefore, redundantStarts: afterRedundant.musicStarts - afterSwitch.musicStarts,
+        barsA: afterSwitch.music ? afterSwitch.music.bars : -1, barsB: afterRedundant.music ? afterRedundant.music.bars : -1,
+        end: lab.snapshot(),
+        rec: { peak: rec.peak, holes: rec.holes, maxStep: rec.maxStep, seconds: rec.seconds, tailRms: Math.max.apply(null, rec.rms20.slice(-40)) },
+      };
+    });
+    await saveRec(page, 'live-switching', 'live: 80 track changes in 2 s, 30 in one tick, then level');
+    step('110 track changes end on the track asked for last', r.end.playing === 'level' && r.end.track === 'level' && r.end.schedulerRunning, 'playing ' + r.end.playing + ' after ' + r.starts + ' player starts');
+    step('redundant music() calls start nothing', r.redundantStarts === 0 && r.barsB >= r.barsA, r.redundantStarts + ' extra players after 40 identical calls');
+    step('fading players do not pile up', r.maxFading <= 6 && r.burstFading <= 2 && r.end.fading === 0, 'at most ' + r.maxFading + ' fading at once (after 30 changes in one tick: ' + r.burstFading + '), ' + r.end.fading + ' left at the end');
+    step('audio nodes stay bounded while switching', r.maxNodes <= base.liveNodes * 4 + 60 && r.end.liveNodes <= base.liveNodes * 2 + 40, 'at most ' + r.maxNodes + ' nodes, ' + r.end.liveNodes + ' at the end (one track alone: ' + base.liveNodes + ')');
+    step('switching neither clips nor clicks', r.rec.peak < LIMITS.musicPeak + 0.1 && r.rec.maxStep < 0.2 && r.rec.holes === 0, 'recorded peak ' + f(r.rec.peak, 3) + ', largest sample-to-sample jump ' + f(r.rec.maxStep, 3));
+    step('the last track is audible', r.rec.tailRms > 0.002, 'rms ' + db(r.rec.tailRms) + ' dBFS in the last 0.8 s');
+    step('no page errors (switching)', errors.length === 0, errors.slice(0, 2).join(' | '));
+    await page.close();
+  }
+
+  // ── 3. suspend in the middle of a cross-fade, then resume ──
+  {
+    out('  · suspend during a cross-fade, then resume');
+    const { page, errors } = await open();
+    await page.evaluate(() => window.__audioLab.audio.music('menu'));
+    await sleep(1500);
+    await page.evaluate(() => window.__audioLab.audio.music('level'));
+    await sleep(250);
+    const r = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const mid = lab.snapshot();
+      lab.audio.suspend();
+      const at = lab.snapshot();
+      lab.audio.sfx('win');
+      lab.audio.music('level');
+      return { mid, at, started: lab.snapshot().sfxPlayed - at.sfxPlayed };
+    });
+    step('the cross-fade was really in progress', r.mid.fading === 1 && r.mid.playing === 'level', r.mid.fading + ' player fading, playing ' + r.mid.playing);
+    step('suspend() drops both players and every voice at once', r.at.playing === null && r.at.fading === 0 && r.at.liveVoices === 0 && !r.at.schedulerRunning && r.started === 0, 'playing ' + r.at.playing + ', fading ' + r.at.fading + ', ' + r.at.liveVoices + ' voices, ' + r.at.liveNodes + ' nodes');
+    let s = await untilOf(page, (x) => x.state === 'suspended', 2500);
+    step('the context is suspended', s.state === 'suspended', 'state ' + s.state);
+    await sleep(700);
+    const startsBefore = (await snapOf(page)).musicStarts;
+    await page.evaluate(() => {
+      window.__audioLab.probe.start();
+      window.__audioLab.audio.resume();
+    });
+    s = await untilOf(page, (x) => x.state === 'running' && x.playing === 'level', 3000);
+    step('resume() brings back the track asked for last', s.state === 'running' && s.playing === 'level' && s.fading === 0, 'state ' + s.state + ', playing ' + s.playing + ', fading ' + s.fading);
+    const rec = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      await lab.rec.start();
+      await new Promise((resolve) => setTimeout(resolve, 1600));
+      const rec = await lab.rec.stop();
+      const probe = lab.probe.stop();
+      return { peak: rec.peak, rmsDb: rec.rmsDb, holes: rec.holes, late: probe.late, starts: probe.starts, worstLead: probe.worstLead, snap: lab.snapshot() };
+    });
+    step('exactly one player was started by resume()', rec.snap.musicStarts - startsBefore === 1, rec.snap.musicStarts - startsBefore + ' started');
+    step('music is audible again, without a burst', rec.rmsDb > -50 && rec.peak < LIMITS.musicPeak + 0.1, 'rms ' + f(rec.rmsDb) + ' dBFS, peak ' + f(rec.peak, 3));
+    step('nothing was scheduled in the past after resume', rec.late === 0 && rec.snap.music && rec.snap.music.dropped === 0 && rec.snap.music.resyncs === 0, rec.starts + ' sources, smallest lead ' + f(rec.worstLead * 1000, 1) + ' ms, ' + (rec.snap.music ? rec.snap.music.dropped : '—') + ' notes dropped');
+    // suspend() and resume() fired back to back (a shell that reports pause/resume twice)
+    const dbl = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const before = lab.snapshot().musicStarts;
+      lab.audio.suspend();
+      lab.audio.resume();
+      lab.audio.resume();
+      lab.audio.suspend();
+      lab.audio.suspend();
+      lab.audio.resume();
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      const s = lab.snapshot();
+      return { starts: s.musicStarts - before, s };
+    });
+    step('suspend()/resume() fired back to back settle on one running player', dbl.s.state === 'running' && dbl.s.playing === 'level' && dbl.starts === 1 && dbl.s.fading === 0, 'state ' + dbl.s.state + ', playing ' + dbl.s.playing + ', ' + dbl.starts + ' player started');
+    step('no page errors (suspend/resume)', errors.length === 0, errors.slice(0, 2).join(' | '));
+    await page.close();
+  }
+
+  // ── 4. the music toggle remembers the track ──
+  {
+    out('  · music toggle and track order');
+    const { page, errors } = await open();
+    await page.evaluate(() => window.__audioLab.audio.music('menu'));
+    await sleep(800);
+    const r = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      lab.audio.setMusicEnabled(false);
+      const off = lab.snapshot();
+      lab.audio.music('level');
+      const asked = lab.snapshot();
+      lab.audio.setMusicEnabled(true);
+      const on = lab.snapshot();
+      await lab.rec.start();
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const rec = await lab.rec.stop();
+      return { off, asked, on, rmsDb: rec.rmsDb, later: lab.snapshot() };
+    });
+    step("setMusicEnabled(false) → music('level') → setMusicEnabled(true) plays 'level'", r.off.playing === null && r.asked.playing === null && r.asked.track === 'level' && r.on.playing === 'level' && r.later.playing === 'level', 'off: ' + r.off.playing + ' · asked while off: ' + r.asked.playing + ' (remembered ' + r.asked.track + ') · on: ' + r.on.playing);
+    step('… and it is audible', r.rmsDb > -50, 'rms ' + f(r.rmsDb) + ' dBFS');
+    step('no page errors (toggle)', errors.length === 0, errors.slice(0, 2).join(' | '));
+    await page.close();
+    // the same order before the context exists
+    const b = await open(false);
+    await b.page.evaluate(() => {
+      const a = window.__audioLab.audio;
+      a.setMusicEnabled(false);
+      a.music('level');
+      a.setMusicEnabled(true);
+    });
+    await b.page.click('#unlock');
+    const s = await untilOf(b.page, (x) => x.state === 'running' && x.playing === 'level', 4000);
+    step('the same sequence before unlocking also ends on level', s.playing === 'level', 'playing ' + s.playing);
+    await b.page.close();
+  }
+
+  // ── 5. a three-second stall of the main thread ──
+  {
+    out('  · three-second main-thread stall');
+    const { page, errors } = await open();
+    await page.evaluate(() => window.__audioLab.audio.music('level'));
+    await sleep(2500);
+    const r = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      await lab.rec.start();
+      lab.probe.start();
+      await wait(2000);
+      const before = lab.snapshot();
+      const st = lab.stall(3000);
+      const rightAfter = lab.snapshot();
+      await wait(2600);
+      const rec = await lab.rec.stop();
+      const probe = lab.probe.stop();
+      return { before, st, rightAfter, end: lab.snapshot(), rec, probe };
+    });
+    await saveRec(page, 'live-stall', 'live: level music, main thread blocked for 3 s (from ' + f(r.st.before - r.rec.t0, 2) + ' s to ' + f(r.st.after - r.rec.t0, 2) + ' s)');
+    const t0 = r.st.before - r.rec.t0;
+    const t1 = r.st.after - r.rec.t0;
+    const w = 0.02;
+    const pre = maxOf(r.rec.rms20, 0, Math.floor(t0 / w));
+    const post = maxOf(r.rec.rms20, Math.ceil(t1 / w), r.rec.rms20.length);
+    const mid = maxOf(r.rec.rms20, Math.ceil((t0 + 1.2) / w), Math.floor((t1 - 0.2) / w));
+    const tail = maxOf(r.rec.rms20, r.rec.rms20.length - 50, r.rec.rms20.length);
+    // sources started before / after the stall: how many share one instant
+    const whenPre = [];
+    const whenPost = [];
+    let lateAfter = 0;
+    for (let i = 0; i < r.probe.when.length; i++) {
+      if (r.probe.at[i] < r.st.before) whenPre.push(r.probe.when[i]);
+      else {
+        whenPost.push(r.probe.when[i]);
+        if (r.probe.when[i] < r.st.after - 0.005) lateAfter++;
+      }
+    }
+    const crowdPre = crowd(whenPre, 0.03);
+    const crowdPost = crowd(whenPost, 0.03);
+    const m0 = r.before.music;
+    const m1 = r.end.music;
+    report.stall = { stalled: r.st.after - r.st.before, pre, post, mid, crowdPre, crowdPost, late: r.probe.late, lateAfter, dropped: m1.dropped - m0.dropped, resyncs: m1.resyncs - m0.resyncs, events: m1.events - m0.events, holes: r.rec.holes };
+    step('the audio clock ran on through the stall', r.st.after - r.st.before > 2.7 && r.rec.holes === 0, 'clock advanced ' + f(r.st.after - r.st.before, 2) + ' s while the main thread was blocked for 3 s');
+    step('the scheduler noticed and skipped what was late', m1.dropped - m0.dropped + (m1.resyncs - m0.resyncs) > 0 && m1.events > m0.events, (m1.dropped - m0.dropped) + ' notes dropped, ' + (m1.resyncs - m0.resyncs) + ' bar-grid restart, then ' + (m1.events - m0.events) + ' events scheduled');
+    step('no note was scheduled in the past', r.probe.late === 0 && lateAfter === 0, r.probe.starts + ' sources started, smallest lead ' + f(r.probe.worstLead * 1000, 1) + ' ms, ' + lateAfter + ' aimed before the end of the stall');
+    step('no burst of late notes after the stall', crowdPost <= crowdPre + 4 && post <= pre * 1.6 + 0.005, 'most sources at one instant: ' + crowdPost + ' after vs ' + crowdPre + ' before · loudest 20 ms: ' + db(post) + ' dBFS after vs ' + db(pre) + ' before');
+    step('music carries on after the stall', tail > 0.002 && r.end.playing === 'level', 'rms ' + db(tail) + ' dBFS in the last second (during the stall it fell to ' + db(mid) + ')');
+    step('no page errors (stall)', errors.length === 0, errors.slice(0, 2).join(' | '));
+    await page.close();
+  }
+
+  // ── 6. hidden page, and a context suspended behind the engine's back ──
+  {
+    out('  · hidden page / context suspended by the system');
+    const { page, errors } = await open();
+    await page.evaluate(() => window.__audioLab.audio.music('menu'));
+    await sleep(1200);
+    const hid = await page.evaluate(() => {
+      const lab = window.__audioLab;
+      lab.audio.sfx('reward');
+      lab.setHidden(true);
+      const at = lab.snapshot();
+      lab.audio.sfx('win');
+      lab.audio.unlock();
+      return { at, started: lab.snapshot().sfxPlayed - at.sfxPlayed };
+    });
+    let s = await untilOf(page, (x) => x.state === 'suspended', 2500);
+    step('a hidden page pauses everything by itself', hid.at.hidden && hid.at.playing === null && hid.at.liveVoices === 0 && hid.started === 0 && s.state === 'suspended', 'hidden ' + hid.at.hidden + ', playing ' + hid.at.playing + ', ' + hid.at.liveVoices + ' voices, state ' + s.state);
+    await page.evaluate(() => window.__audioLab.setHidden(false));
+    s = await untilOf(page, (x) => x.state === 'running' && x.playing === 'menu', 3000);
+    step('showing the page again brings the music back', s.state === 'running' && s.playing === 'menu' && !s.hidden, 'state ' + s.state + ', playing ' + s.playing);
+    await sleep(600);
+    const before = await snapOf(page);
+    await page.evaluate(() => window.__audioLab.audio.debug().context.suspend());
+    await sleep(150);
+    s = await untilOf(page, (x) => x.state === 'running' && x.playing === 'menu' && x.musicStarts > before.musicStarts, 3000);
+    step('a context suspended behind its back is resumed by the engine', s.state === 'running' && s.playing === 'menu', 'state ' + s.state + ', playing ' + s.playing + ', ' + (s.musicStarts - before.musicStarts) + ' player started');
+    step('no page errors (hidden)', errors.length === 0, errors.slice(0, 2).join(' | '));
+    await page.close();
+  }
+
+  // ── 7. fades are heard to the end ──
+  {
+    out('  · fades and cuts');
+    const { page, errors } = await open();
+    await page.evaluate(() => window.__audioLab.audio.music('level'));
+    await sleep(1800);
+    // (a) music(null): a fade, not a cut; then the player's voices are gone
+    const a = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      await lab.rec.start();
+      await wait(300);
+      lab.audio.music(null);
+      await wait(1300);
+      const rec = await lab.rec.stop();
+      return { hardCut: rec.hardCut, maxStep: rec.maxStep, rms20: rec.rms20, snap: lab.snapshot() };
+    });
+    const fadeStart = 15; // 0.3 s in 20 ms windows
+    const early = maxOf(a.rms20, fadeStart + 2, fadeStart + 10);
+    const lateFade = maxOf(a.rms20, fadeStart + 20, fadeStart + 28);
+    const after = maxOf(a.rms20, fadeStart + 36, a.rms20.length);
+    step('music(null) fades out instead of cutting', a.hardCut < 0.004 && early > lateFade && after < 0.0005, 'level 0.1 s into the fade ' + db(early) + ', at 0.5 s ' + db(lateFade) + ', after it ' + db(after) + ' dBFS; level right before silence ' + f(a.hardCut, 4));
+    step('the stopped player leaves nothing running', a.snap.liveVoices === 0 && a.snap.fading === 0 && !a.snap.schedulerRunning, a.snap.liveVoices + ' voices, ' + a.snap.liveNodes + ' nodes');
+    // (b) switching effects off in the middle of a jingle: a short ramp, then nothing
+    const b = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      await lab.rec.start();
+      lab.audio.sfx('win');
+      lab.audio.sfx('bigCombo');
+      await wait(260);
+      const during = lab.snapshot();
+      lab.audio.setSfxEnabled(false);
+      await wait(400);
+      const rec = await lab.rec.stop();
+      const snap = lab.snapshot();
+      lab.audio.setSfxEnabled(true);
+      return { hardCut: rec.hardCut, rms20: rec.rms20, during, snap };
+    });
+    const cutAt = 13;
+    step('setSfxEnabled(false) ramps a sounding jingle down and stops its voices', b.hardCut < 0.02 && maxOf(b.rms20, cutAt + 5, b.rms20.length) < 0.0005 && b.snap.liveVoices === 0 && b.during.liveVoices >= 2, 'level right before silence ' + f(b.hardCut, 4) + ', ' + b.during.liveVoices + ' → ' + b.snap.liveVoices + ' voices');
+    // (c) effects and music both off: the context sleeps only after the fade
+    await page.evaluate(() => window.__audioLab.audio.music('menu'));
+    await sleep(1500);
+    const c = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      lab.audio.setSfxEnabled(false);
+      await lab.rec.start();
+      await wait(200);
+      const t0 = performance.now();
+      lab.audio.setMusicEnabled(false);
+      let slept = -1;
+      for (let i = 0; i < 100; i++) {
+        await wait(25);
+        if (lab.snapshot().state === 'suspended') {
+          slept = performance.now() - t0;
+          break;
+        }
+      }
+      const rec = await lab.rec.stop();
+      return { slept, tailEdge: rec.tailEdge, hardCut: rec.hardCut, seconds: rec.seconds, rms20: rec.rms20 };
+    });
+    step('with both toggles off the context sleeps only after the fade-out', c.slept > 600 && c.slept < 2500 && c.tailEdge < 0.002, 'slept after ' + f(c.slept, 0) + ' ms; last samples before sleeping ' + f(c.tailEdge, 5) + ' (music was at ' + db(maxOf(c.rms20, 0, 10)) + ' dBFS)');
+    const woke = await page.evaluate(async () => {
+      const lab = window.__audioLab;
+      lab.audio.setMusicEnabled(true);
+      lab.audio.setSfxEnabled(true);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      return lab.snapshot();
+    });
+    step('… and wakes with the toggles', woke.state === 'running' && woke.playing === 'menu', 'state ' + woke.state + ', playing ' + woke.playing);
+    step('no page errors (fades)', errors.length === 0, errors.slice(0, 2).join(' | '));
+    await page.close();
+  }
+  report.adversarial = results;
+}
+
 // ───────────────────────── main ─────────────────────────
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -711,11 +1154,15 @@ async function checkLive(browser, report) {
     await checkEffects(page, report);
     if (!ONLY) {
       await checkMusic(page, report);
+      if (!NO_LONG) await checkLongMusic(page, report);
       await checkOutput(page, report);
     }
     if (errors.length) fail('page', errors.join(' | '));
     await page.close();
-    if (!ONLY && !NO_LIVE) await checkLive(browser, report);
+    if (!ONLY && !NO_LIVE) {
+      await checkLive(browser, report);
+      await checkAdversarial(browser, report);
+    }
   } finally {
     await browser.close();
     if (server) server.kill();

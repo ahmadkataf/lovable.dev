@@ -39,10 +39,11 @@ describe('SfxGate: rate limit', () => {
   });
 
   it('builds keys from name and rounded step', () => {
-    expect(sfxKey('match')).toBe('match#0');
-    expect(sfxKey('match', {})).toBe('match#0');
+    // a stepped sound without a step falls back to its lowest valid step
+    expect(sfxKey('match')).toBe('match#1');
+    expect(sfxKey('match', {})).toBe('match#1');
     expect(sfxKey('match', { step: 3 })).toBe('match#3');
-    expect(sfxKey('star', { step: NaN })).toBe('star#0');
+    expect(sfxKey('star', { step: NaN })).toBe('star#1');
   });
 });
 

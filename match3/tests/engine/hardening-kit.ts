@@ -490,7 +490,7 @@ export class Referee {
   readonly level: LevelDef;
   readonly stats: Record<string, number>;
   private readonly colors: number;
-  private readonly looseColors: boolean;
+  readonly looseColors: boolean;
   private readonly scoreOnly: boolean;
   private readonly ids = new Set<number>();
   private readonly totals = { sand: 0, stone: 0, vine: 0, chain: 0 };
