@@ -7,7 +7,7 @@ import type { IconKey } from './types.ts';
 import type { Ctx } from './util.ts';
 import { PAL, TAU, khatamPts, poly, roundPoly, rrect, starPts, vGrad } from './util.ts';
 import { drawPrism } from './gems.ts';
-import { drawChain, drawSand, drawStone, drawVine } from './blockers.ts';
+import { drawStone } from './blockers.ts';
 
 const INK = PAL.night;
 /** ink outline thickness, in grid units */
@@ -512,14 +512,11 @@ const ICONS: Record<IconKey, IconFn> = {
     g.stroke(s, 0.6, '#fffaf0', false);
   },
   goalSand(g) {
-    g.fill(RR(2.4, 2.4, 19.2, 19.2, 3.4), '#e2bb77');
-    g.custom((ctx) => {
-      ctx.save();
-      ctx.translate(2.4, 2.4);
-      ctx.scale(0.192, 0.192);
-      drawSand(ctx, 2);
-      ctx.restore();
-    });
+    // a little dune: sunlit windward side, shaded slip face, a few loose grains
+    g.fill(D('M1.8 20.4 C5.2 19.8 7.4 8.4 12.6 6.2 C17 4.6 19.8 14.4 22.2 20.4 Z'), 'sand');
+    g.fill(D('M12.6 6.2 C17 4.6 19.8 14.4 22.2 20.4 H13.2 C15.6 16 15 9.6 12.6 6.2 Z'), 'rgba(160,100,36,0.38)', false);
+    g.stroke(D('M5.2 17.4 C7 16.4 8.8 16.6 10.8 17.4 M7.2 13.4 C8.6 12.6 9.8 12.8 11.2 13.4'), 0.9, 'rgba(150,92,30,0.62)', false);
+    g.stroke(D('M5 18 C7 12.4 9 8.8 12.2 7.2'), 0.9, 'rgba(255,255,255,0.7)', false);
   },
   goalStone(g) {
     g.custom((ctx) => {
@@ -531,22 +528,26 @@ const ICONS: Record<IconKey, IconFn> = {
     });
   },
   goalVine(g) {
-    g.custom((ctx) => {
-      ctx.save();
-      ctx.translate(0.6, 0.4);
-      ctx.scale(0.228, 0.228);
-      drawVine(ctx, g.px * 0.95);
-      ctx.restore();
-    });
+    // a curl of thorny stem with one bright leaf (the board piece is too dark to read this small)
+    g.fill(PP([4.2, 11.8, 1.2, 10.4, 4.4, 9], 0.3), 'cream');
+    g.fill(PP([17.6, 5.4, 20.4, 3.4, 20, 7], 0.3), 'cream');
+    g.fill(PP([18.6, 15.6, 21.8, 16.6, 19.4, 18.4], 0.3), 'cream');
+    g.fill(PP([7.4, 19, 5.4, 21.8, 9.2, 20.6], 0.3), 'cream');
+    g.layer();
+    g.stroke(D('M4.6 19.8 C2.2 12 7.4 4.8 13.6 5.6 C19 6.4 20.4 13.2 16.2 15.8 C12.6 18 9.2 14.6 11.4 11.8'), 3.1, 'green');
+    g.stroke(D('M4.4 15.2 C4.2 10.4 8 6.4 12.6 6.2'), 0.9, 'rgba(236,255,190,0.7)', false);
+    g.layer();
+    const leaf = D('M11 12.2 C10.2 8.8 13.2 6.8 16.4 8.4 C16.2 11.6 13.6 13.4 11 12.2 Z');
+    g.fill(leaf, '#b6f27c');
+    g.stroke(D('M11.6 11.8 L15.4 9'), 0.8, '#3f9a3a', false);
   },
   goalChain(g) {
-    g.custom((ctx) => {
-      ctx.save();
-      ctx.translate(-1.2, -1.2);
-      ctx.scale(0.264, 0.264);
-      drawChain(ctx, g.px * 1.1);
-      ctx.restore();
-    });
+    // two bold iron links
+    g.stroke(RRot(8.4, 15.6, 12.4, 7.4, 3.7, -Math.PI / 4), 2.7, 'iron');
+    g.stroke(D('M4.6 16.2 L8 12.8'), 0.9, 'rgba(255,255,255,0.8)', false);
+    g.layer();
+    g.stroke(RRot(15.6, 8.4, 12.4, 7.4, 3.7, -Math.PI / 4), 2.7, 'iron');
+    g.stroke(D('M11.8 9 L15.2 5.6'), 0.9, 'rgba(255,255,255,0.8)', false);
   },
 
   adVideo(g) {

@@ -9,6 +9,35 @@
 import { mulberry32 } from './rng.ts';
 import { midiToFreq } from './scale.ts';
 
+/** Live voices of a sound source (all effects, or one music player) that can be cut together. */
+export type VoiceGroup = Set<Voice>;
+
+export interface VoiceCensus {
+  /** Voices that have not released their nodes yet. */
+  voices: number;
+  /** Audio nodes those voices hold. */
+  nodes: number;
+  /** Voices ever created on the context. */
+  created: number;
+}
+
+const censuses = new WeakMap<BaseAudioContext, VoiceCensus>();
+
+function censusOf(ctx: BaseAudioContext): VoiceCensus {
+  let c = censuses.get(ctx);
+  if (!c) {
+    c = { voices: 0, nodes: 0, created: 0 };
+    censuses.set(ctx, c);
+  }
+  return c;
+}
+
+/** How many voices and nodes are alive on a context right now (leak checks, debug read-outs). */
+export function voiceCensus(ctx: BaseAudioContext): VoiceCensus {
+  const c = censusOf(ctx);
+  return { voices: c.voices, nodes: c.nodes, created: c.created };
+}
+
 export class Voice {
   readonly ctx: BaseAudioContext;
   /** Everything in the voice is mixed here; its gain is the voice's overall level. */
@@ -17,18 +46,29 @@ export class Voice {
   readonly t0: number;
   private end: number;
   private nodes: AudioNode[] = [];
+  private sources: AudioScheduledSourceNode[] = [];
   private running = 0;
   private released = false;
   private noiseCount = 0;
+  private census: VoiceCensus;
+  private group: VoiceGroup | null;
+  /** Position of the voice among all voices of its context: keeps simultaneous noises apart. */
+  private serial: number;
 
-  constructor(ctx: BaseAudioContext, dest: AudioNode, t0: number, gain: number) {
+  constructor(ctx: BaseAudioContext, dest: AudioNode, t0: number, gain: number, group?: VoiceGroup) {
     this.ctx = ctx;
     this.t0 = t0;
     this.end = t0;
+    this.census = censusOf(ctx);
+    this.serial = this.census.created;
+    this.census.created++;
+    this.census.voices++;
+    this.group = group || null;
+    if (this.group) this.group.add(this);
     this.out = ctx.createGain();
     this.out.gain.value = gain;
     this.out.connect(dest);
-    this.nodes.push(this.out);
+    this.track(this.out);
   }
 
   /** Seconds from the voice's start until its last source stops. */
@@ -38,23 +78,31 @@ export class Voice {
 
   /**
    * Where the next noise burst of this voice starts reading the shared noise buffer (s).
-   * It depends only on the voice's start time and the burst's position in the recipe, so an
-   * offline render is reproducible while live repeats of a sound still differ slightly.
+   * It depends only on the voice's start time, its number on the context and the burst's
+   * position in the recipe: an offline render is reproducible, live repeats of a sound differ
+   * slightly, and two voices that start at the same instant never read the same noise (which
+   * would add up coherently instead of as noise).
    */
   noiseOffset(): number {
-    const x = this.t0 * 7.31 + this.noiseCount++ * 0.173;
+    const x = this.t0 * 7.31 + this.noiseCount++ * 0.173 + (this.serial % 89) * 0.0619;
     return (x - Math.floor(x / 1.2) * 1.2 + 1.2) % 1.2;
+  }
+
+  private track(node: AudioNode): void {
+    this.nodes.push(node);
+    this.census.nodes++;
   }
 
   /** Register a node so it is disconnected with the voice. */
   keep<T extends AudioNode>(node: T): T {
-    this.nodes.push(node);
+    this.track(node);
     return node;
   }
 
   /** Start and stop a source, and tie the voice's lifetime to it. */
   run(src: AudioScheduledSourceNode, start: number, stop: number, offset?: number): void {
-    this.nodes.push(src);
+    this.track(src);
+    this.sources.push(src);
     this.running++;
     src.onended = () => {
       src.onended = null;
@@ -79,8 +127,41 @@ export class Voice {
         /* already disconnected */
       }
     }
+    this.census.voices--;
+    this.census.nodes -= nodes.length;
     nodes.length = 0;
+    this.sources.length = 0;
+    if (this.group) this.group.delete(this);
   }
+
+  /**
+   * Cut the voice now: stop its sources (also those that have not started yet) and release
+   * everything. Used when sound is cut — effects switched off, the app going to the
+   * background, a music player thrown away — so nothing keeps running unheard.
+   */
+  kill(): void {
+    if (this.released) return;
+    const sources = this.sources;
+    for (let i = 0; i < sources.length; i++) {
+      const src = sources[i];
+      src.onended = null;
+      try {
+        src.stop();
+      } catch {
+        /* never started, or already stopped */
+      }
+    }
+    this.release();
+  }
+}
+
+/** Kill every voice of a group. */
+export function killVoices(group: VoiceGroup): void {
+  if (group.size === 0) return;
+  const all: Voice[] = [];
+  group.forEach((v) => all.push(v));
+  for (let i = 0; i < all.length; i++) all[i].kill();
+  group.clear();
 }
 
 // ───────────────────────────── envelopes ─────────────────────────────
@@ -198,18 +279,22 @@ export function fm(v: Voice, o: FmOpts): void {
 
 // ───────────────────────────── noise ─────────────────────────────
 
-const noiseBuffers = new WeakMap<BaseAudioContext, AudioBuffer>();
+const noiseBuffers: { [rate: string]: AudioBuffer } = {};
 
-/** One shared buffer of white noise per context (generated, not sampled). */
+/**
+ * One shared buffer of white noise per sample rate (generated, not sampled). An AudioBuffer
+ * does not belong to the context that made it, so every context of that rate reuses it.
+ */
 export function noiseBuffer(ctx: BaseAudioContext): AudioBuffer {
-  let buf = noiseBuffers.get(ctx);
+  const key = String(ctx.sampleRate);
+  let buf = noiseBuffers[key];
   if (!buf) {
     const len = Math.floor(ctx.sampleRate * 1.5);
     buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = buf.getChannelData(0);
     const rnd = mulberry32(0x5eed1e55);
     for (let i = 0; i < len; i++) data[i] = rnd() * 2 - 1;
-    noiseBuffers.set(ctx, buf);
+    noiseBuffers[key] = buf;
   }
   return buf;
 }
@@ -363,33 +448,24 @@ export function pluckSeconds(freq: number): number {
   return Math.min(1.7, Math.max(0.8, 1.85 - freq / 800));
 }
 
-const pluckData: { [key: string]: Float32Array } = {};
-const pluckBuffers = new WeakMap<BaseAudioContext, { [key: number]: AudioBuffer }>();
+const pluckBuffers: { [key: string]: AudioBuffer } = {};
 
 /**
  * Cached pluck for a MIDI note, synthesised on first use. `alt` selects a second take of the
  * same note (another pluck of the string), so quick repeats do not sound stamped out.
+ * The cache is per sample rate, not per context: the samples are kept once, in the
+ * AudioBuffer itself, and every context of that rate plays from it.
  */
 export function pluckBuffer(ctx: BaseAudioContext, midi: number, alt: boolean = false): AudioBuffer {
   const m = Math.round(midi);
-  const slot = m * 2 + (alt ? 1 : 0);
-  let table = pluckBuffers.get(ctx);
-  if (!table) {
-    table = {};
-    pluckBuffers.set(ctx, table);
-  }
-  let buf = table[slot];
+  const key = ctx.sampleRate + ':' + (m * 2 + (alt ? 1 : 0));
+  let buf = pluckBuffers[key];
   if (!buf) {
-    const key = ctx.sampleRate + ':' + slot;
-    let data = pluckData[key];
-    if (!data) {
-      const f = midiToFreq(m);
-      data = synthPluck(ctx.sampleRate, f, pluckSeconds(f), 1000 + m + (alt ? 5000 : 0));
-      pluckData[key] = data;
-    }
+    const f = midiToFreq(m);
+    const data = synthPluck(ctx.sampleRate, f, pluckSeconds(f), 1000 + m + (alt ? 5000 : 0));
     buf = ctx.createBuffer(1, data.length, ctx.sampleRate);
     buf.getChannelData(0).set(data);
-    table[slot] = buf;
+    pluckBuffers[key] = buf;
   }
   return buf;
 }

@@ -26,8 +26,8 @@ export const GEM_TONES: readonly GemTone[] = [
   { deep: '#6a0624', dark: '#c00a36', base: '#ff2f4c', light: '#ff6e7b', pale: '#ffd6d2' },
   { deep: '#7c3400', dark: '#ea7200', base: '#ffa21a', light: '#ffcd40', pale: '#fff4c4' },
   { deep: '#05482d', dark: '#0b9852', base: '#1fd072', light: '#66f09c', pale: '#d6ffe2' },
-  { deep: '#0b1f80', dark: '#184ee0', base: '#2f80ff', light: '#6cb0ff', pale: '#dcecff' },
-  { deep: '#400a8a', dark: '#8022e2', base: '#b150ff', light: '#d08cff', pale: '#f4e2ff' },
+  { deep: '#0a1c7a', dark: '#1546d8', base: '#2b78fb', light: '#68acff', pale: '#dcecff' },
+  { deep: '#460a8c', dark: '#8a24e4', base: '#b955ff', light: '#d894ff', pale: '#f7e4ff' },
   { deep: '#12668c', dark: '#34b2da', base: '#84ecff', light: '#c4f9ff', pale: '#ffffff' },
 ];
 
@@ -692,19 +692,32 @@ const PRISM_WHEEL: readonly string[] = ['#ff3d55', '#ff9a1f', '#ffe040', '#22cf7
 /** Prism: eight-pointed khatam star with a rainbow sheen and a white core. */
 export function drawPrism(ctx: Ctx, px: number): void {
   const cx = 50;
-  const cy = 49;
+  const cy = 47.6;
   const R = 44;
   const pts = khatamPts(cx, cy, R, -Math.PI / 2);
   const star = new Path2D();
   roundPoly(star, pts, 1.6);
 
+  // cast shadow, then the star's gold underside showing below its face (same chunky build as the gems)
   ctx.save();
-  ctx.shadowColor = 'rgba(4,2,22,0.7)';
-  ctx.shadowBlur = px * 0.055;
-  ctx.shadowOffsetY = px * 0.04;
+  ctx.shadowColor = 'rgba(4,2,22,0.66)';
+  ctx.shadowBlur = px * 0.05;
+  ctx.shadowOffsetY = px * 0.03;
   ctx.fillStyle = '#4a2c08';
+  ctx.translate(0, DEPTH);
   ctx.fill(star);
   ctx.restore();
+  ctx.save();
+  ctx.translate(0, DEPTH);
+  ctx.lineJoin = 'round';
+  ctx.fillStyle = '#a8701c';
+  ctx.fill(star);
+  ctx.lineWidth = 2.4;
+  ctx.strokeStyle = '#4a2c08';
+  ctx.stroke(star);
+  ctx.restore();
+  ctx.fillStyle = '#4a2c08';
+  ctx.fill(star);
 
   ctx.save();
   ctx.clip(star);
@@ -773,7 +786,7 @@ export function drawPrism(ctx: Ctx, px: number): void {
     [1, 'rgba(255,255,255,0)'],
   ]);
   ctx.beginPath();
-  ctx.ellipse(40, 20, 40, 28, -0.3, 0, TAU);
+  ctx.ellipse(40, 18.6, 40, 28, -0.3, 0, TAU);
   ctx.fill();
   // gold rim
   ctx.lineJoin = 'round';
@@ -792,6 +805,6 @@ export function drawPrism(ctx: Ctx, px: number): void {
   // glint
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
   ctx.beginPath();
-  sparkle(ctx, 37, 34, 7.5, 0.22);
+  sparkle(ctx, 37, 32.6, 7.5, 0.22);
   ctx.fill();
 }

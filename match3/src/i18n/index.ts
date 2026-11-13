@@ -63,9 +63,12 @@ const LRM = '\u200E';
 /**
  * A formatted number made safe for the language's text direction: in Arabic a leading minus gets a
  * left-to-right mark in front, so it stays on the left of its digits (see the file header).
+ * Text that does not end in a digit ("-∞") needs the mark behind it as well.
  */
 function directed(text: string, lang: Lang): string {
-  return lang === 'ar' && text.charCodeAt(0) === 45 /* - */ ? LRM + text : text;
+  if (lang !== 'ar' || text.charCodeAt(0) !== 45 /* - */) return text;
+  const last = text.charCodeAt(text.length - 1);
+  return LRM + text + (last >= 48 && last <= 57 ? '' : LRM);
 }
 
 function two(n: number): string {

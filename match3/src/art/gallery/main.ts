@@ -11,6 +11,7 @@ const art = createArt();
 // exposed for review scripts (tools/art-shots.cjs --verify, ad-hoc Playwright probes)
 (window as unknown as { __art: unknown; __artKeys: unknown }).__art = art;
 (window as unknown as { __artKeys: unknown }).__artKeys = { sprites: SPRITE_KEYS, icons: ICON_KEYS };
+(window as unknown as { __createArt: unknown }).__createArt = createArt;
 const root = document.getElementById('root') as HTMLElement;
 const DPR = Math.min(3, window.devicePixelRatio || 1);
 const THEMES: ChapterTheme[] = ['oasis', 'dunes', 'bazaar', 'palace', 'caverns', 'stars'];

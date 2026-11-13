@@ -300,6 +300,35 @@ describe('hardening: spending and buying are atomic', () => {
     expect(h.saved()).toEqual(JSON.parse(JSON.stringify(h.profile.data())));
   });
 
+  it('things that are not functions cannot be subscribed, and unsubscribing twice is harmless', () => {
+    const h = harness();
+    const errors = console.error;
+    const logged: unknown[] = [];
+    console.error = (...args: unknown[]) => void logged.push(args);
+    try {
+      const offs = [undefined, null, 5, 'listener', {}, []].map((junk) => h.profile.subscribe(junk as unknown as () => void));
+      h.profile.addCoins(1);
+      h.profile.buyBooster('shuffle');
+      for (const off of offs) {
+        expect(typeof off).toBe('function');
+        off();
+        off();
+      }
+    } finally {
+      console.error = errors;
+    }
+    expect(logged).toEqual([]); // nothing was called, so nothing failed
+    expect(h.notifications.count).toBe(2);
+    let calls = 0;
+    const off = h.profile.subscribe(() => (calls += 1));
+    h.profile.addCoins(1);
+    off();
+    off();
+    h.profile.addCoins(1);
+    expect(calls).toBe(1);
+    expect(h.notifications.count).toBe(4); // the harness' own listener was not removed by the double call
+  });
+
   it('a subscriber that resets the profile during a purchase leaves a consistent fresh profile', () => {
     const h = harness();
     let once = true;

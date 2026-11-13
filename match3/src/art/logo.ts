@@ -1,12 +1,12 @@
 /**
  * App emblem (launcher-icon artwork) and the game logo (emblem + wordmark).
  *
- * Emblem: a ruby set in a faceted gold khatam star on a round indigo medallion. The star and jewel
- * stay inside the middle 66% of the canvas (the Android adaptive-icon safe zone); the medallion
- * plate around them is expendable background.
+ * Emblem: the game's emerald ("zumurud" means emerald) set in a faceted gold khatam star on a round
+ * indigo medallion. The star and jewel stay inside the middle 66% of the canvas (the Android
+ * adaptive-icon safe zone); the medallion plate around them is expendable background.
  */
 import type { Ctx } from './util.ts';
-import { PAL, TAU, circle, khatamPts, lGrad, poly, rgba, sparkle } from './util.ts';
+import { PAL, TAU, circle, khatamPts, lGrad, poly, rgba, rrect, sparkle } from './util.ts';
 import { drawGem } from './gems.ts';
 
 export const LOGO_FONT = '"Baloo Bhaijaan 2 Variable", "Baloo Bhaijaan 2", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -22,16 +22,16 @@ export function drawEmblem(ctx: Ctx, px: number): void {
   // medallion plate
   const plate = new Path2D();
   circle(plate, cx, cy, 47.2);
-  const pg = ctx.createRadialGradient(cx, cy - 8, 4, cx, cy, 48);
-  pg.addColorStop(0, '#5a41b4');
-  pg.addColorStop(0.5, '#2f2478');
-  pg.addColorStop(1, '#161240');
+  const pg = ctx.createRadialGradient(cx, cy - 6, 4, cx, cy, 48);
+  pg.addColorStop(0, '#6248c8');
+  pg.addColorStop(0.5, '#33267f');
+  pg.addColorStop(1, '#17123f');
   ctx.fillStyle = pg;
   ctx.fill(plate);
   ctx.save();
   ctx.clip(plate);
   // quiet rays behind the star
-  ctx.fillStyle = 'rgba(255,231,163,0.07)';
+  ctx.fillStyle = 'rgba(255,231,163,0.08)';
   for (let i = 0; i < 16; i++) {
     const a0 = (i / 16) * TAU - 0.07;
     const a1 = (i / 16) * TAU + 0.07;
@@ -42,19 +42,19 @@ export function drawEmblem(ctx: Ctx, px: number): void {
     ctx.closePath();
     ctx.fill();
   }
-  const halo = ctx.createRadialGradient(cx, cy, 10, cx, cy, 44);
-  halo.addColorStop(0, 'rgba(255,214,120,0.5)');
+  const halo = ctx.createRadialGradient(cx, cy, 12, cx, cy, 46);
+  halo.addColorStop(0, 'rgba(255,222,130,0.55)');
   halo.addColorStop(1, 'rgba(255,214,120,0)');
   ctx.fillStyle = halo;
   ctx.fillRect(0, 0, 100, 100);
   ctx.restore();
   // gold rim
-  ctx.lineWidth = 3.4;
+  ctx.lineWidth = 3.6;
   ctx.strokeStyle = '#3d2608';
   const rimPath = new Path2D();
   circle(rimPath, cx, cy, 45.4);
   ctx.stroke(rimPath);
-  ctx.lineWidth = 2.4;
+  ctx.lineWidth = 2.6;
   ctx.strokeStyle = lGrad(ctx, 15, 8, 85, 92, [
     [0, '#fff3c4'],
     [0.4, PAL.gold],
@@ -65,11 +65,11 @@ export function drawEmblem(ctx: Ctx, px: number): void {
   ctx.lineWidth = 0.7;
   ctx.strokeStyle = 'rgba(255,231,163,0.42)';
   ctx.beginPath();
-  ctx.arc(cx, cy, 41.6, 0, TAU);
+  ctx.arc(cx, cy, 41.4, 0, TAU);
   ctx.stroke();
 
-  // gold khatam star
-  const R = 30;
+  // gold khatam star: as large as the launcher safe zone allows
+  const R = 32.6;
   const pts = khatamPts(cx, cy, R, -Math.PI / 2);
   const star = new Path2D();
   poly(star, pts);
@@ -80,8 +80,8 @@ export function drawEmblem(ctx: Ctx, px: number): void {
   ctx.fillStyle = '#5a3606';
   ctx.fill(star);
   ctx.restore();
-  ctx.fillStyle = lGrad(ctx, 22, 16, 78, 86, [
-    [0, '#ffe9a6'],
+  ctx.fillStyle = lGrad(ctx, 20, 14, 80, 88, [
+    [0, '#ffeaa8'],
     [0.5, PAL.gold],
     [1, '#d2972c'],
   ]);
@@ -101,7 +101,7 @@ export function drawEmblem(ctx: Ctx, px: number): void {
     ];
     for (let k = 0; k < 2; k++) {
       const s = halves[k][1];
-      ctx.fillStyle = s >= 0 ? 'rgba(255,250,224,' + (0.18 + s * 0.6).toFixed(3) + ')' : 'rgba(128,74,10,' + (0.1 - s * 0.5).toFixed(3) + ')';
+      ctx.fillStyle = s >= 0 ? 'rgba(255,250,224,' + (0.18 + s * 0.62).toFixed(3) + ')' : 'rgba(128,70,8,' + (0.12 - s * 0.55).toFixed(3) + ')';
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(pts[2 * halves[k][0]], pts[2 * halves[k][0] + 1]);
@@ -111,7 +111,7 @@ export function drawEmblem(ctx: Ctx, px: number): void {
     }
   }
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = 'rgba(255,248,220,0.55)';
+  ctx.strokeStyle = 'rgba(255,248,220,0.6)';
   ctx.lineWidth = 0.5;
   ctx.beginPath();
   for (let i = 0; i < 16; i += 2) {
@@ -120,40 +120,47 @@ export function drawEmblem(ctx: Ctx, px: number): void {
   }
   ctx.stroke();
   ctx.strokeStyle = '#5a3606';
-  ctx.lineWidth = 1.3;
+  ctx.lineWidth = 1.5;
   ctx.stroke(star);
 
-  // bezel
+  // bezel: a rounded-square gold collar that echoes the emerald's own cut
+  const K = 0.4; // scale of the game's emerald sprite inside the emblem
+  const half = 39.5 * K + 2.3;
   const bezel = new Path2D();
-  circle(bezel, cx, cy, 16.2);
+  rrect(bezel, cx - half, cy - half, half * 2, half * 2, 15 * K + 2.2);
+  ctx.save();
+  ctx.shadowColor = 'rgba(60,30,4,0.6)';
+  ctx.shadowBlur = px * 0.02;
+  ctx.shadowOffsetY = px * 0.01;
   ctx.fillStyle = '#4a2c08';
   ctx.fill(bezel);
-  ctx.lineWidth = 2.6;
-  ctx.strokeStyle = lGrad(ctx, 34, 32, 66, 68, [
-    [0, '#fff3c4'],
-    [0.5, '#d9a23a'],
+  ctx.restore();
+  ctx.lineWidth = 2.3;
+  ctx.strokeStyle = lGrad(ctx, cx - half, cy - half, cx + half, cy + half, [
+    [0, '#fff6cf'],
+    [0.5, '#e0aa3e'],
     [1, '#8a5814'],
   ]);
-  ctx.beginPath();
-  ctx.arc(cx, cy, 15.2, 0, TAU);
-  ctx.stroke();
+  const collar = new Path2D();
+  rrect(collar, cx - half + 1.15, cy - half + 1.15, half * 2 - 2.3, half * 2 - 2.3, 15 * K + 1);
+  ctx.stroke(collar);
 
-  // the jewel
+  // the jewel: the very emerald the player matches on the board
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.scale(0.352, 0.352);
-  ctx.translate(-50, -49.5);
-  drawGem(ctx, 0, px * 0.352, false);
+  ctx.scale(K, K);
+  ctx.translate(-50, -48.4);
+  drawGem(ctx, 2, px * K, false);
   ctx.restore();
 
   // glints
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  sparkle(ctx, 30, 28.5, 5.4, 0.2);
+  sparkle(ctx, 27.5, 26, 5.8, 0.2);
   ctx.fill();
   ctx.fillStyle = rgba('#ffffff', 0.9);
   ctx.beginPath();
-  sparkle(ctx, 68.5, 66, 3, 0.22);
+  sparkle(ctx, 71, 69, 3.2, 0.22);
   ctx.fill();
 }
 
@@ -217,13 +224,16 @@ export function drawLogo(ctx: Ctx, W: number, lang: 'en' | 'ar', name: string, t
   ctx.strokeText(name, x, base + size * 0.035);
   ctx.fillStyle = '#7a4c10';
   ctx.fillText(name, x, base + size * 0.05);
+  // glossy two-tone gold: a bright upper face meeting a deeper lower face along a soft bevel line
   ctx.fillStyle = lGrad(ctx, 0, base - a, 0, base + d, [
-    [0, '#fffbe6'],
-    [0.38, '#ffe08a'],
-    [0.7, PAL.gold],
-    [1, '#e39a2c'],
+    [0, '#fffdf0'],
+    [0.3, '#ffe68f'],
+    [0.5, '#ffd25c'],
+    [0.56, '#f6b93e'],
+    [1, '#e0902a'],
   ]);
   ctx.fillText(name, x, base);
+
 
   // tagline with flanking ornaments
   const ts = W * 0.068;

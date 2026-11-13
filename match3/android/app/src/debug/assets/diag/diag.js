@@ -353,7 +353,7 @@ async function run() {
     }
     const runs = previous && previous.__diag ? previous.__diag.runs : 0;
     const stamp = Date.now();
-    const text = JSON.stringify({ __diag: { runs: runs + 1, stamp: stamp, text: 'زمرد ✓ "quotes" \\   end' } });
+    const text = JSON.stringify({ __diag: { runs: runs + 1, stamp: stamp, text: 'زمرد ✓ "quotes" \\ \u2028 end' } });
     B.storeSave(text);
     const after = B.loadSave();
     assert(after === text, 'loadSave() did not return what storeSave() stored');

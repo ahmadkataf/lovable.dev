@@ -353,9 +353,9 @@ function vineSegment(ctx: Ctx, pts: readonly number[], from: number, to: number)
   ctx.lineWidth = 13;
   ctx.stroke(p);
   ctx.strokeStyle = lGrad(ctx, 12, 10, 88, 92, [
-    [0, '#8fd056'],
-    [0.45, '#4fa83e'],
-    [1, '#2a7a32'],
+    [0, '#b4ee62'],
+    [0.45, '#5fc244'],
+    [1, '#2f8f38'],
   ]);
   ctx.lineWidth = 8.6;
   ctx.stroke(p);
@@ -387,9 +387,9 @@ function vineKnotPiece(ctx: Ctx, px: number): void {
   ctx.save();
   ctx.clip(bed);
   const g = ctx.createRadialGradient(46, 44, 6, 50, 50, 58);
-  g.addColorStop(0, '#2b6e36');
-  g.addColorStop(0.7, '#17472a');
-  g.addColorStop(1, '#0e2e1b');
+  g.addColorStop(0, '#3b9148');
+  g.addColorStop(0.7, '#1f5e33');
+  g.addColorStop(1, '#123c22');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 100, 100);
   // leaf shadows around the rim
@@ -400,7 +400,7 @@ function vineKnotPiece(ctx: Ctx, px: number): void {
     ctx.save();
     ctx.translate(50 + Math.cos(a) * r, 50 + Math.sin(a) * r);
     ctx.rotate(a + 1.2 + rnd());
-    ctx.fillStyle = i % 2 === 0 ? 'rgba(70,150,70,0.35)' : 'rgba(8,30,16,0.45)';
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(110,200,90,0.4)' : 'rgba(8,36,18,0.45)';
     ctx.beginPath();
     ctx.moveTo(-8, 0);
     ctx.quadraticCurveTo(0, -6, 9, 0);
@@ -469,10 +469,11 @@ function vineKnotPiece(ctx: Ctx, px: number): void {
 /** Lamp: a brass oil lamp with a small flame at the spout. */
 export function drawLamp(ctx: Ctx, px: number): void {
   ctx.save();
+  // plumped up vertically (a chunkier, friendlier lamp that holds its own next to the gems) and
   // inset so the flame's halo and the shadow stay inside the sprite
-  ctx.translate(50, 51);
-  ctx.scale(0.95, 0.95);
-  ctx.translate(-51.5, -52);
+  ctx.translate(50, 50.5);
+  ctx.scale(0.96, 1.2);
+  ctx.translate(-51.5, -55.5);
   lampBody(ctx, px);
   ctx.restore();
 }
@@ -517,9 +518,9 @@ function lampBody(ctx: Ctx, px: number): void {
   dropShadow(ctx, px, 0.6);
   ctx.strokeStyle = OUT;
   ctx.fillStyle = OUT;
-  ctx.lineWidth = 8.2;
+  ctx.lineWidth = 9;
   ctx.stroke(handle);
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3.8;
   ctx.stroke(body);
   ctx.fill(body);
   ctx.stroke(foot);

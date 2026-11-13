@@ -9,7 +9,7 @@
 import type { SfxName, SfxOptions } from './types.ts';
 import { clamp } from './rng.ts';
 import { PRAISE_MIDI, matchStepIndex, matchStepMidi, midiToFreq, praiseNoteCount, starStepMidi, stepInRange } from './scale.ts';
-import { Voice, dum, filter, fm, ka, noise, pluck, tek, tone } from './voices.ts';
+import { Voice, dum, filter, fm, ka, noise, pluck, tek, tone, type VoiceGroup } from './voices.ts';
 
 /**
  * Loudness class. 'ui' covers interface taps and the constant small sounds of handling gems
@@ -532,30 +532,66 @@ export const SFX_STEPS: { [K in SfxName]?: readonly number[] } = {
   praise: [1, 2, 3, 4],
 };
 
+/** The recipe of a sound, or null for a name that is not a sound (junk input must not throw). */
+function defOf(name: SfxName): SfxDef | null {
+  return Object.prototype.hasOwnProperty.call(SFX, name) ? SFX[name] : null;
+}
+
+/** True for the names of the contract. */
+export function isSfxName(name: unknown): name is SfxName {
+  return typeof name === 'string' && Object.prototype.hasOwnProperty.call(SFX, name);
+}
+
 export function sfxClass(name: SfxName): SfxClass {
-  return SFX[name].cls;
+  const def = defOf(name);
+  return def ? def.cls : 'game';
 }
 
 export function isPrioritySfx(name: SfxName): boolean {
-  return SFX[name].priority === true;
+  const def = defOf(name);
+  return def !== null && def.priority === true;
 }
 
-/** Identity used by the rate limiter: the same name and step count as the same sound. */
+/**
+ * Identity used by the rate limiter: the same name and the same audible step count as the
+ * same sound. The step is brought into the range that changes the sound first, so step 12
+ * and step 40 of 'match' (both the top note), or a step passed to a sound that ignores it,
+ * cannot slip past the limiter as "different" sounds.
+ */
 export function sfxKey(name: SfxName, opts?: SfxOptions): string {
-  const step = opts && typeof opts.step === 'number' && isFinite(opts.step) ? Math.round(opts.step) : 0;
-  return name + '#' + step;
+  const steps = isSfxName(name) ? SFX_STEPS[name] : undefined;
+  if (!steps) return String(name);
+  const lo = steps[0];
+  const hi = steps[steps.length - 1];
+  const raw = opts && typeof opts.step === 'number' && isFinite(opts.step) ? Math.round(opts.step) : lo;
+  return name + '#' + Math.min(hi, Math.max(lo, raw));
 }
 
 /**
  * Build one sound effect on `ctx`, feeding `dest`, starting at context time `when`.
  * Returns the sound's duration in seconds. Works on live and offline contexts alike.
+ * With a `group`, the voice is listed there until it ends (see killVoices).
  */
-export function renderSfx(ctx: BaseAudioContext, dest: AudioNode, name: SfxName, when: number, opts?: SfxOptions): number {
-  const def = SFX[name];
+export function renderSfx(
+  ctx: BaseAudioContext,
+  dest: AudioNode,
+  name: SfxName,
+  when: number,
+  opts?: SfxOptions,
+  group?: VoiceGroup,
+): number {
+  const def = defOf(name);
   if (!def) return 0;
   const volume = opts && typeof opts.volume === 'number' && isFinite(opts.volume) ? clamp(opts.volume, 0, 1) : 1;
   if (volume <= 0) return 0;
-  const v = new Voice(ctx, dest, when, def.gain * volume);
-  def.build(v, opts ? opts.step : undefined);
+  const v = new Voice(ctx, dest, when, def.gain * volume, group);
+  try {
+    def.build(v, opts ? opts.step : undefined);
+  } catch (e) {
+    // A half-built voice must not be left connected.
+    v.kill();
+    throw e;
+  }
+  if (v.duration <= 0) v.kill();
   return v.duration;
 }

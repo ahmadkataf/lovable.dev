@@ -13,8 +13,8 @@
  *  - Only the shadda and tanwin that help reading are written (معزّز، مجانًا); the tanwin sits on
  *    the letter before the alif. Punctuation is Arabic (، ؛ ؟); digits are always Western (0-9).
  *  - Counted things use a plural block with the Arabic categories: one {حركة واحدة} two {حركتان}
- *    few {{n} حركات} many {{n} حركة} other {{n} حركة}. After a preposition or as an object the
- *    dual is حركتين.
+ *    few {{n} حركات} other {{n} حركة}. Add many {…} (11–99) only where the word changes there
+ *    ({n} يومًا، {n} فانوسًا). After a preposition or as an object the dual is حركتين.
  *  - A "+" or "-" written before a number or placeholder needs U+200E in front of it
  *    ("\u200E+{n}"), otherwise right-to-left text draws the sign after the number. Numbers passed
  *    as variables are handled by t() itself. Latin text inside an Arabic sentence (a price such as
@@ -22,8 +22,8 @@
  *
  * Vocabulary — ONE Arabic word per concept, in every file (tests/i18n/strings.test.ts rejects the
  * synonyms listed there):
- *   level مرحلة / مراحل      (not مستوى)          move حركة / حركات       (not نقلة، خطوة)
- *   life قلب / قلوب          (not روح / أرواح)     coin عملة / عملات
+ *   level مرحلة / مراحل      (not مستوى)          move حركة / حركات       (not نقلة)
+ *   life قلب / قلوب          (not أرواح، حياة)     coin عملة / عملات
  *   star نجمة / نجوم                              booster معزّز / معزّزات  (with the shadda)
  *   board اللوحة · tile خانة · piece قطعة · gem جوهرة / جواهر · score / points نقطة / نقاط
  *   beam شعاع · nova نوفا (feminine) · prism منشور · sand الرمال · stone حجر / أحجار ·

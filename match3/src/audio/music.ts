@@ -13,7 +13,7 @@ import type { MusicTrack } from './types.ts';
 import { createComposer } from './phrase.ts';
 import { midiToFreq } from './scale.ts';
 import { Transport, type MusicEvent, type TransportStats } from './transport.ts';
-import { Voice, dum, ka, pluck, shake, tek } from './voices.ts';
+import { Voice, dum, ka, killVoices, pluck, shake, tek, type VoiceGroup } from './voices.ts';
 
 export interface MusicLayers {
   lead?: boolean;
@@ -43,8 +43,10 @@ export interface MusicPlayer {
   schedule(until: number): number;
   /** Fade out over `fade` seconds starting at `at`; nothing more is scheduled. */
   stop(at: number, fade: number): void;
-  /** Disconnect at once. */
+  /** Disconnect at once and stop every note that is still sounding or scheduled. */
   dispose(): void;
+  /** Voices (notes, drum hits, drone chords) that are scheduled or sounding. */
+  liveVoices(): number;
   stats(): TransportStats;
 }
 
@@ -126,9 +128,12 @@ export function createMusicPlayer(
   const busNodes: AudioNode[] = [leadBus, body, top, echoSend, echo, echoTone, echoBack, padBus, padTone, percBus, output];
 
   // ── voices ──
+  // Every voice of this player, so that dispose() can stop them: a drone chord lasts for
+  // seconds and would otherwise keep running, unheard, after the player is gone.
+  const voices: VoiceGroup = new Set<Voice>();
   let strokes = 0;
   function playLead(ev: Extract<MusicEvent, { layer: 'lead' }>): void {
-    const v = new Voice(ctx, leadBus, ev.time, 1);
+    const v = new Voice(ctx, leadBus, ev.time, 1, voices);
     // The melody is played as on one string: a note is stopped as the next one begins, with
     // a short overlap. The open low string is left to ring.
     const ring = ev.kind === 'bass' ? ev.dur + 0.5 : ev.kind === 'grace' ? ev.dur + 0.03 : ev.dur + 0.07;
@@ -138,7 +143,7 @@ export function createMusicPlayer(
   }
 
   function playPerc(ev: Extract<MusicEvent, { layer: 'perc' }>): void {
-    const v = new Voice(ctx, percBus, ev.time, 1);
+    const v = new Voice(ctx, percBus, ev.time, 1, voices);
     if (ev.hit === 'dum') dum(v, 0, 0.44 * ev.vel);
     else if (ev.hit === 'tek') tek(v, 0, 0.34 * ev.vel);
     else if (ev.hit === 'ka') ka(v, 0, 0.3 * ev.vel);
@@ -152,7 +157,7 @@ export function createMusicPlayer(
     const hold = Math.max(0.2, ev.dur - attack + 0.4);
     const t = ev.time;
     const end = t + attack + hold + release;
-    const v = new Voice(ctx, padBus, t, 1);
+    const v = new Voice(ctx, padBus, t, 1, voices);
     for (let i = 0; i < ev.midis.length; i++) {
       const f = midiToFreq(ev.midis[i]);
       // Lower tones carry the weight; the upper ones are softer and purer, but they are what
@@ -227,6 +232,7 @@ export function createMusicPlayer(
       if (disposed) return;
       disposed = true;
       stopped = true;
+      killVoices(voices);
       for (let i = 0; i < busNodes.length; i++) {
         try {
           busNodes[i].disconnect();
@@ -237,6 +243,9 @@ export function createMusicPlayer(
     },
     stats(): TransportStats {
       return transport.stats;
+    },
+    liveVoices(): number {
+      return voices.size;
     },
   };
 }

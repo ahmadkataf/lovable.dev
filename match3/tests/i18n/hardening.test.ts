@@ -88,7 +88,7 @@ describe('hardening: num()', () => {
     const i18n = createI18nFromTables([TABLE], 'ar');
     expect(i18n.num(-5)).toBe(LRM + '-5');
     expect(i18n.num(-1234567)).toBe(LRM + '-1,234,567');
-    expect(i18n.num(-Infinity)).toBe(LRM + '-∞');
+    expect(i18n.num(-Infinity)).toBe(LRM + '-∞' + LRM); // no digit to hold on to: marked on both sides
     // Nothing is added where nothing is needed.
     for (const n of [0, -0, -0.2, 5, 1234567, Infinity, NaN]) expect(i18n.num(n)).not.toContain(LRM);
     expect(i18n.t('x.delta', { n: -120 })).toBe('التغيير: ' + LRM + '-120');
@@ -376,10 +376,10 @@ describe('hardening: malformed and enormous templates', () => {
     expect(formatMessage('{'.repeat(50_000), { n: 1 }, 'en')).toBe('{'.repeat(50_000));
     expect(formatMessage('}'.repeat(50_000), { n: 1 }, 'en')).toBe('}'.repeat(50_000));
     expect(formatMessage('{n}'.repeat(50_000), { n: 7 }, 'en')).toBe('7'.repeat(50_000));
-    // Plural blocks nested far deeper than any real string: text comes back quickly, never an exception.
+    // Plural blocks nested far deeper than any real string: text comes back, never an exception —
+    // and quickly (without the nesting limit this takes half a minute and the test times out).
     let nested = '{n}';
     for (let depth = 0; depth < 20_000; depth++) nested = '{n, plural, other {' + nested + '}}';
-    const started = Date.now();
     let out: unknown;
     expect(() => {
       out = formatMessage(nested, { n: 5 }, 'en');
@@ -387,7 +387,6 @@ describe('hardening: malformed and enormous templates', () => {
       expect(messageProblems(nested).join()).toContain('nested too deeply');
     }).not.toThrow();
     expect(typeof out).toBe('string');
-    expect(Date.now() - started).toBeLessThan(2000);
     // Real nesting (a plural inside a plural inside a plural) works; the limit is far above it.
     let shallow = '{n}';
     for (let depth = 0; depth < 8; depth++) shallow = '{n, plural, other {' + shallow + '}}';

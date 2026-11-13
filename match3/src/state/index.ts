@@ -4,12 +4,19 @@
  * under Node. Numbers live in ./econ.ts (docs/DESIGN.md §5).
  *
  * Behaviour worth knowing when you use it:
- *  - Every mutation is saved synchronously and THEN subscribers are notified. Calls that change
- *    nothing (spending 0 coins, re-setting a setting to its current value, …) neither save nor notify.
+ *  - Every mutation is saved synchronously — exactly once, as one complete JSON document — and THEN
+ *    subscribers are notified, exactly once. Calls that change nothing (spending 0 coins, re-setting
+ *    a setting to its current value, a refused purchase, …) neither save nor notify. So storage never
+ *    holds half a transaction: a purchase is either stored with its price paid, or not at all.
+ *  - Coins and boosters are whole numbers within [0, cap]. Amounts are rounded in the game's favour
+ *    (grants down, prices up); negative, NaN and infinite amounts do nothing.
  *  - Lives regenerate lazily: they are a function of (lives, lifeTimer, now). Reading them
  *    (`lives()`, `data()`) brings the stored pair up to date and may persist it, but NEVER notifies —
  *    a life coming back is the passage of time, not a mutation. Anything that shows lives or the
  *    countdown should poll `lives()` on a ticker (it needs one for the countdown anyway).
+ *  - The device clock is not trusted to run forwards. Moved back, it restarts the current life
+ *    interval (never grants a life, never makes the wait longer than one interval) and cannot unlock
+ *    a second daily reward. A clock that does not work at all freezes both until it does.
  *  - Loading never throws: unreadable or foreign data yields a fresh profile, damaged fields are
  *    repaired one by one (see `repairSave`).
  *  - `data()` and `settings()` return the live objects (the same ones for the profile's whole life,
@@ -472,6 +479,7 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
     },
 
     subscribe(listener: () => void): () => void {
+      if (typeof listener !== 'function') return () => {};
       const entry = { fn: listener };
       listeners.push(entry);
       return () => {

@@ -1,14 +1,20 @@
 /**
- * Chapter backdrops: six layered night scenes painted once per screen size.
+ * Chapter backdrops: six layered scenes, one mood and time of day per chapter — dawn at the oasis,
+ * golden hour on the dunes, dusk in the bazaar, the blue hour at the palace, the teal glow of the
+ * caverns, deep night under the stars — painted once per screen size.
  * Deterministic (seeded PRNG, never Math.random) and cheap: gradients and paths only — no blur
  * filters, no per-pixel work — so a 1440×3120 paint stays fast on a phone.
+ *
+ * Composition rule: the board covers the middle of the screen, so each scene keeps its landmarks
+ * in the top quarter (moon, sun, lanterns, crystals, constellations) and the bottom third
+ * (water, dunes, stalls, palace, pool) and stays calm in between.
  *
  * `u` below is 1% of the shorter screen side; every size is expressed in it so the scenes keep
  * their proportions from 320×480 up to tablets, portrait or landscape.
  */
 import type { ChapterTheme, ThemePalette } from './types.ts';
 import type { Ctx } from './util.ts';
-import { TAU, glow, hashStr, khatam, lGrad, mulberry32, rgba, sparkle, vGrad } from './util.ts';
+import { TAU, ctx2d, glow, hashStr, khatam, lGrad, makeCanvas, mulberry32, rgba, sparkle, vGrad } from './util.ts';
 
 type Rnd = () => number;
 
@@ -18,7 +24,7 @@ export const PALETTES: Record<ChapterTheme, ThemePalette> = {
   bazaar: { bgTop: '#3b1766', bgBottom: '#33103f', accent: '#ff8f6a', frame: '#ffcf70' },
   palace: { bgTop: '#141a6a', bgBottom: '#121c56', accent: '#7fe0d6', frame: '#ffe7a3' },
   caverns: { bgTop: '#0b1d44', bgBottom: '#0b1d44', accent: '#5fe6e0', frame: '#f0d98a' },
-  stars: { bgTop: '#070620', bgBottom: '#2a1a68', accent: '#8fb8ff', frame: '#ffe7a3' },
+  stars: { bgTop: '#06051e', bgBottom: '#231a66', accent: '#8fb8ff', frame: '#ffe7a3' },
 };
 
 // ───────────────────────────── shared pieces ─────────────────────────────
@@ -388,6 +394,18 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     ctx.fill();
   }
 
+  // glints of light on the water
+  for (let i = 0; i < 14; i++) {
+    const x = w * (0.3 + rnd() * 0.42);
+    const y = top + (0.08 + rnd() * 0.8) * (h - top);
+    const r = (0.5 + rnd() * 0.8) * u;
+    glow(ctx, x, y, r * 2.6, '#fff8dc', 0.4);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    sparkle(ctx, x, y, r, 0.16);
+    ctx.fill();
+  }
+
   // near banks: deep green, still in the shade of the morning
   ctx.fillStyle = lGrad(ctx, 0, h * 0.83, 0, h, [
     [0, '#1f6a54'],
@@ -436,17 +454,6 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   palm(ctx, rnd, w * 0.2, h * 0.9, 28 * u, -5 * u, '#17604a', rim);
   palm(ctx, rnd, w * 0.1, h * 0.875, 44 * u, 9 * u, '#13523f', rim);
   palm(ctx, rnd, w * 0.91, h * 0.895, 37 * u, -9 * u, '#13523f', rim);
-  // glints of light on the water
-  for (let i = 0; i < 14; i++) {
-    const x = w * (0.3 + rnd() * 0.42);
-    const y = top + (0.08 + rnd() * 0.8) * (h - top);
-    const r = (0.5 + rnd() * 0.8) * u;
-    glow(ctx, x, y, r * 2.6, '#fff8dc', 0.4);
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    sparkle(ctx, x, y, r, 0.16);
-    ctx.fill();
-  }
 }
 
 /** One camel, facing right, standing on (x, y); `s` = its length. */
@@ -543,17 +550,6 @@ function dunes(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     const warm = cy > hz * 0.34;
     cloudBar(ctx, rnd() * w, cy, (22 + rnd() * 44) * u, (0.7 + rnd() * 1.2) * u, warm ? 'rgba(255,246,206,0.55)' : 'rgba(190,60,40,0.4)');
   }
-  // heat shimmer: a few motes of dust catching the light
-  for (let i = 0; i < 22; i++) {
-    const x = rnd() * w;
-    const y = hz * (0.5 + rnd() * 0.46);
-    const r = (0.14 + rnd() * 0.26) * u;
-    ctx.fillStyle = 'rgba(255,250,220,' + (0.2 + rnd() * 0.4).toFixed(3) + ')';
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, TAU);
-    ctx.fill();
-  }
-
   ctx.fillStyle = '#ffd876';
   ctx.fillRect(0, hz, w, h - hz);
   const span = h - hz;
@@ -1473,18 +1469,26 @@ function constellation(ctx: Ctx, idx: number, x: number, y: number, s: number, u
 function stars(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
   fillV(ctx, w, 0, h, [
-    [0, '#070620'],
-    [0.5, '#15104a'],
-    [1, '#2a1a68'],
+    [0, '#06051e'],
+    [0.5, '#120e46'],
+    [1, '#231a66'],
   ]);
-  // a river of nebula light across the sky
-  const cols = ['#6a3fd0', '#b0409a', '#2f6fe0', '#3fc0d0'];
+  // a river of nebula light across the sky. Thirty big soft blobs are the single most expensive
+  // thing in any backdrop at full size, and they carry no detail — so they are painted at a
+  // quarter of the resolution and stretched.
+  const cols = ['#6a3fd0', '#c2409e', '#2f6fe0', '#3fc0d0'];
+  const K = 4;
+  const neb = makeCanvas(Math.ceil(w / K), Math.ceil(h / K));
+  const ng = ctx2d(neb);
+  ng.scale(1 / K, 1 / K);
   for (let i = 0; i < 30; i++) {
     const t = i / 29;
     const px = -0.1 * w + t * 1.2 * w + (rnd() - 0.5) * 16 * u;
     const py = h * (0.74 - t * 0.5) + (rnd() - 0.5) * 22 * u;
-    glow(ctx, px, py, (20 + rnd() * 26) * u, cols[i % cols.length], 0.1 + rnd() * 0.1);
+    glow(ng, px, py, (20 + rnd() * 26) * u, cols[i % cols.length], 0.12 + rnd() * 0.11);
   }
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(neb, 0, 0, neb.width * K, neb.height * K);
   starField(ctx, rnd, w, 0, h, 560, u, '#ffffff');
   starField(ctx, rnd, w, 0, h, 90, u * 1.5, '#cfe0ff');
   twinkles(ctx, rnd, w, 0, h * 0.94, 18, u, '#ffffff');

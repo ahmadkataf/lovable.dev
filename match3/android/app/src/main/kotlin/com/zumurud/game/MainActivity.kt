@@ -180,10 +180,8 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
     private fun setUpWindow() {
         // Edge to edge on every Android version (it is mandatory from Android 15 on anyway).
         WindowCompat.enableEdgeToEdge(window)
-        if (Build.VERSION.SDK_INT >= 29) {
-            window.isNavigationBarContrastEnforced = false
-            window.isStatusBarContrastEnforced = false
-        }
+        // No translucent scrim behind a three-button navigation bar when it slides in.
+        if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
         if (Build.VERSION.SDK_INT >= 28) {
             // Draw into the camera cutout in every state, so the layout does not jump when the
             // system bars come and go. The themes in values-v28 / values-v30 say the same.
