@@ -63,8 +63,11 @@ export interface Hud {
   updateBooster(id: InLevelBooster, count: number): void;
   setBoosterActive(id: InLevelBooster | null): void;
 
-  /** Apply the orientation / compact classes and return the stage size in CSS px. */
-  measure(): StageSize;
+  /**
+   * Apply the orientation / compact classes and return the stage size in CSS px.
+   * `aspect` = rows / columns of the board (how tall a full-width board would be).
+   */
+  measure(aspect: number): StageSize;
   setBoardRect(rect: BoardRect): void;
   paintBackdrop(force: boolean): void;
 
@@ -437,14 +440,24 @@ export function createHud(deps: HudDeps): Hud {
       }
     },
 
-    measure() {
+    measure(aspect) {
       const w = root.clientWidth || 360;
       const h = root.clientHeight || 640;
       const landscape = isLandscape(w, h);
       const u = kit.unit();
-      const compact = landscape ? h < 470 * u : h / w < 1.62 || h < 600 * u;
       root.classList.toggle('pl-land', landscape);
-      root.classList.toggle('pl-compact', compact);
+      let compact: boolean;
+      if (landscape) {
+        compact = h < 470 * u;
+        root.classList.toggle('pl-compact', compact);
+      } else {
+        // Portrait: the full-size header and tray, unless they would cost the board some of its
+        // width (a squat screen, or a board taller than wide) — then the compact ones.
+        root.classList.remove('pl-compact');
+        const need = stage.clientWidth * (aspect > 0 ? aspect : 1);
+        compact = stage.clientHeight < need || h < 600 * u;
+        if (compact) root.classList.add('pl-compact');
+      }
       return { w: stage.clientWidth, h: stage.clientHeight, landscape, compact };
     },
 

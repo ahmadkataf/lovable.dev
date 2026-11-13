@@ -5,9 +5,9 @@
  *
  * A level that introduces a mechanic shows a pointing hand on the engine's hinted move, so that
  * move must demonstrate the lesson on every start — the board cannot be left to chance. This
- * tool searches start positions for one where the hinted move does what the level teaches
- * (`teaches()` below, shared with the tests) and prints it as fixed-colour rows to paste into
- * the level. Blockers, lamps and specials stay where the level puts them; only gems are frozen.
+ * tool searches start positions (600 seeds unless --seeds says otherwise) for those where the
+ * hinted move does what the level teaches (`teaches()` below, shared with the tests), keeps the
+ * one that offers the most moves, and prints it as fixed-colour rows to paste into the level. Blockers, lamps and specials stay where the level puts them; only gems are frozen.
  *
  * Chained gems cannot be frozen (their colour is always random), so the chain tutorial is built
  * differently: the tool looks for a colouring of the free gems in which NO move exists that does
@@ -174,7 +174,9 @@ const RANK: Record<string, number> = { beam: 1, nova: 2, prism: 3 };
 function freezeBySeed(level: LevelDef, id: string, maxSeeds: number): void {
   const open = thawed(level);
   let best: { seed: number; rows: string[]; rivals: number; moves: number } | null = null;
-  for (let seed = 1; seed <= maxSeeds; seed++) {
+  // Start somewhere else for every level, so that two tutorial boards never look alike.
+  const first = level.id * 1000 + 1;
+  for (let seed = first; seed < first + maxSeeds; seed++) {
     const game = new Game(open, { seed });
     const hint = game.hint();
     if (hint === null) continue;
@@ -200,10 +202,8 @@ function freezeBySeed(level: LevelDef, id: string, maxSeeds: number): void {
     let stable = true;
     for (let check = 1; check <= 12 && stable; check++) stable = checkTutorialStart(frozen, check * 7919) === '';
     if (!stable) continue;
-    if (best === null || rivals < best.rivals) {
-      best = { seed, rows, rivals, moves: moves.length };
-      if (rivals === 0) break;
-    }
+    // Fewest rival specials first, then the start that offers the most moves.
+    if (best === null || rivals < best.rivals || (rivals === best.rivals && moves.length > best.moves)) best = { seed, rows, rivals, moves: moves.length };
   }
   if (best === null) {
     console.log('no suitable start position found');
@@ -309,8 +309,8 @@ function main(): void {
     console.error(`level ${level.id} has no tutorial id — pass --want`);
     process.exit(1);
   }
-  const seeds = Number(option('--seeds') ?? 4000);
-  if (id === 'chain') freezeMoveFree(level, Math.max(20, Math.floor(seeds / 20)));
+  const seeds = Number(option('--seeds') ?? 600);
+  if (id === 'chain') freezeMoveFree(level, Math.max(20, Math.floor(seeds / 3)));
   else freezeBySeed(level, id, seeds);
 }
 

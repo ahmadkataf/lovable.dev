@@ -903,6 +903,353 @@ async function run() {
     return 'location.href and window.open to another origin were cancelled (window.open → ' + (opened ? 'window' : 'null') + ')';
   });
 
+  await check('lock-navigation', async function () {
+    // Every other way a page can try to leave the bundle. After each attempt this very document
+    // must still be running, at the bundled origin, and the app must not have been sent to the
+    // background (no pause hook: nothing outside the app was opened).
+    const marker = String(Math.random());
+    window.__diagNavMarker = marker;
+    const pausesBefore = seen.pause;
+    const attempts = {
+      'intent:': function () { location.href = 'intent://example.org/#Intent;scheme=https;action=android.intent.action.VIEW;end'; },
+      'market:': function () { location.href = 'market://details?id=org.example.app'; },
+      'tel:': function () { location.href = 'tel:+10000000000'; },
+      'mailto:': function () { location.href = 'mailto:nobody@example.org'; },
+      'file: asset': function () { location.href = 'file:///android_asset/www/index.html'; },
+      'file: data dir': function () { location.href = 'file:///data/data/com.zumurud.game/shared_prefs/zumurud_save.xml'; },
+      'content:': function () { location.href = 'content://settings/system'; },
+      'data: page': function () { location.href = 'data:text/html,<p>left</p>'; },
+      'javascript: page': function () { location.href = 'javascript:"<p>left</p>"'; },
+      'location.assign': function () { location.assign('https://example.org/a'); },
+      'location.replace': function () { location.replace('https://example.org/r'); },
+      'http: (cleartext)': function () { location.href = 'http://example.org/'; },
+      'link target=_blank': function () {
+        const a = document.createElement('a');
+        a.href = 'https://example.org/link';
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      },
+      'link same window': function () {
+        const a = document.createElement('a');
+        a.href = 'https://example.org/link2';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      },
+      'window.open(_top)': function () { window.open('https://example.org/top', '_top'); },
+      'meta refresh': function () {
+        const m = document.createElement('meta');
+        m.httpEquiv = 'refresh';
+        m.content = '0;url=https://example.org/refresh';
+        document.head.appendChild(m);
+        setTimeout(function () { if (m.parentNode) m.parentNode.removeChild(m); }, 600);
+      },
+      'form GET': function () {
+        const f = document.createElement('form');
+        f.method = 'get';
+        f.action = 'https://example.org/form';
+        document.body.appendChild(f);
+        f.submit();
+        document.body.removeChild(f);
+      },
+      'history.pushState other origin': function () {
+        try {
+          history.pushState(null, '', 'https://example.org/push');
+        } catch (_) {
+          /* refused, as it must be */
+        }
+      },
+    };
+    const names = Object.keys(attempts);
+    for (const name of names) {
+      try {
+        attempts[name]();
+      } catch (_) {
+        /* a refusal that throws is still a refusal */
+      }
+      await sleep(350);
+      assert(window.__diagNavMarker === marker, name + ': the page was replaced');
+      assert(location.origin === 'https://appassets.androidplatform.net' && location.pathname.indexOf('/assets/') === 0, name + ': the page now reports ' + location.href);
+      assert(document.body.textContent.indexOf('left') !== 0, name + ': the document was overwritten');
+    }
+    await sleep(600);
+    assert(seen.pause === pausesBefore, 'the app was paused ' + (seen.pause - pausesBefore) + '× during the attempts: something outside the app was opened');
+    assert(!document.hidden, 'the page is hidden after the attempts');
+    return names.length + ' ways out refused, page still running: ' + names.join(', ');
+  });
+
+  await check('lock-subresources', async function () {
+    // Every kind of sub-resource and connection, pointed at another origin or at a local scheme:
+    // none may load. (Debug builds also ask the wrapper how many of them its request filter refused.)
+    const nonce = 'diag-lock-' + Date.now();
+    const loaded = [];
+    const refused = [];
+    function element(name, make) {
+      return withTimeout(new Promise(function (resolve) {
+        const el = make();
+        const done = function (ok) {
+          return function () {
+            (ok ? loaded : refused).push(name);
+            if (el.parentNode) el.parentNode.removeChild(el);
+            resolve();
+          };
+        };
+        el.onload = done(true);
+        el.onloadeddata = done(true);
+        el.onerror = done(false);
+        if (!el.parentNode) document.head.appendChild(el);
+      }), 6000, name).catch(function () {
+        refused.push(name + ' (no answer)'); // neither loaded nor failed within 6 s: nothing arrived
+      });
+    }
+    function tag(tagName, attribute, url, extra) {
+      return function () {
+        const el = document.createElement(tagName);
+        if (extra) extra(el);
+        el[attribute] = url;
+        return el;
+      };
+    }
+    const ext = 'https://example.com/';
+    await element('script https', tag('script', 'src', ext + 'x.js?' + nonce));
+    await element('module script https', tag('script', 'src', ext + 'm.js?' + nonce, function (el) { el.type = 'module'; }));
+    await element('stylesheet https', tag('link', 'href', ext + 'x.css?' + nonce, function (el) { el.rel = 'stylesheet'; }));
+    await element('image https (other port)', tag('img', 'src', 'https://appassets.androidplatform.net:8443/assets/www/index.html?' + nonce));
+    await element('image http same host', tag('img', 'src', 'http://appassets.androidplatform.net/assets/diag/pixel.png?' + nonce));
+    await element('image look-alike host', tag('img', 'src', 'https://appassets.androidplatform.net.example.com/assets/diag/pixel.png?' + nonce));
+    await element('image userinfo trick', tag('img', 'src', 'https://example.com\\@appassets.androidplatform.net/assets/diag/pixel.png?' + nonce));
+    await element('image file: android_res', tag('img', 'src', 'file:///android_res/mipmap/ic_launcher.png'));
+    await element('image file: android_asset', tag('img', 'src', 'file:///android_asset/diag/pixel.png'));
+    await element('image file: data dir', tag('img', 'src', 'file:///data/data/com.zumurud.game/shared_prefs/zumurud_save.xml'));
+    await element('image content:', tag('img', 'src', 'content://media/external/images/media/1'));
+    await element('audio https', tag('audio', 'src', ext + 'a.mp3?' + nonce, function (el) { el.preload = 'auto'; }));
+    await element('video https', tag('video', 'src', ext + 'v.mp4?' + nonce, function (el) { el.preload = 'auto'; }));
+    await element('frame https', tag('iframe', 'src', ext + 'frame?' + nonce, function (el) { el.style.display = 'none'; document.body.appendChild(el); })).then(function () {
+      // An iframe fires "load" for the empty error document too: what counts is that it has no content.
+      const at = loaded.indexOf('frame https');
+      if (at >= 0) {
+        loaded.splice(at, 1);
+        refused.push('frame https (empty)');
+      }
+    });
+
+    async function request(name, run) {
+      try {
+        const result = await withTimeout(run(), 6000, name);
+        if (result === false) refused.push(name);
+        else loaded.push(name + (typeof result === 'string' ? ' [' + result + ']' : ''));
+      } catch (_) {
+        refused.push(name);
+      }
+    }
+    await request('fetch https', function () { return fetch(ext + 'f?' + nonce, { cache: 'no-store' }).then(function (r) { return 'status ' + r.status; }); });
+    await request('fetch POST https', function () { return fetch(ext + 'p?' + nonce, { method: 'POST', body: 'x', mode: 'no-cors' }).then(function (r) { return 'type ' + r.type; }); });
+    await request('fetch file:', function () { return fetch('file:///android_asset/diag/data.json').then(function (r) { return 'status ' + r.status; }); });
+    await request('fetch content:', function () { return fetch('content://settings/system').then(function (r) { return 'status ' + r.status; }); });
+    await request('fetch loopback http', function () { return fetch('http://127.0.0.1:5173/?' + nonce, { mode: 'no-cors' }).then(function (r) { return 'type ' + r.type; }); });
+    await request('XMLHttpRequest https', function () {
+      return new Promise(function (resolve, reject) {
+        const x = new XMLHttpRequest();
+        x.open('GET', ext + 'xhr?' + nonce);
+        x.onload = function () { resolve('status ' + x.status); };
+        x.onerror = function () { reject(new Error('refused')); };
+        x.send();
+      });
+    });
+    await request('dynamic import https', function () { return import(ext + 'i.js?' + nonce).then(function () { return 'imported'; }); });
+    await request('EventSource https', function () {
+      return new Promise(function (resolve, reject) {
+        const es = new EventSource(ext + 'es?' + nonce);
+        es.onopen = function () { es.close(); resolve('open'); };
+        es.onerror = function () { es.close(); reject(new Error('refused')); };
+      });
+    });
+    await request('WebSocket loopback', function () {
+      return new Promise(function (resolve, reject) {
+        let ws;
+        try {
+          ws = new WebSocket('ws://127.0.0.1:5173/');
+        } catch (_) {
+          return reject(new Error('refused'));
+        }
+        ws.onopen = function () { ws.close(); resolve('open'); };
+        ws.onerror = function () { reject(new Error('refused')); };
+      });
+    });
+    await request('sendBeacon https', function () {
+      const before = cspViolations.length;
+      navigator.sendBeacon(ext + 'beacon?' + nonce, 'x');
+      return sleep(400).then(function () {
+        // sendBeacon only queues: the page policy must have refused it on the spot.
+        return cspViolations.slice(before).some(function (v) { return v.indexOf('connect-src') === 0; }) ? false : 'queued without a policy violation';
+      });
+    });
+    await request('Worker https', function () {
+      return new Promise(function (resolve, reject) {
+        let w;
+        try {
+          w = new Worker(ext + 'w.js?' + nonce);
+        } catch (_) {
+          return reject(new Error('refused'));
+        }
+        w.onmessage = function () { resolve('ran'); };
+        w.onerror = function () { reject(new Error('refused')); };
+      });
+    });
+
+    const byFilter = D && typeof D.blockedCount === 'function' ? D.blockedCount(nonce) : -1;
+    assert(loaded.length === 0, 'LOADED: ' + loaded.join('; '));
+    return refused.length + ' kinds of request refused' + (byFilter >= 0 ? ' (' + byFilter + ' of them reached the request filter and got 403)' : '') + ': ' + refused.join(', ');
+  });
+
+  await check('lock-frames', async function () {
+    // The bridge must only ever be reachable from documents that were shipped in the app. A frame
+    // can be given content that was not: a data: or blob: URL (an opaque origin of its own).
+    // The page policy must refuse such frames, so no document outside the bundled origin runs here.
+    function probe(name, url) {
+      return new Promise(function (resolve) {
+        const token = 'probe-' + Math.random();
+        const frame = document.createElement('iframe');
+        frame.style.display = 'none';
+        const timer = setTimeout(function () { finish(null); }, 2500);
+        function onMessage(e) {
+          if (e.data && e.data.token === token) finish(e.data);
+        }
+        function finish(answer) {
+          clearTimeout(timer);
+          window.removeEventListener('message', onMessage);
+          if (frame.parentNode) frame.parentNode.removeChild(frame);
+          resolve({ name: name, answer: answer });
+        }
+        window.addEventListener('message', onMessage);
+        frame.src = url(token);
+        document.body.appendChild(frame);
+      });
+    }
+    function html(token) {
+      return '<script>parent.postMessage({token:' + JSON.stringify(token) + ',origin:String(self.origin),bridge:typeof AndroidBridge,save:(function(){try{return typeof AndroidBridge.loadSave()}catch(e){return "threw"}})()},"*")</' + 'script>';
+    }
+    const results = [];
+    results.push(await probe('data: frame', function (token) { return 'data:text/html,' + encodeURIComponent(html(token)); }));
+    results.push(await probe('blob: frame', function (token) { return URL.createObjectURL(new Blob([html(token)], { type: 'text/html' })); }));
+    const ran = results.filter(function (r) { return r.answer; });
+    const exposed = ran.filter(function (r) { return r.answer.bridge !== 'undefined' && r.answer.origin !== location.origin; });
+    assert(exposed.length === 0, 'the bridge is visible in a document of another origin: ' + exposed.map(function (r) { return r.name + ' (origin ' + r.answer.origin + ', AndroidBridge ' + r.answer.bridge + ', loadSave() ' + r.answer.save + ')'; }).join('; '));
+    return results.map(function (r) { return r.name + (r.answer ? ' ran at origin ' + r.answer.origin : ' refused'); }).join('; ');
+  });
+
+  await check('lock-service-worker', async function () {
+    // A service worker has its own request path, which bypasses the page's request filter unless
+    // the wrapper covers it too. Registering one must fail, refused by the wrapper.
+    if (!navigator.serviceWorker) return 'no service worker support in this WebView';
+    const nonce = 'diag-sw-' + Date.now();
+    let outcome;
+    try {
+      const registration = await withTimeout(navigator.serviceWorker.register('./data.json?' + nonce), 8000, 'service worker registration');
+      await registration.unregister();
+      outcome = 'REGISTERED';
+    } catch (err) {
+      outcome = 'refused (' + (err && err.name) + ': ' + String(err && err.message).slice(0, 90) + ')';
+    }
+    assert(outcome !== 'REGISTERED', 'a service worker could be registered');
+    const byFilter = D && typeof D.blockedCount === 'function' ? D.blockedCount(nonce) : -1;
+    assert(byFilter !== 0, 'the service worker script request did not pass through the wrapper\'s request filter: it went to the network stack (' + outcome + ')');
+    return 'registration ' + outcome + (byFilter > 0 ? ', by the request filter (×' + byFilter + ')' : '');
+  });
+
+  await check('bad-input-huge', function () {
+    // Megabyte-sized and odd arguments to every bridge method: nothing may throw, nothing may hang,
+    // and the save must come through untouched.
+    const good = B.loadSave();
+    const huge = new Array(2 * 1024 * 1024 + 1).join('A'); // 2 MiB
+    const deep = new Array(20001).join('[') + new Array(20001).join(']'); // JSON nested 20,000 deep
+    const many = '[' + new Array(5001).join('{"id":"p","kind":"consumable"},') + '{"id":"q","kind":"consumable"}]';
+    const calls = [
+      function () { B.storeSave(huge); },
+      function () { B.haptic(huge); },
+      function () { B.iapQuery(huge); },
+      function () { B.iapQuery(deep); },
+      function () { B.iapQuery(many); },
+      function () { B.iapQuery('[{"id":"\\u0000","kind":"consumable"},{"id":"a\\nb","kind":"entitlement"},{"id":{"x":1},"kind":["consumable"]}]'); },
+      function () { B.iapBuy(huge); },
+      function () { B.iapBuy('Coins_Small'); },
+      function () { B.iapBuy('coins small'); },
+      function () { B.iapBuy('coins_small\n'); },
+      function () { B.iapBuy('‮coins'); },
+      function () { B.iapFinish(huge); },
+      function () { B.iapFinish('"};alert(1);//'); },
+      function () { B.iapFinish('  \u0000'); },
+      function () { B.adShowRewarded(huge); },
+      function () { B.adShowRewarded('free coins'); },
+      function () { B.adShowRewarded("');window.__diagInjected=1;('"); },
+      function () { B.setAtRoot(huge); },
+      function () { B.setAtRoot({}); },
+      function () { B.setAtRoot(); },
+      function () { B.storeSave(); },
+      function () { B.storeSave({ toString: function () { return 'object-save'; } }); },
+      function () { B.iapQuery(); },
+      function () { B.iapBuy(); },
+      function () { B.iapFinish(); },
+      function () { B.adShowRewarded(); },
+      function () { B.storeSave('a', 'b', 'c'); },
+    ];
+    const start = performance.now();
+    const thrown = [];
+    for (let i = 0; i < calls.length; i++) {
+      try {
+        calls[i]();
+      } catch (err) {
+        // Calling with the wrong number of arguments is refused by the WebView itself ("Method not
+        // found"), before the wrapper sees it: that is an error for the page, not a crash.
+        thrown.push(i + ':' + String(err && err.message).slice(0, 40));
+      }
+    }
+    const took = Math.round(performance.now() - start);
+    const now = B.loadSave();
+    const arity = thrown.filter(function (t) { return /Method not found|not a function|Error calling method/.test(t); });
+    assert(thrown.length === arity.length, 'bridge calls threw into JS: ' + thrown.join(' | '));
+    assert(now === good || now === 'a' || now === 'object-save' || now === '[object Object]' || now === 'undefined', 'the save was damaged: ' + now.slice(0, 60));
+    assert(window.__diagInjected === undefined, 'an argument was executed as script');
+    B.storeSave(good);
+    assert(B.loadSave() === good, 'could not restore the save');
+    B.setAtRoot(true);
+    assert(took < 15000, 'the calls took ' + took + ' ms');
+    return calls.length + ' oversized or malformed calls in ' + took + ' ms; ' + (thrown.length ? thrown.length + ' refused by the WebView for a wrong argument count, ' : '') + 'none reached the wrapper as a crash, save intact';
+  });
+
+  await check('save-near-limit', function () {
+    // The save slot holds up to 1 MiB of UTF-8. Exactly at the limit: stored. One byte over: refused.
+    const good = B.loadSave();
+    const limit = 1024 * 1024;
+    const exact = new Array(limit + 1).join('s');
+    let start = performance.now();
+    B.storeSave(exact);
+    const tookStore = Math.round(performance.now() - start);
+    start = performance.now();
+    const back = B.loadSave();
+    const tookLoad = Math.round(performance.now() - start);
+    assert(back.length === limit && back === exact, 'a save of exactly 1 MiB did not read back (got ' + back.length + ' chars)');
+    B.storeSave(exact + 's');
+    assert(B.loadSave() === exact, 'a save of 1 MiB + 1 byte replaced the stored one');
+    // Arabic letters take 2 bytes each in UTF-8: half as many characters fill the slot.
+    const arabic = new Array(limit / 2 + 1).join('ز');
+    B.storeSave(arabic);
+    assert(B.loadSave() === arabic, 'a 1 MiB save of Arabic text did not read back');
+    B.storeSave(arabic + 'ز');
+    assert(B.loadSave() === arabic, 'an Arabic save over the limit replaced the stored one');
+    // Characters that need escaping in the file the wrapper keeps (XML): they must come back unchanged.
+    const tricky = new Array(20001).join('<&>"\'\u0000\u0001￾💎]]>\r\n\t');
+    B.storeSave(tricky);
+    const trickyBack = B.loadSave();
+    B.storeSave(good);
+    assert(B.loadSave() === good, 'could not restore the save');
+    assert(trickyBack === tricky, 'a save with XML-special and control characters came back changed (' + trickyBack.length + ' of ' + tricky.length + ' chars)');
+    return '1 MiB stored in ' + tookStore + ' ms, read in ' + tookLoad + ' ms; 1 MiB + 1 refused; Arabic and XML-special text round-trip';
+  });
+
   // Back: say "not at root" — the wrapper must now send Back to the page.
   backArmed = true;
   B.setAtRoot(false);

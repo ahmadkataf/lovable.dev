@@ -366,7 +366,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
 
   function relayout(): void {
     if (!session) return;
-    const size = hud.measure();
+    const size = hud.measure(view.cols() > 0 ? view.rows() / view.cols() : 1);
     if (size.w < 8 || size.h < 8) return;
     const u = kit.unit();
     view.layout(size.w, size.h, Math.round(7 * u), 112 * u);

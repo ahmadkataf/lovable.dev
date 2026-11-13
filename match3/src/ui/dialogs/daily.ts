@@ -103,6 +103,12 @@ export function openDailyDialog(ui: Ui): Promise<void> {
     // Done now stands where Claim was: the second tap of a double tap on Claim must not close the dialog
     doneArmedAt = Date.now() + DONE_ARM_MS;
     render();
+    // on a short screen the strip fills the dialog: bring what was received into view
+    try {
+      dialog.body.scrollTop = dialog.body.scrollHeight;
+    } catch {
+      // nothing to scroll
+    }
   }
 
   // The dialog's footer always holds the one button that applies: Claim, or Done once claimed.

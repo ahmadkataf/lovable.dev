@@ -53,6 +53,47 @@
   }
 }
 
+/* a screen that arrives brings its furniture in: bars drop / rise into place, the big button pops */
+.m-screen--in .m-top__panel {
+  animation: m-drop-in 340ms var(--k-ease-back) 60ms both;
+}
+
+.m-screen--in .m-tray__panel,
+.m-screen--in .m-title__bottom {
+  animation: m-rise-in 340ms var(--k-ease-back) 60ms both;
+}
+
+.m-screen--in .m-title__logo {
+  animation: m-pop-in 420ms var(--k-ease-back) 40ms both;
+}
+
+@keyframes m-drop-in {
+  from {
+    transform: translateY(calc(var(--k-u) * -70));
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes m-rise-in {
+  from {
+    transform: translateY(calc(var(--k-u) * 90));
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes m-pop-in {
+  from {
+    transform: scale(0.8);
+  }
+  to {
+    transform: none;
+  }
+}
+
 .m-playhost {
   overflow: hidden;
 }
@@ -1483,7 +1524,7 @@
 
 .m-caravan__free {
   min-width: 0;
-  margin-inline-end: calc(var(--k-u) * 2);
+  margin-inline-end: calc(var(--k-u) * 4);
   color: var(--k-cream);
   font-size: calc(var(--k-u) * 12.5);
   font-weight: 700;
@@ -1862,6 +1903,19 @@
   grid-column: span 2;
 }
 
+/* a short screen (320 × 480): lower cards, so the strip and what follows it share the dialog */
+@media (max-height: 560px) {
+  .m-day {
+    min-height: calc(var(--k-u) * 66);
+    padding-top: calc(var(--k-u) * 3);
+    padding-bottom: calc(var(--k-u) * 6);
+  }
+
+  .m-daily > * + * {
+    margin-top: calc(var(--k-u) * 8);
+  }
+}
+
 .m-day__label {
   font-size: calc(var(--k-u) * 12);
   font-weight: 700;
@@ -2159,6 +2213,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .m-screen--in,
+  .m-screen--in .m-top__panel,
+  .m-screen--in .m-tray__panel,
+  .m-screen--in .m-title__bottom,
+  .m-screen--in .m-title__logo,
   .m-title__logoimg,
   .m-lives__heart .k-icon,
   .m-node--current .m-node__halo,

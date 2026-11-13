@@ -378,9 +378,23 @@ async function boardMatches(page, spec, seed) {
 
 /** Plays one move through the play screen's own entry point and waits for the board to settle. */
 async function playMove(page, move) {
-  await page.evaluate((m) => window.__play.swap(m.a, m.b), move);
+  const accepted = await page.evaluate((m) => window.__play.swap(m.a, m.b), move);
+  if (!accepted) throw new Error('the game did not accept the planned move (' + move.a.c + ',' + move.a.r + ')↔(' + move.b.c + ',' + move.b.r + ')');
   await sleep(120);
   await waitPlayable(page);
+}
+
+/**
+ * Sets the level seed for the play screen of this page (the `seed` URL flag, see src/play/index.ts).
+ * The play screen reads the flag when it is first created — the first time a level starts — so the
+ * seed can be chosen by a look-ahead made in this very page, on this very version of the game.
+ */
+async function setSeed(page, seed) {
+  await page.evaluate((n) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('seed', String(n));
+    window.history.replaceState(null, '', url.toString());
+  }, seed);
 }
 
 const setPaused = (page, on) => page.evaluate((v) => window.__app.shell.setPaused(v), on);
@@ -433,6 +447,7 @@ module.exports = {
   planWin,
   boardMatches,
   playMove,
+  setSeed,
   setPaused,
   burst,
 };

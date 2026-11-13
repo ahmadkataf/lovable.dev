@@ -117,20 +117,24 @@ function effectScore(png, rect) {
 }
 
 /**
- * Which frame of a burst is kept. The effect is "on" while a frame shows at least half of the
- * most light any frame of the burst shows; `at` (0..1) says how far into that stretch — measured on
- * the game's own clock — the kept frame lies (0.5 = the middle of the effect, 0.9 = near its end,
- * when the first flash has cleared and the beams stand sharp).
+ * Which frame of a burst is kept. The light of the effect is what a frame shows beyond the board
+ * at rest (`rest` = the share of near-white pixels just before the move). The effect is "on" from
+ * the frame with the most light, outwards, for as long as a frame shows at least half of that;
+ * `at` (0..1) says how far into this stretch — measured on the game's own clock — the kept frame
+ * lies (0.5 = the middle of the effect, 0.9 = near its end, when the first flash has cleared and
+ * the beams stand sharp).
  */
-function pickFrame(frames, at) {
-  let most = 0;
-  for (const f of frames) if (f.fx.white > most) most = f.fx.white;
-  const lit = frames.map((f, i) => i).filter((i) => frames[i].fx.white >= most * 0.5);
-  const from = frames[lit[0]].g;
-  const to = frames[lit[lit.length - 1]].g;
-  const target = from + (typeof at === 'number' ? at : 0.5) * (to - from);
-  let pick = lit[0];
-  for (const i of lit) if (Math.abs(frames[i].g - target) < Math.abs(frames[pick].g - target)) pick = i;
+function pickFrame(frames, at, rest) {
+  const light = frames.map((f) => Math.max(0, f.fx.white - rest));
+  let peak = 0;
+  for (let i = 1; i < frames.length; i++) if (light[i] > light[peak]) peak = i;
+  let first = peak;
+  let last = peak;
+  while (first > 0 && light[first - 1] >= light[peak] * 0.5) first--;
+  while (last < frames.length - 1 && light[last + 1] >= light[peak] * 0.5) last++;
+  const target = frames[first].g + (typeof at === 'number' ? at : 0.5) * (frames[last].g - frames[first].g);
+  let pick = first;
+  for (let i = first; i <= last; i++) if (Math.abs(frames[i].g - target) < Math.abs(frames[pick].g - target)) pick = i;
   return pick;
 }
 
@@ -149,30 +153,34 @@ function startBoosters(scene) {
 const range = (n) => Array.from({ length: n }, (_v, i) => i + 1);
 
 /**
- * Decides, with the game's own level list and engine, which level a scene shows and which line of
- * play leads to its moment. Runs on any page of the game. → { level, theme, seed, moves, boosters, … }
+ * The line of play for a scene on one level, found with the game's own engine in `page`.
+ * → { level, theme, seed, moves, boosters, score, good, … } or null when nothing was found.
+ */
+async function planOnLevel(page, scene, cand) {
+  const boosters = startBoosters(scene);
+  const base = { level: cand.id, theme: cand.theme, chapter: cand.chapter, kinds: cand.kinds, cols: cand.cols, rows: cand.rows, boosters };
+  if (scene.kind === 'calm' || scene.kind === 'hammer') return Object.assign(base, { seed: 7, moves: [], score: 0, good: true });
+  if (scene.kind === 'win') {
+    const res = await G.planWin(page, { level: cand.id, boosters, seeds: range(scene.plan.seeds) });
+    return res ? Object.assign(base, { seed: res.seed, moves: res.moves, stars: res.stars, score: res.stars, endScore: res.score, good: res.stars === 3 }) : null;
+  }
+  const res = await G.planMoment(page, { level: cand.id, boosters, seeds: range(scene.plan.seeds), depth: scene.plan.depth, wish: scene.plan.wish, min: scene.plan.min });
+  return res ? Object.assign(base, { seed: res.seed, moves: res.moves, score: res.score, stats: res.stats, good: res.score >= scene.plan.min }) : null;
+}
+
+/**
+ * Decides which shipped level a scene shows: the first fitting level (shots-config.cjs `level`) on
+ * which a good line of play exists, otherwise the one with the best line. Runs on any page of the game.
  */
 async function planScene(page, scene) {
   const candidates = await G.pickLevels(page, scene.level);
   if (candidates.length === 0) throw new Error('no shipped level fits scene "' + scene.id + '"');
-  // the Caravan exists from level 20: below that the start boosters must be picked by hand
   let best = null;
   for (const cand of candidates.slice(0, 5)) {
-    const boosters = startBoosters(scene);
-    const base = { level: cand.id, theme: cand.theme, chapter: cand.chapter, kinds: cand.kinds, cols: cand.cols, rows: cand.rows, boosters };
-    if (scene.kind === 'calm' || scene.kind === 'hammer') return Object.assign(base, { seed: 7, moves: [], score: 0 });
-    if (scene.kind === 'win') {
-      const res = await G.planWin(page, { level: cand.id, boosters, seeds: range(scene.plan.seeds) });
-      if (!res) continue;
-      const plan = Object.assign(base, { seed: res.seed, moves: res.moves, stars: res.stars, score: res.stars, endScore: res.score });
-      if (res.stars === 3) return plan;
-      if (!best || plan.score > best.score) best = plan;
-      continue;
-    }
-    const res = await G.planMoment(page, { level: cand.id, boosters, seeds: range(scene.plan.seeds), depth: scene.plan.depth, wish: scene.plan.wish, min: scene.plan.min });
-    if (!res) continue;
-    const plan = Object.assign(base, { seed: res.seed, moves: res.moves, score: res.score, stats: res.stats });
-    if (res.score >= scene.plan.min) return plan;
+    const plan = await planOnLevel(page, scene, cand);
+    if (!plan) continue;
+    plan.cand = cand;
+    if (plan.good) return plan;
     if (!best || plan.score > best.score) best = plan;
   }
   if (!best) throw new Error('no line of play found for scene "' + scene.id + '"');
@@ -285,22 +293,20 @@ async function captureScene(browser, base, scene, lang, device, plans, problems)
       shot = await page.screenshot({ type: 'png' });
     } else {
       // ── a level ──
-      let plan = plans[scene.id];
-      let boosters = null;
-      for (let attempt = 0; ; attempt++) {
-        const save = G.makeSave({ reached: plan.level - 1, coins: CFG.JOURNEY.coins, caravan: scene.caravan || 0 });
-        const query = { seed: String(plan.seed), screen: 'map' };
-        if (scene.kind === 'win') query.fast = '1';
-        page = await G.openGame(browser, { base, lang, device, save, query, problems, tag });
-        boosters = await G.startLevel(page, plan.level, scene.picks || []);
-        const same = JSON.stringify(Object.keys(boosters).sort()) === JSON.stringify(Object.keys(plan.boosters).sort());
-        if (same && (await G.boardMatches(page, { level: plan.level, boosters: plan.boosters }, plan.seed))) break;
-        // the game changed under us (someone is editing levels): plan again on this very version
-        if (attempt >= 2) throw new Error('the board on screen is not the planned one (level ' + plan.level + ', seed ' + plan.seed + ')');
-        plan = await planScene(page, scene);
-        plans[scene.id] = plan;
-        await G.closeGame(page);
-        page = null;
+      // The level was chosen before the run; the line of play is looked for again HERE, in the page
+      // that is captured — so plan and game are the same version even while the game is being edited.
+      const chosen = plans[scene.id];
+      const save = G.makeSave({ reached: chosen.level - 1, coins: CFG.JOURNEY.coins, caravan: scene.caravan || 0 });
+      const query = { screen: 'map' };
+      if (scene.kind === 'win') query.fast = '1';
+      page = await G.openGame(browser, { base, lang, device, save, query, problems, tag });
+      const plan = await planOnLevel(page, scene, chosen.cand);
+      if (!plan) throw new Error('no line of play on level ' + chosen.level + ' in this version of the game');
+      await G.setSeed(page, plan.seed);
+      const boosters = await G.startLevel(page, plan.level, scene.picks || []);
+      const same = JSON.stringify(Object.keys(boosters).sort()) === JSON.stringify(Object.keys(plan.boosters).sort());
+      if (!same || !(await G.boardMatches(page, { level: plan.level, boosters: plan.boosters }, plan.seed))) {
+        throw new Error('the board on screen is not the planned one (level ' + plan.level + ', seed ' + plan.seed + ')');
       }
       const world = WORLD_NAMES[plan.theme] || plan.theme;
       meta.level = plan.level;
@@ -358,9 +364,10 @@ async function captureScene(browser, base, scene, lang, device, plans, problems)
           meta.moment = 'move ' + plan.moves.length + ' ' + fmtMove(last) + ' set off ' + plan.stats.cascades + ' cascades; frame taken while the game shows its praise word "' + word + '" (about 0.4 s after it appears)';
         } else {
           const rect = await boardRect(page, device.scale);
+          const rest = effectScore(await page.screenshot({ type: 'png' }), rect).white;
           const frames = await G.burst(page, trigger, scene.burst);
           for (const f of frames) f.fx = effectScore(f.png, rect);
-          const pick = pickFrame(frames, scene.pick);
+          const pick = pickFrame(frames, scene.pick, rest);
           if (KEEP_FRAMES) {
             frames.forEach((f, i) =>
               writeFile(path.join(FRAMES_DIR, device.id + '-' + lang + '-' + scene.id + '-' + String(i).padStart(2, '0') + '-g' + f.g + '-w' + f.fx.white.toFixed(0) + '-c' + f.fx.colour.toFixed(0) + (i === pick ? '-PICKED' : '') + '.png'), f.png),

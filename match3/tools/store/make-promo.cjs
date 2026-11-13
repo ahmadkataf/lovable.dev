@@ -546,7 +546,7 @@ const LAYOUT = {
     theme: 'bazaar', // used only if the capture does not name its chapter
     square: {
       lock: { mode: 'h', ax: 540, align: 'center', y: 34, h: 108 },
-      lenses: { d: 336, centres: [[190, 500], [540, 500], [890, 500]], label: { dy: 316, max: 96, w: 310 }, badge: 0.4, row: true },
+      lenses: { d: 336, centres: [[190, 470], [540, 470], [890, 470]], label: { dy: 320, max: 96, w: 310 }, badge: 0.4, row: true },
       store: { ax: 540, align: 'center', cy: 1042, size: 31 },
       gems: [
         ['gem2', 90, 965, 120, -12],

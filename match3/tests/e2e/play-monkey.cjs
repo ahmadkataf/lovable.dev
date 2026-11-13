@@ -783,7 +783,7 @@ async function hintMove(page, o, withChaos) {
       await back(page);
       note('back mid-turn');
     } else {
-      // swipes made while the board resolves: at most one of them is remembered
+      // swipes made while the board resolves: one is remembered at a time and played when the board has settled
       stats.bursts++;
       const n = 1 + int(3);
       for (let i = 0; i < n; i++) {
@@ -808,7 +808,8 @@ async function hintMove(page, o, withChaos) {
     const spent = m0 - now.moves;
     if (now.status === 'won') return; // the end bonus has already used the remaining moves
     if (extra === 0) must(spent === 1, `a valid move ${JSON.stringify(h)} spent ${spent} moves (state ${now.state}, selection before ${JSON.stringify(o.info.selection)})`);
-    else must(spent >= 1 && spent <= 2, `a valid move plus a buffered swipe spent ${spent} moves`);
+    // (each swipe of the burst may be remembered and played in its turn — one at a time — when it was valid by then)
+    else must(spent >= 1 && spent <= 1 + extra, `a valid move plus ${extra} swipes made while the board resolved spent ${spent} moves`);
   }
 }
 

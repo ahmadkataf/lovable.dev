@@ -15,18 +15,27 @@
  *                capitals, no ranking / price / promotion words, no call to action, no name or
  *                vocabulary of another game, and the short description is not repeated in the full one.
  *   graphics     store/graphics: feature-graphic.png and feature-graphic-ar.png are exactly 1024×500,
- *                8-bit RGB with no alpha channel; icon-512.png is exactly 512×512 and every pixel is
- *                fully opaque (corners included, so no rounded corners).
+ *                8-bit RGB with no alpha channel; icon-512.png is exactly 512×512, every pixel is
+ *                fully opaque (corners included, so no rounded corners), and it shows the same emblem
+ *                as the Android project's launcher icons (android/app/src/main/res/mipmap-*).
  *   privacy      store/privacy/index.html opens in headless Chromium from disk with no console error,
  *                no page error and no network request at all, shows both languages, switches between
  *                them, and still carries (or no longer carries) the owner's placeholders — reported.
- *   screenshots  store/screenshots/<lang>/*.png, if any exist yet: exactly 1080×1920, no alpha channel.
+ *   screenshots  store/screenshots (see check-shots.cjs for the full list): for each language and
+ *                device class (phone 1080×1920, 7-inch 1200×1920, 10-inch 1600×2560) the exact set of
+ *                upload files and raw captures — exact pixel size, RGB PNG without alpha, under 8 MB,
+ *                the number per folder; every upload file is still its raw capture, only scaled
+ *                (compared pixel by pixel) and unchanged since the tool wrote it (checksums); the
+ *                manifest names language, level, seed and moment of every capture; captions are 2–5
+ *                words without ranking / price / call-to-action wording and take under 20 % of the
+ *                image (measured as laid out and again in the pixels); alt texts at most 140 characters.
  *
  * Playwright is the globally installed one; it is only loaded for the privacy check.
  */
 const fs = require('fs');
 const path = require('path');
 const { ROOT, pngInfo, decodePng } = require('./lib.cjs');
+const shots = require('./check-shots.cjs');
 
 /** STORE_DIR=<dir> checks a copy of the kit somewhere else (used to prove that the checks really fail). */
 const STORE = process.env.STORE_DIR ? path.resolve(process.env.STORE_DIR) : path.join(ROOT, 'store');
@@ -171,42 +180,13 @@ function checkRgbPng(file, w, h, label) {
   else ok(label + ': ' + size + ', 24-bit RGB, no alpha channel, ' + Math.round(buf.length / 1024) + ' KB');
 }
 
+/** Graphics and screenshots: the checks live in check-shots.cjs (with the screenshot tool's own config). */
 function checkGraphics() {
-  const dir = path.join(STORE, 'graphics');
-  checkRgbPng(path.join(dir, 'feature-graphic.png'), 1024, 500, 'graphics/feature-graphic.png');
-  checkRgbPng(path.join(dir, 'feature-graphic-ar.png'), 1024, 500, 'graphics/feature-graphic-ar.png');
-
-  const iconFile = path.join(dir, 'icon-512.png');
-  if (!fs.existsSync(iconFile)) return fail('graphics/icon-512.png is missing');
-  const buf = fs.readFileSync(iconFile);
-  const info = pngInfo(buf);
-  if (info.width !== 512 || info.height !== 512) return fail('graphics/icon-512.png is ' + info.width + '×' + info.height + ', must be exactly 512×512');
-  if (buf.length > 1024 * 1024) fail('graphics/icon-512.png is ' + buf.length + ' bytes; Google Play allows at most 1024 KB');
-  const img = decodePng(buf);
-  let transparent = 0;
-  if (img.channels === 4) for (let i = 3; i < img.data.length; i += 4) if (img.data[i] !== 255) transparent++;
-  if (transparent) fail('graphics/icon-512.png has ' + transparent + ' pixels that are not fully opaque (transparency or rounded corners)');
-  else {
-    ok(
-      'graphics/icon-512.png: 512×512, ' +
-        (img.channels === 4 ? '32-bit PNG whose alpha channel is 255 everywhere (fully opaque, square corners)' : '24-bit RGB, no alpha channel') +
-        ', ' + Math.round(buf.length / 1024) + ' KB',
-    );
-  }
+  shots.checkGraphics(STORE, { ok, fail, note });
 }
 
 function checkScreenshots() {
-  const base = path.join(STORE, 'screenshots');
-  let count = 0;
-  for (const lang of ['en', 'ar']) {
-    const dir = path.join(base, lang);
-    if (!fs.existsSync(dir)) continue;
-    for (const name of fs.readdirSync(dir).filter((n) => n.endsWith('.png')).sort()) {
-      count++;
-      checkRgbPng(path.join(dir, name), 1080, 1920, 'screenshots/' + lang + '/' + name);
-    }
-  }
-  if (!count) note('no screenshots yet (store/screenshots/<lang>/): run tools/store/make-screenshots.cjs once the game shell is integrated');
+  shots.checkScreenshots(STORE, { ok, fail, note });
 }
 
 // ───────────────────────────── privacy page ─────────────────────────────
