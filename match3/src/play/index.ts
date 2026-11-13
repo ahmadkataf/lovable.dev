@@ -1579,6 +1579,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
         while (left > 0.01) {
           const dt = left < 1000 / 60 ? left : 1000 / 60;
           left -= dt;
+          timers.advance(dt / speedFactor);
           sched.step(dt);
           view.step(dt);
           await new Promise<void>((resolve) => window.setTimeout(resolve, 0));

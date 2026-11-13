@@ -298,6 +298,7 @@ async function tests(browser) {
     ok(true, 'bought again: 2,000');
     await sleep(900);
     // pending: nothing now
+    await page.waitForFunction(() => document.querySelectorAll('.k-toast').length === 0, null, { timeout: 9000 });
     await tap(page, '[data-product="coins_medium"] .k-btn');
     await fakeSheet(page, 'pending');
     await sleep(800);

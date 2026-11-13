@@ -106,6 +106,34 @@ interface RingFx {
   delay: number;
 }
 
+/** A four-point star flare (impacts, beam heads) or, with `rays`, a many-rayed burst of light. */
+interface FlareFx {
+  x: number;
+  y: number;
+  t: number;
+  dur: number;
+  delay: number;
+  /** diameter in cells, start → end */
+  s0: number;
+  s1: number;
+  alpha: number;
+  /** rotation in radians, start and total turn */
+  rot: number;
+  spin: number;
+  rays: boolean;
+}
+
+/** One tile lighting up under a blast. */
+interface TileFx {
+  c: number;
+  r: number;
+  t: number;
+  dur: number;
+  delay: number;
+  color: number;
+  alpha: number;
+}
+
 interface RayFx {
   x0: number;
   y0: number;
@@ -208,6 +236,14 @@ export interface BoardView {
   burst(x: number, y: number, color: number, count: number, speed: number, shape: number, opts?: BurstOpts): void;
   beam(x: number, y: number, horizontal: boolean, color: number, thick: number, sweep: number, alpha?: number): void;
   ring(x: number, y: number, r0: number, r1: number, dur: number, color: number, alpha?: number, delay?: number): void;
+  /** A four-point star of light, `size` cells across at its largest. */
+  flare(x: number, y: number, size: number, dur: number, alpha?: number, delay?: number, rot?: number): void;
+  /** A burst of rays growing from `s0` to `s1` cells across. */
+  rays(x: number, y: number, s0: number, s1: number, dur: number, alpha?: number, delay?: number): void;
+  /** The tile of a cell lights up (under the pieces). */
+  tileFlash(c: number, r: number, dur: number, color: number, alpha?: number, delay?: number): void;
+  /** The board's gold frame glows for a moment. */
+  framePulse(alpha: number, dur: number): void;
   glow(x: number, y: number, s0: number, s1: number, dur: number, color: number, alpha?: number, delay?: number): void;
   ray(x0: number, y0: number, x1: number, y1: number, dur: number, delay: number, color: number): void;
   popup(x: number, y: number, value: number, dur: number, fade: number, delay: number, big: boolean): void;
@@ -265,7 +301,7 @@ export interface ViewDebug {
     chainAlpha: number;
     dying: boolean;
   }[];
-  effects: { particles: number; beams: number; rings: number; rays: number; popups: number; ghosts: number; glows: number; flash: boolean; shake: boolean };
+  effects: { particles: number; beams: number; rings: number; rays: number; flares: number; tiles: number; popups: number; ghosts: number; glows: number; flash: boolean; shake: boolean };
   selection: Pos | null;
   hint: boolean;
   hand: boolean;
@@ -364,10 +400,15 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   let hintImg: HTMLCanvasElement | null = null;
   let handImg: HTMLCanvasElement | null = null;
   let hammerImg: HTMLCanvasElement | null = null;
-  let ringImg: HTMLCanvasElement | null = null;
+  let flareImg: HTMLCanvasElement | null = null;
+  let raysImg: HTMLCanvasElement | null = null;
+  let frameGlow: HTMLCanvasElement | null = null;
+  let frameGlowDirty = true;
   let warmed = false;
   const glowTex: (HTMLCanvasElement | null)[] = [];
   const streakTex: (HTMLCanvasElement | null)[] = [];
+  const ringTex: (HTMLCanvasElement | null)[] = [];
+  const tileTex: (HTMLCanvasElement | null)[] = [];
   const partTex: (HTMLCanvasElement | null)[] = [];
   const palette: string[] = [];
   for (let i = 0; i < 6; i++) palette.push(art.gemColor(i as Color));
@@ -397,6 +438,8 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   // ── effects ──
   const beams: BeamFx[] = [];
   const rings: RingFx[] = [];
+  const flares: FlareFx[] = [];
+  const tiles: TileFx[] = [];
   const rays: RayFx[] = [];
   const popups: PopupFx[] = [];
   const ghosts: GhostFx[] = [];
@@ -407,6 +450,9 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   let shakeAmp = 0;
   let shakeT = 0;
   let shakeDur = 0;
+  let pulseAlpha = 0;
+  let pulseT = 0;
+  let pulseDur = 0;
   let dim = 0;
   let reduced = false;
 
@@ -445,10 +491,14 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   function resetTextures(): void {
     glowTex.length = 0;
     streakTex.length = 0;
+    ringTex.length = 0;
+    tileTex.length = 0;
     partTex.length = 0;
     for (let i = 0; i < PAL_SIZE; i++) {
       glowTex.push(null);
       streakTex.push(null);
+      ringTex.push(null);
+      tileTex.push(null);
     }
     for (let i = 0; i < PAL_SIZE * SHAPE_COUNT; i++) partTex.push(null);
     chainImg = art.sprite('chain', cs);
@@ -456,7 +506,9 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     hintImg = art.sprite('hint', cs);
     handImg = null;
     hammerImg = null;
-    ringImg = null;
+    flareImg = null;
+    raysImg = null;
+    frameGlowDirty = true;
     popupCache.clear();
     for (let i = 0; i < list.length; i++) refreshSprite(list[i] as VPiece);
     warmed = false;
@@ -471,8 +523,15 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     warmed = true;
     for (let i = 0; i < PAL_SIZE; i++) {
       glowOf(i);
-      if (i <= PAL_GOLD) streakOf(i);
+      if (i <= PAL_GOLD) {
+        streakOf(i);
+        ringOf(i);
+      }
     }
+    ringOf(PAL_WHITE);
+    flareTexture();
+    raysTexture();
+    for (let c = 0; c <= PAL_WHITE; c++) tileOf(c);
     for (let c = 0; c < 6; c++) particleTex(c, SHAPE_SHARD);
     particleTex(PAL_GOLD, SHAPE_SPARK);
     particleTex(PAL_GOLD, SHAPE_DOT);
@@ -481,7 +540,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     particleTex(PAL_STONE, SHAPE_CHUNK);
     particleTex(PAL_LEAF, SHAPE_SHARD);
     particleTex(PAL_IRON, SHAPE_CHUNK);
-    ringTexture();
+    for (let c = 0; c <= PAL_GOLD; c++) particleTex(c, SHAPE_DOT);
   }
 
   function rgb(hex: string): [number, number, number] {
@@ -513,27 +572,42 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     return tex;
   }
 
-  /** A horizontal light streak: white-hot core, coloured halo, soft ends. */
+  /** A horizontal light streak: white-hot core, coloured halo, ends that taper away. */
   function streakOf(color: number): HTMLCanvasElement {
     const i = color >= 0 && color < PAL_SIZE ? color : PAL_GOLD;
     let tex = streakTex[i];
     if (!tex) {
-      const w = 64;
+      const w = 256;
       const h = Math.max(16, Math.round(cs * 1.4));
       tex = makeCanvas(w, h);
       const g = tex.getContext('2d') as CanvasRenderingContext2D;
       const c = rgb(palette[i] as string);
       const grad = g.createLinearGradient(0, 0, 0, h);
       const col = c[0] + ',' + c[1] + ',' + c[2];
+      const hot = Math.min(255, c[0] + 90) + ',' + Math.min(255, c[1] + 90) + ',' + Math.min(255, c[2] + 90);
+      // mostly the gem's own colour; white-hot only along the very axis (additive light on bright
+      // gems burns out to plain white otherwise)
       grad.addColorStop(0, 'rgba(' + col + ',0)');
-      grad.addColorStop(0.24, 'rgba(' + col + ',0.38)');
-      grad.addColorStop(0.4, 'rgba(255,236,170,0.95)');
+      grad.addColorStop(0.22, 'rgba(' + col + ',0.22)');
+      grad.addColorStop(0.38, 'rgba(' + col + ',0.7)');
+      grad.addColorStop(0.455, 'rgba(' + hot + ',0.9)');
       grad.addColorStop(0.5, 'rgba(255,255,255,1)');
-      grad.addColorStop(0.6, 'rgba(255,236,170,0.95)');
-      grad.addColorStop(0.76, 'rgba(' + col + ',0.38)');
+      grad.addColorStop(0.545, 'rgba(' + hot + ',0.9)');
+      grad.addColorStop(0.62, 'rgba(' + col + ',0.7)');
+      grad.addColorStop(0.78, 'rgba(' + col + ',0.22)');
       grad.addColorStop(1, 'rgba(' + col + ',0)');
       g.fillStyle = grad;
       g.fillRect(0, 0, w, h);
+      // the ends fade out instead of being cut off square
+      g.globalCompositeOperation = 'destination-in';
+      const ends = g.createLinearGradient(0, 0, w, 0);
+      ends.addColorStop(0, 'rgba(0,0,0,0)');
+      ends.addColorStop(0.1, 'rgba(0,0,0,1)');
+      ends.addColorStop(0.9, 'rgba(0,0,0,1)');
+      ends.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = ends;
+      g.fillRect(0, 0, w, h);
+      g.globalCompositeOperation = 'source-over';
       streakTex[i] = tex;
     }
     return tex;
@@ -625,21 +699,159 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     return tex;
   }
 
-  function ringTexture(): HTMLCanvasElement {
-    if (!ringImg) {
+  /** A shock-wave ring: faint tinted inside, a white-hot edge, a coloured fringe. */
+  function ringOf(color: number): HTMLCanvasElement {
+    const i = color >= 0 && color < PAL_SIZE ? color : PAL_WHITE;
+    let tex = ringTex[i];
+    if (!tex) {
       const size = 256;
-      ringImg = makeCanvas(size, size);
-      const g = ringImg.getContext('2d') as CanvasRenderingContext2D;
-      const grad = g.createRadialGradient(size / 2, size / 2, size * 0.3, size / 2, size / 2, size / 2);
-      grad.addColorStop(0, 'rgba(255,255,255,0)');
-      grad.addColorStop(0.55, 'rgba(255,240,190,0.16)');
-      grad.addColorStop(0.8, 'rgba(255,250,225,0.95)');
-      grad.addColorStop(0.9, 'rgba(255,228,150,0.6)');
-      grad.addColorStop(1, 'rgba(255,220,130,0)');
+      tex = makeCanvas(size, size);
+      const g = tex.getContext('2d') as CanvasRenderingContext2D;
+      const c = rgb(palette[i] as string);
+      const col = c[0] + ',' + c[1] + ',' + c[2];
+      const hot = Math.min(255, c[0] + 120) + ',' + Math.min(255, c[1] + 120) + ',' + Math.min(255, c[2] + 120);
+      const grad = g.createRadialGradient(size / 2, size / 2, size * 0.2, size / 2, size / 2, size / 2);
+      grad.addColorStop(0, 'rgba(' + col + ',0)');
+      grad.addColorStop(0.5, 'rgba(' + col + ',0.1)');
+      grad.addColorStop(0.72, 'rgba(' + col + ',0.3)');
+      grad.addColorStop(0.84, 'rgba(' + hot + ',0.9)');
+      grad.addColorStop(0.89, 'rgba(255,255,255,1)');
+      grad.addColorStop(0.94, 'rgba(' + hot + ',0.7)');
+      grad.addColorStop(1, 'rgba(' + col + ',0)');
       g.fillStyle = grad;
       g.fillRect(0, 0, size, size);
+      ringTex[i] = tex;
     }
-    return ringImg;
+    return tex;
+  }
+
+  /** A four-point star of light: soft core, two long spikes, two short diagonal ones. */
+  function flareTexture(): HTMLCanvasElement {
+    if (!flareImg) {
+      const size = Math.max(48, Math.round(cs * 2.2));
+      flareImg = makeCanvas(size, size);
+      const g = flareImg.getContext('2d') as CanvasRenderingContext2D;
+      const m = size / 2;
+      g.globalCompositeOperation = 'lighter';
+      const spike = (rot: number, len: number, thin: number, a: number): void => {
+        g.setTransform(1, 0, 0, 1, m, m);
+        g.rotate(rot);
+        g.scale(len, thin);
+        const grad = g.createRadialGradient(0, 0, 0, 0, 0, m);
+        grad.addColorStop(0, 'rgba(255,255,255,' + a + ')');
+        grad.addColorStop(0.3, 'rgba(255,244,205,' + a * 0.7 + ')');
+        grad.addColorStop(1, 'rgba(255,220,140,0)');
+        g.fillStyle = grad;
+        g.beginPath();
+        g.arc(0, 0, m, 0, Math.PI * 2);
+        g.fill();
+      };
+      spike(0, 1, 0.07, 1);
+      spike(Math.PI / 2, 1, 0.07, 1);
+      spike(Math.PI / 4, 0.5, 0.06, 0.7);
+      spike(-Math.PI / 4, 0.5, 0.06, 0.7);
+      spike(0, 0.3, 0.3, 0.9);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    return flareImg;
+  }
+
+  /** A burst of sixteen rays of uneven length, bright at the centre. */
+  function raysTexture(): HTMLCanvasElement {
+    if (!raysImg) {
+      const size = 256;
+      raysImg = makeCanvas(size, size);
+      const g = raysImg.getContext('2d') as CanvasRenderingContext2D;
+      const m = size / 2;
+      const grad = g.createRadialGradient(m, m, 0, m, m, m);
+      grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+      grad.addColorStop(0.25, 'rgba(255,244,205,0.6)');
+      grad.addColorStop(0.7, 'rgba(255,224,150,0.18)');
+      grad.addColorStop(1, 'rgba(255,220,140,0)');
+      g.fillStyle = grad;
+      g.translate(m, m);
+      const n = 16;
+      for (let k = 0; k < n; k++) {
+        const len = m * (k % 2 === 0 ? 1 : 0.62) * (k % 4 === 1 ? 0.85 : 1);
+        const half = (Math.PI / n) * (k % 2 === 0 ? 0.42 : 0.3);
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.lineTo(Math.cos(-half) * len, Math.sin(-half) * len);
+        g.lineTo(Math.cos(half) * len, Math.sin(half) * len);
+        g.closePath();
+        g.fill();
+        g.rotate((Math.PI * 2) / n);
+      }
+      g.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    return raysImg;
+  }
+
+  /** One tile's worth of light in a colour: a rounded square, brightest in the middle. */
+  function tileOf(color: number): HTMLCanvasElement {
+    const i = color >= 0 && color < PAL_SIZE ? color : PAL_WHITE;
+    let tex = tileTex[i];
+    if (!tex) {
+      const size = Math.max(8, cs);
+      tex = makeCanvas(size, size);
+      const g = tex.getContext('2d') as CanvasRenderingContext2D;
+      const c = rgb(palette[i] as string);
+      const hot = Math.min(255, c[0] + 130) + ',' + Math.min(255, c[1] + 130) + ',' + Math.min(255, c[2] + 130);
+      const col = Math.min(255, c[0] + 40) + ',' + Math.min(255, c[1] + 40) + ',' + Math.min(255, c[2] + 40);
+      const r = size * 0.2;
+      const pad = size * 0.04;
+      g.beginPath();
+      g.moveTo(pad + r, pad);
+      g.arcTo(size - pad, pad, size - pad, size - pad, r);
+      g.arcTo(size - pad, size - pad, pad, size - pad, r);
+      g.arcTo(pad, size - pad, pad, pad, r);
+      g.arcTo(pad, pad, size - pad, pad, r);
+      g.closePath();
+      const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.72);
+      grad.addColorStop(0, 'rgba(' + hot + ',0.95)');
+      grad.addColorStop(0.6, 'rgba(' + col + ',0.6)');
+      grad.addColorStop(1, 'rgba(' + col + ',0.25)');
+      g.fillStyle = grad;
+      g.fill();
+      tileTex[i] = tex;
+    }
+    return tex;
+  }
+
+  /** The board's frame as pure light (drawn over the frame, additively, when it pulses). */
+  function frameGlowTexture(): HTMLCanvasElement | null {
+    if (!floor) return null;
+    if (frameGlow && !frameGlowDirty) return frameGlow;
+    frameGlowDirty = false;
+    const w = floor.width;
+    const h = floor.height;
+    if (!frameGlow) frameGlow = makeCanvas(w, h);
+    if (frameGlow.width !== w || frameGlow.height !== h) {
+      frameGlow.width = w;
+      frameGlow.height = h;
+    }
+    const g = frameGlow.getContext('2d') as CanvasRenderingContext2D;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, w, h);
+    const m = floorMargin;
+    const frame = Math.max(2.5, cs * 0.095);
+    const radius = cs * 0.26;
+    g.lineJoin = 'round';
+    g.shadowColor = 'rgba(255,214,120,0.95)';
+    g.shadowBlur = cs * 0.22;
+    g.strokeStyle = 'rgba(255,240,190,0.9)';
+    g.lineWidth = frame * 0.9;
+    outline(g, m, frame * 0.5, radius + frame * 0.5);
+    g.stroke();
+    g.shadowBlur = 0;
+    g.shadowColor = 'transparent';
+    // only the frame glows: cut the light out of the playfield
+    g.globalCompositeOperation = 'destination-out';
+    g.fillStyle = '#000';
+    outline(g, m, 0, radius);
+    g.fill();
+    g.globalCompositeOperation = 'source-over';
+    return frameGlow;
   }
 
   /** The tutorial pointer: our own simple pointing hand (cream glove, indigo outline, gold cuff). */
@@ -790,6 +1002,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       }
     }
     floorDirty = true;
+    frameGlowDirty = true;
     needsDraw = true;
   }
 
@@ -936,6 +1149,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     }
     warm();
     floorDirty = true;
+    frameGlowDirty = true;
     needsDraw = true;
   }
 
@@ -1091,6 +1305,28 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     rings.push({ x, y, t: 0, dur, r0, r1, color, alpha: alpha === undefined ? 1 : alpha, delay: delay || 0 });
   }
 
+  function flare(x: number, y: number, size: number, dur: number, alpha?: number, delay?: number, rot?: number): void {
+    flares.push({ x, y, t: 0, dur, delay: delay || 0, s0: size * 0.35, s1: size, alpha: alpha === undefined ? 1 : alpha, rot: rot || 0, spin: 0.5, rays: false });
+  }
+
+  function raysFx(x: number, y: number, s0: number, s1: number, dur: number, alpha?: number, delay?: number): void {
+    if (reduced && s1 > 4) return;
+    flares.push({ x, y, t: 0, dur, delay: delay || 0, s0, s1, alpha: alpha === undefined ? 1 : alpha, rot: rnd() * 6.283, spin: 0.35, rays: true });
+  }
+
+  function tileFlash(c: number, r: number, dur: number, color: number, alpha?: number, delay?: number): void {
+    if (c < 0 || r < 0 || c >= nCols || r >= nRows || cellExists[idx(c, r)] !== 1) return;
+    tiles.push({ c, r, t: 0, dur, delay: delay || 0, color, alpha: alpha === undefined ? 0.8 : alpha });
+  }
+
+  function framePulse(alpha: number, dur: number): void {
+    if (reduced) return;
+    if (pulseT < pulseDur && pulseAlpha * (1 - pulseT / pulseDur) > alpha) return;
+    pulseAlpha = alpha;
+    pulseT = 0;
+    pulseDur = dur;
+  }
+
   function glow(x: number, y: number, s0: number, s1: number, dur: number, color: number, alpha?: number, delay?: number): void {
     glows.push({ x, y, t: 0, dur, delay: delay || 0, s0, s1, alpha: alpha === undefined ? 1 : alpha, color });
   }
@@ -1142,20 +1378,33 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   }
 
   function popup(x: number, y: number, value: number, dur: number, fade: number, delay: number, big: boolean): void {
-    // two labels on the same spot would be unreadable: a young one takes the newcomer's points
-    for (let k = 0; k < popups.length; k++) {
+    // two labels on the same spot would be unreadable: a young one takes the newcomer's points,
+    // an older one (already risen) is absorbed by the newcomer
+    let total = value;
+    let large = big;
+    for (let k = popups.length - 1; k >= 0; k--) {
       const p = popups[k] as PopupFx;
       if (Math.abs(p.x - x) > 0.45 || Math.abs(p.y - y) > 0.45) continue;
       // time between the two labels appearing
       const gap = delay + p.t - p.delay;
-      if (gap > 260 || gap < -260) continue;
-      p.value += value;
-      p.big = p.big || big || p.value >= 300;
-      p.img = popupImage(p.value, p.big);
-      p.w = p.img.width / cs;
-      p.h = p.img.height / cs;
-      return;
+      if (gap <= 260 && gap >= -260) {
+        p.value += value;
+        p.big = p.big || big || p.value >= 300;
+        p.img = popupImage(p.value, p.big);
+        p.w = p.img.width / cs;
+        p.h = p.img.height / cs;
+        return;
+      }
+      if (gap > 260 && p.t - p.delay < p.dur) {
+        total += p.value;
+        large = large || p.big || total >= 300;
+        // it leaves as the newcomer arrives
+        p.dur = Math.min(p.dur, Math.max(0, p.t - p.delay) + delay + 60);
+        p.fade = Math.min(p.fade, 60);
+      }
     }
+    value = total;
+    big = large;
     const img = popupImage(value, big);
     popups.push({ x, y, t: 0, dur, fade, delay, img, w: img.width / cs, h: img.height / cs, value, big });
   }
@@ -1201,6 +1450,8 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     beams.length = 0;
     rings.length = 0;
     rays.length = 0;
+    flares.length = 0;
+    tiles.length = 0;
     popups.length = 0;
     ghosts.length = 0;
     glows.length = 0;
@@ -1208,6 +1459,8 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     flashDur = 0;
     shakeDur = 0;
     shakeT = 0;
+    pulseDur = 0;
+    pulseT = 0;
     needsDraw = true;
   }
 
@@ -1293,6 +1546,22 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
         glows.length--;
       }
     }
+    for (let k = flares.length - 1; k >= 0; k--) {
+      const f = flares[k] as FlareFx;
+      f.t += dt;
+      if (f.t - f.delay >= f.dur) {
+        flares[k] = flares[flares.length - 1] as FlareFx;
+        flares.length--;
+      }
+    }
+    for (let k = tiles.length - 1; k >= 0; k--) {
+      const f = tiles[k] as TileFx;
+      f.t += dt;
+      if (f.t - f.delay >= f.dur) {
+        tiles[k] = tiles[tiles.length - 1] as TileFx;
+        tiles.length--;
+      }
+    }
     for (let k = rays.length - 1; k >= 0; k--) {
       const r = rays[k] as RayFx;
       r.t += dt;
@@ -1317,6 +1586,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     }
     if (flashT < flashDur) flashT += dt;
     if (shakeT < shakeDur) shakeT += dt;
+    if (pulseT < pulseDur) pulseT += dt;
   }
 
   function animating(): boolean {
@@ -1325,6 +1595,9 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       beams.length > 0 ||
       rings.length > 0 ||
       rays.length > 0 ||
+      flares.length > 0 ||
+      tiles.length > 0 ||
+      pulseT < pulseDur ||
       popups.length > 0 ||
       ghosts.length > 0 ||
       glows.length > 0 ||
@@ -1408,6 +1681,30 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
 
     if (floor) ctx.drawImage(floor, bx - floorMargin, by - floorMargin);
 
+    // light on the board itself: the frame pulsing, tiles flashing under a blast
+    if (pulseT < pulseDur || tiles.length > 0) {
+      ctx.globalCompositeOperation = 'lighter';
+      if (pulseT < pulseDur) {
+        const tex = frameGlowTexture();
+        if (tex) {
+          const k = 1 - pulseT / pulseDur;
+          ctx.globalAlpha = pulseAlpha * k * k;
+          ctx.drawImage(tex, bx - floorMargin, by - floorMargin);
+        }
+      }
+      for (let k = 0; k < tiles.length; k++) {
+        const f = tiles[k] as TileFx;
+        const t = f.t - f.delay;
+        if (t < 0) continue;
+        const p = t / f.dur;
+        // quick in (first 18 %), slow out
+        ctx.globalAlpha = f.alpha * (p < 0.18 ? p / 0.18 : 1 - (p - 0.18) / 0.82);
+        ctx.drawImage(tileOf(f.color), bx + f.c * cs, by + f.r * cs, cs, cs);
+      }
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
     // targeting: a breathing gold veil over the board
     if (targeting) {
       ctx.globalAlpha = 0.1 + 0.07 * Math.sin(loopT * 0.006);
@@ -1476,57 +1773,77 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
 
     for (let k = 0; k < beams.length; k++) {
       const b = beams[k] as BeamFx;
-      const p = b.t < b.sweep ? b.t / b.sweep : 1;
+      const sweeping = b.t < b.sweep;
+      const p = sweeping ? b.t / b.sweep : 1;
       const e = 1 - (1 - p) * (1 - p);
-      const fade = b.t < b.sweep ? 1 : 1 - (b.t - b.sweep) / (b.dur - b.sweep);
+      // after the sweep the light collapses onto its axis instead of merely fading
+      const q = sweeping ? 0 : (b.t - b.sweep) / (b.dur - b.sweep);
+      const fade = 1 - q;
       const lo = b.lo * e;
       const hi = b.hi * e;
-      const thick = b.thick * cs * (0.75 + 0.25 * fade) * (b.t < 60 ? 0.4 + (b.t / 60) * 0.6 : 1);
-      const tex = streakOf(b.color);
+      // a punch at the start (thicker than it ends), then it narrows; thin line while collapsing
+      const swell = p < 0.18 ? 0.5 + (p / 0.18) * 0.7 : 1.2 - ((p - 0.18) / 0.82) * 0.4;
+      const thick = b.thick * cs * (sweeping ? swell : 0.9 * fade * fade + 0.06);
       const cxp = bx + b.x * cs;
       const cyp = by + b.y * cs;
-      ctx.globalAlpha = fade * b.alpha;
-      if (b.horizontal) {
-        ctx.drawImage(tex, cxp - lo * cs, cyp - thick / 2, (lo + hi) * cs, thick);
-      } else {
-        ctx.setTransform(0, 1, -1, 0, cxp + offX, cyp + offY);
-        ctx.drawImage(tex, -lo * cs, -thick / 2, (lo + hi) * cs, thick);
-        ctx.setTransform(1, 0, 0, 1, offX, offY);
+      const len = (lo + hi) * cs;
+      const mid = ((hi - lo) / 2) * cs;
+      if (!b.horizontal) ctx.setTransform(0, 1, -1, 0, cxp + offX, cyp + offY);
+      const ox = b.horizontal ? cxp : 0;
+      const oy = b.horizontal ? cyp : 0;
+      // 1. a lens of coloured light around the whole beam (thick in the middle, pointed at the ends)
+      ctx.globalAlpha = 0.5 * fade * b.alpha;
+      ctx.drawImage(glowOf(b.color), ox + mid - len * 0.56, oy - thick * 1.3, len * 1.12, thick * 2.6);
+      // 2. the streak itself
+      ctx.globalAlpha = (sweeping ? 1 : fade) * b.alpha;
+      ctx.drawImage(streakOf(b.color), ox - lo * cs - cs * 0.25, oy - thick / 2, len + cs * 0.5, thick);
+      // 3. a white-hot hairline that outlives the streak
+      ctx.globalAlpha = (sweeping ? 0.8 : fade * fade) * b.alpha;
+      ctx.drawImage(streakOf(PAL_GOLD), ox - lo * cs - cs * 0.1, oy - thick * 0.11, len + cs * 0.2, thick * 0.22);
+      if (sweeping) {
+        // the two racing heads: a star flare each (they fade in as they leave the firing cell, so
+        // crossing beams do not pile up into a white blot at the centre)
+        const head = flareTexture();
+        const hs = cs * (1.7 + b.thick * 0.7) * (0.85 + 0.15 * Math.sin(b.t * 0.05));
+        ctx.globalAlpha = (p < 0.25 ? p / 0.25 : 1) * b.alpha;
+        ctx.drawImage(head, ox - lo * cs - hs / 2, oy - hs / 2, hs, hs);
+        ctx.drawImage(head, ox + hi * cs - hs / 2, oy - hs / 2, hs, hs);
+        const hg = glowOf(PAL_WHITE);
+        const gs = hs * 0.55;
+        ctx.drawImage(hg, ox - lo * cs - gs / 2, oy - gs / 2, gs, gs);
+        ctx.drawImage(hg, ox + hi * cs - gs / 2, oy - gs / 2, gs, gs);
       }
-      if (b.t < b.sweep) {
-        // the two racing heads (they fade in as they leave the firing cell, so crossing beams do
-        // not pile up into a white blot at the centre)
-        const head = glowOf(PAL_WHITE);
-        const hs = cs * (1.3 + b.thick * 0.5);
-        ctx.globalAlpha = (p < 0.3 ? p / 0.3 : 1) * b.alpha;
-        if (b.horizontal) {
-          ctx.drawImage(head, cxp - lo * cs - hs / 2, cyp - hs / 2, hs, hs);
-          ctx.drawImage(head, cxp + hi * cs - hs / 2, cyp - hs / 2, hs, hs);
-        } else {
-          ctx.drawImage(head, cxp - hs / 2, cyp - lo * cs - hs / 2, hs, hs);
-          ctx.drawImage(head, cxp - hs / 2, cyp + hi * cs - hs / 2, hs, hs);
-        }
-      }
+      if (!b.horizontal) ctx.setTransform(1, 0, 0, 1, offX, offY);
     }
 
-    if (rings.length > 0) {
-      const tex = ringTexture();
-      for (let k = 0; k < rings.length; k++) {
-        const r = rings[k] as RingFx;
-        const t = r.t - r.delay;
-        if (t < 0) continue;
-        const p = t / r.dur;
-        const e = 1 - (1 - p) * (1 - p) * (1 - p);
-        const rad = (r.r0 + (r.r1 - r.r0) * e) * cs;
-        ctx.globalAlpha = r.alpha * (1 - p) * (1 - p * 0.4);
-        ctx.drawImage(tex, bx + r.x * cs - rad, by + r.y * cs - rad, rad * 2, rad * 2);
-        if (r.color !== PAL_WHITE) {
-          const halo = glowOf(r.color);
-          ctx.globalAlpha = r.alpha * (1 - p) * 0.5;
-          ctx.drawImage(halo, bx + r.x * cs - rad * 1.1, by + r.y * cs - rad * 1.1, rad * 2.2, rad * 2.2);
-        }
-      }
+    for (let k = 0; k < rings.length; k++) {
+      const r = rings[k] as RingFx;
+      const t = r.t - r.delay;
+      if (t < 0) continue;
+      const p = t / r.dur;
+      const e = 1 - (1 - p) * (1 - p) * (1 - p);
+      const rad = (r.r0 + (r.r1 - r.r0) * e) * cs;
+      ctx.globalAlpha = r.alpha * (1 - p) * (1 - p * 0.4);
+      ctx.drawImage(ringOf(r.color), bx + r.x * cs - rad, by + r.y * cs - rad, rad * 2, rad * 2);
     }
+
+    // star flares and bursts of rays
+    for (let k = 0; k < flares.length; k++) {
+      const f = flares[k] as FlareFx;
+      const t = f.t - f.delay;
+      if (t < 0) continue;
+      const p = t / f.dur;
+      const e = 1 - (1 - p) * (1 - p);
+      const size = (f.s0 + (f.s1 - f.s0) * e) * cs;
+      // flares: full at once, then out; ray bursts: a short rise first
+      ctx.globalAlpha = f.alpha * (f.rays ? (p < 0.15 ? p / 0.15 : 1 - (p - 0.15) / 0.85) : 1 - p * p);
+      const rot = f.rot + f.spin * p;
+      const cos = Math.cos(rot);
+      const sin = Math.sin(rot);
+      ctx.setTransform(cos, sin, -sin, cos, bx + f.x * cs + offX, by + f.y * cs + offY);
+      ctx.drawImage(f.rays ? raysTexture() : flareTexture(), -size / 2, -size / 2, size, size);
+    }
+    if (flares.length > 0) ctx.setTransform(1, 0, 0, 1, offX, offY);
 
     for (let k = 0; k < rays.length; k++) {
       const r = rays[k] as RayFx;
@@ -1675,6 +1992,10 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     burst,
     beam,
     ring,
+    flare,
+    rays: raysFx,
+    tileFlash,
+    framePulse,
     glow,
     ray,
     popup,
@@ -1762,6 +2083,8 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
           beams: beams.length,
           rings: rings.length,
           rays: rays.length,
+          flares: flares.length,
+          tiles: tiles.length,
           popups: popups.length,
           ghosts: ghosts.length,
           glows: glows.length,

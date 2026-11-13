@@ -17,6 +17,7 @@ export function openDailyDialog(ui: Ui): Promise<void> {
   const result = h('div', { class: 'm-daily__result' });
   const foot = h('div', { class: 'm-daily__foot' });
   const body = h('div', { class: 'm-daily' }, strip, result, kit.text(t('meta.daily.hint'), 'k-text--center k-text--muted k-text--sm'), foot);
+  const waitClock = h('span', { class: 'k-num' });
   let justClaimed = -1;
 
   function rewardNode(reward: Reward, size: number): HTMLElement {
@@ -107,18 +108,44 @@ export function openDailyDialog(ui: Ui): Promise<void> {
       claim.dataset.act = 'daily-claim';
       foot.appendChild(claim);
     } else {
-      const wait = kit.countdown({ remaining: () => msUntilNextLocalDay(Date.now()), label: t('meta.daily.next'), icon: 'calendar', onDone: () => render() });
-      foot.appendChild(h('div', { class: 'm-daily__wait' }, wait.el));
+      // the time to the next local midnight, kept current by the ticker below
+      waitClock.textContent = i18n.clock(msUntilNextLocalDay(Date.now()));
+      foot.appendChild(h('div', { class: 'm-daily__wait' }, h('span', { class: 'k-countdown' }, kit.icon('calendar', 20), h('span', { class: 'k-countdown__label', text: t('meta.daily.next') }), waitClock)));
       const ok = kit.button({ label: t('common.done'), variant: 'secondary', block: true, onClick: () => dialog.close() });
       ok.dataset.act = 'daily-done';
       foot.appendChild(ok);
     }
   }
 
+  let shownCanClaim: boolean | null = null;
+
   function render(): void {
     const s = status();
+    shownCanClaim = s.canClaim;
     renderStrip(s);
     renderFoot(s);
+  }
+
+  /**
+   * Once a second: the countdown to midnight — and at midnight the dialog turns to the new day's
+   * reward by itself (also when the app comes back from the background on another day).
+   */
+  function tick(): number {
+    const s = status();
+    if (s.canClaim !== shownCanClaim) {
+      if (s.canClaim) {
+        // a new day: yesterday's "you received" belongs to yesterday
+        justClaimed = -1;
+        kit.clear(result);
+        result.classList.remove('m-daily__result--on');
+      }
+      render();
+    }
+    if (s.canClaim) return 0;
+    const left = msUntilNextLocalDay(Date.now());
+    const text = i18n.clock(left);
+    if (waitClock.textContent !== text) waitClock.textContent = text;
+    return left;
   }
 
   render();
@@ -127,6 +154,9 @@ export function openDailyDialog(ui: Ui): Promise<void> {
     icon: 'gift',
     body,
     className: 'm-dialog-daily',
+    onClose: () => stopTicker(),
   });
+  dialog.el.dataset.dialog = 'daily';
+  const stopTicker = ui.ticker(tick);
   return dialog.closed.then(() => undefined);
 }

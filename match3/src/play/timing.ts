@@ -52,7 +52,8 @@ export const T = {
   fallPower: 0.6,
   columnStagger: 20,
   columnStaggerMax: 100,
-  landSquash: 100,
+  /** touch-down: squash, a small rebound, rest (cosmetic — control is back at touch-down) */
+  landSquash: 150,
 
   // ── other steps ──
   scorePopup: 650,

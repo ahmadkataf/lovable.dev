@@ -4,9 +4,15 @@
 
     <!--
         The app itself declares no permissions: the game is bundled, offline and single-player.
-        (androidx.core merges one signature-level permission that only this app can hold,
-        <applicationId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION. It must stay: libraries register
-        their internal broadcast receivers through it.)
+        What the built app holds is merged in from its libraries and must not be stripped:
+          - com.android.vending.BILLING, INTERNET, ACCESS_NETWORK_STATE: Google Play Billing (the
+            last two through its transport library). The game page still cannot use the network:
+            its WebView blocks network loads and every request to another origin (MainActivity,
+            LocalContent).
+          - <applicationId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION: androidx.core; signature-level,
+            only this app can hold it. Libraries register internal broadcast receivers through it.
+          - "ads" flavour only: the advertising-id permission and the ad SDK's other entries
+            (src/ads/AndroidManifest.xml, android/README.md has the full list).
     -->
 
     <!-- Playable with a mouse or trackpad too, so devices without a touchscreen are welcome. -->

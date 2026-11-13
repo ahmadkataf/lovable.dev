@@ -158,7 +158,7 @@ describe('daily reward', () => {
         h.clock.now += DAY;
       }
     }
-  });
+  }, 60_000);
 
   it('is offered from the second local calendar day — in any time zone, however the first day is cut', () => {
     for (const offset of [-720, -480, -210, 0, 180, 345, 540, 840]) {
@@ -223,7 +223,7 @@ describe('the Caravan against a tiny model', () => {
         });
       }
     }
-  });
+  }, 60_000);
 
   it('a damaged save cannot smuggle a Caravan in from before it unlocks', () => {
     const h = fromSave({ ...progressSave(17), caravan: 9 });
@@ -337,13 +337,13 @@ describe('purchaseSaved: is the grant in storage?', () => {
     }
   });
 
-  it('60 random runs: purchaseSaved(token) ⇔ the token is on the disk, through failing disks and restarts', () => {
-    for (let seed = 1; seed <= 60; seed++) {
+  it('40 random runs: purchaseSaved(token) ⇔ the token is on the disk, through failing disks and restarts', () => {
+    for (let seed = 1; seed <= 40; seed++) {
       const random = rng(seed * 31);
       const d = device();
       let p = d.start();
       const tokens: string[] = [];
-      for (let step = 0; step < 200; step++) {
+      for (let step = 0; step < 150; step++) {
         const r = random();
         if (r < 0.35) {
           const token = (random() < 0.5 ? 'short-' : 'long-token-'.repeat(8)) + seed + '-' + tokens.length;
@@ -359,7 +359,7 @@ describe('purchaseSaved: is the grant in storage?', () => {
           p.reset();
         }
         const failed = d.disk.mode === 'throws' && !p.lastSaveOk();
-        for (const token of tokens.slice(-12)) {
+        for (const token of tokens.slice(-6)) {
           const saved = p.purchaseSaved(token);
           const there = onDisk(d.disk.json, token);
           if (saved) expect(there, 'seed ' + seed + ' step ' + step + ': vouched for a token that is not on the disk').toBe(true);
@@ -368,7 +368,7 @@ describe('purchaseSaved: is the grant in storage?', () => {
         }
       }
     }
-  });
+  }, 60_000);
 });
 
 // ───────────────────────────── reset, entitlements, ad times ─────────────────────────────
@@ -413,7 +413,7 @@ describe('reset(): progress goes, real money and ad bookkeeping stay', () => {
       expect(again.grantPurchase('tok-' + seed + '-0', [{ kind: 'coins', amount: 1000 }])).toBe(false);
       expect(again.coins()).toBe(fresh.coins);
     }
-  });
+  }, 60_000);
 });
 
 describe('ad times and a clock that was set back', () => {

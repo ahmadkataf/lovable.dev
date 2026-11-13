@@ -948,7 +948,7 @@ export function createProfile(deps: ProfileDeps): FullProfile {
       // player first played are not progress either: a reset must never undo a purchase record.
       const fresh = freshSave();
       fresh.settings = data.settings;
-      void 0;
+      fresh.shop = data.shop;
       fresh.firstDay = data.firstDay;
       Object.assign(data, fresh); // in place: objects handed out by data() / settings() stay valid
       commit();

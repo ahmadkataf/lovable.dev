@@ -155,6 +155,37 @@ describe('Timers', () => {
     expect(fired).toBe(1);
   });
 
+  it('advance() lets time pass by hand while paused, firing in due order, and is ignored while running', () => {
+    const f = fakeHost();
+    const t = new Timers(f.host);
+    const fired: string[] = [];
+    t.after(100, () => fired.push('late'));
+    t.after(40, () => {
+      fired.push('early');
+      t.after(10, () => fired.push('chained'));
+    });
+    const gone = t.after(50, () => fired.push('cancelled'));
+    t.advance(1000); // running on the real clock: nothing happens
+    expect(fired).toEqual([]);
+    t.pause();
+    t.cancel(gone);
+    t.advance(39);
+    expect(fired).toEqual([]);
+    t.advance(1);
+    expect(fired).toEqual(['early']);
+    t.advance(200);
+    expect(fired).toEqual(['early', 'chained', 'late']);
+    expect(t.count()).toBe(0);
+    // what is left after a hand-advance is what resume() arms
+    t.after(100, () => fired.push('resumed'));
+    t.advance(70);
+    t.resume();
+    f.advance(29);
+    expect(fired.length).toBe(3);
+    f.advance(1);
+    expect(fired[3]).toBe('resumed');
+  });
+
   it('cancel and clear stop timers', () => {
     const f = fakeHost();
     const t = new Timers(f.host);

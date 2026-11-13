@@ -186,6 +186,28 @@ export class Timers {
     this.entries.length = 0;
   }
 
+  /**
+   * While paused: let `ms` pass by hand and fire what falls due, oldest first (frame-by-frame
+   * review and tests). Does nothing while the timers run on the real clock.
+   */
+  advance(ms: number): void {
+    if (!this.paused || !(ms > 0)) return;
+    const due: TimerEntry[] = [];
+    for (let i = 0; i < this.entries.length; i++) {
+      const entry = this.entries[i] as TimerEntry;
+      entry.left -= ms;
+      if (entry.left <= 0) due.push(entry);
+    }
+    due.sort((a, b) => a.left - b.left || a.id - b.id);
+    for (let i = 0; i < due.length; i++) {
+      const entry = due[i] as TimerEntry;
+      const at = this.entries.indexOf(entry);
+      if (at < 0) continue; // cancelled by an earlier one
+      this.entries.splice(at, 1);
+      entry.fn();
+    }
+  }
+
   count(): number {
     return this.entries.length;
   }

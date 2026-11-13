@@ -77,14 +77,16 @@ Merged manifest, by flavour (checked after every dependency change with
 
 | Permission | plain | ads | Comes from |
 |---|---|---|---|
-| `com.android.vending.BILLING` | ✓ | ✓ | Play Billing Library |
-| `android.permission.INTERNET` | ✓ | ✓ | Billing Library's transport (`transport-backend-cct`); the ad SDK |
-| `android.permission.ACCESS_NETWORK_STATE` | ✓ | ✓ | the same two |
-| `<applicationId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` (signature, own) | ✓ | ✓ | androidx.core |
-| `com.google.android.gms.permission.AD_ID` |  | ✓ | ad SDK |
+| `com.android.vending.BILLING` | ✓ | ✓ | Play Billing Library (`billing`) |
+| `android.permission.INTERNET` | ✓ | ✓ | the Billing Library's transport (`transport-backend-cct`); in `ads` also the ad SDK |
+| `android.permission.ACCESS_NETWORK_STATE` | ✓ | ✓ | `transport-backend-cct`, `transport-runtime`; in `ads` also the ad SDK and `androidx.work` |
+| `<applicationId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` (signature level, the app's own) | ✓ | ✓ | `androidx.core` |
+| `com.google.android.gms.permission.AD_ID` |  | ✓ | ad SDK (`ads-mobile-sdk`, `play-services-ads-identifier`) |
 | `android.permission.READ_BASIC_PHONE_STATE` |  | ✓ | ad SDK |
-| `android.permission.WAKE_LOCK`, `android.permission.FOREGROUND_SERVICE` |  | ✓ | androidx.work (a dependency of the ad SDK) |
-| `android.permission.ACCESS_ADSERVICES_AD_ID`, `…_ATTRIBUTION`, `…_TOPICS` |  | ✓ | Google Play services (ads identifier / measurement), if listed by the merge report |
+| `android.permission.WAKE_LOCK`, `android.permission.FOREGROUND_SERVICE` |  | ✓ | `androidx.work` (a dependency of the ad SDK) |
+
+`androidx.work` also asks for `RECEIVE_BOOT_COMPLETED`; the ad SDK's own manifest removes it again, so
+it is in neither flavour. No flavour contains native code (`lib/` is absent from APK and AAB).
 
 The app's own manifest declares none of them. INTERNET is there for the Google libraries only:
 the game's WebView blocks every network load (`blockNetworkLoads`), answers every request to another
