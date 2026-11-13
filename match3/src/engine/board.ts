@@ -342,7 +342,7 @@ const FILL_TRIES = 60;
  * Pick a colour for `idx` that does not complete a run with what is already there. Falls back
  * to a random colour when every colour would (the caller then notices the match and retries).
  */
-function colourWithoutMatch(b: Board, idx: number, colors: number, rng: Rng): Color {
+export function colourWithoutMatch(b: Board, idx: number, colors: number, rng: Rng): Color {
   const start = rng.int(colors);
   for (let d = 0; d < colors; d++) {
     const color = (start + d) % colors;

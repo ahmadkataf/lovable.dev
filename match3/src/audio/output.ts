@@ -33,7 +33,7 @@ export interface OutputChain {
 }
 
 /** Transfer curve of the guard: identity up to the knee, then a tanh bend to the ceiling. */
-export function guardCurve(points: number = 4097, knee: number = GUARD_KNEE, ceiling: number = GUARD_CEILING): Float32Array {
+export function guardCurve(points: number = 4097, knee: number = GUARD_KNEE, ceiling: number = GUARD_CEILING): Float32Array<ArrayBuffer> {
   const n = points | 1;
   const curve = new Float32Array(n);
   const room = ceiling - knee;

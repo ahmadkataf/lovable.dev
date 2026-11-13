@@ -9,7 +9,7 @@ import {
 } from '../../src/state/index.ts';
 import { DAILY_CYCLE, START_BOOSTERS, START_COINS } from '../../src/state/econ.ts';
 import type { Reward } from '../../src/state/types.ts';
-import { DAY, HOUR, MINUTE, SECOND, T0, fromSave, harness, sampleSave } from './harness.ts';
+import { DAY, HOUR, MINUTE, SECOND, T0, fromSave, harness, rng, sampleSave } from './harness.ts';
 
 /** Midnight (UTC) at the start of the day containing T0. */
 const MIDNIGHT = Math.floor(T0 / DAY) * DAY;
@@ -327,6 +327,48 @@ describe('daily reward: robustness', () => {
     const h = fromSave(save);
     expect(h.profile.daily()).toMatchObject({ canClaim: true, cycleDay: 0, streak: 0 });
     expect(h.profile.claimDaily()).toEqual(DAILY_CYCLE[0]);
+  });
+
+  it('a clock before 1970 cannot be used to claim over and over', () => {
+    // 1 January 1970 00:30 UTC seen from UTC−8 is still 31 December 1969: local day −1.
+    const h = harness({ now: 30 * MINUTE, utcOffsetMinutes: -480 });
+    expect(h.profile.claimDaily()).toEqual(DAILY_CYCLE[0]);
+    expect(h.saved().dailyDay).toBeGreaterThanOrEqual(0);
+    expect(h.profile.claimDaily()).toBeNull();
+    expect(h.restart().profile.claimDaily()).toBeNull();
+    expect(h.profile.coins()).toBe(START_COINS + 50);
+  });
+
+  it('whatever the clock does, each claim happens on a later day than every claim before it', () => {
+    for (const seed of [7, 8, 9]) {
+      const random = rng(seed);
+      const h = harness({ utcOffsetMinutes: 180 });
+      const day = fixedOffsetDayNumber(180);
+      let lastClaimDay = -Infinity;
+      let claims = 0;
+      for (let step = 0; step < 1500; step++) {
+        const roll = random();
+        if (roll < 0.5) h.clock.now += Math.floor(random() * 20 * HOUR);
+        else if (roll < 0.6) h.clock.now -= Math.floor(random() * 2 * DAY); // backwards
+        else if (roll < 0.65) h.clock.now += Math.floor(random() * 5 * DAY); // long absence
+        const profile = roll > 0.95 ? h.restart().profile : h.profile;
+        const today = day(h.clock.now);
+        const status = profile.daily();
+        const rewards = profile.claimDaily();
+        expect(rewards !== null).toBe(status.canClaim);
+        if (rewards) {
+          expect(today).toBeGreaterThan(lastClaimDay);
+          expect(rewards).toEqual(DAILY_CYCLE[status.cycleDay]);
+          lastClaimDay = today;
+          claims++;
+        } else {
+          expect(today).toBeLessThanOrEqual(lastClaimDay);
+        }
+        expect(status.cycleDay).toBeGreaterThanOrEqual(0);
+        expect(status.cycleDay).toBeLessThan(7);
+      }
+      expect(claims).toBeGreaterThan(20);
+    }
   });
 
   it('daily() itself never saves or notifies', () => {

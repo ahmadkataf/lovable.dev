@@ -176,7 +176,7 @@ function chainRun(ctx: Ctx, x0: number, y0: number, x1: number, y1: number): voi
   const dx = x1 - x0;
   const dy = y1 - y0;
   const len = Math.sqrt(dx * dx + dy * dy);
-  const step = 11.2;
+  const step = 10.6;
   const n = Math.round(len / step);
   const s = len / n;
   ctx.save();
@@ -186,33 +186,33 @@ function chainRun(ctx: Ctx, x0: number, y0: number, x1: number, y1: number): voi
   for (let i = 0; i <= n; i += 2) {
     const x = i * s;
     const link = new Path2D();
-    rrect(link, x - 8.4, -5.4, 16.8, 10.8, 5.4);
+    rrect(link, x - 7.6, -4.8, 15.2, 9.6, 4.8);
     ctx.strokeStyle = INK;
-    ctx.lineWidth = 5.4;
+    ctx.lineWidth = 4.9;
     ctx.stroke(link);
     ctx.strokeStyle = lGrad(ctx, 0, -6, 0, 6, [
       [0, '#aab2cc'],
       [0.5, '#6b7390'],
       [1, '#3c4158'],
     ]);
-    ctx.lineWidth = 3.2;
+    ctx.lineWidth = 2.9;
     ctx.stroke(link);
     ctx.strokeStyle = 'rgba(232,238,255,0.8)';
     ctx.lineWidth = 0.9;
     ctx.beginPath();
-    ctx.moveTo(x - 4.5, -5.9);
-    ctx.lineTo(x + 3.5, -5.9);
+    ctx.moveTo(x - 4, -5.2);
+    ctx.lineTo(x + 3, -5.2);
     ctx.stroke();
   }
   // edge-on links threading through them
   for (let i = 1; i < n; i += 2) {
     const x = i * s;
     const bar = new Path2D();
-    rrect(bar, x - 7, -2.5, 14, 5, 2.5);
+    rrect(bar, x - 6.4, -2.2, 12.8, 4.4, 2.2);
     ctx.strokeStyle = INK;
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = 2;
     ctx.stroke(bar);
-    ctx.fillStyle = lGrad(ctx, 0, -2.5, 0, 2.5, [
+    ctx.fillStyle = lGrad(ctx, 0, -2.2, 0, 2.2, [
       [0, '#b9c0d8'],
       [0.55, '#666e8a'],
       [1, '#3c4158'],
@@ -283,121 +283,168 @@ export function drawChain(ctx: Ctx, px: number): void {
 
 // ───────────────────────────── vine ─────────────────────────────
 
-function stem(ctx: Ctx, p: Path2D): void {
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#0c2812';
-  ctx.lineWidth = 12.5;
-  ctx.stroke(p);
-  ctx.strokeStyle = lGrad(ctx, 10, 10, 90, 90, [
-    [0, '#6fbf4a'],
-    [0.5, '#3f9a3c'],
-    [1, '#23702f'],
-  ]);
-  ctx.lineWidth = 8.4;
-  ctx.stroke(p);
-  ctx.save();
-  ctx.translate(-1.5, -1.6);
-  ctx.strokeStyle = 'rgba(200,245,150,0.62)';
-  ctx.lineWidth = 1.8;
-  ctx.stroke(p);
-  ctx.restore();
-}
+const VINE_OUT = '#0b2611';
 
 function thorn(ctx: Ctx, x: number, y: number, ang: number, len: number): void {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(ang);
   const t = new Path2D();
-  t.moveTo(-1, -3.6);
-  t.quadraticCurveTo(len * 0.5, -1.6, len, 0.6);
-  t.quadraticCurveTo(len * 0.45, 1.6, -1, 3.6);
+  t.moveTo(-1.5, -3.9);
+  t.quadraticCurveTo(len * 0.5, -1.7, len, 0.5);
+  t.quadraticCurveTo(len * 0.45, 1.8, -1.5, 3.9);
   t.closePath();
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#0c2812';
-  ctx.lineWidth = 2.6;
+  ctx.strokeStyle = VINE_OUT;
+  ctx.lineWidth = 2.8;
   ctx.stroke(t);
   ctx.fillStyle = lGrad(ctx, 0, 0, len, 0, [
-    [0, '#8fd45a'],
-    [0.45, '#f4e7ae'],
-    [1, '#fff8e0'],
+    [0, '#9bd95c'],
+    [0.4, '#f6e9b0'],
+    [1, '#fffbe6'],
   ]);
   ctx.fill(t);
   ctx.restore();
 }
 
+// Trefoil knot (three lobes, three crossings), fitted into a circle of radius VINE_R around (50, 51).
+const VINE_N = 96;
+const VINE_R = 33.5;
+let vinePts: number[] | null = null;
+
+function vineKnot(): number[] {
+  if (vinePts) return vinePts;
+  const raw: number[] = [];
+  let maxR = 0;
+  for (let i = 0; i < VINE_N; i++) {
+    const t = (i / VINE_N) * TAU;
+    const x = Math.sin(t) + 2 * Math.sin(2 * t);
+    const y = -(Math.cos(t) - 2 * Math.cos(2 * t));
+    raw.push(x, y);
+    maxR = Math.max(maxR, Math.sqrt(x * x + y * y));
+  }
+  const k = VINE_R / maxR;
+  for (let i = 0; i < raw.length; i += 2) {
+    raw[i] = 50 + raw[i] * k;
+    raw[i + 1] = 51 + raw[i + 1] * k;
+  }
+  vinePts = raw;
+  return raw;
+}
+
+function vineSegment(ctx: Ctx, pts: readonly number[], from: number, to: number): void {
+  const p = new Path2D();
+  for (let i = from; i <= to; i++) {
+    const j = ((i % VINE_N) + VINE_N) % VINE_N;
+    if (i === from) p.moveTo(pts[2 * j], pts[2 * j + 1]);
+    else p.lineTo(pts[2 * j], pts[2 * j + 1]);
+  }
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = VINE_OUT;
+  ctx.lineWidth = 13;
+  ctx.stroke(p);
+  ctx.strokeStyle = lGrad(ctx, 12, 10, 88, 92, [
+    [0, '#8fd056'],
+    [0.45, '#4fa83e'],
+    [1, '#2a7a32'],
+  ]);
+  ctx.lineWidth = 8.6;
+  ctx.stroke(p);
+  ctx.save();
+  ctx.translate(-1.5, -1.7);
+  ctx.strokeStyle = 'rgba(214,250,160,0.6)';
+  ctx.lineWidth = 1.8;
+  ctx.stroke(p);
+  ctx.restore();
+}
+
 /** Vine: a knot of thorny green stems with a tiny leaf, on a bed of dark foliage. */
 export function drawVine(ctx: Ctx, px: number): void {
-  // bed
+  // bed of dark leaves
   const bed = new Path2D();
   rrect(bed, 5, 5, 90, 90, 24);
   ctx.save();
-  dropShadow(ctx, px, 0.5);
-  ctx.fillStyle = '#0d2a18';
+  dropShadow(ctx, px, 0.55);
+  ctx.fillStyle = VINE_OUT;
   ctx.fill(bed);
   ctx.restore();
   ctx.save();
   ctx.clip(bed);
-  const g = ctx.createRadialGradient(46, 42, 6, 50, 50, 56);
-  g.addColorStop(0, '#1f5a2e');
-  g.addColorStop(1, '#0c2614');
+  const g = ctx.createRadialGradient(46, 44, 6, 50, 50, 58);
+  g.addColorStop(0, '#2b6e36');
+  g.addColorStop(0.7, '#17472a');
+  g.addColorStop(1, '#0e2e1b');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 100, 100);
+  // leaf shadows around the rim
+  const rnd = mulberry32(0x71e3);
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * TAU + rnd() * 0.3;
+    const r = 38 + rnd() * 6;
+    ctx.save();
+    ctx.translate(50 + Math.cos(a) * r, 50 + Math.sin(a) * r);
+    ctx.rotate(a + 1.2 + rnd());
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(70,150,70,0.35)' : 'rgba(8,30,16,0.45)';
+    ctx.beginPath();
+    ctx.moveTo(-8, 0);
+    ctx.quadraticCurveTo(0, -6, 9, 0);
+    ctx.quadraticCurveTo(0, 6, -8, 0);
+    ctx.fill();
+    ctx.restore();
+  }
   ctx.restore();
+  ctx.strokeStyle = VINE_OUT;
+  ctx.lineWidth = 2.4;
+  ctx.stroke(bed);
 
-  const loop = new Path2D();
-  loop.moveTo(50, 17);
-  loop.bezierCurveTo(73, 15, 86, 34, 83, 54);
-  loop.bezierCurveTo(80, 75, 62, 86, 45, 83.5);
-  loop.bezierCurveTo(25, 80, 14, 64, 17, 45);
-  loop.bezierCurveTo(20, 28, 33, 18, 50, 17);
-  loop.closePath();
-  const strandA = new Path2D();
-  strandA.moveTo(15, 27);
-  strandA.bezierCurveTo(34, 30, 40, 51, 55, 54);
-  strandA.bezierCurveTo(70, 57, 78, 69, 87, 77);
-  const strandB = new Path2D();
-  strandB.moveTo(25, 87);
-  strandB.bezierCurveTo(31, 66, 51, 62, 58, 45);
-  strandB.bezierCurveTo(63, 32, 72, 24, 84, 16);
-
-  // thorns sit behind the stems they grow from
-  const thorns = [
-    50, 17, -1.75, 9, 76, 26, -0.7, 9.5, 84, 52, 0.05, 9, 71, 77, 0.95, 9.5, 45, 83.5, 1.75, 9, 21, 68, 2.6, 9.5, 17, 44, 3.3, 9, 31, 23,
-    -2.35, 9.5,
-  ];
-  for (let i = 0; i < thorns.length; i += 4) thorn(ctx, thorns[i], thorns[i + 1], thorns[i + 2], thorns[i + 3] + 4);
-  stem(ctx, loop);
-  thorn(ctx, 38, 44, -2.2, 10);
-  thorn(ctx, 70, 61, -0.45, 10);
-  stem(ctx, strandA);
-  thorn(ctx, 39, 68, 2.5, 10);
-  thorn(ctx, 62, 35, 0.35, 10);
-  stem(ctx, strandB);
+  const pts = vineKnot();
+  // thorns grow outwards from the outer bends; drawn first so the stems overlap their bases
+  for (let i = 0; i < VINE_N; i += 6) {
+    const x = pts[2 * i];
+    const y = pts[2 * i + 1];
+    const dx = x - 50;
+    const dy = y - 51;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d < VINE_R * 0.6) continue;
+    const a = Math.atan2(dy, dx) + ((i / 6) % 2 === 0 ? 0.28 : -0.28);
+    thorn(ctx, x + (dx / d) * 2.6, y + (dy / d) * 2.6, a, 10.5);
+  }
+  // six arcs drawn in order: each later arc passes over the earlier one where they cross
+  const seg = VINE_N / 6;
+  const order = [0, 2, 4, 1, 3, 5];
+  for (let k = 0; k < 6; k++) {
+    const from = order[k] * seg;
+    vineSegment(ctx, pts, from - 1, from + seg + 1);
+  }
+  // a couple of thorns inside the knot
+  thorn(ctx, 50, 44, -Math.PI / 2, 8);
+  thorn(ctx, 44, 56, 2.5, 8);
+  thorn(ctx, 56, 56, 0.6, 8);
 
   // tiny leaf
   ctx.save();
-  ctx.translate(79, 21);
-  ctx.rotate(-0.55);
+  ctx.translate(80, 20.5);
+  ctx.rotate(-0.6);
   const leaf = new Path2D();
-  leaf.moveTo(-9, 0);
-  leaf.quadraticCurveTo(0, -9.5, 11, 0);
-  leaf.quadraticCurveTo(0, 9.5, -9, 0);
+  leaf.moveTo(-10, 0);
+  leaf.quadraticCurveTo(0, -10.5, 12, 0);
+  leaf.quadraticCurveTo(0, 10.5, -10, 0);
   leaf.closePath();
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#0c2812';
+  ctx.strokeStyle = VINE_OUT;
   ctx.lineWidth = 2.8;
   ctx.stroke(leaf);
-  ctx.fillStyle = lGrad(ctx, 0, -8, 0, 8, [
-    [0, '#c9f58a'],
-    [1, '#58c24a'],
+  ctx.fillStyle = lGrad(ctx, 0, -9, 0, 9, [
+    [0, '#d2f892'],
+    [1, '#5cc44c'],
   ]);
   ctx.fill(leaf);
   ctx.strokeStyle = '#2a7a30';
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(-7, 0);
-  ctx.lineTo(9, 0);
+  ctx.moveTo(-8, 0);
+  ctx.lineTo(10, 0);
   ctx.stroke();
   ctx.restore();
 }
@@ -555,75 +602,104 @@ export function drawLamp(ctx: Ctx, px: number): void {
 
 // ───────────────────────────── sand ─────────────────────────────
 
+function ripples(ctx: Ctx, count: number, first: number, gap: number, dark: string, light: string): void {
+  ctx.lineCap = 'round';
+  for (let i = 0; i < count; i++) {
+    const y = first + i * gap;
+    const ph = i * 1.7;
+    for (let pass = 0; pass < 2; pass++) {
+      ctx.strokeStyle = pass === 0 ? dark : light;
+      ctx.lineWidth = pass === 0 ? 2 : 1.4;
+      const oy = pass === 0 ? 0 : 2;
+      ctx.beginPath();
+      for (let x = -2; x <= 102; x += 4) {
+        const yy = y + oy + Math.sin(x * 0.085 + ph) * 3.2 + Math.sin(x * 0.19 + ph * 2) * 1.1;
+        if (x === -2) ctx.moveTo(x, yy);
+        else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+  }
+}
+
 /**
  * Sand floor overlay (drawn over the tile, under the piece).
- * 1 layer: thin and see-through. 2 layers: thick, bright, rippled, with a raised lip.
+ * 2 layers: the whole cell is buried — bright, rippled, with a raised lip.
+ * 1 layer: a thin see-through drift that no longer reaches the corners, so the tile shows there.
  */
 export function drawSand(ctx: Ctx, layers: number): void {
   const thick = layers >= 2;
   const rnd = mulberry32(thick ? 0x5a4d2 : 0x5a4d1);
   const shape = new Path2D();
-  rrect(shape, 1.2, 1.2, 97.6, 97.6, 10);
+  if (thick) {
+    rrect(shape, 0.8, 0.8, 98.4, 98.4, 9);
+  } else {
+    // worn drift: a soft squircle with a gently wavering edge
+    const n = 72;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU;
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      const r = 46 / Math.pow(Math.pow(Math.abs(c), 3.4) + Math.pow(Math.abs(sn), 3.4), 1 / 3.4);
+      const rr = r + Math.sin(a * 6 + 1.3) * 0.9;
+      if (i === 0) shape.moveTo(50 + c * rr, 50 + sn * rr);
+      else shape.lineTo(50 + c * rr, 50 + sn * rr);
+    }
+    shape.closePath();
+    // loose grains scattered into the bare corners
+    for (let i = 0; i < 26; i++) {
+      const cx = i % 2 === 0 ? 5 + rnd() * 9 : 95 - rnd() * 9;
+      const cy = i % 4 < 2 ? 5 + rnd() * 9 : 95 - rnd() * 9;
+      ctx.fillStyle = rnd() < 0.5 ? 'rgba(236,200,130,0.85)' : 'rgba(200,154,86,0.85)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 0.7 + rnd() * 0.9, 0, TAU);
+      ctx.fill();
+    }
+  }
 
   ctx.save();
   ctx.clip(shape);
-  ctx.globalAlpha = thick ? 0.95 : 0.6;
+  ctx.globalAlpha = thick ? 0.96 : 0.84;
   ctx.fillStyle = lGrad(ctx, 0, 0, 100, 100, thick
     ? [
-        [0, '#f7dea2'],
-        [0.5, '#ecc57c'],
-        [1, '#d7a557'],
+        [0, '#f0d294'],
+        [0.5, '#e2bb77'],
+        [1, '#cc9c55'],
       ]
     : [
-        [0, '#efc67c'],
-        [1, '#d09b4e'],
+        [0, '#dcb26a'],
+        [1, '#c2924c'],
       ]);
   ctx.fillRect(0, 0, 100, 100);
 
-  if (thick) {
-    // wind ripples
-    ctx.lineCap = 'round';
-    for (let i = 0; i < 5; i++) {
-      const y = 15 + i * 17.5;
-      const ph = i * 1.7;
-      for (let pass = 0; pass < 2; pass++) {
-        ctx.strokeStyle = pass === 0 ? 'rgba(160,104,44,0.55)' : 'rgba(255,246,214,0.75)';
-        ctx.lineWidth = pass === 0 ? 2 : 1.4;
-        const oy = pass === 0 ? 0 : 2;
-        ctx.beginPath();
-        for (let x = -2; x <= 102; x += 4) {
-          const yy = y + oy + Math.sin(x * 0.085 + ph) * 3.2 + Math.sin(x * 0.19 + ph * 2) * 1.1;
-          if (x === -2) ctx.moveTo(x, yy);
-          else ctx.lineTo(x, yy);
-        }
-        ctx.stroke();
-      }
-    }
-  }
+  if (thick) ripples(ctx, 5, 15, 17.5, 'rgba(150,98,40,0.55)', 'rgba(255,244,208,0.7)');
+  else ripples(ctx, 3, 24, 26, 'rgba(140,90,36,0.3)', 'rgba(250,226,170,0.35)');
+
   // grains
-  const n = thick ? 150 : 110;
+  const n = thick ? 150 : 120;
   for (let i = 0; i < n; i++) {
     const x = rnd() * 100;
     const y = rnd() * 100;
-    const r = 0.55 + rnd() * (thick ? 1.1 : 0.9);
-    ctx.fillStyle = rnd() < 0.5 ? 'rgba(140,90,36,0.5)' : 'rgba(255,248,220,0.7)';
+    const r = 0.55 + rnd() * (thick ? 1.1 : 1);
+    ctx.fillStyle = rnd() < 0.5 ? 'rgba(120,76,28,0.45)' : thick ? 'rgba(255,248,222,0.7)' : 'rgba(250,228,172,0.7)';
     ctx.beginPath();
     ctx.arc(x, y, r, 0, TAU);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
-  // edge: thin sand just fades at the border, thick sand has a lit lip and a shaded foot
   if (thick) {
+    // raised lip: lit along the top, shaded along the foot
     ctx.lineWidth = 5;
     ctx.strokeStyle = lGrad(ctx, 0, 0, 0, 100, [
-      [0, 'rgba(255,250,225,0.9)'],
-      [0.5, 'rgba(255,240,200,0.25)'],
-      [1, 'rgba(120,72,24,0.75)'],
+      [0, 'rgba(255,248,222,0.9)'],
+      [0.5, 'rgba(255,238,196,0.2)'],
+      [1, 'rgba(110,66,22,0.75)'],
     ]);
     ctx.stroke(shape);
   } else {
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = rgba('#7a4e1e', 0.35);
+    // thin sand simply darkens a touch where it peters out
+    ctx.lineWidth = 3.2;
+    ctx.strokeStyle = rgba('#7a4c1c', 0.3);
     ctx.stroke(shape);
   }
   ctx.restore();

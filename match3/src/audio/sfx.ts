@@ -11,7 +11,11 @@ import { clamp } from './rng.ts';
 import { PRAISE_MIDI, matchStepIndex, matchStepMidi, midiToFreq, praiseNoteCount, starStepMidi, stepInRange } from './scale.ts';
 import { Voice, dum, filter, fm, ka, noise, pluck, tek, tone } from './voices.ts';
 
-/** Loudness class: UI sounds are deliberately quiet, jingles may run long. */
+/**
+ * Loudness class. 'ui' covers interface taps and the constant small sounds of handling gems
+ * (select, swap, land): deliberately quiet. 'game' sounds share one loudness; jingles are
+ * 'game' sounds that may run long.
+ */
 export type SfxClass = 'ui' | 'game' | 'jingle';
 
 interface SfxDef {
@@ -35,6 +39,7 @@ const Eb4 = 63;
 const Fs4 = 66;
 const G4 = 67;
 const A4 = 69;
+const Bb4 = 70;
 const D5 = 74;
 const Eb5 = 75;
 const Fs5 = 78;
@@ -63,7 +68,7 @@ function bell(v: Voice, midi: number, at: number, dur: number, peak: number): vo
 const SFX: Record<SfxName, SfxDef> = {
   // ── interface ──────────────────────────────────────────────────────────
   button: {
-    gain: 1,
+    gain: 1.11,
     cls: 'ui',
     build(v) {
       tone(v, { f: 620, f2: 440, glide: 0.04, dur: 0.07, peak: 0.5, attack: 0.002 });
@@ -71,7 +76,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   popupOpen: {
-    gain: 1,
+    gain: 1.09,
     cls: 'ui',
     build(v) {
       tone(v, { f: 330, f2: 660, glide: 0.09, dur: 0.14, peak: 0.45, attack: 0.012 });
@@ -79,7 +84,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   popupClose: {
-    gain: 1,
+    gain: 0.93,
     cls: 'ui',
     build(v) {
       tone(v, { f: 620, f2: 310, glide: 0.08, dur: 0.12, peak: 0.45, attack: 0.008 });
@@ -89,7 +94,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── moving gems ────────────────────────────────────────────────────────
   select: {
-    gain: 1,
+    gain: 1.07,
     cls: 'ui',
     build(v) {
       tone(v, { type: 'triangle', f: hz(D5), f2: hz(A5), glide: 0.06, dur: 0.12, peak: 0.5, attack: 0.004 });
@@ -97,38 +102,39 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   swap: {
-    gain: 1,
-    cls: 'game',
+    gain: 0.63,
+    cls: 'ui',
     build(v) {
-      noise(v, { type: 'bandpass', f: 500, f2: 2400, q: 1.6, dur: 0.2, peak: 0.6, attack: 0.07 });
+      noise(v, { type: 'bandpass', f: 500, f2: 2400, q: 1.4, dur: 0.2, peak: 1.3, attack: 0.07 });
       tone(v, { f: 300, f2: 520, glide: 0.14, dur: 0.18, peak: 0.25, attack: 0.05 });
     },
   },
   invalid: {
-    gain: 1,
+    gain: 1.5,
     cls: 'game',
     build(v) {
       // Two dull, slightly buzzy bumps stepping down: "uh-uh".
-      const lp = filter(v, 'lowpass', 900, 0.7);
-      tone(v, { type: 'square', f: hz(Bb3), dur: 0.085, peak: 0.3, attack: 0.004, to: lp });
-      tone(v, { type: 'square', f: hz(G3), at: 0.095, dur: 0.12, peak: 0.3, attack: 0.004, to: lp });
-      tone(v, { f: hz(Bb3) * 2, dur: 0.06, peak: 0.12 });
-      tone(v, { f: hz(G3) * 2, at: 0.095, dur: 0.08, peak: 0.12 });
+      const lp = filter(v, 'lowpass', 1500, 0.7);
+      tone(v, { type: 'square', f: hz(Bb4), dur: 0.085, peak: 0.26, attack: 0.004, to: lp });
+      tone(v, { type: 'square', f: hz(G4), at: 0.095, dur: 0.12, peak: 0.26, attack: 0.004, to: lp });
+      tone(v, { type: 'triangle', f: hz(Bb3), dur: 0.07, peak: 0.1, attack: 0.004 });
+      tone(v, { type: 'triangle', f: hz(G3), at: 0.095, dur: 0.1, peak: 0.1, attack: 0.004 });
     },
   },
   land: {
-    gain: 1,
+    gain: 1.6,
     cls: 'ui',
     build(v) {
-      tone(v, { f: 190, f2: 95, glide: 0.05, dur: 0.08, peak: 0.6, attack: 0.002 });
-      tone(v, { type: 'triangle', f: 380, f2: 220, glide: 0.04, dur: 0.05, peak: 0.2, attack: 0.002 });
-      noise(v, { type: 'lowpass', f: 900, q: 0.7, dur: 0.025, peak: 0.2, attack: 0.001 });
+      // A soft tap. The body sits high enough to be heard on a phone speaker.
+      tone(v, { type: 'triangle', f: 330, f2: 190, glide: 0.05, dur: 0.08, peak: 0.5, attack: 0.002 });
+      tone(v, { f: 760, f2: 480, glide: 0.03, dur: 0.04, peak: 0.25, attack: 0.001 });
+      noise(v, { type: 'bandpass', f: 1500, q: 0.8, dur: 0.03, peak: 0.6, attack: 0.001 });
     },
   },
 
   // ── clears ─────────────────────────────────────────────────────────────
   match: {
-    gain: 1,
+    gain: 1.1,
     cls: 'game',
     build(v, step) {
       // A chime that climbs D F♯ G A C through two octaves with the cascade number.
@@ -140,37 +146,47 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   sand: {
-    gain: 1,
+    gain: 0.72,
     cls: 'game',
     build(v) {
-      noise(v, { type: 'bandpass', f: 4200, f2: 2600, q: 0.9, dur: 0.16, peak: 0.5, attack: 0.012 });
-      noise(v, { type: 'highpass', f: 6000, q: 0.7, at: 0.05, dur: 0.12, peak: 0.25, attack: 0.02 });
+      // A short hiss of grains.
+      noise(v, { type: 'bandpass', f: 4200, f2: 2600, q: 0.9, dur: 0.16, peak: 1.4, attack: 0.012 });
+      noise(v, { type: 'highpass', f: 6000, q: 0.7, at: 0.05, dur: 0.12, peak: 0.7, attack: 0.02 });
       tone(v, { f: 520, f2: 380, dur: 0.07, peak: 0.12, attack: 0.004 });
     },
   },
   stone: {
-    gain: 1,
+    gain: 1.6,
     cls: 'game',
     build(v) {
-      noise(v, { type: 'bandpass', f: 900, q: 3.5, dur: 0.07, peak: 0.7, attack: 0.001 });
-      noise(v, { type: 'bandpass', f: 2600, q: 2, dur: 0.03, peak: 0.3, attack: 0.001 });
-      tone(v, { f: 240, f2: 150, glide: 0.05, dur: 0.11, peak: 0.6, attack: 0.002 });
+      // A knock on rock: pitched tock, grit, and a little weight underneath.
+      tone(v, { f: 640, f2: 420, glide: 0.05, dur: 0.11, peak: 0.6, attack: 0.001 });
+      tone(v, { f: 970, f2: 640, glide: 0.04, dur: 0.07, peak: 0.26, attack: 0.001 });
+      tone(v, { type: 'triangle', f: 230, f2: 150, glide: 0.05, dur: 0.11, peak: 0.22, attack: 0.002 });
+      noise(v, { type: 'bandpass', f: 1500, q: 0.9, dur: 0.07, peak: 0.8, attack: 0.001 });
+      noise(v, { type: 'highpass', f: 3500, q: 0.7, dur: 0.02, peak: 0.4, attack: 0.001 });
     },
   },
   stoneBreak: {
-    gain: 1,
+    gain: 1.5,
     cls: 'game',
     build(v) {
-      tone(v, { f: 150, f2: 58, glide: 0.12, dur: 0.3, peak: 0.8, attack: 0.003 });
-      noise(v, { type: 'bandpass', f: 1100, q: 1.6, dur: 0.09, peak: 0.6, attack: 0.001 });
-      const bits = [700, 1500, 950, 1800];
+      // The block gives way: a crack, a thud, and pieces tumbling after it.
+      tone(v, { f: 560, f2: 260, glide: 0.08, dur: 0.15, peak: 0.55, attack: 0.001 });
+      tone(v, { f: 840, f2: 420, glide: 0.06, dur: 0.1, peak: 0.25, attack: 0.001 });
+      tone(v, { type: 'triangle', f: 160, f2: 62, glide: 0.12, dur: 0.3, peak: 0.3, attack: 0.003 });
+      noise(v, { type: 'bandpass', f: 1300, q: 0.8, dur: 0.1, peak: 0.9, attack: 0.001 });
+      const bits = [900, 1700, 1200, 2100];
+      const pebbles = [700, 560, 470, 390];
       for (let k = 0; k < bits.length; k++) {
-        noise(v, { type: 'bandpass', f: bits[k], q: 3, at: 0.07 + k * 0.065, dur: 0.07, peak: 0.36 - k * 0.06, attack: 0.002 });
+        const at = 0.07 + k * 0.065;
+        noise(v, { type: 'bandpass', f: bits[k], q: 1.5, at, dur: 0.07, peak: 0.9 - k * 0.15, attack: 0.002 });
+        tone(v, { f: pebbles[k], f2: pebbles[k] * 0.8, at, dur: 0.06, peak: 0.3 - k * 0.04, attack: 0.001 });
       }
     },
   },
   chain: {
-    gain: 1,
+    gain: 0.93,
     cls: 'game',
     build(v) {
       // Two links knocking: clangorous FM pairs.
@@ -180,26 +196,28 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   vine: {
-    gain: 1,
+    gain: 1.81,
     cls: 'game',
     build(v) {
+      // A snip and a rustle of leaves.
       tone(v, { type: 'triangle', f: 740, f2: 260, glide: 0.09, dur: 0.13, peak: 0.5, attack: 0.003 });
-      noise(v, { type: 'bandpass', f: 2400, f2: 1200, q: 1.4, dur: 0.12, peak: 0.35, attack: 0.004 });
-      noise(v, { type: 'bandpass', f: 3600, q: 2, at: 0.06, dur: 0.07, peak: 0.2, attack: 0.004 });
+      noise(v, { type: 'bandpass', f: 2400, f2: 1200, q: 1.2, dur: 0.12, peak: 1, attack: 0.004 });
+      noise(v, { type: 'bandpass', f: 3600, q: 1.5, at: 0.06, dur: 0.07, peak: 0.6, attack: 0.004 });
     },
   },
   vineGrow: {
-    gain: 1,
+    gain: 0.86,
     cls: 'game',
     build(v) {
       // A creeping semitone rise, D → E♭, with a wobble.
-      tone(v, { type: 'triangle', f: hz(D4), f2: hz(Eb4), glide: 0.25, dur: 0.36, peak: 0.45, attack: 0.06, vib: 9, vibDepth: 5 });
-      tone(v, { type: 'triangle', f: hz(A3), f2: hz(Bb3), glide: 0.25, dur: 0.34, peak: 0.3, attack: 0.06 });
-      noise(v, { type: 'bandpass', f: 1200, f2: 2600, q: 2, dur: 0.3, peak: 0.18, attack: 0.15 });
+      tone(v, { type: 'triangle', f: hz(D5), f2: hz(Eb5), glide: 0.25, dur: 0.36, peak: 0.4, attack: 0.06, vib: 9, vibDepth: 8 });
+      tone(v, { type: 'triangle', f: hz(A4), f2: hz(Bb4), glide: 0.25, dur: 0.34, peak: 0.3, attack: 0.06 });
+      tone(v, { f: hz(D4), f2: hz(Eb4), glide: 0.25, dur: 0.34, peak: 0.2, attack: 0.06 });
+      noise(v, { type: 'bandpass', f: 1200, f2: 2600, q: 1.5, dur: 0.3, peak: 0.5, attack: 0.15 });
     },
   },
   lamp: {
-    gain: 1,
+    gain: 0.56,
     cls: 'game',
     build(v) {
       bell(v, A5, 0, 0.3, 0.4);
@@ -211,7 +229,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── specials ───────────────────────────────────────────────────────────
   createBeam: {
-    gain: 1,
+    gain: 1.03,
     cls: 'game',
     build(v) {
       // A quick upward zip ending in a glint.
@@ -222,7 +240,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   createNova: {
-    gain: 1,
+    gain: 0.73,
     cls: 'game',
     build(v) {
       // A swelling charge that settles on a bell.
@@ -233,7 +251,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   createPrism: {
-    gain: 1,
+    gain: 0.58,
     cls: 'game',
     build(v) {
       // A run up the scale, each note a small bell; the last one rings.
@@ -247,29 +265,29 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   beam: {
-    gain: 1,
+    gain: 1.52,
     cls: 'game',
     build(v) {
       // Line blast: noise swept downwards over a falling tone.
-      noise(v, { type: 'bandpass', f: 5200, f2: 420, q: 1.1, dur: 0.34, peak: 0.55, attack: 0.008 });
+      noise(v, { type: 'bandpass', f: 5200, f2: 420, q: 1.1, dur: 0.34, peak: 1.3, attack: 0.008 });
       const lp = filter(v, 'lowpass', 2600, 1, { f2: 500, dur: 0.3 });
       tone(v, { type: 'sawtooth', f: hz(D5), f2: hz(D3), glide: 0.26, dur: 0.32, peak: 0.3, attack: 0.005, to: lp });
       tone(v, { f: hz(D6), f2: hz(D4), glide: 0.2, dur: 0.24, peak: 0.2, attack: 0.004 });
     },
   },
   nova: {
-    gain: 1,
+    gain: 1.25,
     cls: 'game',
     build(v) {
       // Area blast: a soft boom under a burst of noise that closes down quickly.
-      tone(v, { f: 170, f2: 46, glide: 0.3, dur: 0.48, peak: 0.8, attack: 0.004 });
-      tone(v, { type: 'triangle', f: 340, f2: 110, glide: 0.25, dur: 0.3, peak: 0.25, attack: 0.004 });
-      noise(v, { type: 'lowpass', f: 3800, f2: 220, q: 0.8, dur: 0.44, peak: 0.5, attack: 0.006 });
-      fm(v, { f: hz(D4), f2: hz(D3), ratio: 1.41, index: 1.5, indexEnd: 0.05, dur: 0.3, peak: 0.18 });
+      tone(v, { f: 170, f2: 46, glide: 0.3, dur: 0.48, peak: 0.3, attack: 0.004 });
+      tone(v, { type: 'triangle', f: hz(A4), f2: hz(A3), glide: 0.3, dur: 0.4, peak: 0.5, attack: 0.004 });
+      noise(v, { type: 'lowpass', f: 5000, f2: 400, q: 0.9, dur: 0.44, peak: 1, attack: 0.005 });
+      fm(v, { f: hz(D5), f2: hz(D4), ratio: 1.41, index: 1.2, indexEnd: 0.05, dur: 0.36, peak: 0.4 });
     },
   },
   prism: {
-    gain: 1,
+    gain: 1.01,
     cls: 'game',
     build(v) {
       // Rays: a swirl of air with bright notes darting about above a rising tone.
@@ -283,37 +301,37 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   bigCombo: {
-    gain: 1,
+    gain: 1.3,
     cls: 'game',
     build(v) {
-      // Two specials at once: boom, falling noise, and a chord that opens up.
-      tone(v, { f: 150, f2: 40, glide: 0.4, dur: 0.7, peak: 0.85, attack: 0.004 });
-      noise(v, { type: 'lowpass', f: 5000, f2: 180, q: 0.8, dur: 0.6, peak: 0.5, attack: 0.006 });
-      noise(v, { type: 'bandpass', f: 600, f2: 5000, q: 1.5, at: 0.05, dur: 0.5, peak: 0.16, attack: 0.3 });
-      const lp = filter(v, 'lowpass', 600, 1.2, { f2: 3200, at: 0.06, dur: 0.25 });
+      // Two specials at once: a bright impact that falls away under a chord that mellows.
+      tone(v, { f: 150, f2: 42, glide: 0.4, dur: 0.7, peak: 0.3, attack: 0.004 });
+      noise(v, { type: 'lowpass', f: 7000, f2: 320, q: 0.9, dur: 0.6, peak: 0.9, attack: 0.005 });
+      noise(v, { type: 'bandpass', f: 4200, f2: 700, q: 1.2, at: 0.04, dur: 0.5, peak: 0.5, attack: 0.03 });
+      const lp = filter(v, 'lowpass', 3600, 1.2, { f2: 480, at: 0.02, dur: 0.55 });
       const chord = [D4, A4, D5, Fs5];
       for (let k = 0; k < chord.length; k++) {
-        tone(v, { type: 'sawtooth', f: hz(chord[k]), at: 0.06, dur: 0.62, peak: 0.11, attack: 0.02, to: lp });
+        tone(v, { type: 'sawtooth', f: hz(chord[k]), at: 0.02, dur: 0.66, peak: 0.2, attack: 0.012, to: lp });
       }
-      bell(v, D6, 0.3, 0.42, 0.22);
+      bell(v, D5, 0.02, 0.5, 0.36);
     },
   },
 
   // ── tools ──────────────────────────────────────────────────────────────
   shuffle: {
-    gain: 1,
+    gain: 0.9,
     cls: 'game',
     build(v) {
       const seq = [D5, G5, Eb5, A5, Fs5, C6, A5, D6];
       for (let k = 0; k < seq.length; k++) {
-        fm(v, { f: hz(seq[k]), ratio: 1, index: 1, indexEnd: 0.05, modDur: 0.04, at: k * 0.05, dur: 0.11, peak: 0.3 });
+        fm(v, { f: hz(seq[k]), ratio: 3, index: 0.6, indexEnd: 0.02, modDur: 0.04, at: k * 0.05, dur: 0.11, peak: 0.3 });
       }
-      noise(v, { type: 'bandpass', f: 800, f2: 3200, q: 1.2, dur: 0.24, peak: 0.25, attack: 0.1 });
-      noise(v, { type: 'bandpass', f: 3200, f2: 900, q: 1.2, at: 0.22, dur: 0.26, peak: 0.25, attack: 0.1 });
+      noise(v, { type: 'bandpass', f: 800, f2: 3200, q: 1.2, dur: 0.24, peak: 0.6, attack: 0.1 });
+      noise(v, { type: 'bandpass', f: 3200, f2: 900, q: 1.2, at: 0.22, dur: 0.26, peak: 0.6, attack: 0.1 });
     },
   },
   booster: {
-    gain: 1,
+    gain: 0.7,
     cls: 'game',
     build(v) {
       tone(v, { type: 'triangle', f: hz(D4), f2: hz(D6), glide: 0.26, dur: 0.32, peak: 0.4, attack: 0.03 });
@@ -325,7 +343,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── feedback ───────────────────────────────────────────────────────────
   praise: {
-    gain: 1,
+    gain: 0.71,
     cls: 'game',
     build(v, step) {
       // Sparkle: three to six quick high notes; stronger praise adds notes, air and weight.
@@ -340,7 +358,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   goalDone: {
-    gain: 1,
+    gain: 0.7,
     cls: 'game',
     priority: true,
     build(v) {
@@ -352,7 +370,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   star: {
-    gain: 1,
+    gain: 1.21,
     cls: 'game',
     priority: true,
     build(v, step) {
@@ -369,7 +387,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   movesLow: {
-    gain: 1,
+    gain: 0.8,
     cls: 'game',
     priority: true,
     build(v) {
@@ -383,26 +401,28 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   lifeLost: {
-    gain: 1,
+    gain: 1.06,
     cls: 'game',
     priority: true,
     build(v) {
-      const lp = filter(v, 'lowpass', 1500, 0.7, { f2: 520, dur: 0.48 });
-      tone(v, { type: 'triangle', f: hz(A4), dur: 0.17, peak: 0.5, attack: 0.005, to: lp });
-      tone(v, { type: 'triangle', f: hz(Eb4), f2: hz(D4), glide: 0.25, at: 0.15, dur: 0.36, peak: 0.5, attack: 0.005, to: lp });
-      tone(v, { f: hz(Eb4) / 2, f2: hz(D3), glide: 0.25, at: 0.15, dur: 0.32, peak: 0.3, attack: 0.005 });
+      // A falling sigh: A, then E♭ sinking onto D while the tone darkens.
+      const lp = filter(v, 'lowpass', 2600, 0.7, { f2: 900, dur: 0.48 });
+      tone(v, { type: 'triangle', f: hz(A4), dur: 0.17, peak: 0.36, attack: 0.005, to: lp });
+      tone(v, { f: hz(A5), dur: 0.14, peak: 0.2, attack: 0.005 });
+      tone(v, { type: 'triangle', f: hz(Eb4), f2: hz(D4), glide: 0.25, at: 0.15, dur: 0.36, peak: 0.36, attack: 0.005, to: lp });
+      tone(v, { f: hz(Eb5), f2: hz(D5), glide: 0.25, at: 0.15, dur: 0.32, peak: 0.24, attack: 0.005 });
     },
   },
   levelStart: {
-    gain: 1,
+    gain: 0.5,
     cls: 'jingle',
     priority: true,
     build(v) {
-      dum(v, 0, 0.9);
+      dum(v, 0, 0.6);
       const notes = [D4, A4, D5];
       for (let k = 0; k < notes.length; k++) {
-        pluck(v, { midi: notes[k], at: k * 0.09, dur: 0.42, peak: 0.5 });
-        chime(v, notes[k] + 12, k * 0.09, 0.2, 0.16, 0);
+        pluck(v, { midi: notes[k], at: k * 0.09, dur: 0.42, peak: 0.4 });
+        chime(v, notes[k] + 12, k * 0.09, 0.2, 0.2, 0);
       }
       tek(v, 0.18, 0.6);
       tone(v, { f: hz(Fs6), at: 0.27, dur: 0.26, peak: 0.07, attack: 0.004 });
@@ -411,7 +431,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── rewards ────────────────────────────────────────────────────────────
   coin: {
-    gain: 1,
+    gain: 1.26,
     cls: 'game',
     build(v) {
       // One struck metal ring with shimmering overtones.
@@ -421,14 +441,14 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   purchase: {
-    gain: 1,
+    gain: 0.85,
     cls: 'jingle',
     priority: true,
     build(v) {
       // Two metal rings, then a warm chord of confirmation.
       fm(v, { f: hz(Fs6), ratio: 2.76, index: 1, indexEnd: 0.1, modDur: 0.1, dur: 0.16, peak: 0.36, attack: 0.001 });
       fm(v, { f: hz(A6), ratio: 2.76, index: 1, indexEnd: 0.1, modDur: 0.1, at: 0.07, dur: 0.2, peak: 0.36, attack: 0.001 });
-      ka(v, 0, 0.5);
+      ka(v, 0, 0.35);
       const chord = [D5, Fs5, A5];
       for (let k = 0; k < chord.length; k++) {
         tone(v, { type: 'triangle', f: hz(chord[k]), at: 0.17, dur: 0.56, peak: 0.2, attack: 0.012 });
@@ -437,7 +457,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   reward: {
-    gain: 1,
+    gain: 0.61,
     cls: 'jingle',
     priority: true,
     build(v) {
@@ -455,7 +475,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   win: {
-    gain: 1,
+    gain: 0.6,
     cls: 'jingle',
     priority: true,
     build(v) {
@@ -463,26 +483,27 @@ const SFX: Record<SfxName, SfxDef> = {
       const line = [D5, Fs5, A5, G5, A5, C6];
       for (let k = 0; k < line.length; k++) {
         const at = k * 0.12;
-        pluck(v, { midi: line[k] - 12, at, dur: 0.36, peak: 0.46 });
+        pluck(v, { midi: line[k] - 12, at, dur: 0.36, peak: 0.36 });
         chime(v, line[k], at, 0.22, 0.3, 0.15);
       }
       const land = 0.72;
-      pluck(v, { midi: D5, at: land, dur: 0.95, peak: 0.5 });
-      bell(v, D6, land, 0.95, 0.4);
+      pluck(v, { midi: D5, at: land, dur: 0.95, peak: 0.3 });
+      bell(v, D6, land, 0.95, 0.32);
+      // The chord is strummed: each string a few milliseconds after the one below.
       const chord = [D4, A4, Fs5];
-      for (let k = 0; k < chord.length; k++) pluck(v, { midi: chord[k], at: land + 0.012 * (k + 1), dur: 0.95, peak: 0.34 });
-      tone(v, { type: 'triangle', f: hz(D4), at: land, dur: 0.9, peak: 0.14, attack: 0.03 });
-      dum(v, 0, 0.9);
-      tek(v, 0.36, 0.55);
-      ka(v, 0.6, 0.5);
-      ka(v, 0.66, 0.6);
-      dum(v, land, 1);
+      for (let k = 0; k < chord.length; k++) pluck(v, { midi: chord[k], at: land + 0.018 * (k + 1), dur: 0.95, peak: 0.2 });
+      tone(v, { type: 'triangle', f: hz(D4), at: land, dur: 0.9, peak: 0.12, attack: 0.03 });
+      dum(v, 0, 0.45);
+      tek(v, 0.36, 0.45);
+      ka(v, 0.6, 0.4);
+      ka(v, 0.66, 0.5);
+      dum(v, land, 0.5);
       const glitter = [Fs6, A6, D7];
       for (let k = 0; k < glitter.length; k++) tone(v, { f: hz(glitter[k]), at: land + 0.2 + k * 0.1, dur: 0.3, peak: 0.07, attack: 0.004 });
     },
   },
   lose: {
-    gain: 1,
+    gain: 0.6,
     cls: 'jingle',
     priority: true,
     build(v) {

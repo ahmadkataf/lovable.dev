@@ -260,23 +260,21 @@ export function filter(
 /**
  * Karplus–Strong plucked string, computed into a plain array: a burst of filtered noise
  * circulates in a delay line one period long, losing a little brightness on every pass.
- * Two strings a few cents apart are plucked a few milliseconds after each other, like the
- * paired courses of a lute-family instrument. Doing this ahead of time (rather than with a
- * DelayNode feedback loop, whose delay cannot be shorter than one render quantum) keeps the
- * tuning exact in every register and makes playback as cheap as a sample.
+ * Two strings a fraction of a hertz apart are plucked together, like the paired courses of a
+ * lute-family instrument; their slow beating lets the overtones fade before the fundamental.
+ * Doing this ahead of time (rather than with a DelayNode feedback loop, whose delay cannot be
+ * shorter than one render quantum) keeps the tuning exact in every register and makes
+ * playback as cheap as a sample.
  */
 export function synthPluck(sampleRate: number, freq: number, seconds: number, seed: number): Float32Array {
   const total = Math.max(1, Math.floor(seconds * sampleRate));
   const out = new Float32Array(total);
-  const strings = [
-    { f: freq * 0.9987, delay: 0, gain: 1, seed: seed * 2 + 1 },
-    { f: freq * 1.0013, delay: Math.floor(sampleRate * 0.0045), gain: 0.85, seed: seed * 2 + 2 },
-  ];
   // Higher strings ring shorter; low ones are damped a bit so they do not drone on.
-  const t60 = Math.min(1.7, Math.max(0.7, 1.9 - freq / 700));
-  for (let s = 0; s < strings.length; s++) {
-    const st = strings[s];
-    const period = sampleRate / st.f;
+  const t60 = Math.min(1.8, Math.max(0.8, 1.95 - freq / 700));
+  const detune = [-0.17, 0.17];
+  for (let s = 0; s < detune.length; s++) {
+    const f = freq + detune[s];
+    const period = sampleRate / f;
     // Loop delay = n (line) + 0.5 (two-point average) + frac (all-pass) samples.
     let n = Math.floor(period - 0.5);
     let frac = period - 0.5 - n;
@@ -287,34 +285,36 @@ export function synthPluck(sampleRate: number, freq: number, seconds: number, se
     if (n < 2) continue;
     const c = (1 - frac) / (1 + frac);
     const line = new Float32Array(n);
-    const rnd = mulberry32(st.seed >>> 0);
-    // Excitation: low-passed noise (a soft plectrum), zero mean …
-    let lp = 0;
+    // Excitation (the same pluck for both strings): low-passed noise — a soft plectrum …
+    const rnd = mulberry32(seed >>> 0);
+    let lp1 = 0;
+    let lp2 = 0;
     let mean = 0;
     for (let i = 0; i < n; i++) {
-      lp += 0.55 * (rnd() * 2 - 1 - lp);
-      line[i] = lp;
-      mean += lp;
+      lp1 += 0.5 * (rnd() * 2 - 1 - lp1);
+      lp2 += 0.6 * (lp1 - lp2);
+      line[i] = lp2;
+      mean += lp2;
     }
     mean /= n;
     // … with a comb notch for the plucking point, about a fifth of the way along the string.
     const pickAt = Math.max(1, Math.round(n * 0.19));
     const shaped = new Float32Array(n);
-    let peak = 1e-9;
+    let top = 1e-9;
     for (let i = 0; i < n; i++) {
-      const v = line[i] - mean - 0.8 * (line[(i + n - pickAt) % n] - mean);
+      const v = line[i] - mean - 0.7 * (line[(i + n - pickAt) % n] - mean);
       shaped[i] = v;
-      if (Math.abs(v) > peak) peak = Math.abs(v);
+      if (Math.abs(v) > top) top = Math.abs(v);
     }
-    for (let i = 0; i < n; i++) line[i] = shaped[i] / peak;
-    const rho = Math.pow(10, -3 / (t60 * st.f));
+    for (let i = 0; i < n; i++) line[i] = shaped[i] / top;
+    const rho = Math.pow(10, -3 / (t60 * f));
     let idx = 0;
     let prev = 0;
     let apIn = 0;
     let apOut = 0;
-    for (let k = st.delay; k < total; k++) {
+    for (let k = 0; k < total; k++) {
       const x = line[idx];
-      out[k] += x * st.gain;
+      out[k] += x;
       const avg = rho * 0.5 * (x + prev);
       prev = x;
       const y = c * avg + apIn - c * apOut;
@@ -325,24 +325,26 @@ export function synthPluck(sampleRate: number, freq: number, seconds: number, se
       if (idx === n) idx = 0;
     }
   }
-  // Normalise, then shape the two ends so the buffer starts and stops without a click.
+  // Round off the pluck's first spike (it would otherwise dictate the level of the whole
+  // note), normalise, and shape the two ends so the buffer starts and stops without a click.
   let peak = 1e-9;
   for (let i = 0; i < total; i++) if (Math.abs(out[i]) > peak) peak = Math.abs(out[i]);
-  const norm = 0.9 / peak;
+  const drive = 2.2 / peak;
+  const norm = 0.9 / Math.tanh(2.2);
   const fadeIn = Math.min(total, Math.floor(sampleRate * 0.0008));
   const fadeOut = Math.min(total, Math.floor(sampleRate * 0.04));
   for (let i = 0; i < total; i++) {
     let g = norm;
     if (i < fadeIn) g *= i / fadeIn;
     if (i >= total - fadeOut) g *= (total - i) / fadeOut;
-    out[i] *= g;
+    out[i] = Math.tanh(out[i] * drive) * g;
   }
   return out;
 }
 
 /** Length of a pluck buffer for a pitch (s): long enough for the string to die away. */
 export function pluckSeconds(freq: number): number {
-  return Math.min(1.6, Math.max(0.8, 1.75 - freq / 800));
+  return Math.min(1.7, Math.max(0.8, 1.85 - freq / 800));
 }
 
 const pluckData: { [key: string]: Float32Array } = {};
@@ -406,9 +408,10 @@ export function pluck(v: Voice, o: PluckOpts): void {
 
 /** "Dum": the low open stroke — a sine that drops in pitch, with a soft skin thump. */
 export function dum(v: Voice, at: number, vel: number, to?: AudioNode): void {
-  tone(v, { f: 168, f2: 74, glide: 0.09, at, dur: 0.26, peak: 0.9 * vel, attack: 0.003, to });
-  tone(v, { type: 'triangle', f: 336, f2: 150, glide: 0.07, at, dur: 0.12, peak: 0.26 * vel, attack: 0.002, to });
-  noise(v, { type: 'lowpass', f: 1400, q: 0.7, at, dur: 0.03, peak: 0.24 * vel, attack: 0.001, to });
+  tone(v, { f: 168, f2: 74, glide: 0.09, at, dur: 0.26, peak: 0.8 * vel, attack: 0.003, to });
+  // The upper layers keep the stroke audible where a small speaker has no bass.
+  tone(v, { type: 'triangle', f: 336, f2: 150, glide: 0.07, at, dur: 0.14, peak: 0.42 * vel, attack: 0.002, to });
+  noise(v, { type: 'lowpass', f: 1400, q: 0.7, at, dur: 0.035, peak: 0.6 * vel, attack: 0.001, to });
 }
 
 /** "Tek": the bright rim stroke — a short band of noise with a ringing partial. */

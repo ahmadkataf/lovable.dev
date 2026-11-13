@@ -12,7 +12,8 @@
  *    countdown should poll `lives()` on a ticker (it needs one for the countdown anyway).
  *  - Loading never throws: unreadable or foreign data yields a fresh profile, damaged fields are
  *    repaired one by one (see `repairSave`).
- *  - `data()` returns the live object: read it, do not keep it (reset() replaces it) and do not write to it.
+ *  - `data()` and `settings()` return the live objects (the same ones for the profile's whole life,
+ *    reset() included): read them, never write to them.
  */
 import type {
   BoosterId,
@@ -265,7 +266,7 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
   } catch {
     raw = null;
   }
-  let data: SaveData = parseSave(raw);
+  const data: SaveData = parseSave(raw);
 
   function persist(): void {
     try {
@@ -399,7 +400,8 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
   function dailyState(t: number): DailyState {
     let today: number;
     try {
-      today = Math.floor(dayOf(t));
+      // Days before the epoch are folded into day 0, so a claim day can never look like "never claimed" (-1).
+      today = Math.max(0, Math.floor(dayOf(t)));
     } catch {
       today = NaN;
     }
@@ -636,9 +638,9 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
     reset(): void {
       // Progress, coins, boosters, lives, daily streak, tips and stats start over. The player's
       // device preferences (language, sound, music, vibration) are not progress and stay as they are.
-      const settings = data.settings;
-      data = freshSave();
-      data.settings = { sfx: settings.sfx, music: settings.music, haptics: settings.haptics, lang: settings.lang };
+      const fresh = freshSave();
+      fresh.settings = data.settings;
+      Object.assign(data, fresh); // in place: objects handed out by data() / settings() stay valid
       commit();
     },
   };

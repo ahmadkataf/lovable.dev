@@ -81,6 +81,8 @@ export interface LevelDef {
    *   'c' chained random gem      'v' vine      'L' lamp
    *   'H' beamH  'V' beamV  'N' nova (random colour)   'P' prism
    *   'a'..'f' plain gem of fixed colour 0..5 (tutorial boards)
+   *   'A'..'F' the same fixed colours 0..5. NOTE: 'c' always means the chained gem above, so
+   *            fixed colour 2 must be written 'C'.
    */
   pieces: string[];
   /** Floor layer, same shape: '0' none, '1' / '2' sand layers. Omitted = no sand. */
@@ -222,8 +224,19 @@ export type Step =
     }
   /** Lamps that reached an exit and leave the board. */
   | { type: 'collect'; lamps: { id: number; at: Pos }[]; score: number }
-  /** Pieces changing kind in place (prism combos, end bonus, start boosters). */
-  | { type: 'transform'; reason: 'prismCombo' | 'endBonus'; changes: { at: Pos; piece: Piece }[]; score: number }
+  /**
+   * Pieces changing in place; each keeps its id and is replaced by `piece`.
+   *   'prismCombo' prism + beam/nova: gems of one colour become beams / novas
+   *   'endBonus'   each remaining move turns a gem into a beam (`score` = total end bonus)
+   *   'recolor'    rare: follows a 'shuffle' step when no rearrangement of the gems can give a
+   *                valid move — the plain gems get new colours instead (`score` = 0)
+   */
+  | {
+      type: 'transform';
+      reason: 'prismCombo' | 'endBonus' | 'recolor';
+      changes: { at: Pos; piece: Piece }[];
+      score: number;
+    }
   /** A vine spreading from `from` into `at`, replacing the piece `replacedId`. */
   | { type: 'grow'; from: Pos; at: Pos; piece: Piece; replacedId: number | null }
   /** No moves were available: movable pieces are rearranged. Pieces keep their ids. */

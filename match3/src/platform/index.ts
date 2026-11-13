@@ -54,7 +54,8 @@ export function parseAndroidInfo(raw: unknown, fallbackLocale: string): AppInfo 
   if (typeof o.versionName === 'string' && o.versionName.length > 0 && o.versionName.length <= 64) {
     info.versionName = o.versionName;
   }
-  const code = typeof o.versionCode === 'string' ? Number(o.versionCode) : o.versionCode;
+  // A number, or a string of digits (some bridges stringify everything).
+  const code = typeof o.versionCode === 'string' && /^\d{1,15}$/.test(o.versionCode) ? Number(o.versionCode) : o.versionCode;
   if (typeof code === 'number' && isFinite(code) && code >= 0) info.versionCode = Math.floor(code);
   const locale = normalizeLocale(o.locale);
   if (locale) info.locale = locale;

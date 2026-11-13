@@ -103,6 +103,22 @@ describe('lives: long absences', () => {
     expect(h.profile.data().lifeTimer).toBe(0);
   });
 
+  it('a long absence stores exactly the maximum, whichever way it is first read', () => {
+    const viaData = harness();
+    for (let i = 0; i < 5; i++) viaData.profile.loseLife();
+    viaData.clock.now += 30 * DAY;
+    expect(viaData.profile.data().lives).toBe(5);
+    expect(viaData.saved().lives).toBe(5);
+    expect(viaData.saved().lifeTimer).toBe(0);
+
+    const viaRestart = harness();
+    for (let i = 0; i < 3; i++) viaRestart.profile.loseLife();
+    viaRestart.clock.now += 30 * DAY;
+    const again = viaRestart.restart();
+    expect(again.saved().lives).toBe(5);
+    expect(again.profile.data().lives).toBe(5);
+  });
+
   it('works across restarts: the absence is measured from the saved timer', () => {
     const h = harness();
     for (let i = 0; i < 4; i++) h.profile.loseLife();
@@ -111,6 +127,19 @@ describe('lives: long absences', () => {
     expect(again.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 10 * MINUTE });
     h.clock.now += 5 * HOUR;
     expect(h.restart().profile.lives()).toEqual({ count: 5, max: 5, nextInMs: 0 });
+  });
+
+  it('lives regenerated while the app was closed are stored at start, without notifying', () => {
+    const save = sampleSave();
+    save.lives = 1;
+    save.lifeTimer = T0 - 50 * MINUTE;
+    const h = fromSave(save);
+    expect(h.storage.writes).toBe(1);
+    expect(h.saved().lives).toBe(3);
+    expect(h.saved().lifeTimer).toBe(T0 - 10 * MINUTE);
+    expect(h.notifications.count).toBe(0);
+    expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: 10 * MINUTE });
+    expect(h.storage.writes).toBe(1);
   });
 
   it('after a full regeneration the next loss starts a fresh timer', () => {
@@ -314,6 +343,19 @@ describe('lives: a clock that jumps backwards', () => {
     expect(h.profile.loseLife()).toBe(true);
     expect(h.profile.lives()).toEqual({ count: 3, max: 5, nextInMs: REGEN });
     expect(h.saved().lifeTimer).toBe(T0 - HOUR);
+  });
+
+  it('a refused loseLife still stores the corrected timer', () => {
+    const save = sampleSave();
+    save.lives = 0;
+    save.lifeTimer = T0 + HOUR; // ahead of the clock
+    const h = fromSave(save);
+    h.storage.json = JSON.stringify(save); // as if the correction made at load had not been stored
+    h.clock.now += MINUTE;
+    const again = h.restart();
+    expect(again.profile.loseLife()).toBe(false);
+    expect(again.saved().lifeTimer).toBe(T0 + MINUTE);
+    expect(again.notifications.count).toBe(0);
   });
 
   it('with full lives a backwards clock changes nothing', () => {

@@ -49,7 +49,7 @@ export interface MusicPlayer {
 }
 
 /** Relative layer levels inside the music mix. */
-export const MUSIC_MIX = { lead: 0.9, pad: 0.34, perc: 0.62, echo: 0.2 };
+export const MUSIC_MIX = { lead: 0.45, pad: 0.075, perc: 1, echo: 0.2 };
 
 export function createMusicPlayer(
   ctx: BaseAudioContext,
@@ -127,8 +127,7 @@ export function createMusicPlayer(
     const v = new Voice(ctx, leadBus, ev.time, 1);
     // Let the string ring past its written length, as an undamped course does.
     const ring = ev.kind === 'bass' ? ev.dur + 0.5 : ev.kind === 'grace' ? ev.dur + 0.04 : Math.max(0.3, ev.dur * 1.25 + 0.18);
-    const level = ev.kind === 'bass' ? 0.5 : 0.42;
-    pluck(v, { midi: ev.midi, dur: ring, peak: level * ev.vel });
+    pluck(v, { midi: ev.midi, dur: ring, peak: ev.vel });
   }
 
   function playPerc(ev: Extract<MusicEvent, { layer: 'perc' }>): void {
@@ -150,7 +149,7 @@ export function createMusicPlayer(
     for (let i = 0; i < ev.midis.length; i++) {
       const f = midiToFreq(ev.midis[i]);
       // Lower tones carry the weight; upper ones are softer and purer.
-      const level = (i === 0 ? 0.5 : i === 1 ? 0.34 : 0.22) * ev.vel;
+      const level = (i === 0 ? 0.5 : i === 1 ? 0.34 : i === 2 ? 0.26 : 0.15) * ev.vel;
       const g = v.keep(ctx.createGain());
       g.gain.value = 0;
       g.gain.setValueAtTime(0, t);
@@ -169,7 +168,7 @@ export function createMusicPlayer(
         const twin = ctx.createOscillator();
         twin.type = 'sine';
         twin.frequency.value = f * 2;
-        twin.detune.value = 7;
+        twin.detune.value = 2;
         const tg = v.keep(ctx.createGain());
         tg.gain.value = 0;
         tg.gain.setValueAtTime(0, t);

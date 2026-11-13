@@ -128,7 +128,7 @@ export const TRACK_STYLES: Record<MusicTrack, TrackStyle> = {
     bpm: 90,
     cellWeights: [3, 4, 2.5, 2.5, 1, 2.5, 3, 1.2, 0.3, 1.2, 0.6, 1],
     formWeights: [3, 3, 1.5, 2],
-    introForm: 'breath',
+    introForm: 'callAnswer',
     introPerc: 'off',
     energyStart: 0.35,
     percOff: 0.28,
@@ -300,9 +300,17 @@ export function createComposer(track: MusicTrack, seed: number): Composer {
         contour = contour.concat(ext.slice(1));
       }
     } else if (kind === 2) {
-      // mirrored around its first note
+      // mirrored around its first note, then slid back into range (never flattened)
       const c0 = contour.length ? contour[0] : 0;
-      contour = contour.map((d) => clamp(2 * c0 - d, -3, 5));
+      contour = contour.map((d) => 2 * c0 - d);
+      let lo = 0;
+      let hi = 0;
+      for (let i = 0; i < contour.length; i++) {
+        if (i === 0 || contour[i] < lo) lo = contour[i];
+        if (i === 0 || contour[i] > hi) hi = contour[i];
+      }
+      const slide = hi > 5 ? 5 - hi : lo < -3 ? -3 - lo : 0;
+      if (slide !== 0) contour = contour.map((d) => d + slide);
     } else {
       // inner notes nudged to a neighbour
       for (let i = 1; i < contour.length - 1; i++) {
@@ -345,8 +353,12 @@ export function createComposer(track: MusicTrack, seed: number): Composer {
     for (let i = 0; i < onsets.length; i++) {
       const step = onsets[i];
       const next = i + 1 < onsets.length ? onsets[i + 1] : STEPS_PER_BAR;
-      const c = i < m.contour.length ? m.contour[i] : 0;
-      out.push(note(step, Math.min(8, next - step), a + c, level * accent(step) * (0.94 + rng() * 0.12)));
+      let degree = a + (i < m.contour.length ? m.contour[i] : 0);
+      // Never three of the same note in a row: the third leans on a neighbour instead.
+      if (i >= 2 && out[i - 1].degree === degree && out[i - 2].degree === degree) {
+        degree += degree >= a + 1 || degree >= LEAD_HIGH ? -1 : 1;
+      }
+      out.push(note(step, Math.min(8, next - step), degree, level * accent(step) * (0.94 + rng() * 0.12)));
     }
     return out;
   }
@@ -435,20 +447,25 @@ export function createComposer(track: MusicTrack, seed: number): Composer {
     return hits;
   }
 
-  /** Drone voicing for two bars: always D in the bass, with a fifth, fourth or a colour tone above. */
+  /**
+   * Drone voicing for two bars, low to high: always D in the bass, with a fifth (or a fourth
+   * when the phrase sits on G) and now and then a colour tone above.
+   */
   function padChord(barInPhrase: number, anchor: number, closing: boolean): PadChord {
+    const home = [50, 57, 62, 69];
+    const onFourth = [50, 55, 62, 67];
     let midis: number[];
     if (barInPhrase === 0) {
-      midis = anchor === 3 ? [50, 55, 62] : [50, 57, 62];
+      midis = anchor === 3 ? onFourth : home;
     } else {
       const r = rng();
-      if (r < 0.14) midis = [50, 57, 60];
-      else if (r < 0.22 && !closing) midis = [50, 57, 63];
-      else if (anchor === 3 && r < 0.6) midis = [50, 55, 62];
-      else midis = [50, 57, 62];
+      if (r < 0.14) midis = [50, 57, 60, 69];
+      else if (r < 0.22 && !closing) midis = [50, 57, 63, 69];
+      else if (anchor === 3 && r < 0.6) midis = onFourth;
+      else midis = home;
     }
     if (midis[2] === 62 && energy > 0.55 && chance(0.6)) midis = midis.concat(66);
-    return { midis, bars: 2, vel: 0.9 + energy * 0.1 };
+    return { midis: midis.slice(), bars: 2, vel: 0.9 + energy * 0.1 };
   }
 
   function makePhrase(): Bar[] {
@@ -527,7 +544,8 @@ export function createComposer(track: MusicTrack, seed: number): Composer {
     } else {
       mode = energy < style.percOff ? 'off' : energy < style.percFull ? 'light' : 'full';
       if (style.percModes.indexOf(mode) < 0) mode = style.percModes[0];
-      if (mode === percMode && percRun >= 3) {
+      // Three phrases of one groove — or two without any drum — are enough.
+      if (mode === percMode && percRun >= (mode === 'off' ? 2 : 3)) {
         const others: PercMode[] = [];
         for (let i = 0; i < style.percModes.length; i++) if (style.percModes[i] !== mode) others.push(style.percModes[i]);
         if (others.length > 0) {
@@ -536,7 +554,8 @@ export function createComposer(track: MusicTrack, seed: number): Composer {
         }
       }
     }
-    if (form === 'breath' && mode === 'off' && !first) mode = 'light';
+    // The drum always joins for the second phrase, and never leaves a resting lead alone.
+    if (mode === 'off' && !first && (form === 'breath' || phraseNo === 1)) mode = 'light';
     percRun = mode === percMode ? percRun + 1 : 1;
     percMode = mode;
     if (first || chance(0.45)) percPattern = int(997);

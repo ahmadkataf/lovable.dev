@@ -2,7 +2,7 @@
  * Level definitions: parsing (`parseLevel`, used by the Game) and validation (`validateLevel`,
  * used by the level tools and tests). The text format is documented on `LevelDef` in types.ts.
  */
-import type { Color, Goal, LevelDef, Piece, PieceKind } from './types.ts';
+import type { Color, Goal, LevelDef, Piece } from './types.ts';
 import { createRng } from './rng.ts';
 import {
   RANDOM_COLOR,
@@ -452,6 +452,3 @@ export function validateLevel(def: LevelDef): string[] {
 
   return problems;
 }
-
-/** Kinds a debug cell may use (tests and tools). */
-export type DebugKind = PieceKind;

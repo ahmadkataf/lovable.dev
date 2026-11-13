@@ -23,12 +23,12 @@ export interface GemTone {
 }
 
 export const GEM_TONES: readonly GemTone[] = [
-  { deep: '#7a0d2c', dark: '#cf2143', base: '#ff4d5e', light: '#ff8b8e', pale: '#ffe0da' },
-  { deep: '#8a4300', dark: '#e07c08', base: '#ffa630', light: '#ffd064', pale: '#fff4c9' },
-  { deep: '#075c3c', dark: '#14a862', base: '#2fd17c', light: '#7ff2ac', pale: '#deffe6' },
-  { deep: '#102c96', dark: '#2264e6', base: '#3d8bff', light: '#86bdff', pale: '#e0f0ff' },
-  { deep: '#4a1396', dark: '#8a35e6', base: '#b05cff', light: '#d6a0ff', pale: '#f4e4ff' },
-  { deep: '#1c6f92', dark: '#4fc0df', base: '#8ff0ff', light: '#cdfbff', pale: '#ffffff' },
+  { deep: '#6a0823', dark: '#c0163a', base: '#ff4d5e', light: '#ff7b82', pale: '#ffdcd8' },
+  { deep: '#7c3a00', dark: '#dd7400', base: '#ffa630', light: '#ffc955', pale: '#fff2c4' },
+  { deep: '#065536', dark: '#0f9c58', base: '#2fd17c', light: '#69ec9f', pale: '#d9ffe4' },
+  { deep: '#0e2788', dark: '#1d5ae0', base: '#3d8bff', light: '#74b1ff', pale: '#dcedff' },
+  { deep: '#440f8c', dark: '#812de0', base: '#b05cff', light: '#cb90ff', pale: '#f2e0ff' },
+  { deep: '#17688c', dark: '#3fb4d6', base: '#8ff0ff', light: '#c2f8ff', pale: '#ffffff' },
 ];
 
 export const GEM_COLORS: readonly string[] = ['#ff4d5e', '#ffa630', '#2fd17c', '#3d8bff', '#b05cff', '#8ff0ff'];
@@ -134,12 +134,11 @@ function rubyShape(): GemShape {
     const gPrev = A(22.5 + 45 * (k - 1), ro);
     const m0 = A(45 * k, ro);
     // star facet on the table edge t0–t1
-    facets.push(facet(cx, cy, [t0[0], t0[1], t1[0], t1[1], a1[0], a1[1]], 0.3));
+    facets.push(facet(cx, cy, [t0[0], t0[1], t1[0], t1[1], a1[0], a1[1]], 0.26));
     // kite (bezel) facet around t0
     facets.push(facet(cx, cy, [t0[0], t0[1], a0[0], a0[1], g0[0], g0[1], a1[0], a1[1]], k % 2 === 0 ? 0.12 : -0.14));
-    // two girdle facets at apex a0
-    facets.push(facet(cx, cy, [a0[0], a0[1], gPrev[0], gPrev[1], m0[0], m0[1]], -0.22));
-    facets.push(facet(cx, cy, [a0[0], a0[1], m0[0], m0[1], g0[0], g0[1]], 0.1));
+    // girdle facet between two kites
+    facets.push(facet(cx, cy, [a0[0], a0[1], gPrev[0], gPrev[1], m0[0], m0[1], g0[0], g0[1]], k % 2 === 0 ? -0.2 : -0.02));
   }
   return {
     cx,
@@ -326,9 +325,9 @@ export function drawGem(ctx: Ctx, color: Color, px: number, shadow: boolean = tr
   // soft drop shadow + rim colour
   ctx.save();
   if (shadow) {
-    ctx.shadowColor = 'rgba(5,3,26,0.62)';
-    ctx.shadowBlur = px * 0.07;
-    ctx.shadowOffsetY = px * 0.045;
+    ctx.shadowColor = 'rgba(4,2,22,0.72)';
+    ctx.shadowBlur = px * 0.075;
+    ctx.shadowOffsetY = px * 0.05;
   }
   ctx.fillStyle = tone.deep;
   ctx.fill(outline);
@@ -337,83 +336,84 @@ export function drawGem(ctx: Ctx, color: Color, px: number, shadow: boolean = tr
   ctx.save();
   ctx.clip(outline);
 
-  // body
+  // body: saturated all the way through, light top-left, deep bottom-right
   ctx.fillStyle = lGrad(ctx, 20, 10, 82, 94, [
     [0, tone.light],
-    [0.42, tone.base],
+    [0.3, tone.base],
+    [0.68, tone.base],
     [1, tone.dark],
   ]);
   ctx.fillRect(0, 0, 100, 100);
 
-  // facets
+  // facets: lit ones take the light tone (stays colourful), shaded ones the deep tone
+  const lit = hexToRgb(tone.light);
   const pale = hexToRgb(tone.pale);
   const deep = hexToRgb(tone.deep);
   for (let i = 0; i < sh.facets.length; i++) {
     const f = sh.facets[i];
     const s = f.s;
-    ctx.fillStyle =
-      s >= 0
-        ? 'rgba(' + pale[0] + ',' + pale[1] + ',' + pale[2] + ',' + (s * 0.62).toFixed(3) + ')'
-        : 'rgba(' + deep[0] + ',' + deep[1] + ',' + deep[2] + ',' + (-s * 0.5).toFixed(3) + ')';
+    if (s >= 0.55) ctx.fillStyle = 'rgba(' + pale[0] + ',' + pale[1] + ',' + pale[2] + ',' + ((s - 0.3) * 0.62).toFixed(3) + ')';
+    else if (s >= 0) ctx.fillStyle = 'rgba(' + lit[0] + ',' + lit[1] + ',' + lit[2] + ',' + (s * 0.8).toFixed(3) + ')';
+    else ctx.fillStyle = 'rgba(' + deep[0] + ',' + deep[1] + ',' + deep[2] + ',' + (-s * 0.5).toFixed(3) + ')';
     ctx.beginPath();
     poly(ctx, f.pts);
     ctx.fill();
   }
-  // facet edges: thin light seams
+  // facet seams: thin, quiet
   ctx.lineJoin = 'round';
-  ctx.lineWidth = 0.9;
-  ctx.strokeStyle = rgba(tone.pale, 0.38);
+  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = rgba(tone.pale, 0.24);
   ctx.beginPath();
   for (let i = 0; i < sh.facets.length; i++) poly(ctx, sh.facets[i].pts);
   ctx.stroke();
 
-  // table: the flat top face, the brightest and calmest plane
+  // table: the flat top face — the calmest plane, lit from its top-left corner
   const table = new Path2D();
   roundPoly(table, sh.table, sh.tableRound);
-  ctx.fillStyle = lGrad(ctx, sh.cx - 16, sh.cy - 18, sh.cx + 16, sh.cy + 18, [
+  ctx.fillStyle = lGrad(ctx, sh.cx - 17, sh.cy - 19, sh.cx + 15, sh.cy + 17, [
     [0, tone.pale],
-    [0.5, tone.light],
+    [0.28, tone.light],
     [1, tone.base],
   ]);
   ctx.fill(table);
   ctx.lineWidth = 1.1;
-  ctx.strokeStyle = rgba(tone.pale, 0.75);
+  ctx.strokeStyle = rgba(tone.pale, 0.7);
   ctx.stroke(table);
 
   // light gathering in the lower-right of the stone
-  const bounce = ctx.createRadialGradient(sh.cx + 15, sh.cy + 19, 0, sh.cx + 15, sh.cy + 19, 30);
-  bounce.addColorStop(0, rgba(tone.pale, 0.42));
-  bounce.addColorStop(1, rgba(tone.pale, 0));
+  const bounce = ctx.createRadialGradient(sh.cx + 16, sh.cy + 20, 0, sh.cx + 16, sh.cy + 20, 26);
+  bounce.addColorStop(0, rgba(tone.light, 0.55));
+  bounce.addColorStop(1, rgba(tone.light, 0));
   ctx.fillStyle = bounce;
   ctx.fillRect(0, 0, 100, 100);
 
   // glossy sheen over the upper-left
-  ctx.fillStyle = lGrad(ctx, 0, sh.cy - 44, 0, sh.cy + 2, [
-    [0, 'rgba(255,255,255,0.5)'],
-    [1, 'rgba(255,255,255,0.03)'],
+  ctx.fillStyle = lGrad(ctx, 0, sh.cy - 44, 0, sh.cy - 4, [
+    [0, 'rgba(255,255,255,0.36)'],
+    [1, 'rgba(255,255,255,0)'],
   ]);
   ctx.beginPath();
-  ctx.ellipse(sh.cx - 9, sh.cy - 31, 37, 27, -0.32, 0, TAU);
+  ctx.ellipse(sh.cx - 10, sh.cy - 33, 34, 24, -0.32, 0, TAU);
   ctx.fill();
 
   // rim: dark edge, then a bright bevel that fades towards the lower right
-  ctx.lineWidth = 5.2;
-  ctx.strokeStyle = rgba(tone.deep, 0.92);
+  ctx.lineWidth = 5.4;
+  ctx.strokeStyle = rgba(tone.deep, 0.95);
   ctx.stroke(outline);
   ctx.lineWidth = 2;
   ctx.strokeStyle = lGrad(ctx, 18, 8, 78, 88, [
-    [0, 'rgba(255,255,255,0.85)'],
-    [0.45, rgba(tone.light, 0.35)],
+    [0, 'rgba(255,255,255,0.8)'],
+    [0.42, rgba(tone.light, 0.4)],
     [0.8, rgba(tone.light, 0)],
   ]);
   ctx.stroke(outline);
   ctx.restore();
 
-  // specular spot + glint
+  // specular spot
   ctx.save();
   ctx.translate(sh.spec[0], sh.spec[1]);
   ctx.rotate(sh.spec[4]);
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillStyle = 'rgba(255,255,255,0.94)';
   ctx.beginPath();
   ctx.ellipse(0, 0, sh.spec[2], sh.spec[3], 0, 0, TAU);
   ctx.fill();
@@ -428,48 +428,59 @@ function centred(ctx: Ctx, k: number, cy: number): void {
 
 /** Double-headed arrow of light along the x axis through (50, 50). */
 function drawStreak(ctx: Ctx, px: number): void {
+  const sh = 3.9; // shaft half thickness
+  const hh = 10.5; // head half height
+  const x0 = 1.6; // tip
+  const x1 = 14; // back of the head
   const p = new Path2D();
-  const sh = 5.4; // shaft half thickness
-  const hh = 11.5; // head half height
-  const x0 = 1.8;
-  const x1 = 14.5;
   p.moveTo(x0, 50);
   p.lineTo(x1, 50 - hh);
-  p.lineTo(x1 - 1.5, 50 - sh);
-  p.lineTo(100 - x1 + 1.5, 50 - sh);
+  p.lineTo(x1 - 2.2, 50 - sh);
+  p.lineTo(100 - x1 + 2.2, 50 - sh);
   p.lineTo(100 - x1, 50 - hh);
   p.lineTo(100 - x0, 50);
   p.lineTo(100 - x1, 50 + hh);
-  p.lineTo(100 - x1 + 1.5, 50 + sh);
-  p.lineTo(x1 - 1.5, 50 + sh);
+  p.lineTo(100 - x1 + 2.2, 50 + sh);
+  p.lineTo(x1 - 2.2, 50 + sh);
   p.lineTo(x1, 50 + hh);
   p.closePath();
 
   ctx.save();
+  // wide soft glow of the streak
+  const g = ctx.createLinearGradient(0, 50 - 15, 0, 50 + 15);
+  g.addColorStop(0, 'rgba(255,214,96,0)');
+  g.addColorStop(0.5, 'rgba(255,226,130,0.6)');
+  g.addColorStop(1, 'rgba(255,214,96,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(4, 50);
+  ctx.quadraticCurveTo(50, 50 - 30, 96, 50);
+  ctx.quadraticCurveTo(50, 50 + 30, 4, 50);
+  ctx.fill();
+
   ctx.lineJoin = 'round';
-  // halo
-  ctx.shadowColor = 'rgba(255,214,96,0.95)';
-  ctx.shadowBlur = px * 0.09;
-  ctx.strokeStyle = '#5a3606';
-  ctx.lineWidth = 3;
+  ctx.shadowColor = 'rgba(255,205,80,0.95)';
+  ctx.shadowBlur = px * 0.08;
+  ctx.strokeStyle = '#6a3f06';
+  ctx.lineWidth = 2.6;
   ctx.stroke(p);
   ctx.shadowBlur = 0;
   ctx.shadowColor = 'transparent';
   ctx.fillStyle = lGrad(ctx, 0, 50 - hh, 0, 50 + hh, [
-    [0, '#ffc93a'],
-    [0.3, '#ffe9a0'],
+    [0, '#ffc02e'],
+    [0.32, '#ffe58f'],
     [0.5, '#ffffff'],
-    [0.7, '#ffe9a0'],
-    [1, '#ffc93a'],
+    [0.68, '#ffe58f'],
+    [1, '#ffc02e'],
   ]);
   ctx.fill(p);
-  // hot core line
-  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-  ctx.lineWidth = 2.2;
+  // hot core
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2.4;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(9, 50);
-  ctx.lineTo(91, 50);
+  ctx.moveTo(8, 50);
+  ctx.lineTo(92, 50);
   ctx.stroke();
   ctx.restore();
 }
@@ -477,8 +488,8 @@ function drawStreak(ctx: Ctx, px: number): void {
 /** Beam: the gem crossed by a white-gold streak of light with arrow heads (H = row, V = column). */
 export function drawBeam(ctx: Ctx, color: Color, px: number, vertical: boolean): void {
   ctx.save();
-  centred(ctx, 0.84, 50);
-  drawGem(ctx, color, px * 0.84);
+  centred(ctx, 0.87, 50);
+  drawGem(ctx, color, px * 0.87);
   ctx.restore();
   ctx.save();
   if (vertical) {
@@ -531,8 +542,8 @@ export function drawNova(ctx: Ctx, color: Color, px: number): void {
 
   // gem
   ctx.save();
-  centred(ctx, 0.7, 50);
-  drawGem(ctx, color, px * 0.7);
+  centred(ctx, 0.72, 50);
+  drawGem(ctx, color, px * 0.72);
   ctx.restore();
 
   // four spark points on the ring
@@ -543,15 +554,15 @@ export function drawNova(ctx: Ctx, color: Color, px: number): void {
     const sx = 50 + (i === 0 || i === 3 ? -d : d);
     const sy = 50 + (i < 2 ? -d : d);
     const sp = new Path2D();
-    sparkle(sp, sx, sy, 10.5, 0.2);
-    ctx.lineWidth = 2.4;
+    sparkle(sp, sx, sy, 9.8, 0.2);
+    ctx.lineWidth = 2.2;
     ctx.strokeStyle = '#5a3606';
     ctx.stroke(sp);
     ctx.fillStyle = '#fffbe8';
     ctx.fill(sp);
     ctx.fillStyle = PAL.gold;
     const core = new Path2D();
-    sparkle(core, sx, sy, 5, 0.3);
+    sparkle(core, sx, sy, 4.4, 0.3);
     ctx.fill(core);
   }
   ctx.restore();
@@ -600,14 +611,14 @@ export function drawPrism(ctx: Ctx, px: number): void {
     const tip = 2 * i;
     const prev = (tip + 15) % 16;
     const next = (tip + 1) % 16;
-    ctx.fillStyle = 'rgba(255,255,255,0.26)';
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(pts[2 * prev], pts[2 * prev + 1]);
     ctx.lineTo(pts[2 * tip], pts[2 * tip + 1]);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = 'rgba(30,10,70,0.2)';
+    ctx.fillStyle = 'rgba(30,10,70,0.24)';
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(pts[2 * tip], pts[2 * tip + 1]);
@@ -625,16 +636,16 @@ export function drawPrism(ctx: Ctx, px: number): void {
   }
   ctx.stroke();
   // white core
-  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.74);
+  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.56);
   core.addColorStop(0, 'rgba(255,255,255,1)');
-  core.addColorStop(0.24, 'rgba(255,255,255,0.94)');
-  core.addColorStop(0.55, 'rgba(255,255,255,0.4)');
+  core.addColorStop(0.3, 'rgba(255,255,255,0.92)');
+  core.addColorStop(0.62, 'rgba(255,255,255,0.34)');
   core.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = core;
   ctx.fillRect(0, 0, 100, 100);
   // sheen
   ctx.fillStyle = lGrad(ctx, 0, 4, 0, 52, [
-    [0, 'rgba(255,255,255,0.42)'],
+    [0, 'rgba(255,255,255,0.26)'],
     [1, 'rgba(255,255,255,0)'],
   ]);
   ctx.beginPath();

@@ -189,18 +189,78 @@ export function formatMessage(template: string, vars: Vars | undefined, lang: La
   return out;
 }
 
+function collectNames(template: string, into: Record<string, true>): void {
+  let i = 0;
+  for (;;) {
+    const open = template.indexOf('{', i);
+    if (open < 0) return;
+    SIMPLE.lastIndex = open;
+    const simple = SIMPLE.exec(template);
+    if (simple) {
+      into[simple[1]!] = true;
+      i = SIMPLE.lastIndex;
+      continue;
+    }
+    const block = parsePlural(template, open);
+    if (block) {
+      into[block.name] = true;
+      for (const option of block.options) collectNames(option[1], into);
+      i = block.end;
+      continue;
+    }
+    i = open + 1;
+  }
+}
+
 /**
  * Names of every variable a template uses — simple placeholders and plural selectors alike, across
  * all plural variants. Used to check that the two languages of a string agree.
  */
 export function placeholderNames(template: string): string[] {
-  const found: Record<string, true> = {};
-  let m: RegExpExecArray | null;
-  const simple = /\{(\w+)\}/g;
-  while ((m = simple.exec(template))) found[m[1]!] = true;
-  const plural = /\{\s*(\w+)\s*,\s*plural\s*,/g;
-  while ((m = plural.exec(template))) found[m[1]!] = true;
+  const found: Record<string, true> = Object.create(null);
+  collectNames(template, found);
   return Object.keys(found).sort();
+}
+
+const CATEGORIES: readonly string[] = ['zero', 'one', 'two', 'few', 'many', 'other'];
+
+function collectProblems(template: string, into: string[]): void {
+  let i = 0;
+  for (;;) {
+    const open = template.indexOf('{', i);
+    if (open < 0) return;
+    SIMPLE.lastIndex = open;
+    if (SIMPLE.exec(template)) {
+      i = SIMPLE.lastIndex;
+      continue;
+    }
+    const block = parsePlural(template, open);
+    if (!block) {
+      PLURAL_HEAD.lastIndex = open;
+      if (PLURAL_HEAD.exec(template)) into.push('malformed plural block for "' + template.slice(open, open + 24) + '…"');
+      i = open + 1;
+      continue;
+    }
+    const seen: Record<string, true> = Object.create(null);
+    for (const [selector, text] of block.options) {
+      if (seen[selector]) into.push('plural variant "' + selector + '" is defined twice');
+      seen[selector] = true;
+      if (selector.charAt(0) !== '=' && CATEGORIES.indexOf(selector) < 0) into.push('unknown plural variant "' + selector + '"');
+      collectProblems(text, into);
+    }
+    if (!seen.other) into.push('plural block for {' + block.name + '} has no "other" variant');
+    i = block.end;
+  }
+}
+
+/**
+ * Lint a message template: malformed plural blocks, unknown or repeated variants, a missing
+ * `other`. Returns human-readable problems (empty when the template is fine). For tests and tools.
+ */
+export function messageProblems(template: string): string[] {
+  const problems: string[] = [];
+  collectProblems(template, problems);
+  return problems;
 }
 
 // ───────────────────────────── tables ─────────────────────────────

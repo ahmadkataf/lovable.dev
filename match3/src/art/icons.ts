@@ -456,13 +456,15 @@ const ICONS: Record<IconKey, IconFn> = {
     g.stroke(D('M15.9 5.6 L18.9 8.6'), 1, SHADE, false);
   },
   freeSwap(g) {
-    // two pieces trading places
-    g.fill(C(6.4, 12.2, 3.5), 'gold');
-    g.fill(PP([17.6, 8, 21.6, 12.2, 17.6, 16.4, 13.6, 12.2], 0.6), 'cream');
-    g.stroke(D('M6.2 6.6 C8.6 2.8 14.6 2.6 17 5.4'), 2, 'gold');
-    g.fill(head(18.6, 7.2, 0.95, 4.2, 3.2), 'gold');
-    g.stroke(D('M17.8 17.8 C15.4 21.6 9.4 21.8 7 19'), 2, 'gold');
-    g.fill(head(5.4, 17.2, 0.95 + Math.PI, 4.2, 3.2), 'gold');
+    // two pieces trading places under one double-headed arc
+    g.stroke(D('M6.4 9.4 C6.4 3.4 17.6 3.4 17.6 9.4'), 2.3, 'gold');
+    g.fill(head(6.4, 11.6, Math.PI / 2, 4.4, 3.5), 'gold');
+    g.fill(head(17.6, 11.6, Math.PI / 2, 4.4, 3.5), 'gold');
+    g.layer();
+    g.fill(C(6.4, 17, 4.3), 'red');
+    g.stroke(D('M4.2 16 C4.4 14.8 5.4 14.2 6.4 14.2'), 1, 'rgba(255,255,255,0.75)', false);
+    g.fill(PP([17.6, 12.2, 22.3, 17, 17.6, 21.8, 12.9, 17], 0.7), '#7fe6f5');
+    g.fill(PP([17.6, 13.6, 20.9, 17, 17.6, 17, 14.3, 17]), 'rgba(255,255,255,0.5)', false);
   },
   shuffle(g) {
     g.stroke(D('M2.8 7 H6.4 C11 7 12.6 17 17.2 17 H18.6'), 2.4, 'gold');
@@ -486,18 +488,15 @@ const ICONS: Record<IconKey, IconFn> = {
     });
   },
   beamNova(g) {
-    // nova ring with spark points, crossed by a beam of light
-    g.stroke(C(12, 12, 6.6), 2.2, 'gold');
-    const d = 6.6 * Math.SQRT1_2;
-    for (let i = 0; i < 4; i++) {
-      const x = 12 + (i % 2 === 0 ? -d : d);
-      const y = 12 + (i < 2 ? -d : d);
-      g.fill(PP([x, y - 2.3, x + 2.3, y, x, y + 2.3, x - 2.3, y], 0.3), 'gold');
-    }
+    // a beam of light (double arrow) passing behind a nova ring with its jewel
+    g.stroke(D('M5 12 H19'), 2.8, 'cream');
+    g.fill(head(0.8, 12, Math.PI, 5.6, 4.9), 'cream');
+    g.fill(head(23.2, 12, 0, 5.6, 4.9), 'cream');
     g.layer();
-    g.stroke(D('M5 12 H19'), 2.6, 'cream');
-    g.fill(head(1.6, 12, Math.PI, 4.6, 3.9), 'cream');
-    g.fill(head(22.4, 12, 0, 4.6, 3.9), 'cream');
+    g.fill(C(12, 12, 6.2), '#3a2a7a');
+    g.stroke(C(12, 12, 5.4), 2.1, 'gold', false);
+    g.fill(PP([12, 8.9, 15.1, 12, 12, 15.1, 8.9, 12], 0.4), '#ff5d6c', false);
+    g.fill(PP([12, 9.9, 14, 12, 12, 12, 10, 12]), 'rgba(255,255,255,0.5)', false);
   },
 
   goalScore(g) {
