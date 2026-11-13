@@ -427,8 +427,9 @@ export function checkTurn(game: Game, before: Snapshot, res: TurnResult, action:
         hitCount.set(key, count);
         if (blastWave) {
           if (hit.cause !== 'blast') fail(`a blast wave carries a '${hit.cause}' hit`, before, res);
-          const usedUpPrism = hit.kind === 'prism' && hit.result === 'activated';
-          if (count > (cover.get(key) ?? 0) + (usedUpPrism ? 1 : 0)) fail(`cell ${hit.at.c},${hit.at.r} is hit more often than effects reach it`, before, res);
+          // a prism used up by its own effect is a hit on a cell its rays do not cover
+          if (hit.kind === 'prism' && hit.result === 'activated') cover.set(key, (cover.get(key) ?? 0) + 1);
+          if (count > (cover.get(key) ?? 0)) fail(`cell ${hit.at.c},${hit.at.r} is hit more often than effects reach it`, before, res);
         } else if (count > 1) {
           fail(`cell ${hit.at.c},${hit.at.r} is hit twice in a match wave`, before, res);
         }
