@@ -496,16 +496,18 @@ describe('browser platform: pause / resume (page visibility)', () => {
     expect(log).toEqual(['pause', 'resume']);
   });
 
-  it('a page that starts hidden resumes when it is first shown', () => {
+  it('a page that starts hidden tells a late pause listener at once, and resumes when it is first shown', () => {
     const fake = install({ hidden: true });
     const p = createPlatform();
     const log: string[] = [];
-    p.onPause(() => log.push('pause'));
     p.onResume(() => log.push('resume'));
+    expect(log).toEqual([]); // resume listeners are never called at registration
+    p.onPause(() => log.push('pause'));
+    expect(log).toEqual(['pause']); // the pause that happened before anyone listened (sticky)
     fake.setHidden(true);
-    expect(log).toEqual([]);
+    expect(log).toEqual(['pause']); // the same state again: nothing new
     fake.setHidden(false);
-    expect(log).toEqual(['resume']);
+    expect(log).toEqual(['pause', 'resume']);
   });
 
   it('several listeners are all called, in order, even if one throws', () => {

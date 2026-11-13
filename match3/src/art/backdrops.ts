@@ -13,7 +13,7 @@ import { TAU, glow, hashStr, khatam, lGrad, mulberry32, rgba, sparkle, vGrad } f
 type Rnd = () => number;
 
 export const PALETTES: Record<ChapterTheme, ThemePalette> = {
-  oasis: { bgTop: '#0c0a30', bgBottom: '#0d1a4a', accent: '#4fd8b8', frame: '#f5c95a' },
+  oasis: { bgTop: '#2c3c9a', bgBottom: '#1b648e', accent: '#4fd8c0', frame: '#f5c95a' },
   dunes: { bgTop: '#191246', bgBottom: '#150f38', accent: '#ff9d5c', frame: '#ffc56e' },
   bazaar: { bgTop: '#150c36', bgBottom: '#2a1030', accent: '#ff7f8f', frame: '#f2b24d' },
   palace: { bgTop: '#100d3a', bgBottom: '#141046', accent: '#b99cff', frame: '#ffe7a3' },
@@ -247,33 +247,47 @@ function archPath(ctx: Ctx, cx: number, bottom: number, half: number, hgt: numbe
 
 // ───────────────────────────── oasis ─────────────────────────────
 
+/** Long, thin cloud bar with a soft lens shape. */
+function cloudBar(ctx: Ctx, cx: number, cy: number, cw: number, ch: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(cx - cw / 2, cy);
+  ctx.quadraticCurveTo(cx - cw * 0.1, cy - ch * 2, cx + cw / 2, cy);
+  ctx.quadraticCurveTo(cx + cw * 0.1, cy + ch, cx - cw / 2, cy);
+  ctx.fill();
+}
+
+// Chapter 1 — the oasis at dawn: periwinkle sky warming to peach, a pale morning moon, the sun
+// coming up behind the far bank, turquoise water and green palms.
 function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
   const hz = h * 0.6;
   fillV(ctx, w, 0, hz + 1, [
-    [0, '#0c0a30'],
-    [0.42, '#191756'],
-    [0.78, '#27367e'],
-    [1, '#41679e'],
+    [0, '#2c3c9a'],
+    [0.26, '#5560c6'],
+    [0.5, '#9d7dd2'],
+    [0.7, '#ee97b2'],
+    [0.87, '#ffc39a'],
+    [1, '#ffe7b0'],
   ]);
-  starField(ctx, rnd, w, 0, hz * 0.92, 170, u, '#ffffff');
-  twinkles(ctx, rnd, w, h * 0.02, hz * 0.6, 7, u, '#fff3cf');
+  // the last stars of the night, only in the highest, darkest part of the sky
+  starField(ctx, rnd, w, 0, hz * 0.42, 70, u, '#ffffff');
+  twinkles(ctx, rnd, w * 0.6, h * 0.015, hz * 0.3, 4, u, '#fff6e6');
 
-  // moon
-  const mx = w * 0.7;
-  const my = h * 0.17;
-  const mr = 8.6 * u;
-  glow(ctx, mx, my, mr * 6.5, '#b9ccff', 0.3);
-  glow(ctx, mx, my, mr * 2.4, '#fff3cf', 0.5);
+  // pale morning moon
+  const mx = w * 0.74;
+  const my = h * 0.13;
+  const mr = 6.4 * u;
+  glow(ctx, mx, my, mr * 3.4, '#ffffff', 0.2);
   const moon = ctx.createRadialGradient(mx - mr * 0.3, my - mr * 0.35, mr * 0.1, mx, my, mr);
-  moon.addColorStop(0, '#fffdf0');
-  moon.addColorStop(0.7, '#fbeec2');
-  moon.addColorStop(1, '#e9d49a');
+  moon.addColorStop(0, '#ffffff');
+  moon.addColorStop(0.75, '#e6e2fb');
+  moon.addColorStop(1, '#c2bdf0');
   ctx.fillStyle = moon;
   ctx.beginPath();
   ctx.arc(mx, my, mr, 0, TAU);
   ctx.fill();
-  ctx.fillStyle = 'rgba(190,160,100,0.2)';
+  ctx.fillStyle = 'rgba(150,140,220,0.2)';
   const craters = [0.3, -0.2, 0.2, -0.25, 0.3, 0.26, 0.1, 0.5, 0.13, 0.42, -0.42, 0.1];
   for (let i = 0; i < craters.length; i += 3) {
     ctx.beginPath();
@@ -281,42 +295,82 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     ctx.fill();
   }
 
+  // the sun, half risen behind the far bank
+  const sx = w * 0.52;
+  const sy = hz - 1.2 * u;
+  glow(ctx, sx, sy, 70 * u, '#ffd29a', 0.55);
+  glow(ctx, sx, sy, 28 * u, '#fff4cc', 0.75);
+  const sun = ctx.createRadialGradient(sx, sy, 0, sx, sy, 9 * u);
+  sun.addColorStop(0, '#ffffff');
+  sun.addColorStop(0.7, '#fff3c4');
+  sun.addColorStop(1, '#ffdf96');
+  ctx.fillStyle = sun;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 9 * u, 0, TAU);
+  ctx.fill();
+
+  // thin clouds catching the first light from below
+  for (let i = 0; i < 7; i++) {
+    const cy = hz * (0.46 + rnd() * 0.44);
+    const warm = cy > hz * 0.7;
+    cloudBar(ctx, rnd() * w, cy, (24 + rnd() * 40) * u, (0.7 + rnd() * 1.1) * u, warm ? 'rgba(255,236,200,0.55)' : 'rgba(255,190,210,0.4)');
+  }
+  // a few birds heading out over the water
+  ctx.strokeStyle = 'rgba(70,50,120,0.6)';
+  ctx.lineWidth = Math.max(1, 0.26 * u);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (let i = 0; i < 4; i++) {
+    const bx = w * (0.52 + i * 0.07) + (rnd() - 0.5) * 3 * u;
+    const by = hz * (0.63 + (i % 2) * 0.05) + (rnd() - 0.5) * 2 * u;
+    const bs = (1.3 + rnd() * 0.7) * u;
+    ctx.beginPath();
+    ctx.moveTo(bx - bs, by - bs * 0.25);
+    ctx.quadraticCurveTo(bx - bs * 0.4, by - bs * 0.7, bx, by);
+    ctx.quadraticCurveTo(bx + bs * 0.4, by - bs * 0.7, bx + bs, by - bs * 0.25);
+    ctx.stroke();
+  }
+
   // far dunes with tiny palms
   const far = ridge(rnd, w, hz - 2.5 * u, 3.2 * u, 1.4);
-  ridgePath(ctx, far, w, hz + 2);
-  ctx.fillStyle = '#2b3277';
+  ridgePath(ctx, far, w, hz + 4 * u);
+  ctx.fillStyle = vGrad(ctx, hz - 6 * u, hz + 2, [
+    [0, '#d28fa6'],
+    [1, '#b97a9e'],
+  ]);
   ctx.fill();
   ridgeLine(ctx, far, w);
-  ctx.strokeStyle = 'rgba(190,210,255,0.3)';
-  ctx.lineWidth = Math.max(1, 0.22 * u);
+  ctx.strokeStyle = 'rgba(255,236,200,0.6)';
+  ctx.lineWidth = Math.max(1, 0.24 * u);
   ctx.stroke();
   const mid = ridge(rnd, w, hz + 0.4 * u, 2.2 * u, 2.1);
   for (let i = 0; i < 5; i++) {
     const px = (0.08 + i * 0.2 + rnd() * 0.08) * w;
-    palm(ctx, rnd, px, ridgeAt(mid, w, px) + u, (6 + rnd() * 5) * u, (rnd() - 0.5) * 3 * u, '#161a52', 'rgba(150,180,255,0.18)');
+    palm(ctx, rnd, px, ridgeAt(mid, w, px) + u, (6 + rnd() * 5) * u, (rnd() - 0.5) * 3 * u, '#6c4c8c', 'rgba(255,214,170,0.4)');
   }
   ridgePath(ctx, mid, w, hz + 3 * u);
-  ctx.fillStyle = '#20286c';
+  ctx.fillStyle = '#9a6696';
   ctx.fill();
 
   // water
   const top = hz + 1.6 * u;
   fillV(ctx, w, top, h, [
-    [0, '#34689c'],
-    [0.2, '#1f4683'],
-    [0.6, '#132762'],
-    [1, '#0b1444'],
+    [0, '#ffd6a6'],
+    [0.07, '#bfe0c6'],
+    [0.26, '#59c6c2'],
+    [0.6, '#2796ac'],
+    [1, '#1b648e'],
   ]);
-  // pale shoreline where the far bank meets the water
-  ctx.fillStyle = 'rgba(190,220,255,0.3)';
-  ctx.fillRect(0, top - 0.12 * u, w, Math.max(1, 0.24 * u));
-  // moon path on the water
+  // bright shoreline where the far bank meets the water
+  ctx.fillStyle = 'rgba(255,248,220,0.7)';
+  ctx.fillRect(0, top - 0.12 * u, w, Math.max(1, 0.26 * u));
+  // the sun's path on the water
   for (let i = 0; i < 46; i++) {
     const t = i / 46;
     const y = top + Math.pow(t, 1.35) * (h - top) * 0.8 + u * 0.4;
     const ww = (2.6 + t * 24) * u * (0.45 + rnd() * 0.75);
-    const x = mx + (rnd() - 0.5) * u * (2 + t * 16);
-    ctx.fillStyle = 'rgba(255,243,200,' + (0.62 * (1 - t) * (0.5 + rnd() * 0.5)).toFixed(3) + ')';
+    const x = sx + (rnd() - 0.5) * u * (2 + t * 16);
+    ctx.fillStyle = 'rgba(255,246,206,' + (0.7 * (1 - t) * (0.5 + rnd() * 0.5)).toFixed(3) + ')';
     ctx.beginPath();
     ctx.ellipse(x, y, ww / 2, (0.16 + t * 0.26) * u, 0, 0, TAU);
     ctx.fill();
@@ -326,16 +380,17 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     const t = rnd();
     const y = top + t * (h - top);
     const ww = (2 + rnd() * 9) * u * (0.5 + t);
-    ctx.fillStyle = 'rgba(150,200,255,' + (0.05 + rnd() * 0.1).toFixed(3) + ')';
+    ctx.fillStyle = 'rgba(220,255,250,' + (0.06 + rnd() * 0.12).toFixed(3) + ')';
     ctx.beginPath();
     ctx.ellipse(rnd() * w, y, ww / 2, (0.12 + t * 0.14) * u, 0, 0, TAU);
     ctx.fill();
   }
 
-  // near banks
+  // near banks: deep green, still in the shade of the morning
   ctx.fillStyle = lGrad(ctx, 0, h * 0.74, 0, h, [
-    [0, '#0d0c2e'],
-    [1, '#07061c'],
+    [0, '#1f6a54'],
+    [0.4, '#16503f' ],
+    [1, '#0d3530'],
   ]);
   ctx.beginPath();
   ctx.moveTo(0, h * 0.775);
@@ -351,8 +406,17 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   ctx.lineTo(w, h);
   ctx.closePath();
   ctx.fill();
+  // first light along the top of each bank
+  ctx.strokeStyle = 'rgba(190,240,170,0.5)';
+  ctx.lineWidth = Math.max(1, 0.3 * u);
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.775);
+  ctx.bezierCurveTo(w * 0.16, h * 0.79, w * 0.3, h * 0.86, w * 0.4, h * 0.935);
+  ctx.moveTo(w, h * 0.815);
+  ctx.bezierCurveTo(w * 0.9, h * 0.825, w * 0.8, h * 0.89, w * 0.72, h * 0.95);
+  ctx.stroke();
   // reeds
-  ctx.strokeStyle = '#0a0926';
+  ctx.strokeStyle = '#124a3c';
   ctx.lineCap = 'round';
   for (let i = 0; i < 46; i++) {
     const left = i % 2 === 0;
@@ -366,18 +430,19 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     ctx.quadraticCurveTo(bx + (rnd() - 0.5) * u, by - len * 0.5, bx + (rnd() - 0.5) * 3.4 * u, by - len);
     ctx.stroke();
   }
-  const rim = 'rgba(120,150,235,0.4)';
-  palm(ctx, rnd, w * 0.2, h * 0.86, 30 * u, -5 * u, '#090822', rim);
-  palm(ctx, rnd, w * 0.1, h * 0.82, 47 * u, 9 * u, '#0a0926', rim);
-  palm(ctx, rnd, w * 0.91, h * 0.85, 39 * u, -9 * u, '#0a0926', rim);
-  // fireflies
-  for (let i = 0; i < 16; i++) {
-    const x = rnd() < 0.5 ? rnd() * w * 0.4 : w - rnd() * w * 0.34;
-    const y = h * (0.6 + rnd() * 0.36);
-    glow(ctx, x, y, (1.2 + rnd() * 1.4) * u, '#ffe08a', 0.55);
-    ctx.fillStyle = '#fff6cf';
+  const rim = 'rgba(214,246,160,0.5)';
+  palm(ctx, rnd, w * 0.2, h * 0.86, 30 * u, -5 * u, '#17604a', rim);
+  palm(ctx, rnd, w * 0.1, h * 0.82, 47 * u, 9 * u, '#13523f', rim);
+  palm(ctx, rnd, w * 0.91, h * 0.85, 39 * u, -9 * u, '#13523f', rim);
+  // glints of light on the water
+  for (let i = 0; i < 14; i++) {
+    const x = w * (0.3 + rnd() * 0.42);
+    const y = top + (0.08 + rnd() * 0.8) * (h - top);
+    const r = (0.5 + rnd() * 0.8) * u;
+    glow(ctx, x, y, r * 2.6, '#fff8dc', 0.4);
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(x, y, 0.22 * u, 0, TAU);
+    sparkle(ctx, x, y, r, 0.16);
     ctx.fill();
   }
 }
@@ -1428,7 +1493,8 @@ const PAINTERS: Record<ChapterTheme, (ctx: Ctx, w: number, h: number, rnd: Rnd) 
   stars,
 };
 
-export function paintBackdrop(ctx: Ctx, theme: ChapterTheme, w: number, h: number): void {
+/** The scene alone, without the opaque safety fill (the gallery uses this to find uncovered pixels). */
+export function paintScene(ctx: Ctx, theme: ChapterTheme, w: number, h: number): void {
   const paint = PAINTERS[theme] || PAINTERS.oasis;
   ctx.save();
   ctx.globalAlpha = 1;
@@ -1438,4 +1504,15 @@ export function paintBackdrop(ctx: Ctx, theme: ChapterTheme, w: number, h: numbe
   ctx.clip();
   paint(ctx, w, h, mulberry32(hashStr('backdrop:' + theme)));
   ctx.restore();
+}
+
+export function paintBackdrop(ctx: Ctx, theme: ChapterTheme, w: number, h: number): void {
+  // safety net: whatever a scene might leave uncovered is sky-coloured, never transparent
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = (PALETTES[theme] || PALETTES.oasis).bgTop;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+  paintScene(ctx, theme, w, h);
 }

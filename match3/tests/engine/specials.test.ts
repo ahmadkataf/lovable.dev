@@ -113,7 +113,7 @@ describe('single specials', () => {
     expect(stepsOf(res.steps, 'activate')[0]!.fx[0]!.color).toBe(3);
   });
 
-  it('two prisms going off in the same wave take the two most common colours', () => {
+  it('two prisms going off in the same wave: the second clears the most common colour the first one left', () => {
     const g = board(['d e d e d e', 'fH P e P d e', 'e d e d e d']);
     const before = g.snapshot();
     const res = g.useBooster('hammer', P(0, 1));

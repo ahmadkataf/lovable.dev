@@ -21,6 +21,23 @@
  *   reported as a hit with result 'none'), so the piece the player just made is not wasted.
  * - `cascade` grows by one after every `fall` step.
  *
+ * Other turns: hammer = booster → clear (the one hit) → …settle as above;
+ * freeSwap = booster → swap → …; shuffle booster = booster → shuffle;
+ * endBonus = [transform 'endBonus'] → (activate → clear → …settle)* until no special is left.
+ *
+ * Decisions where DESIGN.md §2 leaves room (all covered by tests/engine):
+ * - Vines spread only after a real move (a valid swap), never after a booster.
+ * - freeSwap may move a lamp; a hammer on a lamp, an empty cell or a hole with no sand to remove
+ *   is refused, as is any booster call that would change nothing.
+ * - Lamps drop in through columns that run without a gap from spawner to exit, as the last
+ *   piece entering that column; with no lamp placed in the level the first one may come at once.
+ * - Vine / stone / chain / sand goals count what is destroyed against the number the level
+ *   started with (vines that grew later do not raise the target).
+ * - If no arrangement of the board can ever contain a move (even after recolouring), the level
+ *   ends: 'lost' — or 'won' for a score-only level whose target is already reached. addMoves()
+ *   is refused on such a board. This never loops and never leaves the player stuck in 'playing'.
+ * - From cascade 8 on, refills avoid completing a match (see CALM_CASCADE): turns always end.
+ *
  * ./replay.ts applies such a transcript to a snapshot; the tests use it to prove that every
  * transcript is complete.
  */
@@ -757,14 +774,13 @@ export class Game implements GameApi {
       points.push(gained);
     }
 
-    const prismColors: number[] = [];
     for (let k = 0; k < fires.length; k++) {
       const fire = fires[k] as Fire;
       let color = fire.color;
       let targets: number[];
       if (fire.kind === 'prism') {
-        if (color < 0) color = this.mostCommonColor(prismColors);
-        if (color >= 0) prismColors.push(color);
+        // Effects apply in order, so a second prism of the same wave sees what the first one left.
+        if (color < 0) color = this.mostCommonColor();
         targets = this.cellsOfColor(color, fire.at);
       } else {
         targets = this.targetsOf(fire.kind, fire.at);
@@ -866,8 +882,8 @@ export class Game implements GameApi {
     return keyed;
   }
 
-  /** The gem colour with the most pieces on the board (lowest colour wins ties), skipping `taken`; -1 if none. */
-  private mostCommonColor(taken: readonly number[]): Color | -1 {
+  /** The gem colour with the most pieces on the board right now (lowest colour wins ties); -1 if none. */
+  private mostCommonColor(): Color | -1 {
     const { n, pieces } = this.b;
     const counts = [0, 0, 0, 0, 0, 0];
     for (let i = 0; i < n; i++) {
@@ -877,7 +893,6 @@ export class Game implements GameApi {
     let best = -1;
     let bestCount = 0;
     for (let color = 0; color < counts.length; color++) {
-      if (taken.indexOf(color) >= 0) continue;
       if ((counts[color] as number) > bestCount) {
         bestCount = counts[color] as number;
         best = color;

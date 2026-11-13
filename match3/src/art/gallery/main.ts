@@ -4,6 +4,7 @@
  */
 import '@fontsource-variable/baloo-bhaijaan-2/index.css';
 import { ICON_KEYS, SPRITE_KEYS, createArt } from '../index.ts';
+import { paintScene } from '../backdrops.ts';
 import type { ChapterTheme, IconKey, SpriteKey } from '../types.ts';
 
 const art = createArt();
@@ -634,6 +635,24 @@ function coverage(c: HTMLCanvasElement): { painted: number; edge: number; edgeMa
   return { painted, edge, edgeMax };
 }
 
+/** Number of pixels whose alpha is below 255 (a backdrop must cover its canvas completely). */
+function notOpaque(c: HTMLCanvasElement): number {
+  const g = c.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  let n = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] !== 255) n++;
+  return n;
+}
+
+function backdropAt(theme: ChapterTheme, w: number, h: number): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  // the bare scene, without paintBackdrop's opaque safety fill, so real gaps show up
+  paintScene(c.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D, theme, w, h);
+  return c;
+}
+
 function hashCanvas(c: HTMLCanvasElement): number {
   const g = c.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
   const d = g.getImageData(0, 0, c.width, c.height).data;
@@ -685,8 +704,8 @@ function checks(): CheckResult {
     art.paintBackdrop(ctxOf(a), THEMES[i], 206, 458);
     art.paintBackdrop(ctxOf(b), THEMES[i], 206, 458);
     if (hashCanvas(a) !== hashCanvas(b)) failures.push('backdrop ' + THEMES[i] + ' is not deterministic');
-    const cov = coverage(a);
-    if (cov.painted !== 206 * 458) failures.push('backdrop ' + THEMES[i] + ' leaves ' + (206 * 458 - cov.painted) + ' transparent pixels');
+    const holes = notOpaque(backdropAt(THEMES[i], 206, 458)) + notOpaque(backdropAt(THEMES[i], 915, 412)) + notOpaque(backdropAt(THEMES[i], 1080, 2340)) + notOpaque(backdropAt(THEMES[i], 800, 800));
+    if (holes > 0) failures.push('backdrop ' + THEMES[i] + ' leaves ' + holes + ' pixels that are not fully opaque');
     const p = art.palette(THEMES[i]);
     if (!/^#[0-9a-f]{6}$/i.test(p.bgTop + '') || !/^#[0-9a-f]{6}$/i.test(p.bgBottom) || !p.accent || !p.frame) failures.push('palette ' + THEMES[i]);
   }

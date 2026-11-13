@@ -25,9 +25,9 @@ Consequences for the publishing and earnings guide:
 - The owner already has an active Google Play developer account in Kuwait with published apps.
   So registration, the US$25 fee and identity verification are already done.
 - Still to confirm with the owner (affects the guide, not the build):
-  - Whether the account is a personal account created after 13 November 2023. If so, every new app must first
-    complete a closed test (12 testers opted in for 14 continuous days) before production access; older personal
-    accounts and organisation accounts are exempt. Play Console shows this on the new app's dashboard.
+  - RESOLVED: the account dates from 2015, so the closed-testing requirement (12 testers for 14 days, which applies
+    only to personal accounts created after 13 November 2023) does NOT apply. A new app can go to production
+    review directly. An internal or closed test first is still recommended, but it is the owner's choice.
   - Whether a payments (merchant) profile is already set up. The existing apps are free and sell activation codes
     outside the store, so it may not be; it is required before in-app products can be created.
   - Whether an AdMob account exists (needed for the ad unit ids of the `ads` build).
