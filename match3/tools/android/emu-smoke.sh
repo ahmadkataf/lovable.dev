@@ -210,7 +210,7 @@ fi
 # libraries' own handled exceptions are left out)
 printf '%s\n' "$full_log" \
   | grep -E ' [VDIWEF] (ZumurudJS|Zumurud|ZumurudDiag|ZumurudStore|ZumurudAds|BillingClient|BillingLogger|UserMessagingPlatform|Ads|GmaSdk|chromium|cr_[A-Za-z]*) *: | [EF] AndroidRuntime *: |ANR in ' \
-  | grep -Ev ': 	at |: java\.lang\.[A-Za-z]*Exception' > "$LOG" || true
+  | grep -Ev ': 	(at |\.\.\. [0-9]+ more)|: (Caused by: )?[a-z]+(\.[A-Za-z_$]+)+(Exception|Error)\b' > "$LOG" || true
 [ -s "$LOG" ] || fail "no log lines from the app were captured"
 say "log ($LOG):"
 sed 's/^/   /' "$LOG"

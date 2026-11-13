@@ -166,7 +166,7 @@ async function fuzz(seed: number, steps: number, withResets: boolean): Promise<S
 
   /** Events on their way to the page. Thunks: a listing says what is true when it ARRIVES. */
   let outbox: (() => unknown[])[] = [];
-  let cur: Session;
+  let cur!: Session;
   let delivering = 0;
 
   // ── the account's side ──

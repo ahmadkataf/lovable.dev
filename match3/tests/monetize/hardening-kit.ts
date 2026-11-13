@@ -37,6 +37,10 @@ export interface Machine {
     writes: number;
     /** Called after every write that reached the disk. */
     onWrite: (() => void) | null;
+    /** What a read hands out for the stored text (a storage layer that re-encodes, or fails). */
+    readAs: ((json: string | null) => string | null) | null;
+    /** Reads of the disk so far. */
+    reads: number;
   };
   /** Every bridge call of a LIVE session goes here; it may throw, and may deliver events at once. */
   onBridge: ((session: Session, name: string, argument: string | undefined) => void) | null;
@@ -65,7 +69,7 @@ export interface Session {
 export function newMachine(options: { now?: number; save?: SaveData | null; caps?: string } = {}): Machine {
   return {
     clock: { now: options.now ?? T0 },
-    disk: { json: options.save ? JSON.stringify(options.save) : null, mode: 'ok', writes: 0, onWrite: null },
+    disk: { json: options.save ? JSON.stringify(options.save) : null, mode: 'ok', writes: 0, onWrite: null, readAs: null, reads: 0 },
     onBridge: null,
     caps: options.caps ?? '{"billing":true,"ads":true}',
     sessions: 0,
@@ -100,7 +104,10 @@ export function startSession(machine: Machine, options: SessionOptions = {}): Se
   const session = { machine, alive: true, serial: machine.sessions, calls: [] as string[] } as Session;
 
   session.profile = createProfile({
-    load: () => machine.disk.json,
+    load: () => {
+      machine.disk.reads += 1;
+      return machine.disk.readAs ? machine.disk.readAs(machine.disk.json) : machine.disk.json;
+    },
     save: (json) => {
       if (!session.alive) return;
       if (machine.disk.mode === 'throws') throw new Error('disk full');
