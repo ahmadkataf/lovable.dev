@@ -129,7 +129,8 @@ export type GameStatus =
   /**
    * out of moves with goals unmet; addMoves() resumes play.
    * (Also reported, with moves left, in the rare case that no move can ever exist on the board
-   * again — e.g. vines left fewer than three gems. addMoves() is then refused: accepted=false.)
+   * again — e.g. vines left fewer than three gems. Then `Snapshot.canContinue` is false and
+   * addMoves() is refused.)
    */
   | 'lost';
 
@@ -269,6 +270,12 @@ export interface Snapshot {
   status: GameStatus;
   /** 0..3 for the current score against the level's thresholds. */
   stars: 0 | 1 | 2 | 3;
+  /**
+   * Present only while `status` is 'lost': whether addMoves() can resume the level. It is false
+   * in the rare case that no move can ever exist on the board again — then a "continue" offer
+   * (coins, rewarded ad) must not be shown, because addMoves() would be refused.
+   */
+  canContinue?: boolean;
 }
 
 export interface TurnResult {
@@ -305,7 +312,10 @@ export interface GameApi {
   hint(): Move | null;
   /** All currently valid moves (used by the simulator bot). */
   validMoves(): Move[];
-  /** After 'lost': grant extra moves and resume. */
+  /**
+   * After 'lost': grant extra moves and resume. Refused (accepted=false, nothing changes) in any
+   * other status and when `Snapshot.canContinue` is false — check before charging the player.
+   */
   addMoves(n: number): TurnResult;
   /** After 'won': turn each remaining move into a special, fire them all, and settle. */
   endBonus(): TurnResult;

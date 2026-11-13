@@ -658,9 +658,19 @@ body {
   min-width: 0;
 }
 
+.k-btn__icon2 {
+  margin-inline-start: calc(var(--k-u) * 6);
+}
+
 /* price button: small caption over a big price */
 .k-btn--price .k-btn__label {
   font-size: 1.04em;
+}
+
+/* A store price keeps its own direction: "US$0.99" stays LTR, "٣٫٩٩ ر.س" stays RTL. */
+.k-price {
+  unicode-bidi: plaintext;
+  white-space: nowrap;
 }
 
 /* count / attention badge on a button corner */
@@ -1506,6 +1516,11 @@ body {
   opacity: 0;
   transform: translateY(calc(var(--k-u) * -10)) scale(0.94);
   transition: transform 170ms var(--k-ease-in), opacity 170ms linear;
+}
+
+/* the same message was sent again */
+.k-toast.k-in.k-toast--again {
+  animation: k-nudge 260ms var(--k-ease-out);
 }
 
 /* closing the gap after a toast left: the kit sets the offset, then releases it */

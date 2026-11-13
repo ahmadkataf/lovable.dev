@@ -1,0 +1,66 @@
+/* Debug-only diagnostics page. Loaded as an external stylesheet on purpose (MIME type check). */
+@font-face {
+  font-family: 'DiagFont';
+  src: url('./font.woff2') format('woff2');
+  font-weight: 400 800;
+  font-display: block;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #14123a;
+  color: #fff6dc;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#frame {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  box-sizing: border-box;
+  border: 0 solid rgba(255, 93, 108, 0.55);
+  padding: 4px 8px;
+  overflow: hidden;
+}
+
+h1 {
+  margin: 0 0 2px;
+  font: 700 17px/1.2 'DiagFont', sans-serif;
+  color: #f5c95a;
+}
+
+#summary {
+  font: 700 12px/1.3 monospace;
+  margin-bottom: 3px;
+}
+
+#out {
+  font: 10.5px/1.24 monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.PASS { color: #3ecf8e; }
+.FAIL { color: #ff5d6c; font-weight: 700; }
+.WAIT { color: #ffe7a3; }
+.INFO { color: #c9c2e6; }
+
+#probe {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  font: 16px monospace;
+  white-space: nowrap;
+}
+
+#css-mark {
+  /* read back by the script: proves this stylesheet was applied */
+  width: 7px;
+}

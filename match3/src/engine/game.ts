@@ -34,8 +34,11 @@
  * - Vine / stone / chain / sand goals count what is destroyed against the number the level
  *   started with (vines that grew later do not raise the target).
  * - If no arrangement of the board can ever contain a move (even after recolouring), the level
- *   ends: 'lost' — or 'won' for a score-only level whose target is already reached. addMoves()
- *   is refused on such a board. This never loops and never leaves the player stuck in 'playing'.
+ *   ends: 'lost' — or 'won' for a score-only level whose target is already reached. Such a loss
+ *   cannot be resumed: `Snapshot.canContinue` is false and addMoves() is refused. This never
+ *   loops and never leaves the player stuck in 'playing'.
+ * - The end-of-turn shuffle also runs on the turn that uses up the last move, so the board is
+ *   ready when addMoves() resumes the level.
  * - From cascade 8 on, refills avoid completing a match (see CALM_CASCADE): turns always end.
  *
  * ./replay.ts applies such a transcript to a snapshot; the tests use it to prove that every
@@ -168,6 +171,8 @@ export class Game implements GameApi {
   /** Valid swaps made so far (lamp spawn timing). */
   private moveCount = 0;
   private bonusDone = false;
+  /** While 'lost': can addMoves() resume? False when no move can ever exist on the board again. */
+  private resumable = true;
   private lampSpawnsOff = false;
   private vineCut = false;
   private hintForward = true;
@@ -271,7 +276,10 @@ export class Game implements GameApi {
 
     if (!keep && !hasValidMove(board)) {
       // Nothing on this board can ever form a move (see `ensurePlayable`).
-      if (reshuffle(board, this.rng, this.colors, false) === null) this.status = 'lost';
+      if (reshuffle(board, this.rng, this.colors, false) === null) {
+        this.status = 'lost';
+        this.resumable = false;
+      }
     }
   }
 
@@ -290,7 +298,7 @@ export class Game implements GameApi {
         spawner: b.spawner[i] === 1,
       });
     }
-    return {
+    const snap: Snapshot = {
       cols: b.cols,
       rows: b.rows,
       cells,
@@ -300,6 +308,8 @@ export class Game implements GameApi {
       status: this.status,
       stars: this.stars(),
     };
+    if (this.status === 'lost') snap.canContinue = this.resumable;
+    return snap;
   }
 
   canSwap(a: Pos, b: Pos): boolean {
@@ -428,14 +438,12 @@ export class Game implements GameApi {
   }
 
   addMoves(n: number): TurnResult {
-    if (this.status !== 'lost' || !Number.isInteger(n) || n < 1) return this.rejected();
-    const steps: Step[] = [];
-    // A board on which no move can ever exist cannot be resumed.
-    if (!this.ensurePlayable(steps)) return this.rejected();
+    // A board on which no move can ever exist cannot be resumed (`Snapshot.canContinue` is false).
+    if (this.status !== 'lost' || !this.resumable || !Number.isInteger(n) || n < 1) return this.rejected();
+    // The losing turn already made sure the board has a move, so there is nothing to shuffle here.
     this.movesLeft += n;
     this.status = 'playing';
-    steps.push({ type: 'status', status: 'playing' });
-    return this.accepted(steps);
+    return this.accepted([{ type: 'status', status: 'playing' }]);
   }
 
   endBonus(): TurnResult {
@@ -577,9 +585,14 @@ export class Game implements GameApi {
       this.status = 'won';
     } else {
       if (isMove && !this.vineCut) this.growVine(t.steps);
-      if (this.movesLeft <= 0) this.status = 'lost';
-      // No move can ever exist on this board again: the level ends here.
-      else if (!this.ensurePlayable(t.steps)) this.status = met ? 'won' : 'lost';
+      // §2.8 — also when the moves just ran out: the board must be ready for addMoves().
+      if (!this.ensurePlayable(t.steps)) {
+        // No move can ever exist on this board again: the level ends here and cannot be resumed.
+        this.status = met ? 'won' : 'lost';
+        this.resumable = false;
+      } else if (this.movesLeft <= 0) {
+        this.status = 'lost';
+      }
     }
     if (this.status !== 'playing') t.steps.push({ type: 'status', status: this.status });
   }

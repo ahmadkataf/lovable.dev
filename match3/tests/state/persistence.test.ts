@@ -445,8 +445,9 @@ describe('persistence: field-by-field repair', () => {
     for (let i = 0; i < 10_000; i++) many.push('id-' + i);
     const seen = fromSave(withField('seen', many)).profile.data().seen;
     expect(seen.length).toBe(2000);
-    expect(seen[0]).toBe('id-0');
-    expect(seen[1999]).toBe('id-1999');
+    // The newest ids survive (the same rule markSeen follows when the list is full).
+    expect(seen[0]).toBe('id-8000');
+    expect(seen[1999]).toBe('id-9999');
   });
 
   it('stats', () => {

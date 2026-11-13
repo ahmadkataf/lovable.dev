@@ -311,6 +311,7 @@ export function checkTurn(game: Game, before: Snapshot, res: TurnResult, action:
 
   // 2. A rejected call changes nothing.
   if (!res.accepted) {
+    if (action === 'addMoves' && before.status === 'lost' && before.canContinue === true) fail('addMoves was refused although canContinue was true', before, res);
     if (JSON.stringify(after) !== JSON.stringify(before)) fail('rejected call changed the state', before, res);
     if (steps.length > 1 || (steps.length === 1 && !((steps[0] as Step).type === 'swap' && (steps[0] as { valid: boolean }).valid === false))) {
       fail('rejected call may only carry one rejected swap step', before, res);
@@ -497,6 +498,11 @@ export function checkTurn(game: Game, before: Snapshot, res: TurnResult, action:
       fail(`colour goal ${g.current}, transcript says ${tally.collected[g.goal.color]}`, before, res);
     }
   });
+
+  // 8b. `canContinue` exists exactly while lost and tells the truth about addMoves().
+  if ((after.canContinue !== undefined) !== (after.status === 'lost')) fail('canContinue must be present exactly while lost', before, res);
+  if (after.status === 'lost' && after.canContinue !== refValidMoves(after).length > 0) fail(`canContinue is ${String(after.canContinue)} but the board says otherwise`, before, res);
+  if (action === 'addMoves' && before.canContinue !== true) fail('addMoves was accepted although canContinue was not true', before, res);
 
   // 9. Status rules.
   const allDone = after.goals.every((g) => g.done);

@@ -176,13 +176,14 @@ function repairSeen(v: unknown): string[] {
   const out: string[] = [];
   if (!Array.isArray(v)) return out;
   const known = new Set<string>();
-  for (let i = 0; i < v.length && out.length < MAX_SEEN; i++) {
+  for (let i = 0; i < v.length; i++) {
     const s: unknown = v[i];
     if (typeof s !== 'string' || s.length === 0 || s.length > MAX_SEEN_ID_LENGTH || known.has(s)) continue;
     known.add(s);
     out.push(s);
   }
-  return out;
+  // Over the cap the NEWEST ids are kept, like `markSeen` does.
+  return out.length > MAX_SEEN ? out.slice(out.length - MAX_SEEN) : out;
 }
 
 function repairStats(v: unknown): SaveData['stats'] {
@@ -672,8 +673,11 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
 
     markSeen(id: string): void {
       if (typeof id !== 'string' || id.length === 0 || id.length > MAX_SEEN_ID_LENGTH) return;
-      if (data.seen.indexOf(id) >= 0 || data.seen.length >= MAX_SEEN) return;
+      if (data.seen.indexOf(id) >= 0) return;
       data.seen.push(id);
+      // A full list forgets its oldest id rather than refusing the new one: `hasSeen(id)` is always
+      // true right after `markSeen(id)`, however long the game has been played.
+      if (data.seen.length > MAX_SEEN) data.seen.splice(0, data.seen.length - MAX_SEEN);
       commit();
     },
 

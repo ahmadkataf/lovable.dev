@@ -617,3 +617,45 @@ describe('hardening: reset', () => {
     expect(h.restart().profile.settings().lang).toBe('ar');
   });
 });
+
+// ───────────────────────────── the list of seen ids ─────────────────────────────
+
+describe('hardening: markSeen', () => {
+  it('always remembers the id it was just given, even when the list is full', () => {
+    const h = harness();
+    for (let i = 0; i < 2500; i++) {
+      h.profile.markSeen('id-' + i);
+      expect(h.profile.hasSeen('id-' + i)).toBe(true);
+    }
+    const seen = h.profile.data().seen;
+    expect(seen.length).toBe(2000);
+    expect(seen[0]).toBe('id-500'); // the oldest were forgotten, in order
+    expect(seen[1999]).toBe('id-2499');
+    expect(h.profile.hasSeen('id-0')).toBe(false);
+    expect(h.storage.writes).toBe(2500);
+    expect(h.notifications.count).toBe(2500);
+    // The same list comes back after a restart, and a re-marked old id is simply new again.
+    const again = h.restart();
+    expect(again.profile.data().seen).toEqual(seen);
+    again.profile.markSeen('id-0');
+    expect(again.profile.hasSeen('id-0')).toBe(true);
+    expect(again.profile.hasSeen('id-500')).toBe(false);
+    expect(again.profile.data().seen.length).toBe(2000);
+  });
+
+  it('ids are plain text: nothing in them is special', () => {
+    const h = harness();
+    const ids = ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'length', '0', ' ', 'a b', 'نصيحة', '💎', 'x'.repeat(1024)];
+    for (const id of ids) {
+      expect(h.profile.hasSeen(id)).toBe(false);
+      h.profile.markSeen(id);
+      expect(h.profile.hasSeen(id)).toBe(true);
+    }
+    expect(h.restart().profile.data().seen).toEqual(ids);
+    for (const bad of ['', 'x'.repeat(1025), null, undefined, 5, {}, ['a'], true]) {
+      h.profile.markSeen(bad as string);
+      expect(h.profile.hasSeen(bad as string)).toBe(false);
+    }
+    expect(h.profile.data().seen).toEqual(ids);
+  });
+});

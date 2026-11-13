@@ -66,7 +66,7 @@ function applyStyle(node: HTMLElement, style: NonNullable<ElProps['style']>): vo
  */
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, props?: ElProps | Child, ...children: Child[]): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
-  if (isChild(props) || props === null || props === undefined || props === false) {
+  if (props === null || props === undefined || (props as unknown) === false || isChild(props)) {
     append(node, props as Child);
   } else {
     const p = props as ElProps;

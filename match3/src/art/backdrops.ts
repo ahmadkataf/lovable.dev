@@ -13,8 +13,8 @@ import { TAU, glow, hashStr, khatam, lGrad, mulberry32, rgba, sparkle, vGrad } f
 type Rnd = () => number;
 
 export const PALETTES: Record<ChapterTheme, ThemePalette> = {
-  oasis: { bgTop: '#2c3c9a', bgBottom: '#1b648e', accent: '#4fd8c0', frame: '#f5c95a' },
-  dunes: { bgTop: '#8f2f3e', bgBottom: '#531c2c', accent: '#ffb347', frame: '#ffd27a' },
+  oasis: { bgTop: '#3d4bb4', bgBottom: '#1b648e', accent: '#4fd8c0', frame: '#f5c95a' },
+  dunes: { bgTop: '#d4532c', bgBottom: '#6c2429', accent: '#ffb347', frame: '#ffdc8a' },
   bazaar: { bgTop: '#3b1766', bgBottom: '#33103f', accent: '#ff8f6a', frame: '#ffcf70' },
   palace: { bgTop: '#141a6a', bgBottom: '#121c56', accent: '#7fe0d6', frame: '#ffe7a3' },
   caverns: { bgTop: '#0b1d44', bgBottom: '#0b1d44', accent: '#5fe6e0', frame: '#f0d98a' },
@@ -261,22 +261,23 @@ function cloudBar(ctx: Ctx, cx: number, cy: number, cw: number, ch: number, colo
 // coming up behind the far bank, turquoise water and green palms.
 function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
-  const hz = h * 0.6;
+  // the horizon sits low so the far bank and the rising sun show below a board in the middle
+  const hz = h * 0.7;
   fillV(ctx, w, 0, hz + 1, [
-    [0, '#2c3c9a'],
-    [0.26, '#5560c6'],
-    [0.5, '#9d7dd2'],
-    [0.7, '#ee97b2'],
-    [0.87, '#ffc39a'],
-    [1, '#ffe7b0'],
+    [0, '#3d4bb4'],
+    [0.16, '#7a70cc'],
+    [0.34, '#d98fbc'],
+    [0.52, '#ffae9e'],
+    [0.76, '#ffd0a0'],
+    [1, '#ffeab6'],
   ]);
   // the last stars of the night, only in the highest, darkest part of the sky
-  starField(ctx, rnd, w, 0, hz * 0.42, 70, u, '#ffffff');
-  twinkles(ctx, rnd, w * 0.6, h * 0.015, hz * 0.3, 4, u, '#fff6e6');
+  starField(ctx, rnd, w, 0, hz * 0.26, 60, u, '#ffffff');
+  twinkles(ctx, rnd, w * 0.6, h * 0.012, hz * 0.2, 4, u, '#fff6e6');
 
   // pale morning moon
   const mx = w * 0.74;
-  const my = h * 0.13;
+  const my = h * 0.12;
   const mr = 6.4 * u;
   glow(ctx, mx, my, mr * 3.4, '#ffffff', 0.2);
   const moon = ctx.createRadialGradient(mx - mr * 0.3, my - mr * 0.35, mr * 0.1, mx, my, mr);
@@ -311,8 +312,8 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
 
   // thin clouds catching the first light from below
   for (let i = 0; i < 7; i++) {
-    const cy = hz * (0.46 + rnd() * 0.44);
-    const warm = cy > hz * 0.7;
+    const cy = hz * (0.24 + rnd() * 0.66);
+    const warm = cy > hz * 0.5;
     cloudBar(ctx, rnd() * w, cy, (24 + rnd() * 40) * u, (0.7 + rnd() * 1.1) * u, warm ? 'rgba(255,236,200,0.55)' : 'rgba(255,190,210,0.4)');
   }
   // a few birds heading out over the water
@@ -322,7 +323,7 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   ctx.lineJoin = 'round';
   for (let i = 0; i < 4; i++) {
     const bx = w * (0.52 + i * 0.07) + (rnd() - 0.5) * 3 * u;
-    const by = hz * (0.63 + (i % 2) * 0.05) + (rnd() - 0.5) * 2 * u;
+    const by = hz * (0.8 + (i % 2) * 0.05) + (rnd() - 0.5) * 2 * u;
     const bs = (1.3 + rnd() * 0.7) * u;
     ctx.beginPath();
     ctx.moveTo(bx - bs, by - bs * 0.25);
@@ -387,22 +388,22 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   }
 
   // near banks: deep green, still in the shade of the morning
-  ctx.fillStyle = lGrad(ctx, 0, h * 0.74, 0, h, [
+  ctx.fillStyle = lGrad(ctx, 0, h * 0.83, 0, h, [
     [0, '#1f6a54'],
     [0.4, '#16503f' ],
     [1, '#0d3530'],
   ]);
   ctx.beginPath();
-  ctx.moveTo(0, h * 0.775);
-  ctx.bezierCurveTo(w * 0.16, h * 0.79, w * 0.3, h * 0.86, w * 0.4, h * 0.935);
-  ctx.bezierCurveTo(w * 0.46, h * 0.975, w * 0.52, h * 0.99, w * 0.6, h);
+  ctx.moveTo(0, h * 0.85);
+  ctx.bezierCurveTo(w * 0.16, h * 0.86, w * 0.3, h * 0.905, w * 0.4, h * 0.955);
+  ctx.bezierCurveTo(w * 0.46, h * 0.982, w * 0.52, h * 0.994, w * 0.6, h);
   ctx.lineTo(0, h);
   ctx.closePath();
   ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(w, h * 0.815);
-  ctx.bezierCurveTo(w * 0.9, h * 0.825, w * 0.8, h * 0.89, w * 0.72, h * 0.95);
-  ctx.bezierCurveTo(w * 0.68, h * 0.98, w * 0.64, h * 0.995, w * 0.56, h);
+  ctx.moveTo(w, h * 0.875);
+  ctx.bezierCurveTo(w * 0.9, h * 0.882, w * 0.8, h * 0.926, w * 0.72, h * 0.966);
+  ctx.bezierCurveTo(w * 0.68, h * 0.986, w * 0.64, h * 0.997, w * 0.56, h);
   ctx.lineTo(w, h);
   ctx.closePath();
   ctx.fill();
@@ -410,10 +411,10 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   ctx.strokeStyle = 'rgba(190,240,170,0.5)';
   ctx.lineWidth = Math.max(1, 0.3 * u);
   ctx.beginPath();
-  ctx.moveTo(0, h * 0.775);
-  ctx.bezierCurveTo(w * 0.16, h * 0.79, w * 0.3, h * 0.86, w * 0.4, h * 0.935);
-  ctx.moveTo(w, h * 0.815);
-  ctx.bezierCurveTo(w * 0.9, h * 0.825, w * 0.8, h * 0.89, w * 0.72, h * 0.95);
+  ctx.moveTo(0, h * 0.85);
+  ctx.bezierCurveTo(w * 0.16, h * 0.86, w * 0.3, h * 0.905, w * 0.4, h * 0.955);
+  ctx.moveTo(w, h * 0.875);
+  ctx.bezierCurveTo(w * 0.9, h * 0.882, w * 0.8, h * 0.926, w * 0.72, h * 0.966);
   ctx.stroke();
   // reeds
   ctx.strokeStyle = '#124a3c';
@@ -422,7 +423,7 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     const left = i % 2 === 0;
     const t = rnd();
     const bx = left ? t * w * 0.42 : w - t * w * 0.3;
-    const by = left ? h * (0.785 + t * 0.165) : h * (0.825 + t * 0.14);
+    const by = left ? h * (0.856 + t * 0.105) : h * (0.88 + t * 0.09);
     const len = (2.5 + rnd() * 5.5) * u;
     ctx.lineWidth = Math.max(1, (0.2 + rnd() * 0.22) * u);
     ctx.beginPath();
@@ -431,9 +432,9 @@ function oasis(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     ctx.stroke();
   }
   const rim = 'rgba(214,246,160,0.5)';
-  palm(ctx, rnd, w * 0.2, h * 0.86, 30 * u, -5 * u, '#17604a', rim);
-  palm(ctx, rnd, w * 0.1, h * 0.82, 47 * u, 9 * u, '#13523f', rim);
-  palm(ctx, rnd, w * 0.91, h * 0.85, 39 * u, -9 * u, '#13523f', rim);
+  palm(ctx, rnd, w * 0.2, h * 0.9, 28 * u, -5 * u, '#17604a', rim);
+  palm(ctx, rnd, w * 0.1, h * 0.875, 44 * u, 9 * u, '#13523f', rim);
+  palm(ctx, rnd, w * 0.91, h * 0.895, 37 * u, -9 * u, '#13523f', rim);
   // glints of light on the water
   for (let i = 0; i < 14; i++) {
     const x = w * (0.3 + rnd() * 0.42);
@@ -512,35 +513,34 @@ function caravan(ctx: Ctx, ys: readonly number[], w: number, u: number): void {
 // molten gold on the far crests to deep sienna and wine in the near shadows.
 function dunes(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
-  const hz = h * 0.5;
+  const hz = h * 0.62;
   fillV(ctx, w, 0, hz + 2, [
-    [0, '#8f2f3e'],
-    [0.26, '#c44a38'],
-    [0.52, '#ee7d33'],
-    [0.76, '#ffb347'],
-    [0.92, '#ffd876'],
-    [1, '#ffeba4'],
+    [0, '#d4532c'],
+    [0.2, '#f07c2c'],
+    [0.42, '#ffa83e'],
+    [0.7, '#ffcf66'],
+    [1, '#ffeeb2'],
   ]);
 
-  // sun sinking towards the far ridge
-  const sx = w * 0.3;
-  const sy = hz - 4 * u;
-  glow(ctx, sx, sy, 78 * u, '#ffe08a', 0.6);
-  glow(ctx, sx, sy, 34 * u, '#fff6c8', 0.75);
-  const sun = ctx.createRadialGradient(sx, sy, 0, sx, sy, 12.5 * u);
+  // the big low sun of late afternoon, high enough in the picture to stay clear of the board
+  const sx = w * 0.29;
+  const sy = h * 0.17;
+  glow(ctx, sx, sy, 90 * u, '#ffe690', 0.55);
+  glow(ctx, sx, sy, 36 * u, '#fff8d0', 0.8);
+  const sun = ctx.createRadialGradient(sx, sy, 0, sx, sy, 10.5 * u);
   sun.addColorStop(0, '#ffffff');
   sun.addColorStop(0.75, '#fff6cc');
   sun.addColorStop(1, '#ffe89a');
   ctx.fillStyle = sun;
   ctx.beginPath();
-  ctx.arc(sx, sy, 12.5 * u, 0, TAU);
+  ctx.arc(sx, sy, 10.5 * u, 0, TAU);
   ctx.fill();
 
   // long thin clouds, dark against the upper sky and glowing near the sun
   for (let i = 0; i < 8; i++) {
-    const cy = hz * (0.2 + rnd() * 0.68);
-    const warm = cy > hz * 0.6;
-    cloudBar(ctx, rnd() * w, cy, (22 + rnd() * 44) * u, (0.7 + rnd() * 1.2) * u, warm ? 'rgba(255,240,190,0.5)' : 'rgba(120,32,52,0.42)');
+    const cy = hz * (0.08 + rnd() * 0.84);
+    const warm = cy > hz * 0.34;
+    cloudBar(ctx, rnd() * w, cy, (22 + rnd() * 44) * u, (0.7 + rnd() * 1.2) * u, warm ? 'rgba(255,246,206,0.55)' : 'rgba(190,60,40,0.4)');
   }
   // heat shimmer: a few motes of dust catching the light
   for (let i = 0; i < 22; i++) {
@@ -558,11 +558,11 @@ function dunes(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const span = h - hz;
   // [start, amplitude, waves, lit colour, shade colour, crest highlight alpha]
   const layers: [number, number, number, string, string, number][] = [
-    [0, 2.6, 1.3, '#ffc85a', '#f39a3e', 0.85],
-    [0.11, 5.2, 1.1, '#f9a53e', '#de6f30', 0.75],
-    [0.29, 7.4, 0.9, '#e6782f', '#b84a2c', 0.6],
-    [0.52, 9.5, 0.75, '#bd4f2d', '#84302e', 0.45],
-    [0.79, 8.5, 0.6, '#84302e', '#531c2c', 0.34],
+    [0, 2.6, 1.3, '#ffd26a', '#f7a443', 0.85],
+    [0.1, 4.6, 1.1, '#fbad42', '#e47c30', 0.78],
+    [0.27, 6.4, 0.9, '#ee802d', '#c5562a', 0.66],
+    [0.5, 7.6, 0.75, '#cf5d2a', '#9b382a', 0.52],
+    [0.77, 6.6, 0.6, '#a23e2a', '#6c2429', 0.4],
   ];
   for (let li = 0; li < layers.length; li++) {
     const L = layers[li];
@@ -1012,14 +1012,15 @@ function domeGlaze(ctx: Ctx, cx: number, half: number): CanvasGradient {
 // a rose horizon, turquoise domes, gold finials and lit windows, a lantern path through the garden.
 function palace(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
-  const ground = h * 0.8;
+  // the palace stands low in the picture so it shows below a board in the middle
+  const ground = h * 0.875;
   fillV(ctx, w, 0, h, [
     [0, '#141a6a'],
-    [0.28, '#2638a4'],
-    [0.5, '#5560d6'],
-    [0.64, '#9c88ea'],
-    [0.73, '#f0a4c8'],
-    [0.8, '#ffd6b0'],
+    [0.22, '#2638a4'],
+    [0.44, '#5560d6'],
+    [0.62, '#9c88ea'],
+    [0.76, '#f0a4c8'],
+    [0.875, '#ffd6b0'],
     [1, '#1a2a70'],
   ]);
   starField(ctx, rnd, w, 0, h * 0.46, 120, u, '#ffffff');
@@ -1044,8 +1045,8 @@ function palace(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
 
   // soft clouds low in the afterglow
   for (let i = 0; i < 5; i++) {
-    const cy = h * (0.56 + rnd() * 0.14);
-    cloudBar(ctx, rnd() * w, cy, (22 + rnd() * 36) * u, (0.8 + rnd() * 1.1) * u, cy > h * 0.64 ? 'rgba(255,236,214,0.5)' : 'rgba(255,190,226,0.3)');
+    const cy = h * (0.6 + rnd() * 0.16);
+    cloudBar(ctx, rnd() * w, cy, (22 + rnd() * 36) * u, (0.8 + rnd() * 1.1) * u, cy > h * 0.7 ? 'rgba(255,236,214,0.5)' : 'rgba(255,190,226,0.3)');
   }
   glow(ctx, w * 0.5, ground, 62 * u, '#ffe0b8', 0.5);
 

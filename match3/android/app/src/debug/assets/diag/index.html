@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Zumurud diagnostics</title>
+    <link rel="stylesheet" href="./diag.css" />
+    <script>
+      // If the module below never runs (wrong MIME type, blocked request), say so on screen.
+      window.__diagModuleRan = false;
+      setTimeout(function () {
+        if (window.__diagModuleRan) return;
+        var out = document.getElementById('out');
+        if (out) out.textContent = 'FAIL  module script did not execute';
+        console.error('DIAG FAIL module: module script did not execute');
+        console.warn('DIAG SUMMARY pass=0 fail=1 wait=0');
+      }, 4000);
+    </script>
+    <script type="module" crossorigin src="./diag.js"></script>
+  </head>
+  <body>
+    <div id="frame">
+      <h1>Zumurud diagnostics — زمرد</h1>
+      <div id="summary">starting…</div>
+      <div id="out"></div>
+    </div>
+    <span id="probe">The quick brown fox 0123456789</span>
+    <span id="css-mark"></span>
+  </body>
+</html>

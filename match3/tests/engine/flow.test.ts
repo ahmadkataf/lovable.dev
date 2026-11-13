@@ -37,6 +37,7 @@ describe('goals and status', () => {
     const res = g.swap(P(3, 2), P(3, 1));
     expect(res.snapshot.status).toBe('lost');
     expect(res.snapshot.stars).toBe(0);
+    expect(res.snapshot.canContinue).toBe(true);
     expect(res.steps[res.steps.length - 1]).toEqual({ type: 'status', status: 'lost' });
     for (const bad of [0, -2, 1.5, Number.NaN]) expect(g.addMoves(bad).accepted).toBe(false);
     const before = g.snapshot();
@@ -45,6 +46,7 @@ describe('goals and status', () => {
     expect(more.steps).toEqual([{ type: 'status', status: 'playing' }]);
     expect(more.snapshot.movesLeft).toBe(3);
     expect(more.snapshot.status).toBe('playing');
+    expect('canContinue' in more.snapshot).toBe(false); // only present while lost
     expect(more.snapshot.cells).toEqual(before.cells);
     expect(g.validMoves().length).toBeGreaterThan(0);
     // and it can be lost again
@@ -329,6 +331,7 @@ describe('shuffles (§2.8)', () => {
     const res = g.useBooster('hammer', P(0, 0));
     expect(stepTypes(res.steps)).toBe('booster clear status');
     expect(res.snapshot.status).toBe('lost');
+    expect(res.snapshot.canContinue).toBe(false); // the lose dialog must not offer a continue
     expect(res.snapshot.movesLeft).toBe(before.movesLeft);
     checkTurn(g, before, res, 'booster', undefined, false);
     const lost = g.snapshot();
@@ -351,6 +354,34 @@ describe('shuffles (§2.8)', () => {
     expect(b.snapshot.status).toBe('lost');
     expect(b.snapshot.movesLeft).toBe(4);
     expect(lost.addMoves(5).accepted).toBe(false);
+  });
+
+  it('the turn that uses up the last move still leaves a playable board, so addMoves() can always resume', () => {
+    // Nothing can drop in under the wall. After d d d clears, the gems that are left have no
+    // move (e a e c e), but a rearrangement has one — so the board is shuffled before 'lost'.
+    const rows = ['3 3 3 3 3', 'd d ~ d ~', 'e a e c e'];
+    for (let seed = 1; seed <= 20; seed++) {
+      const g = board(rows, { colors: 3, moves: 1, goals: [{ kind: 'stone' }], seed });
+      const before = g.snapshot();
+      expect(before.canContinue).toBeUndefined();
+      const res = g.swap(P(3, 1), P(2, 1));
+      const types = stepTypes(res.steps);
+      expect(types.startsWith('swap clear shuffle')).toBe(true);
+      expect(res.steps[res.steps.length - 1]).toEqual({ type: 'status', status: 'lost' });
+      expect(res.snapshot.status).toBe('lost');
+      expect(res.snapshot.movesLeft).toBe(0);
+      expect(res.snapshot.canContinue).toBe(true);
+      expect(refValidMoves(res.snapshot).length).toBeGreaterThan(0);
+      expect(refHasMatch(res.snapshot)).toBe(false);
+      checkTurn(g, before, res, 'swap', undefined, false);
+      const lost = g.snapshot();
+      const more = g.addMoves(5);
+      expect(more.accepted).toBe(true);
+      expect(more.steps).toEqual([{ type: 'status', status: 'playing' }]); // nothing left to shuffle
+      expect(more.snapshot.cells).toEqual(lost.cells);
+      expect(more.snapshot.movesLeft).toBe(5);
+      expect(g.validMoves().length).toBeGreaterThan(0);
+    }
   });
 
   it('a level that starts without a valid move is shuffled before play begins', () => {
@@ -377,6 +408,8 @@ describe('shuffles (§2.8)', () => {
     const level: LevelDef = { id: 3, cols: 2, rows: 1, colors: 3, moves: 10, pieces: ['..'], goals: [{ kind: 'score', target: 500 }], stars: [500, 1000, 1500] };
     const g = new Game(level, { seed: 5 });
     expect(g.snapshot().status).toBe('lost');
+    expect(g.snapshot().canContinue).toBe(false);
+    expect(g.addMoves(5).accepted).toBe(false);
     expect(g.validMoves()).toEqual([]);
     expect(g.swap(P(0, 0), P(1, 0)).accepted).toBe(false);
   });
