@@ -320,7 +320,10 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
     return true;
   }
 
-  /** For getters: sync and quietly persist the normalised pair (no notification — see file header). */
+  /**
+   * Sync and quietly persist the normalised pair (no notification — see file header). Called at the
+   * start of every operation that looks at lives, so memory and storage never disagree about them.
+   */
   function readLives(t: number): void {
     if (syncLives(t)) persist();
   }
@@ -450,7 +453,7 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
 
     loseLife(): boolean {
       const t = clock();
-      syncLives(t);
+      readLives(t);
       if (data.lives <= 0) return false;
       if (data.lives >= MAX_LIVES) data.lifeTimer = t; // dropping from full starts the timer
       data.lives -= 1;
@@ -459,7 +462,7 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
     },
 
     refillLives(): boolean {
-      syncLives(clock());
+      readLives(clock());
       if (data.lives >= MAX_LIVES || data.coins < REFILL_LIVES_PRICE) return false;
       data.coins -= REFILL_LIVES_PRICE;
       data.lives = MAX_LIVES;
@@ -520,7 +523,7 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
 
     grant(rewards: Reward[]): void {
       if (!Array.isArray(rewards)) return;
-      syncLives(clock());
+      readLives(clock());
       let changed = false;
       for (const r of rewards) changed = applyReward(r) || changed;
       if (changed) commit();
@@ -592,9 +595,9 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
       const s = dailyState(t);
       if (!s.canClaim) return null;
       const rewards = copyRewards(DAILY_CYCLE[s.cycleDay]!);
+      readLives(t);
       data.dailyDay = s.today;
       data.dailyStreak = s.nextStreak;
-      syncLives(t);
       for (const r of rewards) applyReward(r);
       commit();
       return rewards;

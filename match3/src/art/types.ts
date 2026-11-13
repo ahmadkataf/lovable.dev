@@ -45,7 +45,12 @@ export type IconKey =
   /** boosters */
   | 'hammer' | 'freeSwap' | 'shuffle' | 'extraMoves' | 'prismBooster' | 'beamNova'
   /** goal icons that are not sprites */
-  | 'goalScore' | 'goalSand' | 'goalStone' | 'goalVine' | 'goalChain';
+  | 'goalScore' | 'goalSand' | 'goalStone' | 'goalVine' | 'goalChain'
+  /**
+   * shop / ads (additive): rewarded-video badge, "no ads" badge, a pile of coins and a coin chest for
+   * the coin packs, and "restore purchases"
+   */
+  | 'adVideo' | 'noAds' | 'coinPile' | 'coinChest' | 'restore';
 
 export type ChapterTheme = 'oasis' | 'dunes' | 'bazaar' | 'palace' | 'caverns' | 'stars';
 
