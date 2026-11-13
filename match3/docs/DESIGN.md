@@ -224,15 +224,30 @@ hand-percussion, in a maqam-flavoured scale such as D Hijaz: D E♭ F♯ G A B�
 slightly livelier for levels. Music sits well under the effects. No melody from any existing work.
 
 ## 5. Economy & meta (profile)
-- Lives: max 5, one regenerates every 20 minutes. Losing or quitting a level costs one life; winning
-  costs none. Refill all lives: 120 coins.
-- Coins: start with 150. Level first clear: 20 + 10 per star. Replays: 10 per newly gained star.
-- Boosters: start with 3 hammer, 3 freeSwap, 3 shuffle, 2 extraMoves, 1 prism, 1 beamNova.
-  Prices: hammer 90, freeSwap 80, shuffle 60, extraMoves 70, prism 120, beamNova 100.
-- Continue after losing: +5 moves for 90 coins, then 150, then 240 within the same attempt.
-- Daily reward, 7-day cycle (claim once per local calendar day; missing a day resets the streak):
-  1: 50 coins · 2: 1 hammer · 3: 80 coins · 4: 1 shuffle + 1 freeSwap · 5: 120 coins ·
-  6: 1 extraMoves + 1 beamNova · 7: 250 coins + 1 prism
+Numbers follow the strategy study (docs/STRATEGY.md): coins are scarce enough that a continue is a real
+decision, the first session sells nothing, and every system is introduced at its own level.
+
+- **Lives:** max 5, one regenerates every **30 minutes**. A life is lost when a level is failed or abandoned
+  after the first move; winning costs none. Refill all lives: **900 coins**.
+- **Coins:** start with **2,000**. Level first clear: 20 + 10 per star (levels marked `hard` pay double).
+  Replays: 10 per newly gained star.
+- **Continue after losing:** +5 moves for **900** coins, then **1,900**, then **2,900** within the same
+  attempt (three at most).
+- **Boosters** (price of one, in coins): hammer 650, freeSwap 600, shuffle 400, extraMoves 500, prism 800,
+  beamNova 650. The player owns none at install; each booster unlocks at a level, where it is introduced
+  with a gift so it can be learned by using it. Before its unlock level a booster is not shown anywhere.
+  Unlocks: **L7** beamNova ×2 · **L8** hammer ×3 · **L12** freeSwap ×3 · **L14** prism ×2 · **L16** shuffle ×3 ·
+  **L19** extraMoves ×2.
+- **Feature gating** (the level the player must have reached): lives counter L6 · shop button L10 ·
+  rewarded-ad offers L11 · Caravan L20 · interstitial eligibility L25. The daily reward is first offered on
+  the player's second calendar day, never during the first session. Nothing is sold in the first session.
+- **Caravan (win streak, from L20):** consecutive wins with no fail in between build the Caravan. The next
+  level then starts with free specials on the board: after 1 win a beam and a nova; after 2 wins also a
+  prism; after 3 or more wins also +3 moves. Failing or abandoning a level resets it. The level intro shows
+  the current Caravan and the lose dialog says plainly that giving up will reset it.
+- **Daily reward, 7-day cycle** (claim once per local calendar day; missing a day resets the streak):
+  1: 100 coins · 2: 1 hammer · 3: 150 coins · 4: 1 shuffle + 1 freeSwap · 5: 200 coins · 6: 1 beamNova ·
+  7: 500 coins + 1 prism. (A reward for a booster that is still locked is given as 150 coins instead.)
 - Real-money offers and ads: see §7. Everything can also be earned by playing.
 - 120 levels in 6 chapters of 20. Level N+1 unlocks when level N is won.
 
@@ -249,28 +264,33 @@ Contract: `src/monetize/types.ts`. Free to play; the game must be fully enjoyabl
 created with the same ids in Play Console; prices are set there and the app only shows the store's
 localised price string.
 
-| id | kind | grants |
-|---|---|---|
-| `coins_small` | consumable | 500 coins |
-| `coins_medium` | consumable | 1,200 coins |
-| `coins_large` | consumable | 3,200 coins (badge: popular) |
-| `coins_xl` | consumable | 7,000 coins |
-| `coins_mega` | consumable | 15,000 coins (badge: best) |
-| `starter_pack` | entitlement, once | 1,000 coins + 3 hammer + 3 freeSwap + 2 prism, and removes interstitial ads |
-| `remove_ads` | entitlement | removes interstitial ads (rewarded ads stay available — they are optional) |
+| id | kind | grants | suggested price |
+|---|---|---|---|
+| `coins_small` | consumable | 1,000 coins | US$0.99 |
+| `coins_medium` | consumable | 5,500 coins | US$4.99 |
+| `coins_large` | consumable | 12,000 coins (badge: popular) | US$9.99 |
+| `coins_xl` | consumable | 26,000 coins | US$19.99 |
+| `coins_mega` | consumable | 70,000 coins (badge: best) | US$49.99 |
+| `starter_pack` | entitlement, once | 4,000 coins + 3 hammer + 3 freeSwap + 2 prism, and removes interstitial ads | US$1.99 |
+| `remove_ads` | entitlement | removes interstitial ads (rewarded ads stay available — they are optional) | US$2.99 |
+
+The smallest pack buys one continue with a little left over; larger packs give progressively more coins per
+dollar. Prices are set in Play Console; the app only ever shows the store's own localised price string.
 
 Purchase safety: grant once per purchase token, only when PURCHASED, remember granted tokens, finish
 (consume/acknowledge) only after the grant is saved, re-deliver unfinished purchases at every start,
 restore entitlements at every start and from a "Restore purchases" button in settings.
 
-**Rewarded ads (always opt-in, reward stated on the button):** +5 moves once per attempt in the lose
-dialog; +1 life in the out-of-lives dialog; +25 coins in the shop, up to 5 per day; double the level's
-coin reward in the win dialog.
+**Rewarded ads (always opt-in, reward stated on the button, offered from L11):** +3 moves once per
+attempt in the lose dialog (fewer than the paid +5); +1 life in the out-of-lives dialog, up to 3 per day;
++50 coins in the shop, up to 3 per day; double the level's coin reward in the win dialog. At most 8
+rewarded ads per local day in total.
 
 **Interstitial ads:** only after a level's result dialog is dismissed, on the way back to the map —
-never at launch, never on exit/back, never during play, never over a dialog. None until the player
-has finished level 10; then at most one per 3 finished levels and not within 150 s of any previous
-full-screen ad. Never for owners of `remove_ads` / `starter_pack`.
+never at launch, never on exit/back, never during play, never over a dialog. None until the player has
+reached L25 **and** first played at least 3 local calendar days ago; then at most one per 3 finished
+levels, at least 180 s after the previous interstitial, never within 10 minutes of a rewarded ad, and at
+most 5 per local day. Never for anyone who has bought anything with real money (any product).
 
 **Consent:** the wrapper runs the UMP consent flow before requesting ads; settings shows a
 "Privacy options" entry when the consent SDK requires it.

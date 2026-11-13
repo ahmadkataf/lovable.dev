@@ -5,6 +5,7 @@
 import '@fontsource-variable/baloo-bhaijaan-2/index.css';
 import { ICON_KEYS, SPRITE_KEYS, createArt } from '../index.ts';
 import { paintScene } from '../backdrops.ts';
+import { BRAND } from '../../app/brand.ts';
 import type { ChapterTheme, IconKey, SpriteKey } from '../types.ts';
 
 const art = createArt();
@@ -768,10 +769,12 @@ let earlyLogo: HTMLCanvasElement | null = null;
 let fontReadyAtStart = true;
 
 async function main(): Promise<void> {
-  fontReadyAtStart = document.fonts.check('800 40px "Baloo Bhaijaan 2 Variable"', 'جوهرة');
+  const wordmarks = BRAND.name.en + ' ' + BRAND.name.ar;
+  const taglines = BRAND.tagline.en + ' ' + BRAND.tagline.ar;
+  fontReadyAtStart = document.fonts.check('800 40px "Baloo Bhaijaan 2 Variable"', BRAND.name.ar);
   earlyLogo = art.logo(240, 'ar');
   try {
-    await Promise.all([document.fonts.load('800 40px "Baloo Bhaijaan 2 Variable"', 'Jawhara جوهرة'), document.fonts.load('600 20px "Baloo Bhaijaan 2 Variable"', 'Gem لعبة')]);
+    await Promise.all([document.fonts.load('800 40px "Baloo Bhaijaan 2 Variable"', wordmarks), document.fonts.load('600 20px "Baloo Bhaijaan 2 Variable"', taglines)]);
     await document.fonts.ready;
   } catch (err) {
     console.warn('font load failed', err);

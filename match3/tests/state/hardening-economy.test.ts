@@ -672,6 +672,62 @@ describe('hardening: markSeen', () => {
     expect(again.profile.data().seen.length).toBe(2000);
   });
 
+  it('the list is also bounded in total size, forgetting the oldest ids first', () => {
+    const h = harness();
+    const big = (i: number): string => ('big-' + i + '-').padEnd(1024, 'x');
+    for (let i = 0; i < 200; i++) {
+      h.profile.markSeen(big(i));
+      expect(h.profile.hasSeen(big(i))).toBe(true);
+    }
+    const seen = h.profile.data().seen;
+    const chars = seen.reduce((sum, id) => sum + id.length, 0);
+    expect(chars).toBeLessThanOrEqual(60_000);
+    expect(seen.length).toBe(58); // 58 × 1024 ≤ 60,000 < 59 × 1024
+    expect(seen[seen.length - 1]).toBe(big(199));
+    expect(seen[0]).toBe(big(142));
+    // Small ids added afterwards push out only as many big ones as they need.
+    h.profile.markSeen('tut.swap');
+    expect(h.profile.hasSeen('tut.swap')).toBe(true);
+    expect(h.profile.data().seen.length).toBe(58);
+    expect(h.profile.hasSeen(big(142))).toBe(false);
+    expect(h.profile.hasSeen(big(143))).toBe(true);
+    // A restart keeps exactly this list, and a damaged save with too much in it is trimmed the same way.
+    expect(h.restart().profile.data().seen).toEqual(h.profile.data().seen);
+    const flooded = fromSave({ ...sampleSave(), seen: Array.from({ length: 5000 }, (_, i) => big(i)) });
+    expect(flooded.profile.data().seen.length).toBe(58);
+    expect(flooded.profile.data().seen[57]).toBe(big(4999));
+  });
+
+  it('the biggest save the profile can ever write stays far below one megabyte', () => {
+    // Everything at its limit at once, with ids made of characters JSON must escape (6 bytes each).
+    const levels: Record<string, { stars: number; best: number }> = {};
+    for (let id = 1; id <= 20_000; id++) levels[String(id)] = { stars: 3, best: 1e15 };
+    const h = fromSave({
+      version: 1,
+      levels,
+      coins: 1e300,
+      lives: 0,
+      lifeTimer: 8.64e15,
+      boosters: { hammer: 1e300, freeSwap: 1e300, shuffle: 1e300, extraMoves: 1e300, prism: 1e300, beamNova: 1e300 },
+      settings: { sfx: false, music: false, haptics: false, lang: 'ar' },
+      dailyDay: 1e300,
+      dailyStreak: 1e300,
+      seen: Array.from({ length: 5000 }, (_, i) => String(i).padEnd(1024, '\u0000')),
+      stats: { played: 1e300, won: 1e300, bestCascade: 1e300, totalScore: 1e300 },
+    });
+    for (let i = 0; i < 100; i++) h.profile.markSeen('\u0001'.repeat(1000) + i);
+    h.profile.recordAttempt();
+    const bytes = Buffer.byteLength(h.storage.json!, 'utf8');
+    expect(bytes).toBeGreaterThan(300_000); // the test really is near the limits
+    expect(bytes).toBeLessThan(900_000);
+    expect(h.storage.json!.length).toBeLessThan(900_000);
+    // …while an ordinary finished game is tiny.
+    const real = harness();
+    for (let level = 1; level <= 120; level++) real.profile.recordWin(level, 3, 99_999, 9);
+    for (let i = 0; i < 60; i++) real.profile.markSeen('tutorial.step.' + i);
+    expect(Buffer.byteLength(real.storage.json!, 'utf8')).toBeLessThan(8_000);
+  });
+
   it('ids are plain text: nothing in them is special', () => {
     const h = harness();
     const ids = ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'length', '0', ' ', 'a b', 'نصيحة', '💎', 'x'.repeat(1024)];

@@ -110,6 +110,11 @@ const MAX_DAY = MAX_TIME / DAY_MS;
 const MAX_STREAK = 1_000_000;
 const MAX_SEEN = 2_000;
 const MAX_SEEN_ID_LENGTH = 1_024;
+/**
+ * All seen ids together. With the other bounds this keeps the whole save far below one megabyte
+ * even in the worst case (every character escaped in JSON) — storage layers may refuse more.
+ */
+const MAX_SEEN_CHARS = 60_000;
 /** What the profile's clock reads until the injected one has produced a usable value. */
 const NO_CLOCK = 0;
 
@@ -189,8 +194,19 @@ function repairSeen(v: unknown): string[] {
     known.add(s);
     out.push(s);
   }
-  // Over the cap the NEWEST ids are kept, like `markSeen` does.
-  return out.length > MAX_SEEN ? out.slice(out.length - MAX_SEEN) : out;
+  trimSeen(out);
+  return out;
+}
+
+/** Drop the OLDEST ids until the list fits its bounds (count and total size). The newest always stay. */
+function trimSeen(seen: string[]): void {
+  let chars = 0;
+  let keepFrom = seen.length;
+  while (keepFrom > 0 && seen.length - keepFrom < MAX_SEEN && chars + seen[keepFrom - 1]!.length <= MAX_SEEN_CHARS) {
+    keepFrom -= 1;
+    chars += seen[keepFrom]!.length;
+  }
+  if (keepFrom > 0) seen.splice(0, keepFrom);
 }
 
 function repairStats(v: unknown): SaveData['stats'] {
@@ -683,9 +699,9 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
       if (typeof id !== 'string' || id.length === 0 || id.length > MAX_SEEN_ID_LENGTH) return;
       if (data.seen.indexOf(id) >= 0) return;
       data.seen.push(id);
-      // A full list forgets its oldest id rather than refusing the new one: `hasSeen(id)` is always
+      // A full list forgets its oldest ids rather than refusing the new one: `hasSeen(id)` is always
       // true right after `markSeen(id)`, however long the game has been played.
-      if (data.seen.length > MAX_SEEN) data.seen.splice(0, data.seen.length - MAX_SEEN);
+      trimSeen(data.seen);
       commit();
     },
 
