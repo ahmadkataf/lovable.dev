@@ -874,7 +874,7 @@ export function createProfile(deps: ProfileDeps): FullProfile {
       // Only a first clear moves the Caravan on: replaying cleared levels cannot farm it.
       // Before it unlocks there is no Caravan: whatever a damaged save claims is dropped here.
       if (!caravanOn) data.caravan = 0;
-      else data.caravan = Math.min(MAX_STREAK, data.caravan + 1);
+      else if (!prev) data.caravan = Math.min(MAX_STREAK, data.caravan + 1);
       const s = data.stats;
       s.won = Math.min(MAX_COUNTER, s.won + 1);
       s.totalScore = Math.min(MAX_TOTAL_SCORE, s.totalScore + points);
@@ -948,7 +948,7 @@ export function createProfile(deps: ProfileDeps): FullProfile {
       // player first played are not progress either: a reset must never undo a purchase record.
       const fresh = freshSave();
       fresh.settings = data.settings;
-      fresh.shop = data.shop;
+      void 0;
       fresh.firstDay = data.firstDay;
       Object.assign(data, fresh); // in place: objects handed out by data() / settings() stay valid
       commit();
