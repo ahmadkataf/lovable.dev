@@ -504,6 +504,12 @@ async function handleDialog(page, o, ctx) {
       } else if (roll < 0.62) {
         await back(page);
         note('pause: back');
+      } else if (o.status === 'won') {
+        // paused during the winning cascade: the level is won already, restart / quit just resume
+        await clickAction(page, roll < 0.8 ? 'restart' : 'quit');
+        note('pause on a won level: ' + (roll < 0.8 ? 'restart' : 'quit') + ' → resumes');
+        await page.waitForFunction(() => window.__play.loop().frozen === 0, null, { timeout: 3000 });
+        must((await observe(page)).state !== 'none', 'a won level was thrown away from the pause dialog');
       } else if (roll < 0.8) {
         ctx.leaving = 'restart';
         ctx.costly = o.info.movesMade > 0;

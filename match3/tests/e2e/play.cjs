@@ -10,7 +10,10 @@
  * and give up with the life lost exactly once per attempt), every in-level booster (targeting,
  * cancel with Back, buying one when empty), pause / resume (dialog, Back, app pause in the middle
  * of an animation), resize + orientation change mid-level, an invalid swap, the tutorial tip, and
- * repeated start / stop. It FAILS on any console error or warning, page error or unhandled
+ * repeated start / stop; plus the regressions of the QA pass (pieces left askew by gestures, a
+ * swipe lost at the end of a turn, leftovers of a skipped finale, choices made while a rewarded
+ * video is pending, a pause that outlives its level, the app being closed in mid-level).
+ * The monkey (tests/e2e/play-monkey.cjs) covers random play. It FAILS on any console error or warning, page error or unhandled
  * rejection (the screen warns when it had to snap the board to the engine's state).
  */
 const { chromium } = require('playwright');
@@ -394,6 +397,235 @@ async function tutorialAndCycles(browser) {
   await page.context().close();
 }
 
+/** Pieces of the renderer's model that do not stand at rest (size, offset, lift). */
+const askew = (page) =>
+  page.evaluate(() =>
+    window.__play
+      .model()
+      .pieces.filter((p) => p.dying || Math.abs(p.sx - 1) > 0.005 || Math.abs(p.sy - 1) > 0.005 || Math.abs(p.ox) > 0.005 || Math.abs(p.oy) > 0.005 || p.lift || p.flash > 0.005)
+      .map((p) => ({ id: p.id, x: p.x, y: p.y, sx: p.sx, ox: p.ox, lift: p.lift })),
+  );
+const quiet = (page) => page.waitForFunction(() => window.__play.loop().tweens === 0, null, { timeout: 5000 });
+
+/** Regressions found by the QA pass: gestures that left pieces askew, lost swipes, leftovers of a skipped finale, ads, app pause. */
+async function hardening(browser) {
+  // ── tap-tap (valid and invalid) leaves every piece at rest ──
+  let page = await H.openHarness(browser, { w: 360, h: 640, query: 'level=easy&seed=11&tut=0&inv=3', problems, tag: '[gestures]' });
+  await H.idle(page);
+  const pairs = () =>
+    page.evaluate(() => {
+      const s = window.__play.snapshot();
+      const v = window.__play.validMoves();
+      const valid = (a, b) => v.some((m) => (m.a.c === a.c && m.a.r === a.r && m.b.c === b.c && m.b.r === b.r) || (m.a.c === b.c && m.a.r === b.r && m.b.c === a.c && m.b.r === a.r));
+      let bad = null;
+      let same = null;
+      for (let r = 0; r < s.rows; r++) {
+        for (let c = 0; c + 1 < s.cols; c++) {
+          const a = { c, r };
+          const b = { c: c + 1, r };
+          const A = s.cells[r * s.cols + c].piece;
+          const B = s.cells[r * s.cols + c + 1].piece;
+          if (!bad && !valid(a, b)) bad = { a, b };
+          if (!same && A && B && A.kind === 'gem' && B.kind === 'gem' && A.color === B.color) same = { a, b };
+        }
+      }
+      return { bad, same };
+    });
+  let found = await pairs();
+  await H.turn(page, () => H.tapTap(page, found.bad.a, found.bad.b));
+  await quiet(page);
+  eq(await askew(page), [], 'an invalid tap-tap swap leaves every piece at rest');
+  let h = await page.evaluate(() => window.__play.hint());
+  await H.turn(page, () => H.tapTap(page, h.a, h.b));
+  await quiet(page);
+  eq(await askew(page), [], 'a valid tap-tap swap leaves every piece at rest');
+
+  // ── a free swap the engine refuses (two identical gems): nothing stays displaced, nothing is consumed ──
+  found = await pairs();
+  ok(found.same, 'two identical neighbours exist');
+  await page.click('[data-booster="freeSwap"] button');
+  await page.waitForSelector('.pl-target');
+  const inv0 = (await save(page)).boosters.freeSwap;
+  await H.swipe(page, found.same.a, found.same.b);
+  await page.waitForTimeout(250);
+  await quiet(page);
+  eq(await askew(page), [], 'a refused free swap leaves every piece at rest');
+  eq((await save(page)).boosters.freeSwap, inv0, 'a refused free swap is not consumed');
+  ok(await page.evaluate(() => window.__play.info().targeting === 'freeSwap'), 'still targeting after a refused swap');
+  await page.evaluate(() => window.__demo.back());
+
+  // ── a partial drag let go, a drag against the edge, a tap on / off: all back at rest ──
+  const p0 = await H.cell(page, 0, 3);
+  const cellPx = (await shown(page)).cell;
+  await page.mouse.move(p0.x, p0.y);
+  await page.mouse.down();
+  await page.mouse.move(p0.x + cellPx * 0.3, p0.y, { steps: 3 }); // below the commit distance
+  await page.mouse.up();
+  await page.mouse.move(p0.x, p0.y);
+  await page.mouse.down();
+  await page.mouse.move(p0.x - cellPx, p0.y, { steps: 3 }); // against the board edge
+  await page.mouse.up();
+  await H.tapCell(page, 2, 2);
+  await H.tapCell(page, 2, 2);
+  await page.waitForTimeout(250);
+  await quiet(page);
+  eq(await askew(page), [], 'cancelled drags and a select / deselect leave every piece at rest');
+
+  // ── a swipe begun while the board resolves and let go after it settled is played, not lost ──
+  h = await page.evaluate(() => window.__play.hint());
+  await H.swipe(page, h.a, h.b);
+  await page.waitForTimeout(120);
+  ok(!(await page.evaluate(() => window.__play.isIdle())), 'the board is resolving');
+  const hold = await H.cell(page, 3, 5);
+  await page.mouse.move(hold.x, hold.y);
+  await page.mouse.down();
+  await page.mouse.move(hold.x + cellPx, hold.y, { steps: 3 });
+  await H.idle(page);
+  const turns0 = await page.evaluate(() => window.__play.turns());
+  await page.mouse.up();
+  await page.waitForFunction((t) => window.__play.turns() > t, turns0, { timeout: 3000 });
+  await H.idle(page);
+  ok(!(await page.evaluate(() => window.__play.info().buffered)), 'no stale buffered swipe is kept');
+  await quiet(page);
+  eq(await askew(page), [], 'at rest after the late swipe');
+  await page.context().close();
+
+  // ── a skipped finale leaves no spark over the header; the win is saved before the show ──
+  page = await H.openHarness(browser, { w: 360, h: 640, query: 'level=easy&seed=11&tut=0&inv=0&ads=1', problems, tag: '[finale]' });
+  await H.idle(page);
+  const lvl = await page.evaluate(() => window.__play.level());
+  for (let i = 0; i < 60 && (await H.state(page)) === 'play'; i++) {
+    await H.settled(page);
+    if ((await H.state(page)) !== 'play') break;
+    const m = await page.evaluate(() => window.__play.hint());
+    await page.evaluate((mv) => window.__play.swap(mv.a, mv.b), m);
+    await page.waitForTimeout(40);
+  }
+  await waitState(page, 'finale');
+  ok((await save(page)).levels[String(lvl)], 'the win is in the profile the moment the level is won (before the finale plays)');
+  await page.waitForFunction(() => window.__play.info().flyers > 0, null, { timeout: 10000 });
+  await page.mouse.click(180, 420);
+  await waitState(page, 'won', 8000);
+  eq(await page.evaluate(() => window.__play.info().flyers), 0, 'no spark is left in flight after skipping the finale');
+
+  // ── while a rewarded video is asked for, the dialog cannot be left; the reward is paid once ──
+  await page.waitForSelector('.k-dialog[data-pl="win"]:not(.pl-locked)', { timeout: 5000 });
+  const coins0 = (await save(page)).coins;
+  const reward = num(await page.locator('.pl-win__coinsn').textContent());
+  await page.click('[data-action="double"]');
+  await page.locator('[data-action="next"]').click({ force: true });
+  await page.locator('[data-action="map"]').click({ force: true });
+  await page.evaluate(() => window.__demo.back());
+  eq(await H.state(page), 'won', 'Next / Map / Back wait while the video is pending');
+  await page.waitForFunction(() => document.querySelector('[data-action="double"]').disabled, null, { timeout: 5000 });
+  eq((await save(page)).coins, coins0 + reward, 'the doubled coins are paid exactly once');
+  eq((await log(page)).nav.filter((l) => l.indexOf('toMap') === 0).length, 0, 'the map was not opened under the video');
+  await page.waitForTimeout(400); // kit buttons ignore a second press within 350 ms
+  await page.click('[data-action="map"]');
+  await page.waitForFunction(() => window.__play.state() === 'none', null, { timeout: 5000 });
+
+  // ── the app is paused while a level is left (an ad over the map): the next level is not frozen ──
+  await page.evaluate(() => window.__demo.start('easy'));
+  await H.idle(page);
+  await page.evaluate(() => {
+    window.__demo.pause(true); // Activity.onPause …
+    window.__demo.stop(); // … the level is left while paused; its resume goes to the screen then on display
+    window.__demo.start('tiny');
+  });
+  await H.idle(page, 8000);
+  eq((await loop(page)).frozen, 0, 'a level started after a pause that was never "resumed" for this screen is not frozen');
+  h = await page.evaluate(() => window.__play.hint());
+  ok(await H.turn(page, () => H.swipe(page, h.a, h.b)), 'and it plays');
+  await page.context().close();
+
+  // ── same for the lose dialog: other choices wait for the video's answer ──
+  page = await H.openHarness(browser, { w: 360, h: 640, query: 'level=hard&seed=11&tut=0&inv=0&fast=1&ads=1&coins=9000', problems, tag: '[lose-ad]' });
+  await H.idle(page);
+  await H.playHints(page, 10);
+  await waitState(page, 'lost');
+  await page.waitForSelector('.k-dialog[data-pl="lose"]:not(.pl-locked)', { timeout: 5000 });
+  const before = await save(page);
+  await page.click('[data-action="adContinue"]');
+  await page.locator('[data-action="continue"]').click({ force: true });
+  await page.locator('[data-action="giveUp"]').click({ force: true });
+  await page.locator('[data-action="retry"]').click({ force: true });
+  await H.idle(page);
+  const after = await save(page);
+  eq([after.coins, after.lives], [before.coins, before.lives], 'coins and lives untouched by taps made while the video was pending');
+  eq((await snap(page)).moves, 3, 'the video continue was granted (+3 moves)');
+  await page.context().close();
+}
+
+/** Closing the app in the middle of a level costs the life at the next start — once, and only then. */
+async function appKilled(browser) {
+  const url = (query) => `${H.BASE}?lang=en&mute=1&keep=1&tut=0&inv=0&${query}`;
+  const ready = (page) => page.waitForFunction(() => window.__demo && window.__demo.ready, null, { timeout: 30000 });
+  const page = await H.openHarness(browser, { w: 360, h: 640, query: 'keep=1&level=easy&seed=11&tut=0&inv=0', problems, tag: '[killed]' });
+  await H.idle(page);
+  const lives0 = (await save(page)).lives;
+  const noteOf = () => page.evaluate(() => localStorage.getItem('match3.attempt.v1'));
+
+  // closed before any move: nothing to pay
+  eq(await noteOf(), null, 'no note before the first move');
+  await page.goto(url('level=easy&seed=11'));
+  await ready(page);
+  await H.idle(page);
+  eq((await save(page)).lives, lives0, 'closing the app before the first move costs nothing');
+
+  // one move, then the app is killed
+  let h = await page.evaluate(() => window.__play.hint());
+  await H.turn(page, () => H.swipe(page, h.a, h.b));
+  ok(await noteOf(), 'the attempt is noted once a move was made');
+  await page.goto(url('level=none'));
+  await ready(page);
+  await page.evaluate(() => window.__demo.start('easy'));
+  await H.idle(page);
+  eq((await save(page)).lives, lives0 - 1, 'the abandoned attempt cost its life at the next start');
+  eq(await noteOf(), null, 'and the note is gone');
+
+  // … exactly once
+  await page.goto(url('level=none'));
+  await ready(page);
+  await page.evaluate(() => window.__demo.start('easy'));
+  await H.idle(page);
+  eq((await save(page)).lives, lives0 - 1, 'it is not charged a second time');
+
+  // leaving through the pause dialog pays at once and leaves no note
+  h = await page.evaluate(() => window.__play.hint());
+  await H.turn(page, () => H.swipe(page, h.a, h.b));
+  await page.click('.pl-pause');
+  await page.click('[data-action="quit"]');
+  await page.click('.k-dialog[data-pl="confirm"] [data-action="yes"]');
+  await page.waitForFunction(() => window.__play.state() === 'none', null, { timeout: 5000 });
+  eq((await save(page)).lives, lives0 - 2, 'quitting cost one life');
+  eq(await noteOf(), null, 'no note after an orderly exit');
+  await page.goto(url('level=none'));
+  await ready(page);
+  await page.evaluate(() => window.__demo.start('easy'));
+  await H.idle(page);
+  eq((await save(page)).lives, lives0 - 2, 'and nothing more at the next start');
+
+  // killed during the finale: the level is won, no life is taken
+  const lvl = await page.evaluate(() => window.__play.level());
+  for (let i = 0; i < 60 && (await H.state(page)) === 'play'; i++) {
+    await H.settled(page);
+    if ((await H.state(page)) !== 'play') break;
+    const m = await page.evaluate(() => window.__play.hint());
+    await page.evaluate((mv) => window.__play.swap(mv.a, mv.b), m);
+    await page.waitForTimeout(40);
+  }
+  await waitState(page, 'finale');
+  eq(await noteOf(), null, 'a won level leaves no note');
+  await page.goto(url('level=none'));
+  await ready(page);
+  const s = await save(page);
+  ok(s.levels[String(lvl)], 'the win survived the app being closed during the finale');
+  await page.evaluate(() => window.__demo.start('easy'));
+  await H.idle(page);
+  eq((await save(page)).lives, lives0 - 2, 'no life taken for a level that was won');
+  await page.context().close();
+}
+
 (async () => {
   const browser = await chromium.launch();
   let failed = null;
@@ -403,6 +635,8 @@ async function tutorialAndCycles(browser) {
     await section('boosters: hammer, free swap, shuffle, buy, invalid swap', () => boosters(browser));
     await section('pause / resume, rotation mid-turn, idle loop', () => pauseAndResize(browser));
     await section('tutorial tip, start / stop cycles', () => tutorialAndCycles(browser));
+    await section('hardening: gestures at rest, late swipe, skipped finale, pending videos, pause across levels', () => hardening(browser));
+    await section('app closed mid-level: the life is charged once at the next start', () => appKilled(browser));
   } catch (err) {
     failed = err;
   }

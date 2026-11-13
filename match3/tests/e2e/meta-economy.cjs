@@ -138,8 +138,15 @@ async function tests(browser) {
     // break the level's definition: the play screen will refuse it
     await page.evaluate(() => {
       const level = window.__app.ctx.levels[46];
-      window.__brokenBackup = level.pieces;
-      Object.defineProperty(level, 'pieces', { value: null, configurable: true, writable: true });
+      const cols = level.cols;
+      window.__repairLevel = () => Object.defineProperty(level, 'cols', { value: cols, configurable: true, writable: true, enumerable: true });
+      Object.defineProperty(level, 'cols', {
+        get: () => {
+          throw new Error('test: this level is broken');
+        },
+        configurable: true,
+        enumerable: true,
+      });
     });
     const before = await inventory(page);
     run.tolerate++;
@@ -154,9 +161,7 @@ async function tests(browser) {
     ok((await toastTexts(page)).some((t) => /could not be opened/.test(t)), 'a message explains it');
     eq(await page.locator('.m-stage > *').count(), 1, 'one screen is mounted');
     // repaired: the same level starts normally
-    await page.evaluate(() => {
-      window.__app.ctx.levels[46].pieces = window.__brokenBackup;
-    });
+    await page.evaluate(() => window.__repairLevel());
     await tap(page, '.m-node[data-level="47"]');
     await page.waitForSelector('.m-dialog-intro', { timeout: 5000 });
     await sleep(420);
@@ -219,6 +224,7 @@ async function tests(browser) {
     eq(s.coins, 0, 'the refill costs exactly 900 (900 → 0)');
     eq(s.lives, 5, 'and fills all five lives');
     eq(await page.locator('[data-act="lives"] .k-chip__text').innerText(), 'Full', 'the map shows "Full"');
+    await sleep(900); // the coin counter counts down
     eq(await page.locator('[data-act="coins"] .k-chip__text').innerText(), '0', 'and 0 coins');
   });
 
@@ -259,15 +265,32 @@ async function tests(browser) {
     const { page } = await open(browser, { fakestore: '1', screen: 'map' }, { init, initArg: JSON.stringify(saveData({ upTo: 46, coins: 0, boosters: NO_BOOSTERS, dailyDay: today, dailyStreak: 2 })) });
     await waitStore(page);
     await openShop(page);
-    // a double tap opens one purchase sheet
+    // a double tap starts one purchase (the store is watched, and answers "cancelled" a moment later)
+    await page.evaluate(() => {
+      const store = window.__app.store;
+      const real = store.buy;
+      window.__buyCalls = 0;
+      store.buy = (id) => {
+        window.__buyCalls++;
+        return new Promise((resolve) => setTimeout(() => resolve('cancelled'), 700));
+      };
+      window.__restoreBuy = () => {
+        store.buy = real;
+      };
+    });
     await doubleTap(page, '[data-product="coins_small"] .k-btn');
-    await page.waitForSelector('[data-testid="fake-store"]', { timeout: 5000 });
-    eq(await page.locator('[data-testid="fake-store"]').count(), 1, 'a double tap on the price opens one purchase');
+    await sleep(350);
+    await page.locator('[data-product="coins_small"] .k-btn').tap({ force: true }).catch(() => undefined); // a third, impatient tap
+    await sleep(900);
+    eq(await page.evaluate(() => window.__buyCalls), 1, 'a double tap on the price (and a third while it is busy) starts one purchase');
+    await page.evaluate(() => window.__restoreBuy());
+    eq(await coinsOf(page), 0, 'nothing granted by a cancelled purchase');
+    await tap(page, '[data-product="coins_small"] .k-btn');
     await fakeSheet(page, 'buy');
     await page.waitForFunction(() => window.__app.profile.coins() > 0, null, { timeout: 8000 });
     await sleep(900);
     eq(await coinsOf(page), 1000, 'the small pack: exactly 1,000 coins');
-    ok((await toastTexts(page)).some((t) => /Thank you/.test(t)) || true, 'thanks');
+    ok((await toastTexts(page)).some((t) => /Thank you/.test(t)), 'with a thank-you');
     // a second one is a second purchase
     await tap(page, '[data-product="coins_small"] .k-btn');
     await fakeSheet(page, 'buy');
@@ -373,10 +396,11 @@ async function tests(browser) {
       const m = /^(\d\d):(\d\d)$/.exec(text);
       return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
     };
-    await page.clock.pauseAt(T0 + 5000);
+    // (read in the middle of a second: the text follows the clock within a few milliseconds)
+    await page.clock.pauseAt(T0 + 5500);
     let c = await chip();
     eq(c.count, '0', 'no lives');
-    eq(c.text, '28:55', 'a minute and 5 seconds into the wait the counter shows 28:55');
+    eq(c.text, '28:55', 'a minute and 5.5 seconds into the wait the counter shows 28:55');
     // 90 seconds, one at a time: the counter goes down by exactly one each time
     let previous = toSeconds(c.text);
     let steady = true;
@@ -396,21 +420,24 @@ async function tests(browser) {
     // inside a second the text does not change
     await page.clock.runFor(400);
     eq((await chip()).text, '27:25', 'it changes only when a whole second is over');
-    await page.clock.runFor(600);
+    await page.clock.runFor(200);
     eq((await chip()).text, '27:24', 'then at once');
 
     // while the app is in the background nothing ticks; coming back shows the right time at once
     await page.evaluate(() => window.__native.pause());
-    await page.clock.runFor(10 * 60000);
+    await page.clock.runFor(5000);
     eq((await chip()).text, '27:24', 'paused: the counter stands still');
+    await page.clock.fastForward(10 * 60000 - 5000);
+    eq((await chip()).text, '27:24', 'also over ten minutes');
     await page.evaluate(() => window.__native.resume());
     eq((await chip()).text, '17:24', 'resumed: it shows the real time left, at once');
 
     // the life arrives exactly when the 30 minutes are over
-    await page.clock.runFor(17 * 60000 + 23000);
+    await page.clock.fastForward(17 * 60000 + 23000);
+    await page.clock.runFor(10);
     c = await chip();
     eq(c.count + ' ' + c.text, '0 00:01', 'one second before: still 0 lives, 00:01');
-    await page.clock.runFor(1000);
+    await page.clock.runFor(990);
     c = await chip();
     eq(c.count + ' ' + c.text, '1 30:00', 'the first life arrives on time, and the next 30 minutes begin');
     eq((await state(page)).lives, 1, 'the profile agrees: 1 life');
@@ -422,20 +449,25 @@ async function tests(browser) {
     await sleep(420);
     eq(await page.locator('.m-dialog-lives .k-dialog__title').innerText(), 'Lives', 'with a life the dialog is called "Lives"');
     eq(await page.locator('.m-lives__count').innerText(), '1', 'and shows 1');
-    await page.clock.pauseAt(T0 + 31 * 60000);
+    await page.clock.pauseAt(T0 + 31 * 60000 + 500);
+    await page.clock.runFor(10);
+    eq(await page.locator('.m-lives__clock').innerText(), '28:00', '31 minutes in, the next life is 28:00 away');
     await page.clock.runFor(2000);
-    ok(/^2[89]:\d\d$/.test(await page.locator('.m-lives__clock').innerText()), 'its countdown runs (' + (await page.locator('.m-lives__clock').innerText()) + ')');
-    await page.clock.runFor(30 * 60000);
+    eq(await page.locator('.m-lives__clock').innerText(), '27:58', 'and the dialog counts down with the clock');
+    await page.clock.fastForward(30 * 60000);
+    await page.clock.runFor(10);
     eq(await page.locator('.m-lives__count').innerText(), '2', 'a life arrives while the dialog is open: 2');
     // three more half hours: full
-    await page.clock.runFor(90 * 60000);
+    await page.clock.fastForward(90 * 60000);
+    await page.clock.runFor(10);
     eq(await page.locator('.m-lives__count').innerText(), '5', 'two and a half hours after the start: 5 lives');
     ok(/full/i.test(await page.locator('.m-lives__status').innerText()), 'the dialog says the lives are full');
     eq(await page.locator('[data-act="lives-refill"]:visible').count(), 0, 'and offers no refill');
     c = await chip();
     eq(c.count + ' ' + c.text, '5 Full', 'the map shows 5 · Full');
     // full lives never exceed the maximum, however long the wait
-    await page.clock.runFor(DAY);
+    await page.clock.fastForward(DAY);
+    await page.clock.runFor(10);
     eq((await state(page)).lives, 5, 'a day later: still 5, never more');
 
     // the device clock set back by two days: no free lives, no negative or endless wait
@@ -452,7 +484,8 @@ async function tests(browser) {
     c = await chip();
     eq(c.count, '3', 'clock set back two days: still 3 lives');
     ok(toSeconds(c.text) > 0 && toSeconds(c.text) <= 1800, 'the wait is a normal one, at most 30:00 (' + c.text + ')');
-    await page.clock.runFor(30 * 60000);
+    await page.clock.fastForward(30 * 60000);
+    await page.clock.runFor(10);
     eq((await chip()).count, '4', 'and a life still comes after 30 minutes');
   });
 

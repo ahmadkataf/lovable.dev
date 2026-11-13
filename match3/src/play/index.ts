@@ -82,8 +82,12 @@ interface Session {
   finaleStart: number;
   /** lowest "still to do" number each goal chip has shown (a late flyer must not raise it again) */
   goalShown: number[];
-  /** the settled win: final board, stars and what the profile paid (set the moment the level is won) */
-  result: { snap: Snapshot; stars: 1 | 2 | 3; summary: LevelResultSummary } | null;
+  /**
+   * The settled win — set the moment the ENGINE reports the level won, before any of it is shown:
+   * the end bonus (computed at once, played later), the final board, the stars and what the
+   * profile paid.
+   */
+  result: { bonus: TurnResult; snap: Snapshot; stars: 1 | 2 | 3; summary: LevelResultSummary } | null;
 }
 
 const IN_LEVEL: readonly InLevelBooster[] = ['hammer', 'freeSwap', 'shuffle'];
@@ -649,12 +653,36 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
 
   // ───────────────────────────── turns ─────────────────────────────
 
+  /**
+   * The engine has decided the level: settle the win NOW, before a single frame of it is shown.
+   * The end bonus is computed at once (only its show takes time), so the final score and stars
+   * are known — and whatever happens to the app during the last cascade or the finale (closed,
+   * killed, paused for good), the win and its coins are safe and no life is at stake any more.
+   */
+  function settleWin(): void {
+    const s = session;
+    if (!s || s.result) return;
+    const bonus = s.game.endBonus();
+    const final = bonus.accepted ? bonus.snapshot : s.game.snapshot();
+    const stats = turnStats(bonus.steps);
+    if (stats.maxCascade > s.bestCascade) s.bestCascade = stats.maxCascade;
+    const stars = (final.stars < 1 ? 1 : final.stars > 3 ? 3 : final.stars) as 1 | 2 | 3;
+    const summary = profile.recordWin(s.level.id, stars, final.score, s.bestCascade);
+    s.result = { bonus, snap: final, stars, summary };
+    journal.close();
+  }
+
   function runTurn(res: TurnResult, opts: PlayOptions): void {
     const s = session;
     if (!s) return;
     const my = gen;
     s.busy = true;
     cancelHint();
+    if (res.snapshot.status === 'won') {
+      const stats = turnStats(res.steps);
+      if (stats.maxCascade > s.bestCascade) s.bestCascade = stats.maxCascade;
+      settleWin();
+    }
     void player.play(res.steps, res.snapshot, opts).then(() => {
       if (my !== gen || !session) return;
       afterTurn(res);
@@ -936,17 +964,11 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     hideHand();
     if (s.targeting) exitTargeting();
 
-    // The level is won: settle it NOW. The end bonus is computed at once (only its show takes
-    // time), so the final score and stars are known — and closing the app during the finale can
-    // no longer lose the win.
-    const res = s.game.endBonus();
-    const final = res.accepted ? res.snapshot : s.game.snapshot();
-    const bonus = turnStats(res.steps);
-    if (bonus.maxCascade > s.bestCascade) s.bestCascade = bonus.maxCascade;
-    const stars = (final.stars < 1 ? 1 : final.stars > 3 ? 3 : final.stars) as 1 | 2 | 3;
-    const summary = profile.recordWin(s.level.id, stars, final.score, s.bestCascade);
-    s.result = { snap: final, stars, summary };
-    journal.close();
+    settleWin();
+    const result = s.result;
+    if (!result) return;
+    const res = result.bonus;
+    const final = result.snap;
 
     sfx('goalDone');
     haptic('success');
@@ -1190,7 +1212,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     void dialog.closed.then((choice) => {
       pauseOpen = false;
       if (my !== gen || !session) return;
-      if (choice !== 'restart' && choice !== 'quit') {
+      // (the winning move is already made and its cascade is on screen: the level is won — nothing to restart or leave)
+      if ((choice !== 'restart' && choice !== 'quit') || s.result) {
         unfreeze(FREEZE_DIALOG);
         armHint();
         return;
@@ -1547,6 +1570,31 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       }),
       loop: () => ({ running: raf !== 0, tweens: sched.count(), timers: timers.count(), dialogs: own.length, frozen }),
       finish: () => skipFinale(),
+      /**
+       * Frame-by-frame review: with the app paused (setPaused(true)), run `ms` of game time in
+       * 60-fps steps and draw. Async: the steps of a transcript continue in microtasks.
+       */
+      advance: async (ms: number): Promise<void> => {
+        let left = ms;
+        while (left > 0.01) {
+          const dt = left < 1000 / 60 ? left : 1000 / 60;
+          left -= dt;
+          sched.step(dt);
+          view.step(dt);
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+        }
+        view.draw();
+      },
+      /** Use an in-level booster directly (no inventory, no targeting UI). */
+      useBooster: (id: InLevelBooster, a?: Pos, b?: Pos) => {
+        const s = session;
+        if (!s || s.busy || player.busy() || s.state !== 'play') return false;
+        const res = s.game.useBooster(id, a, b);
+        if (!res.accepted) return false;
+        noteMove();
+        runTurn(res, { swapCostsMove: false });
+        return true;
+      },
       /** the renderer's own model: what is drawn where (compare with snapshot()) */
       model: () => (session ? view.debugState() : null),
       /** bookkeeping of the running attempt */

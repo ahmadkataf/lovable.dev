@@ -47,7 +47,7 @@ while [ $# -gt 0 ]; do
     --allow-test-ads) allow_test_ads=1 ;;
     --skip-web) skip_web=1 ;;
     --) shift; gradle_args=("$@"); break ;;
-    -h|--help) sed -n '2,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "build.sh: unknown argument '$1' (try --help)" >&2; exit 2 ;;
   esac
   shift

@@ -27,7 +27,7 @@ set -uo pipefail
 APK="${1:-}"
 MODE="${2:-}"
 if [ -z "$APK" ] || [ ! -f "$APK" ] || { [ -n "$MODE" ] && [ "$MODE" != "diag" ] && [ "$MODE" != "diagcontent" ]; }; then
-  sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
+  awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "${BASH_SOURCE[0]}" >&2
   exit 2
 fi
 

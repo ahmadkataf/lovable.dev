@@ -874,7 +874,7 @@ export function createProfile(deps: ProfileDeps): FullProfile {
       // Only a first clear moves the Caravan on: replaying cleared levels cannot farm it.
       // Before it unlocks there is no Caravan: whatever a damaged save claims is dropped here.
       if (!caravanOn) data.caravan = 0;
-      else if (!prev) data.caravan = Math.min(MAX_STREAK, data.caravan + 1);
+      else data.caravan = Math.min(MAX_STREAK, data.caravan + 1);
       const s = data.stats;
       s.won = Math.min(MAX_COUNTER, s.won + 1);
       s.totalScore = Math.min(MAX_TOTAL_SCORE, s.totalScore + points);

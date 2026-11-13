@@ -11,6 +11,19 @@
     </issue>
 
     <!--
+        SaveStore.flush() must use commit(), and must see its result: before a purchase is consumed
+        or acknowledged the save that holds the grant has to be on disk, not queued (apply() would
+        only queue it). It runs on the store's worker thread, never on the main thread. The KTX
+        edit(commit = true) helper throws that result away, hence the plain call.
+    -->
+    <issue id="ApplySharedPref">
+        <ignore path="src/main/kotlin/com/zumurud/game/SaveStore.kt" />
+    </issue>
+    <issue id="UseKtx">
+        <ignore path="src/main/kotlin/com/zumurud/game/SaveStore.kt" />
+    </issue>
+
+    <!--
         drawable-xxhdpi holds a single image, the splash-screen emblem, on purpose: one 864px WebP
         (288dp at xxhdpi) is scaled by the system for the other densities, instead of shipping the
         same picture five times. The launcher icons do come in every density (mipmap-*).

@@ -367,7 +367,95 @@ async function fakeAd(page, watch) {
   await page.waitForSelector('[data-testid="fake-ad"]', { state: 'detached', timeout: 5000 });
 }
 
+/**
+ * Runs in the page before anything else: makes a current Chromium behave like WebView 80 wherever
+ * the game could tell the difference — APIs newer than Chrome 80 are gone (using one throws, which
+ * the tests report) and the `inert` attribute does nothing (it only works from Chrome 102).
+ * (The same shim as tools/kit-shots.cjs uses for the UI kit.)
+ */
+function webview80Shim() {
+  const kill = (obj, name) => {
+    if (!obj) return;
+    try {
+      delete obj[name];
+    } catch (e) {
+      // not configurable
+    }
+    try {
+      if (name in obj) Object.defineProperty(obj, name, { value: undefined, configurable: true, writable: true });
+    } catch (e) {
+      // leave it
+    }
+  };
+  const A = Array.prototype;
+  const S = String.prototype;
+  for (const n of ['at', 'findLast', 'findLastIndex', 'toSorted', 'toReversed', 'toSpliced', 'with']) kill(A, n);
+  for (const n of ['at', 'replaceAll', 'isWellFormed', 'toWellFormed']) kill(S, n);
+  for (const n of ['hasOwn', 'groupBy']) kill(Object, n);
+  for (const n of ['any', 'withResolvers']) kill(Promise, n);
+  for (const n of ['structuredClone', 'WeakRef', 'FinalizationRegistry', 'AggregateError', 'scheduler', 'reportError']) kill(window, n);
+  for (const proto of [Element.prototype, Document.prototype, DocumentFragment.prototype]) kill(proto, 'replaceChildren');
+  for (const n of ['checkVisibility', 'getAnimations', 'ariaLabel', 'ariaHidden', 'ariaChecked']) kill(Element.prototype, n);
+  kill(Document.prototype, 'getAnimations');
+  for (const n of ['roundRect', 'createConicGradient', 'reset', 'letterSpacing']) kill(CanvasRenderingContext2D.prototype, n);
+  kill(Path2D.prototype, 'roundRect');
+  if (window.AbortSignal) for (const n of ['timeout', 'any']) kill(AbortSignal, n);
+  if (window.crypto) kill(Crypto.prototype, 'randomUUID');
+  // `inert`: the attribute stays visible to scripts (under another name) but stops doing anything.
+  const E = Element.prototype;
+  const alias = (n) => (n === 'inert' ? 'data-shim-inert' : n);
+  const set = E.setAttribute;
+  const has = E.hasAttribute;
+  const rem = E.removeAttribute;
+  const get = E.getAttribute;
+  E.setAttribute = function (n, v) {
+    return set.call(this, alias(n), v);
+  };
+  E.hasAttribute = function (n) {
+    return has.call(this, alias(n));
+  };
+  E.removeAttribute = function (n) {
+    return rem.call(this, alias(n));
+  };
+  E.getAttribute = function (n) {
+    return get.call(this, alias(n));
+  };
+  kill(HTMLElement.prototype, 'inert');
+  window.__webview80 = true;
+}
+
+/**
+ * The Android wrapper's bridge as a page init script (pass the save JSON as its argument): the
+ * page then has `window.__native.back() / pause() / resume() / insets()`, and `window.__bridgeCalls`
+ * records what the game told the wrapper.
+ */
+function androidBridge(json) {
+  const calls = { atRoot: [], ready: 0, haptics: 0, saves: 0 };
+  window.__bridgeCalls = calls;
+  let saved = typeof json === 'string' ? json : '';
+  window.AndroidBridge = {
+    loadSave: () => saved,
+    storeSave: (s) => {
+      saved = s;
+      calls.saves++;
+    },
+    haptic: () => {
+      calls.haptics++;
+    },
+    setAtRoot: (v) => {
+      calls.atRoot.push(v);
+    },
+    info: () => JSON.stringify({ versionName: '9.9.9', versionCode: 99, locale: 'en-US' }),
+    rate: () => {},
+    ready: () => {
+      calls.ready++;
+    },
+  };
+}
+
 module.exports = {
+  webview80Shim,
+  androidBridge,
   ROOT,
   PORT,
   BASE,

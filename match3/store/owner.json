@@ -1,0 +1,10 @@
+{
+  "developerName": "Fekra Ads",
+  "supportEmail": "Use the e-mail address of the Google Play Console account (already on the account; the owner fills it in the console).",
+  "privacyPolicyUrl": "https://zumurud-privacy.almutafawiqin.workers.dev/",
+  "applicationId": "com.zumurud.game",
+  "defaultLanguage": "en-US",
+  "additionalLanguages": ["ar"],
+  "category": "Games > Puzzle",
+  "notes": "Privacy policy is served by a Cloudflare Worker named zumurud-privacy on the owner's Cloudflare account; its source is store/privacy/index.html."
+}

@@ -529,6 +529,37 @@ describe('full-screen ads that do not report back', () => {
     off();
   });
 
+  it('DEFECT: the bridge answers inside the call, a listener starts the NEXT ad from that answer, then the call throws — the new ad must survive', async () => {
+    const { machine, session } = veteran();
+    const book = promiseBook();
+    let calls = 0;
+    machine.onBridge = (s, name) => {
+      if (name !== 'adShowRewarded') return;
+      calls += 1;
+      if (calls > 1) return; // the second ad opens normally
+      s.send({ type: 'adResult', format: 'rewarded', result: 'earned' }); // …the first is answered at once
+      throw new Error('bridge fell over');
+    };
+    let started = false;
+    session.store.onChange(() => {
+      if (started || session.profile.adsToday().rewarded.extraMoves !== 1) return;
+      started = true;
+      void book.track('second', session.store.showRewarded('freeLife'));
+    });
+    void book.track('first', session.store.showRewarded('extraMoves'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(book.values('first')).toEqual(['earned']);
+    expect(calls).toBe(2);
+    expect(book.open()).toEqual(['second']); // open, with its watchdog intact
+    session.send({ type: 'adResult', format: 'rewarded', result: 'earned' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(book.values('second')).toEqual(['earned']);
+    // and had the second one stayed silent, its watchdog would have answered
+    void book.track('third', session.store.showRewarded('doubleReward'));
+    await vi.advanceTimersByTimeAsync(120 * SECOND);
+    expect(book.values('third')).toEqual(['unavailable']);
+  });
+
   it('an interstitial is never requested while another full-screen ad is open, and never twice for one level', async () => {
     const { machine, session } = veteran();
     const rewarded = session.store.showRewarded('extraMoves'); // open, unanswered
