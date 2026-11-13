@@ -68,6 +68,7 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
     private var startUrl: String = LocalContent.GAME_URL
 
     private var resumed = false
+    private var inBackground = false
     private var createdAt = 0L
     private var lastStorePageAt = 0L
 
@@ -130,6 +131,7 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
     override fun onResume() {
         super.onResume()
         resumed = true
+        inBackground = false
         hideSystemBars()
         webView?.onResume()
         callPageHook("resume")
@@ -144,6 +146,7 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
         webView?.onPause()
         store.onPause()
         resumed = false
+        inBackground = true
         super.onPause()
     }
 
@@ -291,10 +294,8 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
         root.addView(view, 0, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         webView = view
         backToPage.isEnabled = false
-        if (!resumed && createdAt != 0L && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.CREATED)) {
-            // Created while the app is in the background (after a renderer loss): start it paused.
-            view.onPause()
-        }
+        // Created while the app is in the background (after a renderer loss): start it paused.
+        if (inBackground) view.onPause()
         view.loadUrl(startUrl)
         view.requestFocus()
     }
