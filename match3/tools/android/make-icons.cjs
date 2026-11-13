@@ -100,7 +100,7 @@ function backgroundVectorXml() {
     const y1 = c + Math.sin(a + g.rays.halfAngle) * g.rays.lengthDp;
     rays += `M${c},${c} L${fix(x0)},${fix(y0)} L${fix(x1)},${fix(y1)} Z `;
   }
-  const item = (offset, color) => `                    <item android:offset="${fix(offset)}" android:color="${color}" />`;
+  const item = (offset, color) => `                <item android:offset="${fix(offset)}" android:color="${color}" />`;
   return `<?xml version="1.0" encoding="utf-8"?>
 <!--
     Adaptive-icon background: the emblem's indigo medallion colours carried to the corners, with
