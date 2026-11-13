@@ -148,6 +148,11 @@ body {
 
 /* ───────────────────────────── layout helpers ───────────────────────────── */
 
+/*
+ * Rows and columns space their children with margins (flexbox `gap` is not available). The
+ * doubled class in the selectors makes these margins win over a component's own `margin: 0`.
+ */
+
 .k-screen {
   position: absolute;
   top: 0;
@@ -166,7 +171,7 @@ body {
   align-items: center;
 }
 
-.k-row > * + * {
+.k-row.k-row > * + * {
   margin-inline-start: calc(var(--k-u) * 8);
 }
 
@@ -175,7 +180,7 @@ body {
   flex-direction: column;
 }
 
-.k-col > * + * {
+.k-col.k-col > * + * {
   margin-top: calc(var(--k-u) * 8);
 }
 
@@ -252,7 +257,10 @@ body {
   line-height: 1.25;
   text-align: center;
   color: var(--k-gold-light);
-  background: linear-gradient(180deg, #fff8dc 0%, #ffe08a 48%, #f2b744 100%);
+  /* one gradient per text line (the tile is exactly one line box tall) */
+  background-image: linear-gradient(180deg, #fff8dc 0%, #ffe08a 48%, #f2b744 100%);
+  background-size: 100% 1.25em;
+  background-repeat: repeat-y;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -331,15 +339,15 @@ body {
 .k-rule i,
 .k-rule i::after {
   position: absolute;
-  width: calc(var(--k-u) * 9);
-  height: calc(var(--k-u) * 9);
+  width: calc(var(--k-u) * 10);
+  height: calc(var(--k-u) * 10);
   background: var(--k-gold-light);
 }
 
 .k-rule i {
   top: 50%;
   left: 50%;
-  margin: calc(var(--k-u) * -4.5) 0 0 calc(var(--k-u) * -4.5);
+  margin: calc(var(--k-u) * -5) 0 0 calc(var(--k-u) * -5);
 }
 
 .k-rule i::after {
@@ -740,24 +748,23 @@ body {
 
 /* ───────────────────────────── chips (coins / lives / stars) ───────────────────────────── */
 
+/*
+ * The chip's box covers everything it draws (the icon overhangs the pill inside the box), so
+ * chips can be laid out like any other element. Content sits in .k-chip__in — a <button> is
+ * never used as a flex container itself (unreliable before Chrome 83).
+ */
 .k-chip {
   position: relative;
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
+  vertical-align: middle;
   box-sizing: border-box;
   flex: none;
-  min-width: calc(var(--k-u) * 76);
-  height: calc(var(--k-u) * 32);
-  margin: calc(var(--k-u) * 4) 0;
-  margin-inline-start: calc(var(--k-u) * 10);
+  min-width: calc(var(--k-u) * 84);
+  height: calc(var(--k-u) * 36);
+  margin: 0;
   padding: 0;
-  padding-inline-end: calc(var(--k-u) * 12);
   border: 0;
-  border-radius: calc(var(--k-u) * 16);
-  background: linear-gradient(180deg, rgba(13, 10, 44, 0.86) 0%, rgba(30, 24, 82, 0.86) 100%);
-  box-shadow:
-    inset 0 0 0 calc(var(--k-u) * 1.5) rgba(245, 201, 90, 0.8),
-    0 calc(var(--k-u) * 3) calc(var(--k-u) * 7) rgba(6, 4, 26, 0.35);
+  background: none;
   color: var(--k-cream);
   font-family: inherit;
   font-size: calc(var(--k-u) * 17);
@@ -768,13 +775,42 @@ body {
   transition: transform var(--k-med) var(--k-ease-back);
 }
 
+/* the pill */
+.k-chip::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--k-u) * 2);
+  bottom: calc(var(--k-u) * 2);
+  left: calc(var(--k-u) * 10);
+  right: 0;
+  border-radius: calc(var(--k-u) * 16);
+  background: linear-gradient(180deg, rgba(13, 10, 44, 0.88) 0%, rgba(30, 24, 82, 0.88) 100%);
+  box-shadow:
+    inset 0 0 0 calc(var(--k-u) * 1.5) rgba(245, 201, 90, 0.8),
+    0 calc(var(--k-u) * 3) calc(var(--k-u) * 7) rgba(6, 4, 26, 0.35);
+}
+
+[dir='rtl'] .k-chip::before {
+  left: 0;
+  right: calc(var(--k-u) * 10);
+}
+
+.k-chip__in {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: calc(var(--k-u) * 36);
+  padding-inline-end: calc(var(--k-u) * 12);
+}
+
 .k-chip--button {
   cursor: pointer;
   touch-action: manipulation;
 }
 
-.k-chip--plus {
-  padding-inline-end: calc(var(--k-u) * 4);
+.k-chip--plus .k-chip__in {
+  padding-inline-end: calc(var(--k-u) * 6);
 }
 
 .k-chip.k-pressed {
@@ -784,7 +820,6 @@ body {
 
 .k-chip__icon {
   flex: none;
-  margin-inline-start: calc(var(--k-u) * -10);
   margin-inline-end: calc(var(--k-u) * 6);
   filter: drop-shadow(0 calc(var(--k-u) * 2) calc(var(--k-u) * 2) rgba(6, 4, 26, 0.5));
 }
@@ -921,6 +956,7 @@ body {
 /* ───────────────────────────── star row ───────────────────────────── */
 
 .k-stars {
+  --k-star: calc(var(--k-u) * 40);
   display: inline-flex;
   align-items: flex-end;
   justify-content: center;
@@ -960,7 +996,7 @@ body {
 
 /* three stars form a shallow arch: the middle one sits higher, the outer ones lean outwards */
 .k-stars--arc .k-star:nth-child(2) {
-  margin-bottom: 14%;
+  margin-bottom: calc(var(--k-star) * 0.3);
 }
 
 .k-stars--arc .k-star:first-child {
@@ -983,8 +1019,7 @@ body {
 
 .k-toggle {
   position: relative;
-  display: flex;
-  align-items: center;
+  display: block;
   box-sizing: border-box;
   width: 100%;
   min-height: calc(var(--k-u) * 54);
@@ -1007,6 +1042,12 @@ body {
 .k-toggle:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+.k-toggle__in {
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
 .k-toggle__icon {
@@ -1120,9 +1161,7 @@ body {
 .k-seg__opt {
   position: relative;
   flex: 1 1 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   box-sizing: border-box;
   min-width: 0;
   margin: 0;
@@ -1142,6 +1181,14 @@ body {
   touch-action: manipulation;
 }
 
+.k-seg__in {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
 .k-seg__opt .k-icon {
   margin-inline-end: calc(var(--k-u) * 6);
 }
@@ -1150,7 +1197,7 @@ body {
   margin-inline-end: 0;
 }
 
-.k-seg__opt span {
+.k-seg__in span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -1358,7 +1405,7 @@ body {
 .k-dialog__foot {
   flex: none;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   padding: calc(var(--k-u) * 10) calc(var(--k-u) * 16) calc(var(--k-u) * 18);
 }
 
@@ -1379,9 +1426,23 @@ body {
   flex: none;
 }
 
+.k-dialog__foot--col {
+  align-items: stretch;
+}
+
 .k-dialog__foot--col > .k-btn + .k-btn {
   margin-inline-start: 0;
   margin-top: calc(var(--k-u) * 10);
+}
+
+/* stacked automatically because a label would wrap: the main (last) button goes on top */
+.k-dialog__foot--rev {
+  flex-direction: column-reverse;
+}
+
+.k-dialog__foot--rev > .k-btn + .k-btn {
+  margin-top: 0;
+  margin-bottom: calc(var(--k-u) * 10);
 }
 
 /* close button on the top end corner */
@@ -1682,10 +1743,10 @@ body {
   opacity: 0.75;
 }
 
-/* ribbon: a tag folded over the card's top end corner */
+/* ribbon: a tag riding the card's top edge, folded over its end side */
 .k-ribbon {
   position: absolute;
-  top: calc(var(--k-u) * 9);
+  top: calc(var(--k-u) * -9);
   right: calc(var(--k-u) * -6);
   z-index: 1;
   box-sizing: border-box;

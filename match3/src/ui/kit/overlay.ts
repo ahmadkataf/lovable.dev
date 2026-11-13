@@ -256,7 +256,7 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
       if (!opts.silent && !quiet) core.sfx('popupClose');
       sync();
       if (observer) observer.disconnect();
-      window.removeEventListener('resize', updateScrollHints);
+      window.removeEventListener('resize', onResize);
       window.setTimeout(() => detach(root), core.reducedMotion() ? 0 : CLOSE_MS);
       if (opts.onClose) {
         try {
@@ -284,9 +284,10 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
 
     // footer buttons
     const defs = opts.buttons || [];
+    let foot: HTMLElement | null = null;
     if (defs.length > 0) {
       const column = opts.buttonLayout ? opts.buttonLayout === 'column' : defs.length > 2;
-      const foot = el('div', { class: 'k-dialog__foot' + (column ? ' k-dialog__foot--col' : '') });
+      foot = el('div', { class: 'k-dialog__foot' + (column ? ' k-dialog__foot--col' : '') });
       for (let i = 0; i < defs.length; i++) {
         const def = defs[i]!;
         if (isKitButton(def)) {
@@ -351,14 +352,36 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
       else if (!dismissible) replay(panel, 'k-nudge');
     });
 
+    /**
+     * Two buttons sit side by side — unless a label would wrap (long words, Arabic or English, on
+     * a narrow phone): then they stack, main button on top. Only when the layout was not forced.
+     */
+    function fitButtons(): void {
+      if (!foot || opts.buttonLayout || defs.length !== 2) return;
+      foot.classList.remove('k-dialog__foot--col', 'k-dialog__foot--rev');
+      const labels = foot.querySelectorAll<HTMLElement>('.k-btn__label');
+      for (let i = 0; i < labels.length; i++) {
+        const label = labels[i] as HTMLElement;
+        const line = parseFloat(getComputedStyle(label).lineHeight);
+        if (line > 0 && label.offsetHeight > line * 1.5) {
+          foot.classList.add('k-dialog__foot--col', 'k-dialog__foot--rev');
+          return;
+        }
+      }
+    }
+
     // scroll hints
     function updateScrollHints(): void {
       const max = body.scrollHeight - body.clientHeight;
       bodyWrap.classList.toggle('k-can-up', body.scrollTop > 2);
       bodyWrap.classList.toggle('k-can-down', max - body.scrollTop > 2);
     }
+    function onResize(): void {
+      fitButtons();
+      updateScrollHints();
+    }
     body.addEventListener('scroll', updateScrollHints, { passive: true });
-    window.addEventListener('resize', updateScrollHints);
+    window.addEventListener('resize', onResize);
     let observer: ResizeObserver | null = null;
     if (typeof ResizeObserver === 'function') {
       observer = new ResizeObserver(updateScrollHints);
@@ -371,6 +394,7 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
     stack.push(entry);
     parent.appendChild(root);
     sync();
+    fitButtons();
     reflow(root);
     root.classList.add('k-open');
     updateScrollHints();

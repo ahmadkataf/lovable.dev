@@ -61,9 +61,7 @@ export function createWidgets(core: KitCore): Widgets {
         class: 'k-chip' + (clickable ? ' k-chip--button' : '') + (opts.plus ? ' k-chip--plus' : '') + (opts.className ? ' ' + opts.className : ''),
         'aria-label': opts.ariaLabel,
       },
-      iconEl,
-      textEl,
-      opts.plus ? el('span', { class: 'k-chip__plus', 'aria-hidden': 'true' }, core.icon('plus', 16)) : null,
+      el('span', { class: 'k-chip__in' }, iconEl, textEl, opts.plus ? el('span', { class: 'k-chip__plus', 'aria-hidden': 'true' }, core.icon('plus', 16)) : null),
     );
     if (clickable) {
       const btn = node as HTMLButtonElement;
@@ -158,7 +156,7 @@ export function createWidgets(core: KitCore): Widgets {
     const max = (opts && opts.max) || 3;
     const arc = max === 3;
     const sound = opts && opts.sound !== undefined ? opts.sound : !!(opts && opts.animate);
-    const node = el('div', { class: 'k-stars' + (arc ? ' k-stars--arc' : ''), role: 'img' });
+    const node = el('div', { class: 'k-stars' + (arc ? ' k-stars--arc' : ''), role: 'img', style: { '--k-star': 'calc(var(--k-u) * ' + size + ')' } });
     const stars: HTMLElement[] = [];
     for (let i = 0; i < max; i++) {
       const s = arc && i === 1 ? Math.round(size * 1.28) : size;
@@ -198,12 +196,9 @@ export function createWidgets(core: KitCore): Widgets {
     let checked = opts.checked === true;
     let iconEl: HTMLElement | null = null;
     const labelEl = el('span', { class: 'k-toggle__label', text: opts.label });
-    const node = el(
-      'button',
-      { type: 'button', class: 'k-toggle', role: 'switch' },
-      labelEl,
-      el('span', { class: 'k-switch', 'aria-hidden': 'true' }, el('span', { class: 'k-switch__knob' })),
-    );
+    // A <button> is never the flex container itself (unreliable before Chrome 83): one wrapper inside.
+    const row = el('span', { class: 'k-toggle__in' }, labelEl, el('span', { class: 'k-switch', 'aria-hidden': 'true' }, el('span', { class: 'k-switch__knob' })));
+    const node = el('button', { type: 'button', class: 'k-toggle', role: 'switch' }, row);
     function render(): void {
       node.classList.toggle('k-on', checked);
       node.setAttribute('aria-checked', checked ? 'true' : 'false');
@@ -214,7 +209,7 @@ export function createWidgets(core: KitCore): Widgets {
       if (icon) {
         iconEl = core.icon(icon, 28);
         iconEl.classList.add('k-toggle__icon');
-        node.insertBefore(iconEl, node.firstChild);
+        row.insertBefore(iconEl, row.firstChild);
       }
     }
     if (opts.icon) setIcon(opts.icon);
@@ -290,8 +285,7 @@ export function createWidgets(core: KitCore): Widgets {
       const b = el(
         'button',
         { type: 'button', class: 'k-seg__opt', role: 'radio', 'aria-label': item.ariaLabel },
-        item.icon ? core.icon(item.icon, 24) : null,
-        item.label ? el('span', { text: item.label }) : null,
+        el('span', { class: 'k-seg__in' }, item.icon ? core.icon(item.icon, 24) : null, item.label ? el('span', { text: item.label }) : null),
       );
       b.addEventListener('click', () => choose(item.value, false));
       b.addEventListener('keydown', (ev: KeyboardEvent) => {
