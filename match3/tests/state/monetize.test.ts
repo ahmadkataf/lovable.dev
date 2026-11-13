@@ -174,11 +174,18 @@ describe('entitlements and the purchased flag', () => {
     expect(b.restart().profile.shop().purchased).toBe(true);
   });
 
-  it('at most 16 entitlements, and only ids that look like product ids', () => {
+  it('at most 16 entitlements — the oldest makes room, so a new one can always be recorded — and only ids that look like product ids', () => {
     const h = harness();
-    for (let i = 0; i < 20; i++) h.profile.setEntitlement('product_' + i, true);
+    for (let i = 0; i < 20; i++) expect(h.profile.setEntitlement('product_' + i, true)).toBe(true);
     expect(h.profile.shop().owned.length).toBe(16);
-    expect(h.profile.setEntitlement('one_more', true)).toBe(false);
+    expect(h.profile.shop().owned[0]).toBe('product_4');
+    // a full list (only a damaged save has one) never keeps a real entitlement out
+    expect(h.profile.setEntitlement('remove_ads', true)).toBe(true);
+    expect(h.profile.shop().owned.length).toBe(16);
+    expect(h.profile.shop().owned.indexOf('remove_ads')).toBe(15);
+    expect(h.profile.grantPurchase('tok-full', [], 'starter_pack')).toBe(true);
+    expect(h.profile.shop().owned.slice(-2)).toEqual(['remove_ads', 'starter_pack']);
+    expect(h.restart().profile.shop().owned).toEqual(h.profile.shop().owned);
     for (const bad of ['', 'Remove Ads', 'a'.repeat(41), '_x', null, 5, undefined]) {
       expect(h.profile.setEntitlement(bad as string, true)).toBe(false);
       expect(h.profile.setEntitlement(bad as string, false)).toBe(false);

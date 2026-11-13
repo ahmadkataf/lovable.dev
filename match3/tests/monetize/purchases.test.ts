@@ -385,15 +385,19 @@ describe('entitlements: already owned, restore, re-delivery', () => {
     expect(await more).toBe('purchased');
   });
 
-  it('the store says "alreadyOwned": ownership is recorded without the goodies, and a restore is asked for', async () => {
+  it('the store says "alreadyOwned": nothing is recorded on that word alone — a listing is asked for, and IT restores ownership without the goodies', async () => {
     const w = world();
     const outcome = w.store.buy('starter_pack');
     w.send({ type: 'purchase', id: 'starter_pack', state: 'alreadyOwned' });
     expect(await outcome).toBe('alreadyOwned');
+    // "already owned" is also what the store answers for a payment that is still pending: no proof
+    expect(w.store.owns('starter_pack')).toBe(false);
+    expect(w.profile.shop().purchased).toBe(false);
+    expect(w.newCalls()).toEqual(['iapBuy:starter_pack', 'iapRestore']);
+    w.send({ type: 'owned', ids: ['starter_pack'], complete: true }); // the listing that was asked for
     expect(w.store.owns('starter_pack')).toBe(true);
     expect(w.profile.coins()).toBe(2000);
     expect(w.profile.data().boosters).toEqual(NO_BOOSTERS);
-    expect(w.newCalls()).toEqual(['iapBuy:starter_pack', 'iapRestore']);
     // a coin pack "already owned" is an earlier purchase that was never finished: nothing new was bought
     const pack = w.store.buy('coins_small');
     w.send({ type: 'purchase', id: 'coins_small', state: 'alreadyOwned' });

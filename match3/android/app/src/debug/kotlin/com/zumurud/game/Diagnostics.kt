@@ -20,10 +20,10 @@ import android.webkit.WebView
  *     … --es diagcmd retry     press the error screen's Retry button
  *     … --es diagcmd reload    reload the diagnostics page
  *     … --es diagcmd rate      call AndroidBridge.rate() (opens the store page, or does nothing)
+ *     … --es diagcmd store-show | store-hide        open / close the page's store panel
  *     … --es diagcmd store-query | store-restore | store-buy | store-rewarded | store-interstitial |
- *                    store-privacy | store-sync       press the matching button of the page's
- *                                                     "Monetisation" panel (store-buy buys the
- *                                                     product selected there)
+ *                    store-privacy | store-sync       press the matching button of that panel
+ *                                                     (store-buy buys the product selected there)
  */
 internal object Diagnostics {
     private const val ROOT = "diag"
@@ -66,7 +66,9 @@ internal object Diagnostics {
             "retry" -> activity.retryAfterError()
             "reload" -> webView?.reload()
             "rate" -> webView?.evaluateJavascript("AndroidBridge.rate()", null)
-            "store-query", "store-restore", "store-buy", "store-rewarded", "store-interstitial", "store-privacy", "store-sync" ->
+            "store-show", "store-hide", "store-query", "store-restore", "store-buy", "store-rewarded", "store-interstitial",
+            "store-privacy", "store-sync",
+            ->
                 webView?.evaluateJavascript("window.__diagStore&&window.__diagStore('${command.removePrefix("store-")}')", null)
             else -> Log.w(TAG, "unknown command")
         }

@@ -12,7 +12,9 @@
  *   (everything the specials listed in the preceding `activate` step reach).
  * - In a blast wave every effect hits each cell it reaches exactly once, in the order the effects
  *   are listed. Two effects that share a cell both hit it, so `hits` can name a cell more than
- *   once (a 2-layer stone under two crossing beams is destroyed).
+ *   once (a 2-layer stone under two crossing beams is destroyed). Effects are listed in the
+ *   order their specials were hit — except that a prism which picks its own colour comes after
+ *   the beams, novas and combos of its wave and picks from what they leave (see `blastWave`).
  * - Specials hit in a wave fire in the next wave, before gravity runs (chain reactions). Each
  *   special fires once: the hit removes it, later hits of the same wave find an empty cell.
  * - Swap combos and the end bonus use their pieces up in the same wave that carries the effect:

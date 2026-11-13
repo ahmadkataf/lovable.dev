@@ -5,7 +5,8 @@
  *
  * Exercises every native bridge method and every promise the wrapper makes to the game page, and
  * prints one line per check on screen and to the console ("DIAG PASS|FAIL|WAIT|INFO name: detail",
- * Logcat tag ZumurudJS). WAIT lines need something only a person or tools/android/emu-smoke.sh can
+ * Logcat tag ZumurudJS). The "store" panel (button at the top, or key S) calls the purchase and ad
+ * methods by hand and lists every StoreEvent ("DIAG STORE ← …"). WAIT lines need something only a person or tools/android/emu-smoke.sh can
  * do: press Back, send the app to the background and return, restart the app.
  * Every change is followed by "DIAG SUMMARY pass=… fail=… wait=…" (logged as a warning so it also
  * shows in builds that only forward warnings).
@@ -21,6 +22,11 @@ const outEl = document.getElementById('out');
 const summaryEl = document.getElementById('summary');
 const frameEl = document.getElementById('frame');
 
+// Result lines go to the console as log lines. A release build only forwards warnings and errors
+// to Logcat, so when this page runs as the bundled content of a release build (no DiagBridge) the
+// lines are sent as warnings instead.
+const say = D ? console.log.bind(console) : console.warn.bind(console);
+
 const order = [];
 const results = {};
 let summaryTimer = 0;
@@ -31,7 +37,7 @@ function set(name, status, detail) {
   const previous = results[name];
   results[name] = { status: status, detail: String(detail === undefined ? '' : detail) };
   if (!previous || previous.status !== status || previous.detail !== results[name].detail) {
-    console.log('DIAG ' + status + ' ' + name + ': ' + results[name].detail);
+    say('DIAG ' + status + ' ' + name + ': ' + results[name].detail);
   }
   render();
 }
@@ -243,7 +249,7 @@ function maskToken(text) {
 
 function storeLog(kind, text) {
   const shown = maskToken(text);
-  console.log('DIAG STORE ' + kind + ' ' + shown);
+  say('DIAG STORE ' + kind + ' ' + shown);
   if (!storeLogEl) return;
   const line = document.createElement('div');
   line.className = kind === '←' ? 'event' : 'call';
@@ -391,6 +397,10 @@ if (tabEl) {
     showStore(storeEl.hidden);
   });
 }
+// A hardware key works in every build (adb shell input keyevent KEYCODE_S): S toggles the store panel.
+document.addEventListener('keydown', function (e) {
+  if ((e.key === 's' || e.key === 'S') && storeEl) showStore(storeEl.hidden);
+});
 
 // ───────────────────────── the checks ─────────────────────────
 

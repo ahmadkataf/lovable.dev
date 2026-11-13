@@ -3,11 +3,14 @@
  */
 import type { AppContext } from '../app/types.ts';
 import type { ChapterTheme } from '../art/types.ts';
-import type { LevelDef } from '../engine/types.ts';
+import type { LevelDef, StartBoosters } from '../engine/types.ts';
 import type { FeatureId } from '../state/extensions.ts';
 import type { BoosterId } from '../state/types.ts';
 import type { Kit } from './kit/index.ts';
 import type { Flags } from './flags.ts';
+import type { Tick } from './ticker.ts';
+
+export type ScreenKind = 'title' | 'map' | 'play';
 
 /** A chapter of the journey (structurally the same as the `Chapter` of src/levels). */
 export interface ChapterInfo {
@@ -48,10 +51,25 @@ export interface Ui {
   readonly flags: Flags;
   /** Shorthand for ctx.i18n.t. */
   t(key: string, vars?: Record<string, string | number>): string;
-  /** Feature gating (docs/DESIGN.md §5); everything is on when the profile has no gating yet. */
+  /** Feature gating (docs/DESIGN.md §5); everything counts as unlocked with the `?gate=off` debug flag. */
   feature(id: FeatureId): boolean;
   boosterUnlocked(id: BoosterId): boolean;
   chapterOf(levelId: number): ChapterInfo;
+  /** The screen that is showing now. */
+  screen(): ScreenKind | null;
+  /**
+   * Run `tick` now and then whenever the countdown it shows moves on a second (it returns the
+   * milliseconds left, or nothing when no countdown runs: then once a second). Nothing ticks
+   * while the app is in the background; coming back ticks at once. Returns the stop function.
+   */
+  ticker(tick: Tick): () => void;
+
+  /**
+   * Start a level from its intro: takes the `paid` start boosters out of the inventory, adds the
+   * `free` ones (the Caravan's) and enters the play screen. Returns false — with the paid boosters
+   * back in the inventory — when the level could not be started.
+   */
+  startLevel(levelId: number, paid: StartBoosters, free: StartBoosters): boolean;
 
   goTitle(): void;
   /** Lives dialog (count, countdown, refill, rewarded life). Resolves when closed. */

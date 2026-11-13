@@ -60,10 +60,16 @@ fun interface StoreEventSink {
     fun emit(eventJson: String)
 }
 
-/** What the store needs from the activity besides the activity itself. Main thread only. */
+/** What the store needs from the activity besides the activity itself. */
 interface StoreHost {
-    /** A full-screen ad or a consent form has closed: hide the system bars again. */
+    /** A full-screen ad or a consent form has closed: hide the system bars again. Main thread. */
     fun restoreImmersiveMode()
+
+    /**
+     * Make sure the save the page handed over with storeSave() is on disk, and say whether it is.
+     * Called before a purchase is consumed or acknowledged, from a background thread (it blocks).
+     */
+    fun flushSave(): Boolean
 }
 
 /** The one place that decides which [StoreController] a build uses. */
@@ -99,7 +105,7 @@ internal interface AdsController {
 
 /** Purchases through Google Play in every build; ads from the build flavour. */
 internal class GameStore(activity: ComponentActivity, host: StoreHost, sink: StoreEventSink) : StoreController {
-    private val billing = BillingController(activity, sink)
+    private val billing = BillingController(activity, sink, host::flushSave)
     private val ads: AdsController = AdsFactory.create(activity, host, sink)
 
     /** False until the current document has been sent the 'ads' state it could not hear earlier. */

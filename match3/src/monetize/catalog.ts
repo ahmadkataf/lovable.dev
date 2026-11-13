@@ -49,6 +49,13 @@ export const PRODUCTS: readonly ProductDef[] = Object.freeze(
 
 export const PRODUCT_IDS: readonly ProductId[] = Object.freeze(PRODUCTS.map((p) => p.id));
 
+/**
+ * Most units of one coin pack a single purchase can deliver (Play's optional "multi-quantity"
+ * purchases; one purchase, one token). A sanity bound far above anything a purchase screen
+ * offers, not a design number.
+ */
+export const MAX_PURCHASE_QUANTITY = 100;
+
 /** The catalogue entry for an id, or null when the id is not one of ours. */
 export function productDef(id: unknown): ProductDef | null {
   if (typeof id !== 'string') return null;
@@ -102,6 +109,12 @@ export const AD_WATCHDOG_MS = 120_000;
 export const AD_RESUME_GRACE_MS = 15_000;
 /** A purchase flow that never reports back is given up after this long (a late result is still granted). */
 export const BUY_WATCHDOG_MS = 600_000;
+/**
+ * After the app returned to the front with a purchase still open (the store's purchase screen has
+ * closed), its result must arrive within this long. Longer than the wrapper needs to reconnect to
+ * the store and list the purchases (it does so on every return).
+ */
+export const BUY_RESUME_GRACE_MS = 30_000;
 /** A restore that gets no answer resolves after this long. */
 export const RESTORE_WATCHDOG_MS = 15_000;
 /** After the store's list of owned products arrives, unfinished purchases may follow for this long. */

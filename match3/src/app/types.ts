@@ -15,8 +15,8 @@ export interface AppContext {
   audio: AudioApi;
   i18n: I18nApi;
   platform: PlatformApi;
-  /** Extension methods may be missing until the economy module lands — call them with `?.()`. */
-  profile: ProfileApi & Partial<ProfileExtensions>;
+  /** The full profile of `createProfile`: the base contract plus unlocks, gating, Caravan, single lives, continue prices. */
+  profile: ProfileApi & ProfileExtensions;
   /** Real-money purchases and ads (unavailable ⇒ offers are simply hidden). */
   store: StoreApi;
   /** All levels, index 0 = level 1. */

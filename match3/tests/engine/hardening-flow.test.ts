@@ -52,12 +52,15 @@ function reachable(s: Snapshot): Set<string> {
   };
   const seen = new Set<string>();
   const queue: Pos[] = [];
-  for (let r = 0; r < s.rows; r++) {
-    for (let c = 0; c < s.cols; c++) {
-      if (s.cells[r * s.cols + c].spawner && open(c, r)) {
+  // §2.1: the spawner of a column is its top-most existing cell (worked out here, not read from the snapshot's flags)
+  for (let c = 0; c < s.cols; c++) {
+    for (let r = 0; r < s.rows; r++) {
+      if (!s.cells[r * s.cols + c].exists) continue;
+      if (open(c, r)) {
         seen.add(`${c},${r}`);
         queue.push(at(c, r));
       }
+      break;
     }
   }
   while (queue.length > 0) {
@@ -88,6 +91,33 @@ function expectUnchanged(before: Snapshot, res: TurnResult): void {
 }
 
 describe('§2.6 gravity and refill', () => {
+  it('§2.1: the top-most existing cell of each column is its spawner, the bottom-most its exit — and nothing else is', () => {
+    const rows = ['_  ?  _  ?  ?', '_  ?  ?  _  ?', '?  ?  ?  ?  ?', '?  _  ?  ?  _', '?  ?  _  ?  _'];
+    const s = build(rows, { startShuffle: true, colors: 5 }).snapshot();
+    const flags = (pick: (cell: CellView) => boolean): string[] => {
+      const out: string[] = [];
+      s.cells.forEach((cell, i) => {
+        if (pick(cell)) out.push(`${i % 5},${Math.floor(i / 5)}`);
+      });
+      return out.sort();
+    };
+    expect(flags((cell) => cell.spawner)).toEqual(cellsOf('0,2 1,0 2,1 3,0 4,0'));
+    expect(flags((cell) => cell.exit)).toEqual(cellsOf('0,4 1,4 2,3 3,4 4,2'));
+    expect(flags((cell) => !cell.exists)).toEqual(cellsOf('0,0 0,1 2,0 3,1 1,3 4,3 2,4 4,4'));
+    // a column whose top is missing spawns into its first existing cell
+    for (let seed = 1; seed <= 5; seed++) {
+      const t = new Audit(build(rows, { startShuffle: true, colors: 5, seed }), {});
+      const res = t.hammer(at(0, 4));
+      const fall = stepsOf(res.steps, 'fall')[0];
+      const spawn = fall.spawns.filter((sp) => sp.from.c === 0);
+      expect(spawn.length).toBe(1);
+      expect(spawn[0].from).toEqual(at(0, -1));
+      expect(spawn[0].to).toEqual(at(0, 2));
+      expect(pieceAt(res.snapshot, 0, 0)).toBeNull();
+      expect(emptyCells(res.snapshot)).toEqual([]);
+    }
+  });
+
   it('pieces fall straight down; the fall step lists each moved piece once with its final cell; one spawn per missing piece', () => {
     const rows = ['~  ~  ~', '~  ~  ~', '~  E  ~', '~  F  ~'];
     const { t, res } = quietRun(rows, {}, { op: 'hammer', at: at(1, 3) }, (r) => stepTypes(r.steps) === 'booster clear fall');
@@ -1353,7 +1383,15 @@ describe('rejected calls and determinism (§2.12)', () => {
         // calls that must all be refused in this state, in between the real ones
         const before = JSON.stringify(game.snapshot());
         const status = game.snapshot().status;
+        // an adjacent pair that is not a valid move (the there-and-back swap), if the board has one
+        let invalid: [Pos, Pos] | null = null;
+        for (let i = 0; i < 49 && invalid === null && status === 'playing'; i++) {
+          const a = at(i % 7, Math.floor(i / 7));
+          const b = at(a.c + 1, a.r);
+          if (b.c < 7 && !game.canSwap(a, b)) invalid = [a, b];
+        }
         const refused: TurnResult[] = [
+          ...(invalid !== null ? [game.swap(invalid[0], invalid[1]), game.swap(invalid[1], invalid[0])] : []),
           game.swap(at(junk.int(9) - 1, junk.int(9) - 1), at(junk.int(9) - 1, junk.int(9) - 1)),
           game.useBooster('hammer', at(-1, junk.int(3))),
           game.useBooster('freeSwap', at(0, 0), at(2, 2)),
@@ -1438,6 +1476,41 @@ describe('rejected calls and determinism (§2.12)', () => {
     for (const step of res.steps) if (step.type === 'fall') for (const s of step.spawns) s.piece.color = 5;
     expect(JSON.stringify(game.snapshot())).toBe(after);
     expect(game.level).toBe(level);
+  });
+
+  it('the colour count is clamped to 3..6: fewer colours would make every refill match and a move never end', () => {
+    const base: LevelDef = { id: 1, cols: 8, rows: 8, colors: 5, moves: 30, pieces: new Array<string>(8).fill('........'), goals: [{ kind: 'score', target: 1e9 }], stars: [1e9, 2e9, 3e9] };
+    for (const [given, used] of [
+      [0, 3],
+      [1, 3],
+      [2, 3],
+      [-5, 3],
+      [3, 3],
+      [6, 6],
+      [7, 6],
+      [99, 6],
+      [4.5, 6],
+      [Number.NaN, 6],
+    ] as [number, number][]) {
+      const colours = new Set<number>();
+      let longest = 0;
+      for (let seed = 1; seed <= 3; seed++) {
+        const game = new Game({ ...base, colors: given }, { seed });
+        const start = game.snapshot();
+        expect(start.status).toBe('playing');
+        expect(refHasMatch(start)).toBe(false);
+        for (const cell of start.cells) colours.add((cell.piece as Piece).color);
+        const bot = dice(seed);
+        for (let n = 0; n < 25 && game.snapshot().status === 'playing'; n++) {
+          const move = bot.pick(game.validMoves());
+          const res = game.swap(move.a, move.b);
+          longest = Math.max(longest, res.steps.length);
+          for (const fall of stepsOf(res.steps, 'fall')) for (const sp of fall.spawns) colours.add(sp.piece.color);
+        }
+      }
+      expect([...colours].sort(), `colors: ${given}`).toEqual(Array.from({ length: used }, (_, k) => k));
+      expect(longest).toBeLessThan(200);
+    }
   });
 
   it('a level with no moves cannot be played: it starts lost (addMoves resumes), never with negative moves', () => {

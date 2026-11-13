@@ -10,8 +10,8 @@
  *    URL says `?fakestore=0`): the test store of ./fake.ts, which simulates products and ads;
  *  - anywhere else: everything unavailable — the game simply hides its offers.
  * The test store can never appear in an Android build: wherever the Android bridge exists (or the
- * platform reports Android, or the page is served from the wrapper's asset host) it is refused,
- * also when 'fake' is asked for explicitly.
+ * platform reports Android, or the page is served from the wrapper's asset host, or the browser is
+ * an Android WebView at all) it is refused, also when 'fake' is asked for explicitly.
  *
  * The rules (grant once per purchase token, finish only after the save, ad frequency caps) are in
  * ./store.ts, the numbers in ./catalog.ts, the bookkeeping in the profile (ProfileShop).
@@ -72,6 +72,7 @@ const PROFILE_METHODS = [
   'shop',
   'lastSaveOk',
   'purchaseGranted',
+  'purchaseSaved',
   'grantPurchase',
   'setEntitlement',
   'adsToday',
@@ -105,10 +106,23 @@ function androidBridge(win: Window | undefined): Record<string, unknown> | null 
   return typeof bridge === 'object' && bridge !== null ? (bridge as Record<string, unknown>) : null;
 }
 
+/** An Android System WebView says so in its user agent ("…; wv) …"): an app, not a browser. */
+function isAndroidWebView(win: Window): boolean {
+  const agent = read(() => win.navigator.userAgent);
+  return typeof agent === 'string' && /Android/.test(agent) && /;\s*wv\)/.test(agent);
+}
+
+/**
+ * Four independent signs, any one of which is enough: the bridge object, what the platform module
+ * found, the wrapper's asset host, and the user agent of an Android WebView. The last two still
+ * hold if the bridge was not injected for some reason — the test store stays out of the app.
+ */
 function isAndroid(win: Window | undefined, platform: PlatformApi): boolean {
   if (androidBridge(win)) return true;
   if (read(() => platform.info().platform) === 'android') return true;
-  return (win ? read(() => win.location.hostname) : undefined) === ANDROID_ASSET_HOST;
+  if (!win) return false;
+  if (read(() => win.location.hostname) === ANDROID_ASSET_HOST) return true;
+  return isAndroidWebView(win);
 }
 
 /** `fakestore` in the page URL: '1' asks for the test store, '0' forbids it, anything else says nothing. */
@@ -157,7 +171,8 @@ function startFake(win: Window | undefined, deps: StoreDeps, profile: FullProfil
     alreadyOwned: profile.shop().owned.slice(),
     ...(deps.fakeStorage ? { storage: deps.fakeStorage } : win ? { storage: fakeLocalStorage(win) } : {}),
   });
-  core = createCoreStore({ profile, platform: deps.platform, now: clockOf(deps), bridge });
+  // The test sheet lives inside the page: leaving and returning says nothing about a purchase.
+  core = createCoreStore({ profile, platform: deps.platform, now: clockOf(deps), bridge, buyResumeGraceMs: null });
   core.start();
   return core;
 }

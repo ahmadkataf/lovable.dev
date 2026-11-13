@@ -11,6 +11,7 @@ import {
   LIMITER_ONSET,
   MATCH_VARIANTS,
   MUSIC_CEILING,
+  MUSIC_KNEE,
   MUSIC_DUCK_DB,
   MUSIC_DUCK_HOLD,
   MUSIC_PEAK_DB,
@@ -253,11 +254,27 @@ async function steppedMusic(
   seed: number,
   tick: number,
   layers?: { lead: boolean; pad: boolean; perc: boolean },
-  options?: { chain?: OutputChainOptions; script?: ScriptEvent[]; onMixer?: (mixer: SfxMixer, now: number) => void; tail?: number },
+  options?: {
+    chain?: OutputChainOptions;
+    script?: ScriptEvent[];
+    onMixer?: (mixer: SfxMixer, now: number) => void;
+    tail?: number;
+    /** A steady test tone fed into the music path alongside the music (frequency in Hz, amplitude). */
+    probe?: { hz: number; level: number };
+  },
 ): Promise<SteppedMusic & { mixer: SfxMixer }> {
   const total = seconds + (options && options.tail !== undefined ? options.tail : MUSIC_TAIL);
   const ctx = offlineContext(total);
   const chain = createOutputChain(ctx, undefined, options && options.chain);
+  if (options && options.probe) {
+    const osc = ctx.createOscillator();
+    osc.frequency.value = options.probe.hz;
+    const g = ctx.createGain();
+    g.gain.value = options.probe.level;
+    osc.connect(g);
+    g.connect(chain.musicIn);
+    osc.start(0);
+  }
   const mixer = new SfxMixer(ctx, chain);
   const script = options && options.script ? options.script.slice().sort((a, b) => a.t - b.t) : [];
   let scriptAt = 0;
@@ -593,7 +610,7 @@ async function longMusicReport(track: MusicTrack, seconds: number, seed: number,
   let cookedPeak = 0;
   for (let i = 0; i < cooked.length; i++) if (Math.abs(cooked[i]) > cookedPeak) cookedPeak = Math.abs(cooked[i]);
   // Samples above the clipper's knee, seen from the output: knee × music bus gain.
-  const kneeOut = (MUSIC_CEILING * 0.64) * LEVELS.music;
+  const kneeOut = MUSIC_KNEE * LEVELS.music;
   let bent = 0;
   for (let i = SR; i < data.length; i++) if (Math.abs(data[i]) > kneeOut) bent++;
 
@@ -1657,6 +1674,54 @@ async function notesOf(name: SfxName, step: number | undefined, slots: { from: n
   return slots.map((s) => strongestIn(data, SR, s.from, s.to, lo, hi));
 }
 
+export interface PumpReport {
+  track: MusicTrack;
+  /** Level of a steady tone riding through the music's dynamics, in dB relative to its median. */
+  deepest: number;
+  /** Dip that is exceeded only 5 % / 1 % of the time (dB, ≤ 0). */
+  p5: number;
+  p1: number;
+  /** Share of the time (0..1) the tone is more than 3 dB / 6 dB under its median. */
+  below3: number;
+  below6: number;
+}
+
+/**
+ * Pumping: how much the music's compressor and clipper push the quiet, sustained part of the
+ * music around whenever a note or a drum hits. A faint steady tone (in a band the music hardly
+ * uses) is sent through the music path together with the lead and the percussion; what
+ * happens to its level is what happens to the drone under them.
+ */
+async function pumpReport(track: MusicTrack, seconds: number = 40, seed: number = 20240521, chain?: OutputChainOptions): Promise<PumpReport> {
+  const hz = 9500;
+  const render = await steppedMusic(track, seconds, seed, 0.1, { lead: true, pad: false, perc: true }, { probe: { hz, level: 0.012 }, tail: 2, chain });
+  const x = render.data;
+  // The tone's level in 10 ms windows (Goertzel), from 2 s on.
+  const win = Math.round(0.01 * SR);
+  const w = (2 * Math.PI * hz) / SR;
+  const levels: number[] = [];
+  for (let s = 2 * SR; s + win <= x.length; s += win) {
+    let re = 0;
+    let im = 0;
+    for (let i = 0; i < win; i++) {
+      const h = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / win);
+      re += x[s + i] * h * Math.cos(w * i);
+      im -= x[s + i] * h * Math.sin(w * i);
+    }
+    levels.push(10 * Math.log10(re * re + im * im + 1e-20));
+  }
+  const sorted = levels.slice().sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const at = (q: number): number => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] - median;
+  let below3 = 0;
+  let below6 = 0;
+  for (let i = 0; i < levels.length; i++) {
+    if (levels[i] < median - 3) below3++;
+    if (levels[i] < median - 6) below6++;
+  }
+  return { track, deepest: sorted[0] - median, p5: at(0.05), p1: at(0.01), below3: below3 / levels.length, below6: below6 / levels.length };
+}
+
 /** The takes of 'match': each rendered alone, with its pitch and attack. */
 async function variantReport(step: number = 5): Promise<{ take: number; pitch: number; cents: number; attack: number; peakDb: number }[]> {
   const out: { take: number; pitch: number; cents: number; attack: number; peakDb: number }[] = [];
@@ -1667,6 +1732,39 @@ async function variantReport(step: number = 5): Promise<{ take: number; pitch: n
     out.push({ take: k, pitch, cents: 1200 * Math.log2(pitch / base), attack: r.attack || 0, peakDb: r.metrics.peakDb });
   }
   return out;
+}
+
+/** Tuning aid: the music's level, crest and pumping for other dynamics settings. */
+async function dynamicsTrial(
+  track: MusicTrack,
+  chain: OutputChainOptions,
+  seconds: number = 40,
+): Promise<{ peakDb: number; rmsDb: number; crest: number; glueMean: number; glueMax: number; clipShare: number; hardShare: number; loudness: LoudnessStats; pump: PumpReport }> {
+  const render = await steppedMusic(track, seconds, 20240521, 0.1, undefined, { chain, tail: 2 });
+  const data = render.data.subarray(SR);
+  let peak = 0;
+  let bent = 0;
+  let hard = 0;
+  const knee = (chain.clipKnee === undefined ? MUSIC_KNEE : chain.clipKnee) * LEVELS.music;
+  // "hard": within half a decibel of the ceiling, where the curve is nearly flat
+  const flat = MUSIC_CEILING * LEVELS.music * 0.944;
+  for (let i = 0; i < data.length; i++) {
+    const a = Math.abs(data[i]);
+    if (a > peak) peak = a;
+    if (a > knee) bent++;
+    if (a > flat) hard++;
+  }
+  return {
+    peakDb: toDb(peak),
+    rmsDb: sliceRmsDb(data, SR, 0, seconds),
+    crest: crestDb(data),
+    glueMean: render.glueMean,
+    glueMax: render.glueMax,
+    clipShare: bent / data.length,
+    hardShare: hard / data.length,
+    loudness: loudnessStats(data, SR),
+    pump: await pumpReport(track, seconds, 20240521, chain),
+  };
 }
 
 const lab = {
@@ -1685,6 +1783,8 @@ const lab = {
   floodReport,
   stealReport,
   duckReport,
+  pumpReport,
+  dynamicsTrial,
   variantReport,
   tuningOf,
   notesOf,

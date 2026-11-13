@@ -18,8 +18,9 @@ import type { FeatureId } from '../state/extensions.ts';
 import type { BoosterId } from '../state/types.ts';
 import type { ConfirmOptions, DialogHandle, DialogOptions, Kit } from './kit/index.ts';
 import type { Flags } from './flags.ts';
-import { levelById } from './helpers.ts';
-import type { ChapterInfo, Screen, Ui, World } from './types.ts';
+import { boosterList, levelById } from './helpers.ts';
+import { createTickers } from './ticker.ts';
+import type { ChapterInfo, Screen, ScreenKind, Ui, World } from './types.ts';
 import { createTitleScreen } from './screens/title.ts';
 import { createMapScreen } from './screens/map.ts';
 import type { MapScreen, WonInfo } from './screens/map.ts';
@@ -30,11 +31,9 @@ import { openSettingsDialog } from './dialogs/settings.ts';
 import { openDailyDialog } from './dialogs/daily.ts';
 import { openUnlockDialog } from './dialogs/unlock.ts';
 
-export type { ChapterInfo, Screen, Ui, World } from './types.ts';
+export type { ChapterInfo, Screen, ScreenKind, Ui, World } from './types.ts';
 export type { Flags } from './flags.ts';
 export { NO_FLAGS, readFlags } from './flags.ts';
-
-export type ScreenKind = 'title' | 'map' | 'play';
 
 export interface ShellDeps {
   /** The app root (#app). */
@@ -119,6 +118,8 @@ export function createShell(deps: ShellDeps): Shell {
   let mapScreen: MapScreen | null = null;
   let play: PlayScreen | null = null;
   let paused = false;
+  /** The clock of every countdown on the meta screens; stands still while the app is paused. */
+  const tickers = createTickers({ set: (fn, ms) => window.setTimeout(fn, ms), clear: (handle) => window.clearTimeout(handle) });
   let lastRoot: boolean | null = null;
   /** What the profile looked like when the current level was started (to tell a first clear from a replay). */
   let lastPlay: { level: number; stars: number } | null = null;
@@ -142,23 +143,11 @@ export function createShell(deps: ShellDeps): Shell {
   }
 
   function feature(id: FeatureId): boolean {
-    if (flags.gateOff) return true;
-    try {
-      const fn = profile.featureUnlocked;
-      return typeof fn === 'function' ? fn.call(profile, id) === true : true;
-    } catch {
-      return true;
-    }
+    return flags.gateOff || profile.featureUnlocked(id) === true;
   }
 
   function boosterUnlocked(id: BoosterId): boolean {
-    if (flags.gateOff) return true;
-    try {
-      const fn = profile.boosterUnlocked;
-      return typeof fn === 'function' ? fn.call(profile, id) === true : true;
-    } catch {
-      return true;
-    }
+    return flags.gateOff || profile.boosterUnlocked(id) === true;
   }
 
   // ───────────────────────────── root flag ─────────────────────────────
@@ -233,10 +222,20 @@ export function createShell(deps: ShellDeps): Shell {
       onDailyOffered: () => {
         dailyOffered = true;
       },
+      onStale: () => {
+        // what the bars offer has changed (a new day switched the daily reward on): same place, rebuilt
+        if (kind === 'map' && mapScreen === screen) rebuildMap();
+      },
     });
     mapScreen = screen;
     mount(screen, 'map', animate);
     music('menu');
+  }
+
+  /** The map again, at the same scroll position (language switched, the bars changed). */
+  function rebuildMap(): void {
+    const ratio = mapScreen ? mapScreen.scrollRatio() : undefined;
+    showMap({ scrollRatio: ratio, auto: false }, false);
   }
 
   function goTitle(): void {
@@ -246,7 +245,11 @@ export function createShell(deps: ShellDeps): Shell {
   }
 
   function ensurePlay(): PlayScreen {
-    if (!play) play = deps.createPlay(ctx);
+    if (!play) {
+      play = deps.createPlay(ctx);
+      // created while the app is in the background: it must know, like every screen
+      if (paused) play.setPaused(true);
+    }
     return play;
   }
 
@@ -263,7 +266,7 @@ export function createShell(deps: ShellDeps): Shell {
         }
       },
       handleBack: () => p.handleBack(),
-      setPaused: (value: boolean) => p.setPaused(value),
+      // pause / resume reach the play screen from the shell itself, mounted or not (see setPaused)
     };
   }
 
@@ -308,15 +311,25 @@ export function createShell(deps: ShellDeps): Shell {
       if (introBusy) return;
       introBusy = true;
       const token = navToken;
-      ui.showUnlocks().then(() => {
+      const show = (): void => {
         introBusy = false;
         if (token !== navToken) return; // the player has moved on meanwhile
+        if (introOpen && introOpen.isOpen()) return;
         const dialog = openIntroDialog(ui, level);
         introOpen = dialog;
         dialog.closed.then(() => {
           if (introOpen === dialog) introOpen = null;
         });
-      });
+      };
+      let unlocks: Promise<void>;
+      try {
+        unlocks = ui.showUnlocks();
+      } catch (err) {
+        // the introduction is a nicety; the level must still open
+        console.error('[shell] booster introduction failed', err);
+        unlocks = Promise.resolve();
+      }
+      unlocks.then(show, show);
     },
 
     toPlay(levelId: number, boosters: StartBoosters): void {
@@ -341,6 +354,7 @@ export function createShell(deps: ShellDeps): Shell {
         p.start(level, boosters || {});
       } catch (err) {
         console.error('[shell] could not start level ' + id, err);
+        lastPlay = null;
         kit.toast(ui.t('meta.error.level'), { icon: 'info' });
         showMap({ focusLevel: id, auto: false }, true);
       }
@@ -396,8 +410,22 @@ export function createShell(deps: ShellDeps): Shell {
     feature,
     boosterUnlocked,
     chapterOf,
+    screen: () => kind,
+    ticker: (tick) => tickers.add(tick),
     goTitle,
     syncRoot,
+
+    startLevel(levelId: number, paid: StartBoosters, free: StartBoosters): boolean {
+      // the boosters the player chose leave the inventory only for a level that really starts
+      const taken = boosterList(paid).filter((id) => profile.takeBooster(id));
+      const all: StartBoosters = {};
+      for (const id of taken) all[id] = true;
+      for (const id of boosterList(free)) all[id] = true;
+      nav.toPlay(levelId, all);
+      if (kind === 'play') return true;
+      for (const id of taken) profile.addBooster(id, 1);
+      return false;
+    },
 
     openLives(): Promise<void> {
       if (!livesOpen) {
@@ -423,9 +451,7 @@ export function createShell(deps: ShellDeps): Shell {
       if (unlocksOpen) return unlocksOpen;
       let gifts: { id: BoosterId; amount: number }[] = [];
       try {
-        const fn = profile.claimUnlocks;
-        const got = typeof fn === 'function' ? fn.call(profile) : [];
-        if (Array.isArray(got)) gifts = got;
+        gifts = profile.claimUnlocks();
       } catch (err) {
         console.error('[shell] claimUnlocks failed', err);
       }
@@ -451,12 +477,8 @@ export function createShell(deps: ShellDeps): Shell {
   i18n.onChange(() => {
     setDocTitle();
     // rebuild the visible screen in the new language and direction; dialogs re-render themselves
-    if (kind === 'title') {
-      mount(createTitleScreen(ui), 'title', false);
-    } else if (kind === 'map') {
-      const ratio = mapScreen ? mapScreen.scrollRatio() : undefined;
-      showMap({ scrollRatio: ratio, auto: false }, false);
-    }
+    if (kind === 'title') mount(createTitleScreen(ui), 'title', false);
+    else if (kind === 'map') rebuildMap();
   });
 
   setDocTitle();
@@ -492,15 +514,25 @@ export function createShell(deps: ShellDeps): Shell {
     },
 
     setPaused(value: boolean): void {
+      if (value === paused) return;
       paused = value;
+      tickers.setPaused(value);
+      // The play screen always hears it, mounted or not: it keeps its own "app is paused" freeze,
+      // and a level may be left while the app is in the background (an ad's result can arrive
+      // before the resume) — a resume it never heard of would leave every later level frozen.
+      if (play) {
+        try {
+          play.setPaused(value);
+        } catch (err) {
+          console.error('[shell] play.setPaused failed', err);
+        }
+      }
       if (active && active.setPaused) {
         try {
           active.setPaused(value);
         } catch (err) {
           console.error('[shell] setPaused failed', err);
         }
-      } else if (play && kind === 'play') {
-        play.setPaused(value);
       }
     },
 

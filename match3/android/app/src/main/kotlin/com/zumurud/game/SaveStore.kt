@@ -28,6 +28,19 @@ internal class SaveStore(context: Context) {
         return true
     }
 
+    /**
+     * Blocks until everything stored so far is on disk; false when it could not be written.
+     * Used before a purchase is consumed or acknowledged: the grant must not exist in memory only.
+     * Disk work — not for the main thread.
+     */
+    fun flush(): Boolean = try {
+        // commit() writes synchronously, but only when something changed: a counter makes sure it
+        // does, and that its result speaks for the whole file (the save included).
+        prefs.edit().putLong(KEY_FLUSHES, prefs.getLong(KEY_FLUSHES, 0L) + 1L).commit()
+    } catch (_: Exception) {
+        false
+    }
+
     private fun utf8Length(text: String): Int {
         var bytes = 0
         var i = 0
@@ -51,6 +64,7 @@ internal class SaveStore(context: Context) {
         /** Also named in the backup rule files — change all three together. */
         const val FILE = "zumurud_save"
         private const val KEY = "save"
+        private const val KEY_FLUSHES = "flushes"
 
         /** Far above any real save (a few kilobytes); a larger payload is a bug, not progress. */
         const val MAX_BYTES = 1 shl 20

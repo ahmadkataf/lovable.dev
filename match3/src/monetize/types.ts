@@ -6,7 +6,10 @@
  * Money safety rules that every implementation must keep:
  *  - A paid item is granted exactly once per purchase token, and only after the store reports
  *    the purchase as PURCHASED (never for PENDING). Tokens already granted are remembered.
- *  - A purchase is "finished" (consumed / acknowledged) only after the grant has been saved.
+ *  - A purchase is "finished" (consumed / acknowledged) only after the grant has been saved —
+ *    which means: found in storage when read back, not merely handed to a save function.
+ *  - "Already owned" as the answer to a purchase attempt proves nothing (a pending payment gets the
+ *    same answer): ownership comes only from a listing ('owned') or a 'purchased' event.
  *  - Prices shown are always the store's own localised price strings — never hard-coded.
  *  - If billing or ads are unavailable the game stays fully playable and simply hides the offers.
  */
@@ -122,7 +125,12 @@ export interface MonetizeBridge {
   iapQuery(idsJson: string): void;
   /** Start the purchase flow. → 'purchase' event(s) */
   iapBuy(id: string): void;
-  /** JS has granted and saved this purchase: consume (consumable) or acknowledge (entitlement) it. */
+  /**
+   * JS has granted and saved this purchase: consume (consumable) or acknowledge (entitlement) it.
+   * The wrapper must make sure the save it was given through `storeSave` is on disk before it
+   * consumes or acknowledges (a save that is only queued for writing can still be lost).
+   * May be called more than once for the same token.
+   */
   iapFinish(token: string): void;
   /** Re-report every purchase the store knows about. → 'owned' event, plus 'purchase' events for unfinished ones */
   iapRestore(): void;
@@ -151,13 +159,19 @@ export type StoreEvent =
       token?: string;
       /** True when the store had already acknowledged it earlier (a restore, not a fresh buy). */
       acknowledged?: boolean;
+      /**
+       * Optional, with 'purchased': units bought in this one purchase when above 1 (Play's
+       * multi-quantity purchases). A consumable's grant is multiplied by it; absent means 1.
+       */
+      quantity?: number;
     }
   /**
    * Entitlements currently owned (acknowledged, non-consumable).
    * `complete: true` (optional) says that `ids` is the whole answer of a SUCCESSFUL query of the
    * store; only then is ownership of an entitlement that is not listed taken away. Without it the
    * list can only add ownership — so a store that could not connect, and therefore reports an
-   * empty list, never removes anything.
+   * empty list, never removes anything. A listing must NOT be marked complete while a paid
+   * entitlement is still waiting to be acknowledged (it is not in `ids` yet, but it is owned).
    */
   | { type: 'owned'; ids: string[]; complete?: boolean }
   | { type: 'ads'; canRequestAds: boolean; rewardedReady: boolean; interstitialReady: boolean; privacyOptionsRequired: boolean }

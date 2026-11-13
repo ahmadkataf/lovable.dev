@@ -7,15 +7,19 @@
  *  - Only a 'purchase' event with state 'purchased' and a usable token grants anything, and the
  *    grant goes through `profile.grantPurchase`, which refuses a token it has seen before and
  *    writes rewards + token + ownership in ONE save.
- *  - `bridge.iapFinish(token)` is called only after that save went through (`profile.lastSaveOk()`),
- *    and again whenever the store re-delivers a token that was already granted (its earlier finish
- *    was lost). A purchase whose grant could not be saved stays unfinished: the store delivers it
- *    again at the next start.
+ *  - `bridge.iapFinish(token)` is called only when that save is known to be in storage: the profile
+ *    reads its save back and finds the token in it (`profile.purchaseSaved`). That a save function
+ *    returned without throwing is not enough — the platform's never throws. The same check guards
+ *    every later finish of a token the store delivers again (its earlier finish was lost). A
+ *    purchase whose grant is not in storage stays unfinished: the store delivers it again.
  *  - The promise returned by `buy()` is only a convenience for the screen that started the purchase.
  *    Grants never depend on it: a purchase that completes later (pending payments, a result that
  *    arrives after a restart) is granted by its event all the same.
- *  - Ownership of an entitlement is sticky. It is set by the store's reports and cleared only by an
- *    'owned' event that says it is the complete answer of a successful query.
+ *  - Ownership of an entitlement is set only by what the store positively reports: a listing
+ *    ('owned') or a 'purchased' event. "Already owned" as the answer to a purchase attempt is not
+ *    proof (the store says the same about a payment that is still pending): it only triggers a
+ *    listing. Ownership is sticky: cleared only by an 'owned' event that says it is the complete
+ *    answer of a successful query.
  *
  * Ads: the store keeps the books (daily counts, the time of the last full-screen ad) in the
  * profile; the CALLER applies every reward. Only one full-screen ad at a time; every promise
@@ -25,11 +29,13 @@
  */
 import type { PlatformApi } from '../platform/types.ts';
 import type { FullProfile } from '../state/extensions.ts';
+import type { Reward } from '../state/types.ts';
 import type { AdPlacement, FullStoreApi, MonetizeBridge, ProductDef, ProductId, ProductInfo, PurchaseOutcome, RewardedOutcome } from './types.ts';
 import {
   AD_PLACEMENTS,
   AD_RESUME_GRACE_MS,
   AD_WATCHDOG_MS,
+  BUY_RESUME_GRACE_MS,
   BUY_WATCHDOG_MS,
   INTERSTITIALS_PER_DAY,
   INTERSTITIAL_AFTER_REWARDED_MS,
@@ -37,6 +43,7 @@ import {
   INTERSTITIAL_MIN_DAYS_PLAYED,
   INTERSTITIAL_MIN_GAP_MS,
   INTERSTITIAL_MIN_LEVEL,
+  MAX_PURCHASE_QUANTITY,
   PRIVACY_WATCHDOG_MS,
   PRODUCTS,
   RESTORE_SETTLE_MS,
@@ -53,6 +60,14 @@ export interface CoreDeps {
   /** Epoch milliseconds. */
   now(): number;
   bridge: MonetizeBridge;
+  /**
+   * How long after the app returned to the front a purchase that is still open may take to report
+   * (the store's own purchase screen covers the app, so "back in front" means that screen has
+   * closed). Then buy() answers 'error' and a listing is asked for. Default BUY_RESUME_GRACE_MS;
+   * null = returning says nothing about the purchase (the browser test store draws its sheet
+   * inside the page).
+   */
+  buyResumeGraceMs?: number | null;
 }
 
 export interface CoreStore extends FullStoreApi {
@@ -64,9 +79,21 @@ export interface CoreStore extends FullStoreApi {
 
 type Timer = ReturnType<typeof setTimeout>;
 
+/** `away`: the app went to the background while the ad was open — something full-screen was in front. */
 type ActiveAd =
-  | { format: 'rewarded'; placement: AdPlacement; resolve(outcome: RewardedOutcome): void; timer: Timer | null }
-  | { format: 'interstitial'; placement: null; resolve(shown: boolean): void; timer: Timer | null };
+  | { format: 'rewarded'; placement: AdPlacement; resolve(outcome: RewardedOutcome): void; timer: Timer | null; away: boolean }
+  | { format: 'interstitial'; placement: null; resolve(shown: boolean): void; timer: Timer | null; away: boolean };
+
+interface OpenPurchase {
+  id: ProductId;
+  resolve(outcome: PurchaseOutcome): void;
+  /** Gives the whole flow up. */
+  timer: Timer;
+  /** Runs after the app returned to the front with the flow still open. */
+  grace: Timer | null;
+  /** The app went to the background since buy(): the store's purchase screen was up. */
+  away: boolean;
+}
 
 const MAX_PRICE_LENGTH = 40;
 
@@ -109,9 +136,27 @@ function isPlacement(p: unknown): p is AdPlacement {
   return typeof p === 'string' && (AD_PLACEMENTS as readonly string[]).indexOf(p) >= 0;
 }
 
+/** Units bought in one purchase: a whole number from 1 to MAX_PURCHASE_QUANTITY; anything else is 1. */
+function purchaseQuantity(v: unknown): number {
+  if (typeof v !== 'number' || !isFinite(v) || v < 2) return 1;
+  return Math.min(MAX_PURCHASE_QUANTITY, Math.floor(v));
+}
+
+/** The grants of `quantity` units of a product (fresh objects). */
+function grantsOf(def: ProductDef, quantity: number): Reward[] {
+  const out: Reward[] = [];
+  for (const r of def.grants) {
+    if (r.kind === 'coins') out.push({ kind: 'coins', amount: r.amount * quantity });
+    else if (r.kind === 'booster') out.push({ kind: 'booster', id: r.id, amount: r.amount * quantity });
+    else out.push({ ...r });
+  }
+  return out;
+}
+
 export function createCoreStore(deps: CoreDeps): CoreStore {
   const { profile, platform, bridge } = deps;
   const caps = readCaps(bridge);
+  const buyResumeGraceMs = deps.buyResumeGraceMs === null ? null : typeof deps.buyResumeGraceMs === 'number' && deps.buyResumeGraceMs >= 0 ? deps.buyResumeGraceMs : BUY_RESUME_GRACE_MS;
 
   function now(): number {
     try {
@@ -183,7 +228,7 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
 
   const prices: Partial<Record<ProductId, string>> = {};
   let priceCount = 0;
-  let buying: { id: ProductId; resolve(outcome: PurchaseOutcome): void; timer: Timer } | null = null;
+  let buying: OpenPurchase | null = null;
   /** Entitlements bought (granted) in this session: an 'owned' listing that predates their acknowledgement must not clear them. */
   const boughtNow: Partial<Record<ProductId, true>> = {};
   let restoreWaiters: ((count: number) => void)[] = [];
@@ -211,12 +256,19 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
     if (!open || open.id !== id) return;
     buying = null;
     clearTimeout(open.timer);
+    if (open.grace !== null) clearTimeout(open.grace);
     open.resolve(outcome);
   }
 
-  /** Consume / acknowledge — only for a grant that is known to be in storage. */
+  /** Consume / acknowledge — only for a grant that is proven to be in storage. */
   function finish(token: string): void {
-    if (!profile.lastSaveOk()) return; // not saved: leave it unfinished, the store delivers it again
+    let saved = false;
+    try {
+      saved = profile.purchaseSaved(token) === true;
+    } catch (err) {
+      log('cannot check the save', err);
+    }
+    if (!saved) return; // not in storage: leave it unfinished, the store delivers it again
     tell('iapFinish', () => bridge.iapFinish(token));
   }
 
@@ -288,7 +340,9 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
     }
 
     // The one place where paid goods are handed over: rewards + token + ownership in one save…
-    if (!profile.grantPurchase(token, def.grants.slice(), entitlement ? def.id : null)) {
+    // (several units of a coin pack bought at once are one purchase with one token)
+    const quantity = entitlement ? 1 : purchaseQuantity(ev.quantity);
+    if (!profile.grantPurchase(token, grantsOf(def, quantity), entitlement ? def.id : null)) {
       settleBuy(def.id, 'error'); // a token the profile cannot remember: never grant what cannot be recorded
       return;
     }
@@ -318,14 +372,11 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
         return;
       case 'alreadyOwned': {
         const waiting = buying !== null && buying.id === def.id;
-        if (def.kind === 'entitlement') {
-          own(def.id);
-          settleBuy(def.id, 'alreadyOwned');
-        } else {
-          // An earlier purchase of this pack was never finished: nothing new was bought.
-          settleBuy(def.id, 'error');
-        }
-        // Let the store deliver whatever is unfinished, so it is granted (once) and finished.
+        // Not proof of ownership: the store answers the same for a payment that is still pending.
+        // Nothing is recorded here — the listing asked for below says what is really owned, and
+        // delivers whatever is unfinished, so that it is granted (once) and finished.
+        // (A coin pack: an earlier purchase of it was never finished; nothing new was bought.)
+        settleBuy(def.id, def.kind === 'entitlement' ? 'alreadyOwned' : 'error');
         if (waiting) requestRestore();
         return;
       }
@@ -390,14 +441,32 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
     if (!current) return;
     ad = null;
     current.timer = null;
-    if (current.format === 'rewarded') {
+    if (current.away) {
+      // The app was covered while this ad was open and no result came back: for the frequency
+      // rules an ad WAS on screen (the cautious reading). No reward — nothing says it was earned.
+      lateAd = null;
+      if (current.format === 'rewarded') profile.noteRewarded(current.placement, false);
+      else profile.noteInterstitial();
+    } else if (current.format === 'rewarded') {
       lateAd = { format: 'rewarded', placement: current.placement };
-      current.resolve('unavailable');
     } else {
       lateAd = { format: 'interstitial', placement: null };
-      current.resolve(false);
     }
+    if (current.format === 'rewarded') current.resolve('unavailable');
+    else current.resolve(false);
     touch();
+  }
+
+  /**
+   * The bridge refused the ad that was just started: it never opened. False when that ad is not
+   * the open one any more (a bridge that reported back inside the call) — then nothing is touched.
+   */
+  function abortAd(mine: ActiveAd): boolean {
+    if (ad !== mine) return false;
+    ad = null;
+    if (mine.timer !== null) clearTimeout(mine.timer);
+    mine.timer = null;
+    return true;
   }
 
   function armAdWatchdog(ms: number): void {
@@ -407,10 +476,13 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
     current.timer = setTimeout(() => batch(expireAd), ms);
   }
 
-  /** True when `stamp` (epoch ms of an earlier ad, 0 = never) lies within `window` of now, on either side. */
+  /**
+   * True when less than `window` has passed since `stamp` (epoch ms of an earlier ad, 0 = never).
+   * A stamp ahead of the clock (it was set back since) blocks as well — but not for ever: the
+   * profile pulls such a stamp back to "now" with every finished level (`noteLevelFinished`).
+   */
   function within(stamp: number, window: number, t: number): boolean {
-    // A stamp far in the future (the clock was set back since) is not trusted to block for ever.
-    return stamp > 0 && Math.abs(t - stamp) < window;
+    return stamp > 0 && t - stamp < window;
   }
 
   function interstitialAllowed(finished: number): boolean {
@@ -422,6 +494,7 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
     if (finished < INTERSTITIAL_EVERY_LEVELS) return false;
     if (profile.adsToday().interstitials >= INTERSTITIALS_PER_DAY) return false;
     const t = now();
+    if (t <= 0) return false; // no clock: the waiting times cannot be kept, so no ad
     if (within(shop.lastInterstitial, INTERSTITIAL_MIN_GAP_MS, t)) return false;
     if (within(shop.lastRewarded, INTERSTITIAL_AFTER_REWARDED_MS, t)) return false;
     return true;
@@ -530,11 +603,33 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
 
   platform.onPause(() => {
     // A full-screen ad (or the store's own screen) is in front: its time does not count against it.
-    if (ad && ad.timer !== null) {
-      clearTimeout(ad.timer);
+    if (ad) {
+      ad.away = true;
+      if (ad.timer !== null) clearTimeout(ad.timer);
       ad.timer = null;
     }
+    const open = buying;
+    if (open) {
+      open.away = true;
+      if (open.grace !== null) clearTimeout(open.grace);
+      open.grace = null;
+    }
   });
+
+  /** Back in front with a purchase still open: the store's screen has closed, its answer is due. */
+  function armBuyGrace(open: OpenPurchase): void {
+    if (buyResumeGraceMs === null || !open.away) return;
+    if (open.grace !== null) clearTimeout(open.grace);
+    open.grace = setTimeout(() => {
+      batch(() => {
+        if (buying !== open) return;
+        // No answer: whoever waits is told so, and the store is asked what really happened — a
+        // payment that did go through is then delivered, granted and finished like any other.
+        settleBuy(open.id, 'error');
+        requestRestore();
+      });
+    }, buyResumeGraceMs);
+  }
 
   platform.onResume(() => {
     batch(() => {
@@ -542,10 +637,15 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
         armAdWatchdog(AD_RESUME_GRACE_MS); // back in front: the result is due now
         return;
       }
-      if (!caps.billing || buying) return;
+      if (!caps.billing) return;
+      if (buying) {
+        armBuyGrace(buying);
+        return;
+      }
       // A payment may have completed while the game was away, and prices may have been missing.
       if (priceCount === 0) queryProducts();
-      if (now() - lastRestoreRequest >= RESUME_RESTORE_GAP_MS) requestRestore();
+      // (the distance on either side: a clock that was set back must not silence this)
+      if (Math.abs(now() - lastRestoreRequest) >= RESUME_RESTORE_GAP_MS) requestRestore();
     });
   });
 
@@ -556,8 +656,11 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
 
     start(): void {
       batch(() => {
-        const sync = bridge.storeSync;
-        if (typeof sync === 'function') tell('storeSync', () => bridge.storeSync!());
+        // Optional in the contract: feature-detected inside the guard, so that a bridge which
+        // cannot even be asked about it does not cost the queries below.
+        tell('storeSync', () => {
+          if (typeof bridge.storeSync === 'function') bridge.storeSync();
+        });
         if (!caps.billing) return;
         queryProducts();
         requestRestore();
@@ -586,8 +689,17 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
       if (buying) return Promise.resolve<PurchaseOutcome>('error'); // one purchase at a time
       if (def.kind === 'entitlement' && owned(def.id)) return Promise.resolve<PurchaseOutcome>('alreadyOwned');
       return new Promise<PurchaseOutcome>((resolve) => {
-        buying = { id: def.id, resolve, timer: setTimeout(() => settleBuy(def.id, 'error'), BUY_WATCHDOG_MS) };
-        if (!tell('iapBuy', () => bridge.iapBuy(def.id))) settleBuy(def.id, 'error');
+        const open: OpenPurchase = {
+          id: def.id,
+          resolve,
+          timer: setTimeout(() => {
+            if (buying === open) settleBuy(open.id, 'error');
+          }, BUY_WATCHDOG_MS),
+          grace: null,
+          away: false,
+        };
+        buying = open;
+        if (!tell('iapBuy', () => bridge.iapBuy(def.id)) && buying === open) settleBuy(open.id, 'error');
       });
     },
 
@@ -627,15 +739,11 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
         return Promise.resolve<RewardedOutcome>('unavailable');
       }
       return new Promise<RewardedOutcome>((resolve) => {
-        ad = { format: 'rewarded', placement, resolve, timer: null };
+        const mine: ActiveAd = { format: 'rewarded', placement, resolve, timer: null, away: false };
+        ad = mine;
         lateAd = null;
         armAdWatchdog(AD_WATCHDOG_MS);
-        if (!tell('adShowRewarded', () => bridge.adShowRewarded(placement))) {
-          const current = ad;
-          ad = null;
-          if (current && current.timer !== null) clearTimeout(current.timer);
-          resolve('unavailable');
-        }
+        if (!tell('adShowRewarded', () => bridge.adShowRewarded(placement)) && abortAd(mine)) resolve('unavailable');
       });
     },
 
@@ -645,15 +753,11 @@ export function createCoreStore(deps: CoreDeps): CoreStore {
       const finished = profile.noteLevelFinished();
       if (!interstitialAllowed(finished)) return Promise.resolve(false);
       return new Promise<boolean>((resolve) => {
-        ad = { format: 'interstitial', placement: null, resolve, timer: null };
+        const mine: ActiveAd = { format: 'interstitial', placement: null, resolve, timer: null, away: false };
+        ad = mine;
         lateAd = null;
         armAdWatchdog(AD_WATCHDOG_MS);
-        if (!tell('adShowInterstitial', () => bridge.adShowInterstitial())) {
-          const current = ad;
-          ad = null;
-          if (current && current.timer !== null) clearTimeout(current.timer);
-          resolve(false);
-        }
+        if (!tell('adShowInterstitial', () => bridge.adShowInterstitial()) && abortAd(mine)) resolve(false);
       });
     },
 

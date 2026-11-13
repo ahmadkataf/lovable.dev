@@ -140,6 +140,10 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
   let turnsDone = 0;
   let pauseOpen = false;
   let detachGlobal: (() => void) | null = null;
+  /** the piece under the finger, and the two pieces a drag is pushing apart */
+  let held: VPiece | null = null;
+  let dragPiece: VPiece | null = null;
+  let dragOther: VPiece | null = null;
 
   // frame statistics (dev overlay / tests) and the low-end switch
   const perf = { frames: 0, total: 0, worst: 0, winFrames: 0, winTotal: 0, slowWindows: 0, lowEnd: false };
@@ -405,25 +409,62 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     return !!vp && !vp.dying && !vp.chained && vp.kind !== 'stone' && vp.kind !== 'vine';
   }
 
-  function scaleTo(vp: VPiece, target: number, ms: number): void {
-    const from = vp.sx;
+  /**
+   * Cosmetic tween of one piece toward a scale; any stray offset (a drag let go, a wobble cut
+   * short) eases out with it. It owns the piece until someone else takes it (VPiece.tw).
+   */
+  function easeTo(vp: VPiece, scale: number, ms: number): void {
+    const my = ++vp.tw;
+    const sx = vp.sx;
+    const sy = vp.sy;
+    const ox = vp.ox;
+    const oy = vp.oy;
+    const moved = ox !== 0 || oy !== 0;
+    if (!moved && sx === scale && sy === scale) return;
     sched.run(ms, (k) => {
-      if (vp.dying) return;
-      const s = from + (target - from) * k;
-      vp.sx = s;
-      vp.sy = s;
+      if (vp.tw !== my || vp.dying) return;
+      vp.sx = sx + (scale - sx) * k;
+      vp.sy = sy + (scale - sy) * k;
+      if (moved) {
+        vp.ox = ox * (1 - k);
+        vp.oy = oy * (1 - k);
+      }
     }, outQuad);
     kick();
+  }
+
+  /** The piece comes up under the finger. */
+  function pickUp(vp: VPiece): void {
+    vp.lift = true;
+    easeTo(vp, FEEDBACK.pickScale, T.touchResponse);
+  }
+
+  /** A piece that was picked up or dragged goes back to rest (unless a turn has taken it over). */
+  function putDown(vp: VPiece | null, animated: boolean): void {
+    if (!vp || vp.dying) return;
+    vp.lift = false;
+    if (animated) {
+      easeTo(vp, 1, T.snapBack);
+      return;
+    }
+    vp.tw++;
+    vp.sx = 1;
+    vp.sy = 1;
+    vp.ox = 0;
+    vp.oy = 0;
+    view.invalidate();
+    kick();
+  }
+
+  function isSelected(pos: Pos): boolean {
+    const s = session;
+    return !!s && samePos(s.selection, pos);
   }
 
   function clearSelection(): void {
     const s = session;
     if (!s || !s.selection) return;
-    const vp = view.pieceAt(s.selection.c, s.selection.r);
-    if (vp && !vp.dying) {
-      vp.lift = false;
-      scaleTo(vp, 1, T.touchResponse);
-    }
+    putDown(view.pieceAt(s.selection.c, s.selection.r), true);
     s.selection = null;
     view.setSelection(null);
     kick();
@@ -436,10 +477,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     s.selection = pos;
     view.setSelection(pos);
     const vp = view.pieceAt(pos.c, pos.r);
-    if (vp) {
-      vp.lift = true;
-      scaleTo(vp, 1.12, T.touchResponse);
-    }
+    if (vp) pickUp(vp);
     kick();
   }
 
@@ -453,6 +491,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     s.hintOffTimer = 0;
     for (let i = 0; i < s.hintPieces.length; i++) {
       const vp = s.hintPieces[i] as VPiece;
+      // (a piece under the finger keeps its drag offset)
+      if (vp === dragPiece || vp === dragOther) continue;
       vp.ox = 0;
       vp.oy = 0;
     }
@@ -501,23 +541,25 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     s.hintPieces.push(a, b);
     view.setHintCells(move.a, move.b);
     sfx('hint');
-    // two hops toward each other
+    // two hops toward each other (each piece lets go the moment something else takes it)
+    const ta = ++a.tw;
+    const tb = ++b.tw;
     sched.run(T.hintBounce, (k) => {
       if (my !== hintToken) return;
-      const w = Math.abs(Math.sin(k * Math.PI * 2)) * 0.17;
-      a.ox = dx * w;
-      a.oy = dy * w;
-      b.ox = -dx * w;
-      b.oy = -dy * w;
+      const w = k >= 1 ? 0 : Math.abs(Math.sin(k * Math.PI * 2)) * 0.17;
+      if (a.tw === ta && !a.dying) {
+        a.ox = dx * w;
+        a.oy = dy * w;
+      }
+      if (b.tw === tb && !b.dying) {
+        b.ox = -dx * w;
+        b.oy = -dy * w;
+      }
     });
     kick();
-    s.hintOffTimer = timers.after(1500, () => {
+    s.hintOffTimer = timers.after(T.hintShow, () => {
       s.hintOffTimer = 0;
       if (my !== hintToken) return;
-      a.ox = 0;
-      a.oy = 0;
-      b.ox = 0;
-      b.oy = 0;
       s.hintPieces.length = 0;
       view.setHintCells(null, null);
       kick();
@@ -610,20 +652,42 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     return attemptSwap(b.a, b.b);
   }
 
+  /** "No": the piece shakes its head and settles back to rest. */
   function nudge(pos: Pos): void {
     const vp = view.pieceAt(pos.c, pos.r);
-    if (!vp) return;
+    if (!vp || vp.dying) return;
+    const my = ++vp.tw;
+    const sx = vp.sx;
+    const sy = vp.sy;
+    const ox = vp.ox;
+    const oy = vp.oy;
+    vp.lift = false;
     sched.run(T.invalidWobble * 2, (k) => {
-      vp.ox = Math.sin(k * Math.PI * 4) * 0.06 * (1 - k);
+      if (vp.tw !== my || vp.dying) return;
+      const back = k < 0.5 ? k * 2 : 1;
+      vp.sx = sx + (1 - sx) * back;
+      vp.sy = sy + (1 - sy) * back;
+      vp.ox = ox * (1 - back) + (k >= 1 ? 0 : Math.sin(k * Math.PI * 4) * 0.06 * (1 - k));
+      vp.oy = oy * (1 - back);
     });
     kick();
+  }
+
+  /** A swap that no animation takes over: both pieces go back to rest, the first one saying "no". */
+  function refuse(a: Pos, b: Pos | null): void {
+    sfx('invalid');
+    haptic('error');
+    dragPiece = null;
+    dragOther = null;
+    if (b) putDown(view.pieceAt(b.c, b.r), true);
+    nudge(a);
   }
 
   function attemptSwap(a: Pos, b: Pos): boolean {
     const s = session;
     if (!s || s.state !== 'play') return false;
     if (!view.exists(a.c, a.r) || !view.exists(b.c, b.r) || !isAdjacent(a, b)) return false;
-    if (s.busy) {
+    if (s.busy || player.busy()) {
       s.buffered = { a, b, at: nowMs() };
       return false;
     }
@@ -636,15 +700,13 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       s.invalidStreak++;
       if (res.steps.length > 0) runTurn(res, { swapCostsMove: false });
       else {
-        sfx('invalid');
-        haptic('error');
-        nudge(a);
+        refuse(a, b);
         afterInvalid();
       }
       return false;
     }
     s.invalidStreak = 0;
-    s.movesMade++;
+    noteMove();
     hideHand();
     runTurn(res, { swapCostsMove: true });
     return true;
@@ -695,20 +757,16 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
 
   function useTargeted(id: InLevelBooster, a: Pos, b?: Pos): boolean {
     const s = session;
-    if (!s || s.busy) return false;
+    if (!s || s.busy || player.busy()) return false;
     const res = s.game.useBooster(id, a, b);
     if (!res.accepted) {
       kit.toast(i18n.t(id === 'hammer' ? 'play.booster.noEffect' : 'play.booster.noSwap'));
       if (res.steps.length > 0) runTurn(res, { swapCostsMove: false });
-      else {
-        sfx('invalid');
-        haptic('error');
-        nudge(a);
-      }
+      else refuse(a, b || null);
       return false;
     }
     profile.takeBooster(id);
-    s.movesMade++;
+    noteMove();
     hideHand();
     exitTargeting();
     cancelHint();
@@ -738,7 +796,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
         return;
       }
       profile.takeBooster('shuffle');
-      s.movesMade++;
+      noteMove();
       runTurn(res, { swapCostsMove: false });
       return;
     }
@@ -1095,30 +1153,21 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
 
   // ───────────────────────────── input ─────────────────────────────
 
-  let dragOther: VPiece | null = null;
-  let dragPiece: VPiece | null = null;
-
   function resetDrag(animated: boolean): void {
     const a = dragPiece;
     const b = dragOther;
     dragPiece = null;
     dragOther = null;
-    const settle = (vp: VPiece | null): void => {
-      if (!vp || vp.dying) return;
-      if (!animated) {
-        vp.ox = 0;
-        vp.oy = 0;
-        return;
-      }
-      const ox = vp.ox;
-      const oy = vp.oy;
-      sched.run(T.snapBack, (k) => {
-        vp.ox = ox * (1 - k);
-        vp.oy = oy * (1 - k);
-      }, outQuad);
-    };
-    settle(a);
-    settle(b);
+    const s = session;
+    // the dragged piece keeps its pick-up size while it is the selection
+    const keepUp = !!a && !!s && !!s.selection && view.pieceAt(s.selection.c, s.selection.r) === a;
+    if (a && !a.dying) {
+      if (keepUp) {
+        a.lift = true;
+        easeTo(a, FEEDBACK.pickScale, animated ? T.snapBack : 0);
+      } else putDown(a, animated);
+    }
+    putDown(b, animated);
     kick();
   }
 
@@ -1148,6 +1197,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     down(cell) {
       const s = session;
       if (!s) return false;
+      held = null;
       if (s.targeting === 'hammer') return true;
       if (!canPick(cell)) {
         // a tap on a blocker or an empty tile just drops the selection
@@ -1156,9 +1206,9 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
         return false;
       }
       const vp = view.pieceAt(cell.c, cell.r);
-      if (vp && !(s.selection && samePos(s.selection, cell))) {
-        vp.lift = true;
-        scaleTo(vp, 1.12, T.touchResponse);
+      held = vp;
+      if (vp && !isSelected(cell)) {
+        pickUp(vp);
         sfx('select');
       }
       return true;
@@ -1167,15 +1217,14 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       const s = session;
       if (!s || s.targeting === 'hammer') return;
       const vp = view.pieceAt(cell.c, cell.r);
-      if (!vp || vp.dying) return;
+      // only the piece that was picked up follows the finger (a turn started by a second finger
+      // on a booster button may have replaced it)
+      if (!vp || vp.dying || vp !== held || s.busy || player.busy()) return;
       const tc = cell.c + dc;
       const tr = cell.r + dr;
       const other = view.exists(tc, tr) ? view.pieceAt(tc, tr) : null;
       const partner = other && !other.dying && canPick({ c: tc, r: tr }) ? other : null;
-      if (dragOther && dragOther !== partner) {
-        dragOther.ox = 0;
-        dragOther.oy = 0;
-      }
+      if (dragOther && dragOther !== partner) putDown(dragOther, false);
       dragPiece = vp;
       dragOther = partner;
       // against an edge, a hole or a blocker the gem only leans a little
@@ -1183,6 +1232,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       vp.ox = dc * a;
       vp.oy = dr * a;
       if (partner) {
+        partner.tw++;
         partner.ox = -dc * a;
         partner.oy = -dr * a;
       }
@@ -1191,36 +1241,44 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     },
     up(cell, swipe, wasDrag, mode) {
       const s = session;
+      const mine = held;
+      held = null;
       if (!s || s.state !== 'play') {
         resetDrag(false);
+        putDown(mine, false);
         return;
       }
       if (mode === 'buffer') {
-        // made while the board was resolving: remember one swipe, show nothing
-        if (swipe && view.exists(swipe.c, swipe.r)) s.buffered = { a: cell, b: swipe, at: nowMs() };
+        // begun while the board was resolving, so nothing was shown for it
+        if (!swipe || !view.exists(swipe.c, swipe.r)) return;
+        if (s.busy || player.busy()) {
+          // still resolving: remember one swipe; it runs when the board has settled, if it is valid then
+          s.buffered = { a: cell, b: swipe, at: nowMs() };
+        } else if (s.targeting !== 'hammer' && canPick(cell) && canPick(swipe)) {
+          // the board settled under the finger: it is an ordinary swipe now
+          attemptSwap(cell, swipe);
+        }
         return;
       }
-      if (s.busy) {
+      if (s.busy || player.busy()) {
+        // a turn started under the finger (a booster button pressed with another finger)
         resetDrag(true);
+        if (mine && !isSelected(cell)) putDown(mine, true);
         return;
       }
       if (s.targeting === 'hammer') {
         useTargeted('hammer', cell);
         return;
       }
-      const vp = view.pieceAt(cell.c, cell.r);
       if (wasDrag) {
-        if (swipe && view.exists(swipe.c, swipe.r) && canPick(swipe)) {
+        if (swipe && view.exists(swipe.c, swipe.r) && canPick(swipe) && canPick(cell) && mine === view.pieceAt(cell.c, cell.r)) {
           // keep the offsets: the swap animation starts from where the finger let go
           dragPiece = null;
           dragOther = null;
           attemptSwap(cell, swipe);
         } else {
           resetDrag(true);
-          if (vp && !(s.selection && samePos(s.selection, cell))) {
-            vp.lift = false;
-            scaleTo(vp, 1, T.snapBack);
-          }
+          if (mine && !isSelected(cell)) putDown(mine, true);
           armHint();
         }
         return;
@@ -1230,21 +1288,22 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       if (sel && samePos(sel, cell)) {
         clearSelection();
         armHint();
-      } else if (sel && isAdjacent(sel, cell)) {
+      } else if (sel && isAdjacent(sel, cell) && canPick(sel) && canPick(cell)) {
         attemptSwap(sel, cell);
-      } else {
+      } else if (canPick(cell)) {
         select(cell);
+        armHint();
+      } else {
+        if (mine) putDown(mine, true);
+        clearSelection();
         armHint();
       }
     },
     cancel(cell) {
+      const mine = held;
+      held = null;
       resetDrag(true);
-      const s = session;
-      const vp = view.pieceAt(cell.c, cell.r);
-      if (s && vp && !(s.selection && samePos(s.selection, cell))) {
-        vp.lift = false;
-        scaleTo(vp, 1, T.snapBack);
-      }
+      if (mine && !isSelected(cell)) putDown(mine, true);
     },
   });
 
@@ -1275,6 +1334,7 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
     view.setDim(0);
     dragPiece = null;
     dragOther = null;
+    held = null;
     dropFreeze(FREEZE_DIALOG);
     slowLeft = 0;
     session = null;
@@ -1395,6 +1455,27 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       }),
       loop: () => ({ running: raf !== 0, tweens: sched.count(), timers: timers.count(), dialogs: own.length, frozen }),
       finish: () => player.finishNow(),
+      /** the renderer's own model: what is drawn where (compare with snapshot()) */
+      model: () => (session ? view.debugState() : null),
+      /** bookkeeping of the running attempt */
+      info: () => {
+        const s = session;
+        if (!s) return null;
+        return {
+          state: s.state,
+          busy: s.busy || player.busy(),
+          targeting: s.targeting,
+          selection: s.selection,
+          movesMade: s.movesMade,
+          continues: s.continues,
+          adUsed: s.adUsed,
+          lifeTaken: s.lifeTaken,
+          buffered: s.buffered !== null,
+          hand: s.hand,
+          attempt,
+          flyers: hud.flyerCount(),
+        };
+      },
     };
     (window as unknown as { __play: typeof hooks }).__play = hooks;
   }

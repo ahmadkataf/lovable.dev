@@ -100,7 +100,12 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     return PAL_GOLD;
   }
 
+  /**
+   * A step takes a piece over: whatever cosmetic tween was playing on it (pick-up, snap-back,
+   * wobble, landing squash) lets go, and its drag offset becomes part of its position.
+   */
   function fold(vp: VPiece): void {
+    vp.tw++;
     vp.x += vp.ox;
     vp.y += vp.oy;
     vp.ox = 0;
@@ -210,8 +215,9 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
   }
 
   function punch(vp: VPiece, amount: number, ms: number): void {
+    const my = ++vp.tw;
     sched.run(d(ms), (k) => {
-      if (vp.dying) return;
+      if (vp.dying || vp.tw !== my) return;
       const s = 1 + amount * hop(k);
       vp.sx = s;
       vp.sy = s;
@@ -478,19 +484,25 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     fold(a);
     fold(b);
     a.lift = true;
+    b.lift = false;
     const ax = a.x;
     const ay = a.y;
     const bx = b.x;
     const by = b.y;
-    const s0 = a.sx;
+    // either piece may still be enlarged from being picked up or tapped: both ease back to size
+    const asx = a.sx;
+    const asy = a.sy;
+    const bsx = b.sx;
+    const bsy = b.sy;
     const out = (k: number): void => {
       a.x = ax + (step.b.c - ax) * k;
       a.y = ay + (step.b.r - ay) * k;
       b.x = bx + (step.a.c - bx) * k;
       b.y = by + (step.a.r - by) * k;
-      const s = s0 + (1 - s0) * k;
-      a.sx = s;
-      a.sy = s;
+      a.sx = asx + (1 - asx) * k;
+      a.sy = asy + (1 - asy) * k;
+      b.sx = bsx + (1 - bsx) * k;
+      b.sy = bsy + (1 - bsy) * k;
     };
     if (step.valid) {
       host.sfx('swap');
@@ -500,6 +512,10 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
       a.y = step.b.r;
       b.x = step.a.c;
       b.y = step.a.r;
+      a.sx = 1;
+      a.sy = 1;
+      b.sx = 1;
+      b.sy = 1;
       a.lift = false;
       view.setGrid(step.a.c, step.a.r, b.id);
       view.setGrid(step.b.c, step.b.r, a.id);
@@ -523,16 +539,27 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     a.y = step.a.r;
     b.x = step.b.c;
     b.y = step.b.r;
+    a.sx = 1;
+    a.sy = 1;
+    b.sx = 1;
+    b.sy = 1;
     a.lift = false;
     const dx = step.b.c - step.a.c;
     const dy = step.b.r - step.a.r;
-    // a small wobble along the swap axis (cosmetic: does not hold the turn up)
+    // a small wobble along the swap axis (cosmetic: does not hold the turn up, and lets go the
+    // moment the player picks either piece up again)
+    const ta = ++a.tw;
+    const tb = ++b.tw;
     sched.run(d(T.invalidWobble * 2), (k) => {
       const w = Math.sin(k * Math.PI * 4) * 0.07 * (1 - k);
-      a.ox = dx * w;
-      a.oy = dy * w;
-      b.ox = -dx * w;
-      b.oy = -dy * w;
+      if (a.tw === ta && !a.dying) {
+        a.ox = dx * w;
+        a.oy = dy * w;
+      }
+      if (b.tw === tb && !b.dying) {
+        b.ox = -dx * w;
+        b.oy = -dy * w;
+      }
     });
   }
 
@@ -629,9 +656,10 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
 
   function land(vp: VPiece): void {
     vp.clipTop = NO_CLIP;
+    const my = ++vp.tw;
     sched.run(T.landSquash, (k) => {
-      if (vp.dying) return;
-      const q = hop(k);
+      if (vp.dying || vp.tw !== my) return;
+      const q = k >= 1 ? 0 : hop(k);
       vp.sy = 1 - 0.12 * q;
       vp.sx = 1 + 0.07 * q;
       vp.oy = 0.06 * q;

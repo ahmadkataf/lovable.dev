@@ -6,6 +6,9 @@
  * `margin-inline` / `padding-inline` shorthands (logical LONGHANDS such as margin-inline-start are
  * fine), `:is()` / `:where()` / `:has()`, nesting, container queries, `color-mix()`, `dvh` units and
  * `:focus-visible`. Left/right offsets that must mirror in Arabic get an explicit [dir="rtl"] override.
+ * `node tools/kit-shots.cjs check static` audits this file: every property must be on a list that
+ * was vetted against Chrome 80 (a new property fails until it has been checked and added there),
+ * `:not()` takes one simple selector, math functions are not nested beyond calc(var(--k-u) * N).
  *
  * Sizing: everything is written in the design unit --k-u ("1 px on a 360-px-wide phone"); it grows
  * with the smaller viewport side up to 1.375 on tablets and never drops below 0.9375 (320 px), so
@@ -1002,9 +1005,6 @@ body {
 
 [dir='rtl'] .k-progress.k-gain .k-progress__fill::before {
   transform: translateX(-110%) skewX(-18deg);
-}
-
-[dir='rtl'] .k-progress.k-gain .k-progress__fill::before {
   animation-name: k-sheen-rtl;
 }
 

@@ -81,6 +81,8 @@ export interface Hud {
 
   setFrozen(on: boolean): void;
   clearTransient(): void;
+  /** Flyers and sparks crossing the HUD right now (test hook). */
+  flyerCount(): number;
   goalText(goal: GoalProgress): string;
   goalIcon(goal: GoalProgress): IconName;
 }
@@ -600,6 +602,8 @@ export function createHud(deps: HudDeps): Hud {
       hud.targeting(null, null, null);
       scoreTween++;
     },
+
+    flyerCount: () => flyLayer.childNodes.length,
 
     goalText,
     goalIcon: goalIconOf,

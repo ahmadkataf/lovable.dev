@@ -65,11 +65,19 @@ export interface ProfileShop {
   shop(): Readonly<ShopSave>;
   /**
    * False while the most recent save could not be written (the storage function threw): what
-   * changed last exists in memory only. A purchase must not be finished with the store then.
+   * changed last exists in memory only. A cheap hint — it cannot see a storage layer that fails
+   * silently. Before finishing a purchase with the store ask `purchaseSaved(token)` instead.
    */
   lastSaveOk(): boolean;
   /** True when a purchase with this token was already granted. */
   purchaseGranted(token: string): boolean;
+  /**
+   * True when the grant of this purchase is in STORAGE: the token was granted, and the save that
+   * `ProfileDeps.load()` hands out right now — what the next launch would start from — holds it.
+   * This reads the save back, because a storage layer may fail without throwing (then
+   * `lastSaveOk()` knows nothing). A purchase may be finished with the store only when this says so.
+   */
+  purchaseSaved(token: string): boolean;
   /**
    * Complete one real-money purchase in ONE save: apply `rewards`, remember the token, mark
    * `entitlement` (when given) as owned and set the purchased flag. Returns false — and changes
@@ -80,6 +88,7 @@ export interface ProfileShop {
   /**
    * Set or clear ownership of an entitlement WITHOUT granting anything (a restore). Owning one also
    * sets the purchased flag (which is never cleared). Returns true when ownership changed.
+   * A valid id can always be recorded: should the list be full, its oldest entry makes room.
    */
   setEntitlement(id: string, owned: boolean): boolean;
   /** Today's ad counters (zero when the local day has changed since they were written). */
@@ -88,7 +97,12 @@ export interface ProfileShop {
   noteRewarded(placement: RewardedPlacement, earned: boolean): void;
   /** An interstitial was shown now: remembers the time, counts it for today, restarts the level count. */
   noteInterstitial(): void;
-  /** One more level was finished. Returns how many were finished since the last interstitial. */
+  /**
+   * One more level was finished. Returns how many were finished since the last interstitial.
+   * Also pulls back ad times that lie in the future (the device clock was set back since): they
+   * then count as "just now", so a rule that waits for time to pass after an ad waits one full
+   * interval from now — never for ever, and never not at all.
+   */
   noteLevelFinished(): number;
   /** Whole local calendar days since the first day the game was played (0 on that day, or without a clock). */
   daysSinceFirstPlay(): number;

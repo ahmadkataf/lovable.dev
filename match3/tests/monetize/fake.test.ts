@@ -303,8 +303,9 @@ describe('the test store', () => {
     const next = createFakeBridge({ emit: (json) => void events.push(JSON.parse(json) as StoreEvent), ui: scriptedUi(), storage: account });
     next.iapRestore();
     await settle();
+    // (the list is not marked complete while a paid entitlement still waits to be acknowledged)
     expect(events).toEqual([
-      { type: 'owned', ids: [], complete: true },
+      { type: 'owned', ids: [] },
       { type: 'purchase', id: 'remove_ads', state: 'purchased', token: bought.token, acknowledged: false },
     ]);
     next.iapBuy('remove_ads'); // paid for already

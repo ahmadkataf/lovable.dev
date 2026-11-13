@@ -52,6 +52,9 @@ export interface MusicPlayer {
   stats(): TransportStats;
 }
 
+/** A note whose time is closer to the clock than this (s) when it comes to be built is left out. */
+const LATE_MARGIN = 0.002;
+
 /** Relative layer levels inside the music mix. */
 export const MUSIC_MIX = { lead: 0.45, pad: 0.1, perc: 1.3, echo: 0.2 };
 
@@ -141,7 +144,7 @@ export function createMusicPlayer(
   // seconds and would otherwise keep running, unheard, after the player is gone.
   const voices: VoiceGroup = new Set<Voice>();
   let strokes = 0;
-  function playLead(ev: Extract<MusicEvent, { layer: 'lead' }>): void {
+  function playLead(ev: Extract<MusicEvent, { layer: 'lead' }>): Voice {
     const v = new Voice(ctx, leadBus, ev.time, 1, voices);
     // The melody is played as on one string: a note is stopped as the next one begins, with
     // a short overlap. The open low string is left to ring.
@@ -149,14 +152,16 @@ export function createMusicPlayer(
     // Tremolo alternates two takes of the note, like down- and up-strokes of the plectrum.
     const alt = ev.kind === 'trem' && (strokes++ & 1) === 1;
     pluck(v, { midi: ev.midi, dur: ring, peak: ev.vel * (ev.kind === 'bass' ? 0.85 : 1), alt, cents: alt ? 3 : 0 });
+    return v;
   }
 
-  function playPerc(ev: Extract<MusicEvent, { layer: 'perc' }>): void {
+  function playPerc(ev: Extract<MusicEvent, { layer: 'perc' }>): Voice {
     const v = new Voice(ctx, percBus, ev.time, 1, voices);
     if (ev.hit === 'dum') dum(v, 0, 0.44 * ev.vel);
     else if (ev.hit === 'tek') tek(v, 0, 0.34 * ev.vel);
     else if (ev.hit === 'ka') ka(v, 0, 0.3 * ev.vel);
     else shake(v, 0, 0.22 * ev.vel);
+    return v;
   }
 
   function playPad(ev: Extract<MusicEvent, { layer: 'pad' }>): void {
@@ -210,18 +215,39 @@ export function createMusicPlayer(
     schedule(until: number): number {
       if (stopped || disposed) return 0;
       const events = transport.collect(ctx.currentTime, until);
+      let played = 0;
       for (let i = 0; i < events.length; i++) {
         const ev = events[i];
-        if (ev.layer === 'lead') {
-          if (layers.lead !== false) playLead(ev);
-        } else if (ev.layer === 'perc') {
-          if (layers.perc !== false) playPerc(ev);
-        } else if (layers.pad !== false) {
-          playPad(ev);
+        if (ev.layer === 'pad') {
+          // A drone chord swells in over a second: coming in a little late does no harm.
+          if (layers.pad !== false) playPad(ev);
+        } else {
+          // The clock keeps running while the batch is built. Should the main thread be held
+          // up in the middle (a garbage collection, a busy device), a note can find its time
+          // already gone — before it is built, or by the time it is. Such a note is left out:
+          // started in the past it would come in clipped, and out of time.
+          if (ev.time < ctx.currentTime + LATE_MARGIN) {
+            transport.stats.events--;
+            transport.stats.dropped++;
+            continue;
+          }
+          let voice: Voice | null = null;
+          if (ev.layer === 'lead') {
+            if (layers.lead !== false) voice = playLead(ev);
+          } else if (layers.perc !== false) {
+            voice = playPerc(ev);
+          }
+          if (voice && ev.time < ctx.currentTime + LATE_MARGIN) {
+            voice.kill();
+            transport.stats.events--;
+            transport.stats.dropped++;
+            continue;
+          }
         }
+        played++;
         if (options.onEvent) options.onEvent(ev);
       }
-      return events.length;
+      return played;
     },
     stop(at: number, fade: number): void {
       if (stopped) return;

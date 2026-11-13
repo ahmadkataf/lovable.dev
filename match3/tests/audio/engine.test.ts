@@ -12,7 +12,9 @@ import {
   SFX_NAMES,
   TICK_MS,
   createAudio,
+  createMusicPlayer,
   type AudioEngine,
+  type MusicEvent,
 } from '../../src/audio/index.ts';
 import { FakeAudioContext, settle, type FakeNode } from './fake-context.ts';
 
@@ -600,5 +602,55 @@ describe('audio engine: suspend / resume', () => {
     }).not.toThrow();
     expect(audio.debug().playing).toBeNull();
     expect(audio.debug().state).toBe('none');
+  });
+});
+
+describe('music player on a busy main thread', () => {
+  it('schedules every note ahead of the clock when nothing holds it up', () => {
+    const fake = new FakeAudioContext();
+    const heard: MusicEvent[] = [];
+    const player = createMusicPlayer(fake as unknown as BaseAudioContext, fake.createGain() as unknown as AudioNode, 'level', { seed: 5, startAt: 0.1, onEvent: (e) => heard.push(e) });
+    const n = player.schedule(3);
+    expect(n).toBeGreaterThan(10);
+    expect(heard.length).toBe(n);
+    expect(player.stats().dropped).toBe(0);
+    expect(player.stats().events).toBe(n);
+    for (const s of fake.sources) expect(s.startAt).toBeGreaterThanOrEqual(0.1 - 1e-9);
+    player.dispose();
+    expect(player.liveVoices()).toBe(0);
+  });
+
+  it('leaves out the notes whose time has gone by while the batch was being built', () => {
+    const fake = new FakeAudioContext();
+    const heard: MusicEvent[] = [];
+    const player = createMusicPlayer(fake as unknown as BaseAudioContext, fake.createGain() as unknown as AudioNode, 'level', { seed: 5, startAt: 0.1, onEvent: (e) => heard.push(e) });
+    // the main thread is held up for a second while the third plucked note is being built
+    const original = fake.createBufferSource.bind(fake);
+    let builds = 0;
+    let keptBefore = -1;
+    let stopsBefore = 0;
+    fake.createBufferSource = () => {
+      builds++;
+      if (builds === 3) {
+        keptBefore = heard.length;
+        stopsBefore = fake.sources.filter((sn) => sn.stopAt <= 1).length;
+        fake.currentTime += 1;
+      }
+      return original();
+    };
+    player.schedule(3);
+    expect(fake.currentTime).toBe(1);
+    expect(keptBefore).toBeGreaterThan(0);
+    const dropped = player.stats().dropped;
+    expect(dropped).toBeGreaterThan(1);
+    // every note kept after the hold-up lies ahead of the clock; the ones in between are gone
+    const after = heard.slice(keptBefore).filter((e) => e.layer !== 'pad');
+    expect(after.length).toBeGreaterThan(3);
+    for (const e of after) expect(e.time).toBeGreaterThanOrEqual(1);
+    // the note that was overtaken in the middle of its build was taken back at once
+    expect(fake.sources.filter((sn) => sn.stopAt <= 1).length).toBeGreaterThan(stopsBefore);
+    // what was kept and what was left out add up to what the composer wrote
+    expect(player.stats().events).toBe(heard.length);
+    player.dispose();
   });
 });

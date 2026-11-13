@@ -36,6 +36,8 @@ import org.json.JSONArray
  *                and call [finish]. A PENDING payment is only ever reported as "pending".
  *  - [finish]  → consume (consumable) or acknowledge (entitlement). Which one is decided by the
  *                kind the page declared for that product in [query]; nothing is hard-coded here.
+ *                The save holding the grant is forced onto disk first; if that fails the purchase
+ *                stays unfinished and is reported again at the next listing.
  *
  * Threads: this object's state belongs to the main thread. Every call into the Billing Library
  * that the library allows off the main thread — creating the client (it sets up logging and reads
@@ -46,7 +48,12 @@ import org.json.JSONArray
  *
  * Purchase tokens are never written to the log.
  */
-internal class BillingController(activity: ComponentActivity, private val sink: StoreEventSink) : PurchasesUpdatedListener {
+internal class BillingController(
+    activity: ComponentActivity,
+    private val sink: StoreEventSink,
+    /** Blocks until the game's save is on disk; false when it could not be written. Background threads only. */
+    private val flushSave: () -> Boolean,
+) : PurchasesUpdatedListener {
 
     private enum class Kind { CONSUMABLE, ENTITLEMENT }
 
@@ -423,7 +430,14 @@ internal class BillingController(activity: ComponentActivity, private val sink: 
         withClient(
             fail = { code -> finishDone(token, purchase, kind, attempt, code, null) },
             run = { c ->
-                if (kind == Kind.CONSUMABLE) {
+                // On the worker thread. The page has granted the purchase and stored its save, but
+                // that write may still be queued: put it on disk before Play is told "delivered".
+                if (!saveIsOnDisk()) {
+                    onMain {
+                        finishing.remove(token)
+                        Log.w(TAG, "finish ${purchase.productId}: the save could not be written, the purchase stays open")
+                    }
+                } else if (kind == Kind.CONSUMABLE) {
                     c.consumeAsync(ConsumeParams.newBuilder().setPurchaseToken(token).build()) { result, _ ->
                         onMain { finishDone(token, purchase, kind, attempt, result.responseCode, result) }
                     }
@@ -458,6 +472,12 @@ internal class BillingController(activity: ComponentActivity, private val sink: 
         }
     }
 
+    private fun saveIsOnDisk(): Boolean = try {
+        flushSave()
+    } catch (_: Throwable) {
+        false
+    }
+
     // ───────────────────────── connection ─────────────────────────
 
     /**
@@ -467,8 +487,11 @@ internal class BillingController(activity: ComponentActivity, private val sink: 
     private fun withClient(fail: (Int) -> Unit, run: (BillingClient) -> Unit) {
         if (destroyed) return
         // Once connected, a dropped connection is the library's business (enableAutoServiceReconnection):
-        // it reconnects with the next call, or answers that call with an error code.
-        val usable = client?.takeIf { connectedOnce || it.isReady }
+        // it reconnects with the next call, or answers that call with an error code. Until the first
+        // connection has succeeded the connecting is done here, so the real reason for a failure
+        // (BILLING_UNAVAILABLE on a device without Google Play, say) is known at once. BillingClient
+        // .isReady is no help for telling the two apart: with auto-reconnection it is always true.
+        val usable = client?.takeIf { connectedOnce }
         if (usable != null) return runOnWorker(usable, run, fail)
         val waiter = Waiter(run, fail)
         waiters.add(waiter)
@@ -651,7 +674,7 @@ internal class BillingController(activity: ComponentActivity, private val sink: 
         const val LEGACY_SERVICE_TIMEOUT = -3
 
         const val MAX_PRODUCTS = 20
-        const val CONNECT_TIMEOUT_MS = 20_000L
+        const val CONNECT_TIMEOUT_MS = 30_000L
         const val RECONNECT_BASE_MS = 2_000L
         const val RECONNECT_MAX_MS = 300_000L
         const val MAX_AUTO_RECONNECTS = 8

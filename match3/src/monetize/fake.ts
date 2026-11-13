@@ -200,7 +200,14 @@ export function createFakeBridge(deps: FakeBridgeDeps): MonetizeBridge {
         account.pending = [];
         save();
       }
-      emit({ type: 'owned', ids: account.owned.slice(), complete: true });
+      // Like the wrapper: the list is not the whole truth while a paid entitlement waits to be
+      // acknowledged (it is delivered right behind as a 'purchase' event).
+      let entitlementOpen = false;
+      for (const p of account.open) {
+        const def = productDef(p.id);
+        if (def && def.kind === 'entitlement') entitlementOpen = true;
+      }
+      emit(entitlementOpen ? { type: 'owned', ids: account.owned.slice() } : { type: 'owned', ids: account.owned.slice(), complete: true });
       for (const p of account.open) emit({ type: 'purchase', id: p.id, state: 'purchased', token: p.token, acknowledged: false });
     },
 

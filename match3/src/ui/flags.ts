@@ -6,10 +6,12 @@
  *   ?lang=ar|en       start in this language (not saved)
  *   ?mocklevels=120   run on a generated level list of that length (6 chapters)
  *   ?save=<base64>    start from this save (base64 of the JSON; nothing is written to real storage)
- *   ?mockstore=1      the shell's own simulated store (purchases + ads), independent of src/monetize
  *   ?gate=off         every feature and booster counts as unlocked
  *   ?screen=map       open this screen right after boot (title | map)
  *   ?still=1          no ambient animation loops (stable screenshots)
+ *
+ * The store has its own switch, read by src/monetize: `?fakestore=1` starts its test store in a
+ * browser (it is on by default under the dev server; `?fakestore=0` turns it off).
  */
 import type { Lang } from '../i18n/types.ts';
 
@@ -19,7 +21,6 @@ export interface Flags {
   mockLevels: number;
   /** Decoded save JSON, or null. */
   save: string | null;
-  mockStore: boolean;
   gateOff: boolean;
   screen: 'title' | 'map' | null;
   still: boolean;
@@ -30,7 +31,6 @@ export const NO_FLAGS: Flags = {
   lang: null,
   mockLevels: 0,
   save: null,
-  mockStore: false,
   gateOff: false,
   screen: null,
   still: false,
@@ -92,7 +92,6 @@ export function readFlags(search: string, dev: boolean, atobFn: (s: string) => s
     lang,
     mockLevels: n >= 1 && n <= 2000 ? n : 0,
     save: q['save'] ? decodeSaveParam(q['save'], atobFn) : null,
-    mockStore: q['mockstore'] === '1',
     gateOff: q['gate'] === 'off',
     screen,
     still: q['still'] === '1',

@@ -46,8 +46,13 @@ const MASTER = 0.8;
  * clipper — linear below {@link MUSIC_KNEE}, bending towards {@link MUSIC_CEILING} — rounds
  * off the few spikes that are left. Whatever is played, the clipper's output never exceeds
  * MUSIC_CEILING, so the music's peak level in the mix is a fixed number.
+ *
+ * The settings are a measured compromise (tools/audio-check.cjs reports all three numbers):
+ * together they bring the body of the music some 8 dB closer to its peaks, the compressor
+ * works by about 1 dB on average — a harder one made the drone audibly duck under every drum
+ * stroke — and the clipper's flat top is reached on about one sample in a thousand.
  */
-export const MUSIC_GLUE = { threshold: -20, knee: 12, ratio: 2.5, attack: 0.003, release: 0.14 };
+export const MUSIC_GLUE = { threshold: -16, knee: 12, ratio: 2, attack: 0.003, release: 0.14 };
 export const MUSIC_KNEE = 0.32;
 export const MUSIC_CEILING = 0.5;
 /** The music's peak level at the output, dBFS: 20 dB down, under every effect. */
@@ -81,6 +86,11 @@ export interface OutputChainOptions {
   /** Leave out the music's compressor and/or clipper (measurement only). */
   musicGlue?: boolean;
   musicClip?: boolean;
+  /** Other settings for the music's compressor / another knee for its clipper (tuning only). */
+  glue?: Partial<typeof MUSIC_GLUE>;
+  clipKnee?: number;
+  /** Extra gain on the way into the music path (tuning only). */
+  musicDrive?: number;
 }
 
 export interface OutputChain {
@@ -122,23 +132,24 @@ export function createOutputChain(ctx: BaseAudioContext, destination?: AudioNode
   sfxBus.gain.value = LEVELS.sfx;
 
   const musicIn = ctx.createGain();
-  musicIn.gain.value = 1;
+  musicIn.gain.value = options.musicDrive === undefined ? 1 : options.musicDrive;
   let musicTail: AudioNode = musicIn;
   let musicGlue: DynamicsCompressorNode | null = null;
   if (options.musicGlue !== false) {
+    const glue = { ...MUSIC_GLUE, ...(options.glue || {}) };
     musicGlue = ctx.createDynamicsCompressor();
-    musicGlue.threshold.value = MUSIC_GLUE.threshold;
-    musicGlue.knee.value = MUSIC_GLUE.knee;
-    musicGlue.ratio.value = MUSIC_GLUE.ratio;
-    musicGlue.attack.value = MUSIC_GLUE.attack;
-    musicGlue.release.value = MUSIC_GLUE.release;
+    musicGlue.threshold.value = glue.threshold;
+    musicGlue.knee.value = glue.knee;
+    musicGlue.ratio.value = glue.ratio;
+    musicGlue.attack.value = glue.attack;
+    musicGlue.release.value = glue.release;
     musicTail.connect(musicGlue);
     musicTail = musicGlue;
   }
   let musicClip: WaveShaperNode | null = null;
   if (options.musicClip !== false) {
     musicClip = ctx.createWaveShaper();
-    musicClip.curve = guardCurve(4097, MUSIC_KNEE, MUSIC_CEILING);
+    musicClip.curve = guardCurve(4097, options.clipKnee === undefined ? MUSIC_KNEE : options.clipKnee, MUSIC_CEILING);
     musicClip.oversample = 'none';
     musicTail.connect(musicClip);
     musicTail = musicClip;

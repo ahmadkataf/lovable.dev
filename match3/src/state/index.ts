@@ -26,6 +26,8 @@
  *    Gating is information for the screens — `buyBooster`, `claimDaily` & co. do not enforce it.
  *  - reset() wipes the player's progress but never what belongs to her real-money purchases
  *    (granted purchase tokens, owned entitlements) nor the ad counters and the first-play day.
+ *  - Storage is not trusted to have kept what it was given: `purchaseSaved(token)` reads the save
+ *    back before a real-money purchase may be finished with the store (see ProfileShop).
  */
 import type { StartBoosters } from '../engine/types.ts';
 import type {
@@ -464,6 +466,8 @@ export function createProfile(deps: ProfileDeps): FullProfile {
   const data: SaveData = parseSave(raw);
   /** Whether the most recent save reached the storage function (see `ProfileShop.lastSaveOk`). */
   let saveOk = true;
+  /** The text most recently accepted by the storage function (null before the first save). */
+  let lastJson: string | null = null;
 
   /**
    * Local-calendar day of the instant `t`, or NaN when there is no usable clock or calendar.
@@ -486,8 +490,10 @@ export function createProfile(deps: ProfileDeps): FullProfile {
       if (today === today) data.firstDay = today;
     }
     try {
-      deps.save(JSON.stringify(data));
+      const json = JSON.stringify(data);
+      deps.save(json);
       saveOk = true;
+      lastJson = json;
     } catch {
       // Storage full or unavailable: keep playing from memory, the next save may succeed.
       saveOk = false;
@@ -684,6 +690,19 @@ export function createProfile(deps: ProfileDeps): FullProfile {
     shop.interstitials = 0;
   }
 
+  /**
+   * Record ownership of an entitlement (no save). True when it was not owned before. The list only
+   * ever holds this game's few products; a full one comes from a damaged save, and then its oldest
+   * entry makes room — what the store reports as owned can always be recorded.
+   */
+  function addOwned(id: string): boolean {
+    const owned = data.shop.owned;
+    if (owned.indexOf(id) >= 0) return false;
+    owned.push(id);
+    if (owned.length > MAX_OWNED) owned.splice(0, owned.length - MAX_OWNED);
+    return true;
+  }
+
   // Reconcile the loaded lives with the clock right away, and store the result if it differs:
   // a timer that had to be restarted (clock moved backwards) must not restart again at every
   // launch. A fresh or already-normalised profile writes nothing here.
@@ -853,7 +872,9 @@ export function createProfile(deps: ProfileDeps): FullProfile {
       };
       addCoinsRaw(summary.coinsEarned);
       // Only a first clear moves the Caravan on: replaying cleared levels cannot farm it.
-      if (!prev && caravanOn) data.caravan = Math.min(MAX_STREAK, data.caravan + 1);
+      // Before it unlocks there is no Caravan: whatever a damaged save claims is dropped here.
+      if (!caravanOn) data.caravan = 0;
+      else if (!prev) data.caravan = Math.min(MAX_STREAK, data.caravan + 1);
       const s = data.stats;
       s.won = Math.min(MAX_COUNTER, s.won + 1);
       s.totalScore = Math.min(MAX_TOTAL_SCORE, s.totalScore + points);
@@ -1003,6 +1024,23 @@ export function createProfile(deps: ProfileDeps): FullProfile {
       return key !== null && data.shop.tokens.indexOf(key) >= 0;
     },
 
+    purchaseSaved(token: string): boolean {
+      const key = purchaseKey(token);
+      // Not granted at all, or the save that should hold the grant is known to have failed.
+      if (key === null || data.shop.tokens.indexOf(key) < 0 || !saveOk) return false;
+      // Read back what the next launch would load: only that proves the grant is stored.
+      let stored: unknown;
+      try {
+        stored = deps.load();
+      } catch {
+        return false;
+      }
+      if (typeof stored !== 'string' || stored.length === 0) return false;
+      if (stored === lastJson) return true; // exactly what was written last, which holds the token
+      // Not the same text (a storage layer may re-encode it): what counts is that the token is in it.
+      return parseSave(stored).shop.tokens.indexOf(key) >= 0;
+    },
+
     grantPurchase(token: string, rewards: Reward[], entitlement?: string | null): boolean {
       const shop = data.shop;
       const key = purchaseKey(token);
@@ -1011,7 +1049,7 @@ export function createProfile(deps: ProfileDeps): FullProfile {
       if (Array.isArray(rewards)) for (const r of rewards) applyReward(r);
       shop.tokens.push(key);
       if (shop.tokens.length > MAX_PURCHASE_TOKENS) shop.tokens.splice(0, shop.tokens.length - MAX_PURCHASE_TOKENS);
-      if (isEntitlementId(entitlement) && shop.owned.indexOf(entitlement) < 0 && shop.owned.length < MAX_OWNED) shop.owned.push(entitlement);
+      if (isEntitlementId(entitlement)) addOwned(entitlement);
       shop.purchased = true;
       commit();
       return true;
@@ -1020,12 +1058,11 @@ export function createProfile(deps: ProfileDeps): FullProfile {
     setEntitlement(id: string, owned: boolean): boolean {
       const shop = data.shop;
       if (!isEntitlementId(id)) return false;
-      const at = shop.owned.indexOf(id);
       if (owned === true) {
-        if (at >= 0 || shop.owned.length >= MAX_OWNED) return false;
-        shop.owned.push(id);
+        if (!addOwned(id)) return false;
         shop.purchased = true;
       } else {
+        const at = shop.owned.indexOf(id);
         if (at < 0) return false;
         shop.owned.splice(at, 1);
       }
@@ -1070,6 +1107,12 @@ export function createProfile(deps: ProfileDeps): FullProfile {
     noteLevelFinished(): number {
       const shop = data.shop;
       shop.finished = Math.min(MAX_COUNTER, shop.finished + 1);
+      // An ad time ahead of the clock (it was set back since) counts as "just now": see ProfileShop.
+      const t = clock();
+      if (t !== NO_CLOCK) {
+        if (shop.lastInterstitial > t) shop.lastInterstitial = t;
+        if (shop.lastRewarded > t) shop.lastRewarded = t;
+      }
       commit();
       return shop.finished;
     },

@@ -1,26 +1,33 @@
 #!/usr/bin/env bash
 # Smoke test on a running emulator or device: install an APK, start it, look at it, read its log.
 #
-#   tools/android/emu-smoke.sh <apk> [diag]
+#   tools/android/emu-smoke.sh <apk> [diag|diagcontent]
 #
-#   <apk>   any build of the app (debug or release)
-#   diag    debug builds only: open the built-in diagnostics page and drive it to the end —
-#           two launches (the second proves the save survives a killed process), Back while the
-#           page is not at its root, Home and return, then Back at the root (must leave the app).
-#           Every line of the page must end up PASS.
+#   <apk>         any build of the app: plain or ads flavour, debug or release
+#   diag          debug builds only: open the built-in diagnostics page and drive it to the end —
+#                 two launches (the second proves the save survives a killed process), Back while
+#                 the page is not at its root, Home and return, the store panel (every StoreEvent
+#                 the purchase and ad bridge sent), then Back at the root (must leave the app).
+#                 Every line of the page must end up PASS.
+#   diagcontent   the same run for a build whose bundled web content IS the diagnostics page —
+#                 how a release (R8) build is checked end to end:
+#                   ./gradlew :app:assemblePlainRelease -PWEB_DIST=app/src/debug/assets/diag
 #
-# Screenshots and the log go to shots/android/smoke-<debug|release>[-diag]-*.
+# Without a mode the bundled game is started, sent to the background and brought back.
+#
+# Screenshots and the log go to shots/android/smoke-<flavour>-<debug|release>[-mode]-*.
 # Exit code 0 only if nothing crashed: no FATAL EXCEPTION or ANR of the app, no "Uncaught" JavaScript
-# error, no lost WebView renderer, the page loaded, and (diag) no FAIL and nothing left waiting.
+# error, no lost WebView renderer, the page loaded, and (diag modes) no FAIL and nothing left waiting.
 #
 # Environment: ANDROID_SERIAL (default emulator-5554), ANDROID_HOME (default /opt/android-sdk),
-# SMOKE_TIMEOUT seconds to wait for the page (default 240 — software-rendered emulators are slow).
+# SMOKE_TIMEOUT seconds to wait for the page (default 300 — software-rendered emulators are slow),
+# SMOKE_NAME to replace the "smoke" in the output file names.
 set -uo pipefail
 
 APK="${1:-}"
 MODE="${2:-}"
-if [ -z "$APK" ] || [ ! -f "$APK" ] || { [ -n "$MODE" ] && [ "$MODE" != "diag" ]; }; then
-  sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
+if [ -z "$APK" ] || [ ! -f "$APK" ] || { [ -n "$MODE" ] && [ "$MODE" != "diag" ] && [ "$MODE" != "diagcontent" ]; }; then
+  sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
   exit 2
 fi
 
@@ -28,7 +35,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/opt/android-sdk}}"
 SERIAL="${ANDROID_SERIAL:-emulator-5554}"
-WAIT="${SMOKE_TIMEOUT:-240}"
+WAIT="${SMOKE_TIMEOUT:-300}"
 ADB_BIN="$SDK/platform-tools/adb"
 AAPT2="$(ls -1d "$SDK"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -n 1)"
 [ -x "$ADB_BIN" ] || { echo "emu-smoke: adb not found under $SDK" >&2; exit 2; }
@@ -42,15 +49,19 @@ PKG="$(printf '%s\n' "$badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")"
 [ -n "$PKG" ] || { echo "emu-smoke: cannot read the package name from $APK" >&2; exit 2; }
 VARIANT=release
 if printf '%s\n' "$badging" | grep -q '^application-debuggable'; then VARIANT=debug; fi
+# The ads flavour is the one that asks for the advertising id.
+FLAVOUR=plain
+if printf '%s\n' "$badging" | grep -q "uses-permission: name='com.google.android.gms.permission.AD_ID'"; then FLAVOUR=ads; fi
 if [ "$MODE" = "diag" ] && [ "$VARIANT" != "debug" ]; then
-  echo "emu-smoke: the diagnostics page only exists in debug builds" >&2
+  echo "emu-smoke: the built-in diagnostics page only exists in debug builds (use diagcontent for a release build made with -PWEB_DIST=app/src/debug/assets/diag)" >&2
   exit 2
 fi
 COMPONENT="$PKG/com.zumurud.game.MainActivity"
 OUT="$ROOT/shots/android"
-PREFIX="$OUT/smoke-$VARIANT${MODE:+-$MODE}"
+PREFIX="$OUT/${SMOKE_NAME:-smoke}-$FLAVOUR-$VARIANT${MODE:+-$MODE}"
 LOG="$PREFIX.log"
 mkdir -p "$OUT"
+rm -f "$PREFIX"-[0-9][0-9]-*.png "$LOG"
 shot_no=0
 failures=()
 
@@ -97,6 +108,9 @@ wait_for_log() { # wait_for_log <extended regex> <seconds> → 0 when a matching
   return 1
 }
 
+DIAG_EXTRAS=()
+if [ "$MODE" = "diag" ]; then DIAG_EXTRAS=(--ez diag true); fi
+
 launch() { # launch [extra am arguments…]
   adb shell am start -n "$COMPONENT" "$@" >/dev/null 2>&1 || fail "am start failed"
 }
@@ -106,17 +120,26 @@ in_foreground() {
 }
 
 say "device $SERIAL: Android $(adb shell getprop ro.build.version.release | tr -d '\r') (API $(adb shell getprop ro.build.version.sdk | tr -d '\r')), WebView $(adb shell dumpsys webviewupdate 2>/dev/null | sed -n 's/.*Current WebView package (name, version): (\(.*\))/\1/p' | tr -d '\r')"
-say "installing $APK ($PKG, $VARIANT)"
+say "installing $APK ($PKG, $FLAVOUR $VARIANT)"
 adb shell am force-stop "$PKG" >/dev/null 2>&1
-if ! ADB_TIMEOUT=600 adb install -r -t "$APK" 2>&1 | tail -n 1 | grep -q Success; then
-  echo "emu-smoke: install failed" >&2
-  exit 1
+install_out="$(ADB_TIMEOUT=900 adb install -r -t "$APK" 2>&1 | tail -n 3)"
+if ! printf '%s\n' "$install_out" | grep -q Success; then
+  # A build signed with another key (or an older version code) is already there: replace it.
+  if printf '%s\n' "$install_out" | grep -Eq 'INSTALL_FAILED_UPDATE_INCOMPATIBLE|INSTALL_FAILED_VERSION_DOWNGRADE'; then
+    say "replacing the installed build (other signature or newer version)"
+    adb uninstall "$PKG" >/dev/null 2>&1
+    install_out="$(ADB_TIMEOUT=900 adb install -t "$APK" 2>&1 | tail -n 3)"
+  fi
+  if ! printf '%s\n' "$install_out" | grep -q Success; then
+    echo "emu-smoke: install failed: $install_out" >&2
+    exit 1
+  fi
 fi
 adb logcat -c
 
-if [ "$MODE" = "diag" ]; then
+if [ -n "$MODE" ]; then
   say "diagnostics, first launch"
-  launch --ez diag true
+  launch ${DIAG_EXTRAS[@]+"${DIAG_EXTRAS[@]}"}
   wait_for_log 'ZumurudJS.*DIAG (WAIT|PASS) lifecycle' "$WAIT" || fail "the diagnostics page did not finish its checks within ${WAIT}s"
   sleep 2
   shot run1
@@ -125,21 +148,21 @@ if [ "$MODE" = "diag" ]; then
   adb shell am force-stop "$PKG"
   first_run_log="$(log_now)"
   adb logcat -c
-  launch --ez diag true
+  launch ${DIAG_EXTRAS[@]+"${DIAG_EXTRAS[@]}"}
   wait_for_log 'ZumurudJS.*DIAG (WAIT|PASS) lifecycle' "$WAIT" || fail "second launch: the diagnostics page did not finish within ${WAIT}s"
   log_now | grep -q 'DIAG PASS save-restart' || fail "the save did not survive the process kill"
 
   say "Back while the page is not at its root → the page must receive it"
   adb shell input keyevent KEYCODE_BACK
-  wait_for_log 'DIAG PASS back' 30 || fail "Back did not reach the page"
+  wait_for_log 'DIAG PASS back' 60 || fail "Back did not reach the page"
   in_foreground || fail "Back closed the app although the page was not at its root"
 
   say "Home, then return → pause and resume hooks"
   adb shell input keyevent KEYCODE_HOME
   sleep 4
   in_foreground && fail "Home did not leave the app"
-  launch --ez diag true
-  wait_for_log 'DIAG PASS lifecycle' 60 || fail "pause/resume hooks did not fire"
+  launch ${DIAG_EXTRAS[@]+"${DIAG_EXTRAS[@]}"}
+  wait_for_log 'DIAG PASS lifecycle' 90 || fail "pause/resume hooks did not fire"
   sleep 3
   shot final
   summary="$(log_now | grep 'DIAG SUMMARY' | tail -n 1 | sed 's/.*DIAG SUMMARY //; s/ (.*//')"
@@ -148,6 +171,14 @@ if [ "$MODE" = "diag" ]; then
     *"fail=0 wait=0"*) ;;
     *) fail "diagnostics did not end with fail=0 wait=0 (got: ${summary:-nothing})" ;;
   esac
+
+  say "store panel: what the purchase and ad bridge answered (key S opens it)"
+  adb shell input keyevent KEYCODE_S
+  sleep 4
+  shot store
+  log_now | grep -q 'DIAG PASS store:' || fail "the store check did not pass"
+  log_now | grep 'DIAG PASS store:' | tail -n 1 | sed 's/.*DIAG PASS store: /   /; s/ (diag.js.*//'
+  adb shell input keyevent KEYCODE_S
 
   say "Back at the root → the system takes the app off the screen"
   adb shell input keyevent KEYCODE_BACK
@@ -174,9 +205,12 @@ else
   full_log="$(log_now)"
 fi
 
-# ── the log: everything the app and its page said, plus crashes ──
-# (threadtime format: "MM-DD HH:MM:SS.mmm  PID  TID L Tag     : message")
-printf '%s\n' "$full_log" | grep -E ' [VDIWEF] (ZumurudJS|Zumurud|ZumurudDiag|chromium|cr_[A-Za-z]*) *: | [EF] AndroidRuntime *: |ANR in ' > "$LOG" || true
+# ── the log: everything the app, its page, its store and the Google libraries said, plus crashes ──
+# (threadtime format: "MM-DD HH:MM:SS.mmm  PID  TID L Tag     : message"; stack-trace lines of the
+# libraries' own handled exceptions are left out)
+printf '%s\n' "$full_log" \
+  | grep -E ' [VDIWEF] (ZumurudJS|Zumurud|ZumurudDiag|ZumurudStore|ZumurudAds|BillingClient|BillingLogger|UserMessagingPlatform|Ads|GmaSdk|chromium|cr_[A-Za-z]*) *: | [EF] AndroidRuntime *: |ANR in ' \
+  | grep -Ev ': 	at |: java\.lang\.[A-Za-z]*Exception' > "$LOG" || true
 [ -s "$LOG" ] || fail "no log lines from the app were captured"
 say "log ($LOG):"
 sed 's/^/   /' "$LOG"
@@ -193,4 +227,4 @@ if [ "${#failures[@]}" -gt 0 ]; then
   printf '   - %s\n' "${failures[@]}"
   exit 1
 fi
-say "smoke test passed"
+say "smoke test passed ($FLAVOUR $VARIANT${MODE:+, $MODE})"

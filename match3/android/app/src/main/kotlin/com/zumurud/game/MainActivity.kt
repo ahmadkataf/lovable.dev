@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
     private lateinit var assetLoader: WebViewAssetLoader
     private lateinit var bridge: GameBridge
     private lateinit var store: StoreController
+    private lateinit var saves: SaveStore
 
     private var webView: WebView? = null
     private var errorView: View? = null
@@ -120,12 +121,13 @@ class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
             insets
         }
 
+        saves = SaveStore(this)
         // Purchases and ads. Events go to the page as window.__native.store("<json>"): the JSON
         // text is passed as one quoted JavaScript string (see callPageHook / jsString).
         store = StoreControllers.create(this, this) { eventJson ->
             runOnUiThread { if (!isDestroyed) callPageHook("store", eventJson) }
         }
-        bridge = GameBridge(this, SaveStore(this), store)
+        bridge = GameBridge(this, saves, store)
         publishInfo()
 
         assetLoader = LocalContent.createLoader(this, Diagnostics.EXTRA_ASSET_ROOTS)
@@ -582,12 +584,15 @@ class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
         false
     }
 
-    // ───────────────────────── StoreHost (main thread) ─────────────────────────
+    // ───────────────────────── StoreHost ─────────────────────────
 
     /** A full-screen ad or a consent form took the system bars out of hiding: hide them again. */
     override fun restoreImmersiveMode() {
         if (!isDestroyed) hideSystemBars()
     }
+
+    /** Called on the store's worker thread, before a purchase is consumed or acknowledged. */
+    override fun flushSave(): Boolean = saves.flush()
 
     // ───────────────────────── diagnostics (debug builds only use these) ─────────────────────────
 

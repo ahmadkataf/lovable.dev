@@ -30,7 +30,8 @@
  * spread only after moves, and a vine cut by a booster counts for the next move; a hammer needs
  * something to hit; freeSwap refuses identical pieces; lamps enter through gap-free columns; a
  * board on which no move can ever exist ends the level; the cascade counter grows with every
- * fall step (also the one after a lamp was collected).
+ * fall step (also the one after a lamp was collected); within one wave, prisms that pick their
+ * own colour fire after the other effects.
  */
 import { Game, SCORE } from '../../src/engine/index.ts';
 import type {
@@ -1168,9 +1169,14 @@ export class Referee {
     const cols = w.cols;
     const act = this.take(ctx, 'activate');
     const step = this.take(ctx, 'clear');
-    const fireList = ctx.pending;
+    // Effects apply in the order listed. A prism that picks its own colour depends on what the
+    // other effects leave, so it comes after them (engine decision: best for the player, and the
+    // outcome no longer depends on the order in which the specials happened to be hit).
+    const lonePrism = (fire: Fire): boolean => fire.kind === 'prism' && fire.color < 0;
+    const fireList = ctx.pending.filter((fire) => !lonePrism(fire)).concat(ctx.pending.filter(lonePrism));
     ctx.pending = [];
     this.bump('wave:blast');
+    if (fireList.some(lonePrism) && !lonePrism(fireList[0])) this.bump('wave:prismAfterOthers');
     if (act.fx.length !== fireList.length) die(`${fireList.length} specials must fire, the activate step lists ${act.fx.length}`);
     const mult = Math.min(ctx.falls + 1, SCORE.cascadeCap);
     const want: Hit[] = [];

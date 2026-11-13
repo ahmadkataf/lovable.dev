@@ -428,7 +428,7 @@ describe('hardening: every mutation is stored once and announced once', () => {
     { name: 'markSeen again', setup: (h) => h.profile.markSeen('a'), act: (p) => p.markSeen('a') },
     { name: 'markSeen("")', act: (p) => p.markSeen('') },
     { name: 'every getter', act: (p) => [p.data(), p.lives(), p.coins(), p.boosterCount('prism'), p.boosterPrice('prism'), p.highestUnlocked(), p.record(1), p.totalStars(), p.daily(), p.settings(), p.hasSeen('a')] },
-    { name: 'every getter of the extensions', act: (p) => [p.boosterUnlocked('prism'), p.featureUnlocked('daily'), p.featureUnlocked('shop'), p.caravan(), p.caravanBoosters(), p.continuePrice(0), p.shop(), p.lastSaveOk(), p.purchaseGranted('token-1'), p.adsToday(), p.daysSinceFirstPlay()] },
+    { name: 'every getter of the extensions', act: (p) => [p.boosterUnlocked('prism'), p.featureUnlocked('daily'), p.featureUnlocked('shop'), p.caravan(), p.caravanBoosters(), p.continuePrice(0), p.shop(), p.lastSaveOk(), p.purchaseGranted('token-1'), p.purchaseSaved('token-1'), p.adsToday(), p.daysSinceFirstPlay()] },
     { name: 'claimUnlocks with nothing new', act: (p) => p.claimUnlocks() },
     { name: 'claimUnlocks twice', setup: (h) => { for (let id = 1; id <= 7; id++) h.profile.recordWin(id, 1, 10, 0); h.profile.claimUnlocks(); }, act: (p) => p.claimUnlocks() },
     { name: 'addLife when full', act: (p) => p.addLife() },

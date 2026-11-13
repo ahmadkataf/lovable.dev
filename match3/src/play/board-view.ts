@@ -42,6 +42,12 @@ export interface VPiece {
   chainAlpha: number;
   /** leaving the board: ignored by reconcile and hit-testing */
   dying: boolean;
+  /**
+   * Owner token of the cosmetic tween (pick-up scale, snap-back, wobble, landing squash) that may
+   * write this piece right now. Whoever starts one bumps it; a tween that no longer holds the
+   * current value stops writing — so two of them can never fight over a piece or leave it askew.
+   */
+  tw: number;
   img: HTMLCanvasElement | null;
 }
 
@@ -63,6 +69,8 @@ export const SHAPE_SPARK = 3;
 const SHAPE_COUNT = 4;
 
 const MAX_PARTICLES = 160;
+/** How far the board frame reaches beyond the cells, as a share of a cell (frame + dark outline). */
+const FRAME_SHARE = 0.125;
 const DPR_CAP = 3;
 const FONT = '"Baloo Bhaijaan 2 Variable", "Baloo Bhaijaan 2", system-ui, sans-serif';
 
@@ -123,6 +131,8 @@ interface PopupFx {
   /** size in cells */
   w: number;
   h: number;
+  value: number;
+  big: boolean;
 }
 
 interface GhostFx {
@@ -186,6 +196,13 @@ export interface BoardView {
   reconcile(snapshot: Snapshot): string[];
   /** Throw the visual state away and rebuild it from a settled snapshot. */
   reset(snapshot: Snapshot): void;
+  /**
+   * Call when nothing animates any more: every piece must then stand squarely on its cell at its
+   * natural size. Whatever was left askew, enlarged, faded or half-gone is put right. `held` are
+   * the pieces the player has in hand (selection, finger) — those may be lifted. Returns what was
+   * found (empty = all was well).
+   */
+  restAudit(held: readonly (VPiece | null)[]): string[];
 
   // effects (cell coordinates)
   burst(x: number, y: number, color: number, count: number, speed: number, shape: number, opts?: BurstOpts): void;
@@ -216,6 +233,46 @@ export interface BoardView {
   dirty(): boolean;
   clearEffects(): void;
   particleCount(): number;
+  /** Test hook: the renderer's own model — what is drawn where. Allocates; never call it from the frame loop. */
+  debugState(): ViewDebug;
+}
+
+/** What `BoardView.debugState()` reports (tests compare it with the engine's snapshot). */
+export interface ViewDebug {
+  cols: number;
+  rows: number;
+  /** logical grid: id of the piece standing on each cell, -1 = none (row-major) */
+  grid: number[];
+  sand: number[];
+  exists: number[];
+  pieces: {
+    id: number;
+    kind: PieceKind;
+    color: number;
+    hp: number;
+    chained: boolean;
+    x: number;
+    y: number;
+    ox: number;
+    oy: number;
+    sx: number;
+    sy: number;
+    rot: number;
+    alpha: number;
+    flash: number;
+    lift: boolean;
+    clipped: boolean;
+    chainAlpha: number;
+    dying: boolean;
+  }[];
+  effects: { particles: number; beams: number; rings: number; rays: number; popups: number; ghosts: number; glows: number; flash: boolean; shake: boolean };
+  selection: Pos | null;
+  hint: boolean;
+  hand: boolean;
+  targeting: boolean;
+  dim: number;
+  cell: number;
+  dpr: number;
 }
 
 export interface BurstOpts {
@@ -368,6 +425,9 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   /** free-running clock for looping highlights, ms */
   let loopT = 0;
 
+  /** Rendered score labels by text + size: the same few values come up again and again. */
+  const popupCache = new Map<string, HTMLCanvasElement>();
+
   /** Reused options of the sparks a beam sheds (no allocation per emission). */
   const sparkOpts: BurstOpts = { angle: 0, spread: 1.6, size: 0.2, life: 320, gravity: 0, additive: true };
 
@@ -397,6 +457,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     handImg = null;
     hammerImg = null;
     ringImg = null;
+    popupCache.clear();
     for (let i = 0; i < list.length; i++) refreshSprite(list[i] as VPiece);
     warmed = false;
   }
@@ -675,6 +736,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       clipTop: NO_CLIP,
       chainAlpha: piece.chained ? 1 : 0,
       dying: false,
+      tw: 0,
       img: null,
     };
     refreshSprite(vp);
@@ -767,6 +829,51 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     return problems;
   }
 
+  function restAudit(held: readonly (VPiece | null)[]): string[] {
+    const problems: string[] = [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const p = list[i] as VPiece;
+      if (p.dying) {
+        problems.push('piece ' + p.id + ' (' + p.kind + ') was still leaving the board');
+        removePiece(p);
+        continue;
+      }
+      if (held.indexOf(p) >= 0) continue;
+      const chain = p.chained ? 1 : 0;
+      const off =
+        Math.abs(p.sx - 1) > 0.004 ||
+        Math.abs(p.sy - 1) > 0.004 ||
+        Math.abs(p.ox) > 0.004 ||
+        Math.abs(p.oy) > 0.004 ||
+        p.rot !== 0 ||
+        p.alpha < 0.996 ||
+        p.flash > 0.004 ||
+        p.lift ||
+        p.clipTop !== NO_CLIP ||
+        Math.abs(p.chainAlpha - chain) > 0.004;
+      if (!off) continue;
+      if (problems.length < 6) {
+        problems.push(
+          'piece ' + p.id + ' (' + p.kind + ') at ' + p.x.toFixed(2) + ',' + p.y.toFixed(2) + ' was not at rest: scale ' + p.sx.toFixed(3) + '×' + p.sy.toFixed(3) +
+            ', offset ' + p.ox.toFixed(3) + ',' + p.oy.toFixed(3) + ', rot ' + p.rot.toFixed(3) + ', alpha ' + p.alpha.toFixed(2) + ', flash ' + p.flash.toFixed(2) +
+            (p.lift ? ', lifted' : '') + (p.clipTop !== NO_CLIP ? ', clipped' : '') + ', chain ' + p.chainAlpha.toFixed(2),
+        );
+      }
+      p.sx = 1;
+      p.sy = 1;
+      p.ox = 0;
+      p.oy = 0;
+      p.rot = 0;
+      p.alpha = 1;
+      p.flash = 0;
+      p.lift = false;
+      p.clipTop = NO_CLIP;
+      p.chainAlpha = chain;
+      needsDraw = true;
+    }
+    return problems;
+  }
+
   function addPiece(piece: Piece, c: number, r: number): VPiece {
     const old = byId.get(piece.id);
     if (old) removePiece(old);
@@ -816,6 +923,10 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     cw = w;
     ch = h;
     rect = fitBoard(stageW, stageH, Math.max(1, nCols), Math.max(1, nRows), pad, dpr, maxCell);
+    // the gold frame grows with the cell: on boards with few, large cells the fixed margin is not
+    // enough for it, so fit again with the room the frame really needs
+    const frameRoom = Math.ceil(rect.cell * FRAME_SHARE + 1.5);
+    if (frameRoom > pad) rect = fitBoard(stageW, stageH, Math.max(1, nCols), Math.max(1, nRows), frameRoom, dpr, maxCell);
     const newCs = Math.max(1, Math.round(rect.cell * dpr));
     bx = Math.round(rect.x * dpr);
     by = Math.round(rect.y * dpr);
@@ -996,9 +1107,12 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     rays.push({ x0, y0, x1, y1, cx: mx + (-dy / len) * bend, cy: my + (dx / len) * bend - 0.35, t: 0, dur, delay, color });
   }
 
-  function popup(x: number, y: number, value: number, dur: number, fade: number, delay: number, big: boolean): void {
+  function popupImage(value: number, big: boolean): HTMLCanvasElement {
     const text = String(value);
     const fontPx = Math.max(11 * dpr, Math.round(cs * (big ? 0.56 : 0.42)));
+    const key = text + (big ? 'B' : 'S') + fontPx;
+    const cached = popupCache.get(key);
+    if (cached) return cached;
     const padPx = Math.ceil(fontPx * 0.3);
     const font = '800 ' + fontPx + 'px ' + FONT;
     ctx.save();
@@ -1022,7 +1136,28 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     grad.addColorStop(1, big ? '#ffc94a' : '#ffe7a3');
     g.fillStyle = grad;
     g.fillText(text, tx, ty);
-    popups.push({ x, y, t: 0, dur, fade, delay, img, w: img.width / cs, h: img.height / cs });
+    if (popupCache.size > 96) popupCache.clear();
+    popupCache.set(key, img);
+    return img;
+  }
+
+  function popup(x: number, y: number, value: number, dur: number, fade: number, delay: number, big: boolean): void {
+    // two labels on the same spot would be unreadable: a young one takes the newcomer's points
+    for (let k = 0; k < popups.length; k++) {
+      const p = popups[k] as PopupFx;
+      if (Math.abs(p.x - x) > 0.45 || Math.abs(p.y - y) > 0.45) continue;
+      // time between the two labels appearing
+      const gap = delay + p.t - p.delay;
+      if (gap > 260 || gap < -260) continue;
+      p.value += value;
+      p.big = p.big || big || p.value >= 300;
+      p.img = popupImage(p.value, p.big);
+      p.w = p.img.width / cs;
+      p.h = p.img.height / cs;
+      return;
+    }
+    const img = popupImage(value, big);
+    popups.push({ x, y, t: 0, dur, fade, delay, img, w: img.width / cs, h: img.height / cs, value, big });
   }
 
   function ghost(key: SpriteKey | 'hammer', x: number, y: number, dur: number, opts?: GhostOpts): void {
@@ -1536,6 +1671,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     reset(snapshot) {
       setBoard(snapshot, lampLevel);
     },
+    restAudit,
     burst,
     beam,
     ring,
@@ -1589,5 +1725,57 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     dirty: () => needsDraw,
     clearEffects,
     particleCount: () => pCount,
+    debugState() {
+      const pieces: ViewDebug['pieces'] = [];
+      for (let i = 0; i < list.length; i++) {
+        const p = list[i] as VPiece;
+        pieces.push({
+          id: p.id,
+          kind: p.kind,
+          color: p.color,
+          hp: p.hp,
+          chained: p.chained,
+          x: p.x,
+          y: p.y,
+          ox: p.ox,
+          oy: p.oy,
+          sx: p.sx,
+          sy: p.sy,
+          rot: p.rot,
+          alpha: p.alpha,
+          flash: p.flash,
+          lift: p.lift,
+          clipped: p.clipTop !== NO_CLIP,
+          chainAlpha: p.chainAlpha,
+          dying: p.dying,
+        });
+      }
+      return {
+        cols: nCols,
+        rows: nRows,
+        grid: Array.prototype.slice.call(grid) as number[],
+        sand: Array.prototype.slice.call(cellSand) as number[],
+        exists: Array.prototype.slice.call(cellExists) as number[],
+        pieces,
+        effects: {
+          particles: pCount,
+          beams: beams.length,
+          rings: rings.length,
+          rays: rays.length,
+          popups: popups.length,
+          ghosts: ghosts.length,
+          glows: glows.length,
+          flash: flashT < flashDur,
+          shake: shakeT < shakeDur,
+        },
+        selection: selC >= 0 ? { c: selC, r: selR } : null,
+        hint: hintAC >= 0,
+        hand: handAC >= 0,
+        targeting,
+        dim,
+        cell: rect.cell,
+        dpr,
+      };
+    },
   };
 }

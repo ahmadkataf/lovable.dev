@@ -12,19 +12,15 @@ import { createAudio } from './audio/index.ts';
 import { createI18n, resolveLang } from './i18n/index.ts';
 import { CHAPTERS, LEVELS } from './levels/index.ts';
 import { createStore } from './monetize/index.ts';
-import type { StoreApi } from './monetize/types.ts';
 import { createPlatform } from './platform/index.ts';
 import type { PlatformApi } from './platform/types.ts';
 import { createPlayScreen } from './play/index.ts';
 import { createProfile } from './state/index.ts';
-import type { ProfileExtensions } from './state/extensions.ts';
-import type { BoosterId, ProfileApi } from './state/types.ts';
+import type { BoosterId } from './state/types.ts';
 import { createKit, fontsReady } from './ui/kit/index.ts';
 import type { Kit } from './ui/kit/index.ts';
 import { createShell, readFlags, watchOverlays } from './ui/index.ts';
 import type { Flags, Shell, World } from './ui/index.ts';
-
-type Profile = ProfileApi & Partial<ProfileExtensions>;
 
 interface BootWindow {
   /** Set as soon as this module runs: the compatibility guard in index.html watches it. */
@@ -81,7 +77,7 @@ async function boot(): Promise<void> {
   const world: World = flags.mockLevels > 0 ? (await import('./ui/dev/mock.ts')).mockWorld(flags.mockLevels) : { levels: LEVELS, chapters: CHAPTERS };
 
   let memorySave: string | null = flags.save;
-  const profile: Profile = createProfile({
+  const profile = createProfile({
     // ?save=… (debug): start from the given save and never touch the real one
     load: () => (flags.save !== null ? memorySave : device.loadSave()),
     save: (json) => {
@@ -125,9 +121,9 @@ async function boot(): Promise<void> {
     if (shell) shell.syncRoot();
   });
 
-  let store: StoreApi;
-  if (flags.mockStore) store = (await import('./ui/dev/mock.ts')).createMockStore(profile);
-  else store = createStore({ profile, platform, now: () => Date.now() });
+  // Purchases and ads: the Android wrapper's store, the test store in a browser (`?fakestore=1`,
+  // or under the dev server), otherwise nothing is on offer.
+  const store = createStore({ profile, platform, now: () => Date.now() });
 
   // ── sound settings: now and whenever they change ──
   let sfxOn: boolean | null = null;

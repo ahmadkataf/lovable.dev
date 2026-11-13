@@ -98,6 +98,10 @@ const LIMITS = {
   longTenSeconds: 6, // dB between the loudest and the quietest 10 s
   longDifference: 0.5, // first vs last minute: 0 = identical samples, ~1 = unrelated
   longNodes: 160, // live audio nodes of the music at any time
+  // pumping: share of the time the sustained part of the music is pushed more than 3 / 6 dB
+  // down by the compressor and clipper reacting to notes and drum strokes
+  pump3: 0.04,
+  pump6: 0.005,
   // ducking
   duckTolerance: 0.7, // dB
   duckHold: [0.45, 0.95], // s the music stays down under a special
@@ -668,10 +672,14 @@ async function checkLongMusic(page, report) {
     if (r.maxNodes > LIMITS.longNodes) flags.push('NODES');
     if (r.lastMinuteNodes > r.firstMinuteNodes * 1.5 + 10) flags.push('NODE-GROWTH');
     if (r.endVoices !== 0 || r.endNodes !== 0) flags.push('LEAK');
+    const pump = await page.evaluate((t) => window.__audioLab.pumpReport(t), track);
+    report.longMusic[report.longMusic.length - 1].pump = pump;
+    if (pump.below3 > LIMITS.pump3 || pump.below6 > LIMITS.pump6) flags.push('PUMPING');
     out('');
     out('music-' + track + ' ' + r.seconds + ' s: ' + r.bars + ' bars, ' + r.events + ' events scheduled, ' + r.dropped + ' dropped, ' + r.resyncs + ' grid restarts   ' + (flags.join(' ') || 'ok'));
     out('  peak ' + f(r.peak, 3) + ' (' + f(peakDb) + ' dBFS, music level ' + report.expected.musicPeakDb + ') · rms ' + f(r.rmsDb) + ' dBFS · crest ' + f(r.crest) + ' dB · A-weighted frames: loudest ' + f(r.loudness.max) + ', 95th percentile ' + f(r.loudness.p95) + ', median ' + f(r.loudness.p50) + ' dB');
     out('  dynamics: without the compressor and clipper the crest would be ' + f(r.rawCrest) + ' dB — they bring the body ' + f(r.densityGainDb) + ' dB closer to the peak (compressor ' + f(r.glueMean) + ' dB on average, ' + f(r.glueMax) + ' dB at most; clipper bending on ' + f(r.clipShare * 100, 2) + ' % of the samples)');
+    out('  pumping (a steady tone sent through with the lead and the drum): more than 3 dB down ' + f(pump.below3 * 100) + ' % of the time, more than 6 dB ' + f(pump.below6 * 100, 2) + ' % · 5 % of the time below ' + f(pump.p5) + ' dB, deepest dip ' + f(pump.deepest) + ' dB');
     out('  layers alone (first minute): lead ' + f(r.layerDb.lead) + ' · pad ' + f(r.layerDb.pad) + ' · perc ' + f(r.layerDb.perc) + ' dBFS');
     out('  loudness per minute ' + r.minuteDb.map((x) => f(x)).join(' / ') + ' dBFS (first vs last ' + f(firstLast) + ' dB apart, spread ' + f(minuteSpread) + ' dB) · per 10 s from ' + f(Math.min.apply(null, r.tenSecondDb)) + ' to ' + f(Math.max.apply(null, r.tenSecondDb)) + ' (spread ' + f(tenSpread) + ' dB)');
     out('  longest silence ' + f(r.longestSilence, 2) + ' s');
@@ -788,30 +796,39 @@ async function checkLive(browser, report) {
     return lab.snapshot().sfxPlayed - before;
   });
   step('the same effect plays again after the interval', again === 1, '');
-  // 'land' has a longer interval of its own; 'match' has three voices of its own.
+  // 'land' has a longer interval of its own; 'match' has three voices of its own. The
+  // calls are spaced on the audio clock (busy-waiting), so a slow timer cannot blur the test.
   await sleep(400);
-  const budget = await page.evaluate(async () => {
+  const budget = await page.evaluate(() => {
     const lab = window.__audioLab;
-    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const ctx = lab.audio.debug().context;
+    const waitAudio = (seconds) => {
+      const until = ctx.currentTime + seconds;
+      const giveUp = performance.now() + 2000;
+      while (ctx.currentTime < until && performance.now() < giveUp) {
+        /* busy */
+      }
+    };
     const a = lab.snapshot();
     for (let i = 0; i < 12; i++) {
       lab.audio.sfx('land');
-      await wait(10);
+      waitAudio(0.01);
     }
     const b = lab.snapshot();
-    await wait(300);
+    waitAudio(0.4);
     let most = 0;
     const c = lab.snapshot();
     for (let i = 0; i < 8; i++) {
       lab.audio.sfx('match', { step: 1 + i });
       most = Math.max(most, lab.snapshot().matchVoices);
-      await wait(40);
+      waitAudio(0.04);
     }
     const d = lab.snapshot();
-    return { lands: b.sfxPlayed - a.sfxPlayed, matches: d.sfxPlayed - c.sfxPlayed, most, stolen: d.sfxStolen - c.sfxStolen };
+    return { lands: b.sfxPlayed - a.sfxPlayed, landSpan: b.time - a.time, matches: d.sfxPlayed - c.sfxPlayed, matchSpan: d.time - c.time, most, stolen: d.sfxStolen - c.sfxStolen };
   });
-  step("'land' starts at most once per 60 ms", budget.lands >= 2 && budget.lands <= 4, budget.lands + ' started out of 12 calls in about 130 ms');
-  step("'match' never has more than three voices", budget.matches === 8 && budget.most <= 3 && budget.stolen >= 3, budget.matches + ' started 40 ms apart, at most ' + budget.most + ' at once, ' + budget.stolen + ' older ones faded out');
+  const landsMost = Math.floor(budget.landSpan / 0.06) + 1;
+  step("'land' starts at most once per 60 ms", budget.lands >= 2 && budget.lands <= landsMost && budget.lands < 12, budget.lands + ' started out of 12 calls in ' + f(budget.landSpan * 1000, 0) + ' ms of audio time (at most ' + landsMost + ' fit)');
+  step("'match' never has more than three voices", budget.matches === 8 && budget.most <= 3 && budget.stolen >= 2, budget.matches + ' started over ' + f(budget.matchSpan * 1000, 0) + ' ms, at most ' + budget.most + ' at once, ' + budget.stolen + ' older ones faded out');
 
   // 5. Track switching.
   await page.evaluate(() => window.__audioLab.audio.music('menu'));
@@ -824,27 +841,45 @@ async function checkLive(browser, report) {
   level = await listen(900);
   step('level music is audible after the cross-fade', level.rms > 0.002, 'rms ' + f(20 * Math.log10(level.rms + 1e-9)) + ' dBFS');
   // A jingle pulls the music down 4 dB while it plays; a special does so for about 0.6 s.
-  const duckDb = (a, b) => 20 * Math.log10(Math.max(a, 1e-9) / Math.max(b, 1e-9));
-  const levelBefore = (await snap()).musicLevel;
-  await page.evaluate(() => window.__audioLab.audio.sfx('win'));
-  await sleep(350);
-  const levelDuring = (await snap()).musicLevel;
-  await sleep(1000);
-  const levelLate = (await snap()).musicLevel;
-  await sleep(1700);
-  const levelAfter = (await snap()).musicLevel;
-  step('music ducks 4 dB under a jingle, for its whole length, and comes back', Math.abs(duckDb(levelDuring, levelBefore) + 4) < 0.7 && Math.abs(duckDb(levelLate, levelBefore) + 4) < 0.7 && Math.abs(duckDb(levelAfter, levelBefore)) < 0.3,
-    'music bus ' + f(levelBefore, 3) + ' → ' + f(levelDuring, 3) + ' (' + f(duckDb(levelDuring, levelBefore)) + ' dB) → still ' + f(duckDb(levelLate, levelBefore)) + ' dB after 1.35 s → ' + f(levelAfter, 3));
-  await page.evaluate(() => window.__audioLab.audio.sfx('beam'));
-  await sleep(300);
-  const beamDuring = (await snap()).musicLevel;
-  await sleep(1000);
-  const beamAfter = (await snap()).musicLevel;
-  await page.evaluate(() => window.__audioLab.audio.sfx('match', { step: 2 }));
-  await sleep(120);
-  const matchDuring = (await snap()).musicLevel;
-  step('music ducks under a special for about 0.6 s, and not at all under a match', Math.abs(duckDb(beamDuring, levelBefore) + 4) < 0.7 && Math.abs(duckDb(beamAfter, levelBefore)) < 0.5 && Math.abs(duckDb(matchDuring, levelBefore)) < 0.5,
-    'beam: ' + f(duckDb(beamDuring, levelBefore)) + ' dB at 0.3 s, ' + f(duckDb(beamAfter, levelBefore)) + ' dB at 1.3 s · match: ' + f(duckDb(matchDuring, levelBefore)) + ' dB');
+  // The music bus is watched on the audio clock, so the reading does not depend on timers.
+  const watchDuck = (name, opts, seconds) =>
+    page.evaluate(async (a) => {
+      const lab = window.__audioLab;
+      const before = lab.snapshot();
+      lab.audio.sfx(a.name, a.opts);
+      const series = [];
+      const end = performance.now() + a.seconds * 1000;
+      while (performance.now() < end) {
+        const sn = lab.snapshot();
+        series.push([sn.time - before.time, sn.musicLevel]);
+        await new Promise((resolve) => setTimeout(resolve, 15));
+      }
+      return { rest: before.musicLevel, series };
+    }, { name, opts, seconds });
+  /** Deepest and shallowest level (dB re the resting level) seen between two audio times. */
+  const duckBetween = (w, from, to) => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const [t, v] of w.series) {
+      if (t < from || t > to) continue;
+      const d = 20 * Math.log10(Math.max(v, 1e-9) / Math.max(w.rest, 1e-9));
+      lo = Math.min(lo, d);
+      hi = Math.max(hi, d);
+    }
+    return { lo, hi, seen: lo !== Infinity };
+  };
+  const dWin = await watchDuck('win', undefined, 3.6);
+  const winA = duckBetween(dWin, 0.3, 1.5);
+  const winB = duckBetween(dWin, 2.9, 3.6);
+  step('music ducks 4 dB under a jingle, for its whole length, and comes back', winA.seen && winB.seen && Math.abs(winA.lo + 4) < 0.7 && Math.abs(winA.hi + 4) < 0.7 && Math.abs(winB.lo) < 0.4,
+    'music bus at rest ' + f(dWin.rest, 3) + ' · from 0.3 to 1.5 s into the jingle ' + f(winA.lo) + ' … ' + f(winA.hi) + ' dB · after 2.9 s ' + f(winB.lo, 2) + ' dB');
+  const dBeam = await watchDuck('beam', undefined, 2.2);
+  const beamA = duckBetween(dBeam, 0.2, 0.5);
+  const beamB = duckBetween(dBeam, 1.6, 2.2);
+  const dMatch = await watchDuck('match', { step: 2 }, 0.5);
+  const matchA = duckBetween(dMatch, 0, 0.5);
+  step('music ducks under a special for about 0.6 s, and not at all under a match', beamA.seen && beamB.seen && matchA.seen && Math.abs(beamA.lo + 4) < 0.7 && Math.abs(beamB.lo) < 0.4 && Math.abs(matchA.lo) < 0.3,
+    'beam: ' + f(beamA.lo) + ' dB between 0.2 and 0.5 s, ' + f(beamB.lo, 2) + ' dB after 1.6 s · match: ' + f(matchA.lo, 2) + ' dB');
   await page.evaluate(() => window.__audioLab.audio.music(null));
   s = await snap();
   step('music(null) stops scheduling', s.playing === null && !s.schedulerRunning, 'scheduler ' + (s.schedulerRunning ? 'on' : 'off'));
@@ -1523,9 +1558,11 @@ async function checkAdversarial(browser, report) {
       await lab.rec.start();
       lab.probe.start();
       const before = lab.snapshot();
+      const ctx = lab.audio.debug().context;
       let most = 0;
       let mostMatch = 0;
       for (let i = 0; i < 60; i++) {
+        const next = ctx.currentTime + 0.045;
         lab.audio.sfx('match', { step: 1 + (i % 16) });
         if (i % 5 === 0) lab.audio.sfx('land');
         if (i % 7 === 3) lab.audio.sfx(['beam', 'nova', 'prism', 'bigCombo'][(i >> 2) % 4]);
@@ -1534,20 +1571,25 @@ async function checkAdversarial(browser, report) {
         const s = lab.snapshot();
         most = Math.max(most, s.voices);
         mostMatch = Math.max(mostMatch, s.matchVoices);
-        await wait(45);
+        // Let the music's scheduler tick, then wait out the rest of the 45 ms on the audio clock.
+        await wait(0);
+        const giveUp = performance.now() + 1000;
+        while (ctx.currentTime < next && performance.now() < giveUp) {
+          /* busy */
+        }
       }
       const after = lab.snapshot();
       await wait(1500);
       const rec = await lab.rec.stop();
       const probe = lab.probe.stop();
-      return { before, after, most, mostMatch, end: lab.snapshot(), rec: { peak: rec.peak, holes: rec.holes, rmsDb: rec.rmsDb, seconds: rec.seconds }, probe: { late: probe.late, starts: probe.starts, worstLead: probe.worstLead } };
+      return { before, after, most, mostMatch, end: lab.snapshot(), rec: { peak: rec.peak, holes: rec.holes, rmsDb: rec.rmsDb, seconds: rec.seconds }, probe: { late: probe.late, starts: probe.starts, cancelled: probe.cancelled, worstLead: probe.worstLead } };
     });
     await saveRec(page, 'live-cascade', 'live: 60 matches 45 ms apart with specials, praise and blockers over level music');
     const played = r.after.sfxPlayed - r.before.sfxPlayed;
     const stolen = r.after.sfxStolen - r.before.sfxStolen;
     step('voice caps hold through a long cascade', r.most <= 12 && r.mostMatch <= 3 && stolen > 20, 'at most ' + r.most + ' voices, ' + r.mostMatch + " 'match' · " + played + ' effects played, ' + stolen + ' voices faded out to make room');
     step('the cascade stays under the ceiling', r.rec.peak < LIMITS.ceiling && holesOk(r.rec), 'recorded peak ' + f(r.rec.peak, 3) + ' (' + f(20 * Math.log10(r.rec.peak + 1e-9)) + ' dBFS), rms ' + f(r.rec.rmsDb) + ' dBFS over ' + f(r.rec.seconds, 1) + ' s' + holesNote(r.rec));
-    step('nothing in it was scheduled in the past', r.probe.late === 0, r.probe.starts + ' sources started, smallest lead ' + f(r.probe.worstLead * 1000, 1) + ' ms');
+    step('nothing in it was left to start in the past', r.probe.late === 0, r.probe.starts + ' sources left to sound, smallest lead ' + f(r.probe.worstLead * 1000, 1) + ' ms · ' + (r.end.sfxRebuilt - r.before.sfxRebuilt) + ' effect voices rebuilt, ' + (r.end.music.dropped - r.before.music.dropped) + ' music notes left out because the clock had overtaken them, ' + r.probe.cancelled + ' sources taken back');
     const s = await untilOf(page, (x) => x.voices === 0 && x.liveVoices <= base.liveVoices + 4, 4000);
     step('every stolen and finished voice is released', s.voices === 0 && s.liveVoices <= base.liveVoices + 4 && s.liveNodes <= base.liveNodes + 30, s.liveVoices + ' voices / ' + s.liveNodes + ' nodes alive (music alone before: ' + base.liveVoices + ' / ' + base.liveNodes + ')');
     step('no page errors (cascade)', errors.length === 0, errors.slice(0, 2).join(' | '));

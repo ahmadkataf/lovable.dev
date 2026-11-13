@@ -638,6 +638,33 @@ describe('§2.4 special effects', () => {
     expect(tie.fx[0].targets.length).toBe(7);
   });
 
+  it('a prism fired in the same wave as other effects picks from what they leave — whichever way round the board is', () => {
+    // The nova on (1,2) sets off the prism on (0,2) and the beam on (2,2). Before the beam fires
+    // D is the most common colour (9, E 8); the beam takes two D out of its row, after which E is
+    // (8 to 7). The prism picks after the beam: E. (An earlier version applied the two in the order
+    // they were hit — prism first on this board, beam first on its mirror image — so the same
+    // position scored 200 one way round and 220 the other.)
+    const rows = ['D  F  E  D  E  D  E', 'E  F  E  F  E  F  E', 'P  E* F- E  D  F  D', 'F  E  F  D  E  D  E', 'F  F  D  F  D  F  E'];
+    const mirrored = rows.map((row) => row.trim().split(/\s+/).reverse().join('  '));
+    for (const [board, flip] of [[rows, false], [mirrored, true]] as const) {
+      const x = (c: number): number => (flip ? 6 - c : c);
+      const t = audit(board.slice());
+      const res = t.hammer(at(x(1), 2));
+      expect(stepTypes(res.steps.slice(0, 7))).toBe('booster clear activate clear activate clear fall');
+      const third = stepsOf(res.steps, 'activate')[1];
+      expect(third.fx.map((f) => `${f.kind}@${f.at.c},${f.at.r}`)).toEqual([`beamH@${x(2)},2`, `prism@${x(0)},2`]);
+      expect(third.fx[1].color).toBe(E);
+      expect(third.fx[1].targets.length).toBe(8);
+      const clear = clearsOf(res)[2];
+      expect(clear.hits.length).toBe(11);
+      expect(clear.score).toBe(220);
+      // the beam's three, then the eight E
+      expect(hitCells(clear).slice().sort()).toEqual([`${x(4)},2`, `${x(5)},2`, `${x(6)},2`, ...third.fx[1].targets.map((p) => `${p.c},${p.r}`)].sort());
+      expect(clear.hits.filter((h) => h.color === E).length).toBe(8);
+      expect(clear.hits.filter((h) => h.color === D).length).toBe(2);
+    }
+  });
+
   it('chain reactions: specials hit by a blast fire together in the next wave, all before gravity', () => {
     const t = audit([
       '~  ~  ~  ~  ~  ~  ~',

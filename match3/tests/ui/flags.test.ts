@@ -13,9 +13,9 @@ describe('debug flags', () => {
   });
 
   it('are all off outside dev unless ?debug=1 is given', () => {
-    expect(readFlags('?lang=ar&mocklevels=120&mockstore=1&gate=off&screen=map', false, atob)).toEqual(NO_FLAGS);
-    const on = readFlags('?debug=1&lang=ar&mocklevels=120&mockstore=1&gate=off&screen=map&still=1', false, atob);
-    expect(on).toEqual({ debug: true, lang: 'ar', mockLevels: 120, save: null, mockStore: true, gateOff: true, screen: 'map', still: true });
+    expect(readFlags('?lang=ar&mocklevels=120&gate=off&screen=map', false, atob)).toEqual(NO_FLAGS);
+    const on = readFlags('?debug=1&lang=ar&mocklevels=120&gate=off&screen=map&still=1', false, atob);
+    expect(on).toEqual({ debug: true, lang: 'ar', mockLevels: 120, save: null, gateOff: true, screen: 'map', still: true });
     expect(readFlags('', true, atob).debug).toBe(true);
   });
 

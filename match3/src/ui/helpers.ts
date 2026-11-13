@@ -63,12 +63,18 @@ export function goalText(t: Translate, goal: Goal): string {
 
 // ───────────────────────────── map nodes ─────────────────────────────
 
-export type NodeState = 'done' | 'current' | 'locked';
+export type NodeState = 'done' | 'current' | 'open' | 'locked';
 
-/** State of a level's node. `stars` = best stars (0 when never won). */
+/**
+ * State of a level's node. `stars` = best stars (0 when never won). 'current' is the one level
+ * the journey has reached; 'open' is a playable level below it that was never won — which a
+ * normal save cannot hold, but a damaged or hand-edited one can (then it must not look like
+ * dozens of "current" levels).
+ */
 export function nodeState(levelId: number, highestUnlocked: number, stars: number): NodeState {
   if (stars > 0) return 'done';
-  return levelId <= highestUnlocked ? 'current' : 'locked';
+  if (levelId === highestUnlocked) return 'current';
+  return levelId < highestUnlocked ? 'open' : 'locked';
 }
 
 /** The level the map should focus on: the highest unlocked one, within the level list. */
@@ -155,14 +161,12 @@ export function splitProducts<T extends { def: ProductDef }>(products: readonly 
 
 /**
  * How many more rewarded ads of a placement may be watched today, or null when the store does not
- * say (then the button simply follows rewardedReady()). Understands the newer `rewardedLeft(placement)`
- * as well as the original `freeCoinAdsLeft()`.
+ * say (a test double without `rewardedLeft`: then the button simply follows rewardedReady()).
  */
 export function rewardedLeft(store: StoreApi, placement: AdPlacement): number | null {
-  const extended = store as StoreApi & { rewardedLeft?: (p: AdPlacement) => number };
   try {
-    if (typeof extended.rewardedLeft === 'function') {
-      const n = extended.rewardedLeft(placement);
+    if (typeof store.rewardedLeft === 'function') {
+      const n = store.rewardedLeft(placement);
       return typeof n === 'number' && n === n ? Math.max(0, Math.floor(n)) : null;
     }
     if (placement === 'freeCoins') {
@@ -175,15 +179,9 @@ export function rewardedLeft(store: StoreApi, placement: AdPlacement): number | 
   return null;
 }
 
-/** First positive whole number found under one of `names` in a module namespace (econ constants), else `fallback`. */
-export function pickNumber(source: unknown, names: readonly string[], fallback: number): number {
-  if (typeof source === 'object' && source !== null) {
-    for (const name of names) {
-      const v = (source as Record<string, unknown>)[name];
-      if (typeof v === 'number' && isFinite(v) && v > 0) return Math.floor(v);
-    }
-  }
-  return fallback;
+/** "×3" that keeps its order inside right-to-left text (U+200E in front, see src/i18n/strings/common.ts). */
+export function timesText(amount: string): string {
+  return '\u200E×' + amount;
 }
 
 // ───────────────────────────── levels ─────────────────────────────

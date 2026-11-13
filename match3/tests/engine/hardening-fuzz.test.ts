@@ -361,7 +361,10 @@ function firstWave(steps: readonly Step[], pos: (p: Pos) => Pos, kind: (kind: Pi
       const made = step.created.map((m) => `${key(m.at)}:${kind(m.piece.kind)}:${m.piece.color}:${m.from.map(key).sort().join('+')}`).sort();
       out.push(`clear c${step.cascade} score ${step.score} hits ${hits.join(' ')} created ${made.join(' ')}`);
     } else if (step.type === 'activate') {
-      out.push(`activate ${step.fx.map((f) => `${fxKind(f.kind)}@${key(f.at)}:${f.color}:${f.targets.map(key).sort().join('+')}`).sort().join(' | ')}`);
+      // Two prisms of one wave share the colours out between them in the order they were hit:
+      // which prism took which colour is the one thing that may differ between the views.
+      const prisms = step.fx.filter((f) => f.kind === 'prism').length;
+      out.push(`activate ${step.fx.map((f) => `${fxKind(f.kind)}@${prisms > 1 && f.kind === 'prism' ? '?' : key(f.at)}:${f.color}:${f.targets.map(key).sort().join('+')}`).sort().join(' | ')}`);
     }
   }
   return out;
