@@ -1,34 +1,91 @@
 /**
- * Chapter 6 — Stars (levels 101–120). The last stretch: every spike is marked hard
- * (104, 109, 114, 119), every one of them is followed by a breather, and 120 is a victory lap.
+ * Chapter 6 — Starlit sky (levels 101–120). The finale: constellations of blockers, odd boards,
+ * six colours and everything the game has, mixed.
  *
- * Layouts, colours and goals are designed by hand. `moves` and `stars` (and the target of a
- * score-only level) are fitted by `node tools/levelgen/tune.ts` — change a layout, then run the
- * tuner again. The comment above each level is its brief: tier, idea, intended feel.
- * Piece / floor notation: see `LevelDef` in src/engine/types.ts.
+ * Layouts, colours and goals are designed by hand. `moves`, score targets and `stars` are fitted
+ * by `node tools/levelgen/tune.ts` — change a layout, then run the tuner again.
  */
 import type { LevelDef } from '../../engine/types.ts';
 
 export const CHAPTER_6: readonly LevelDef[] = [
-  // [normal] The constellation: eight stones like stars on an open sky; sapphires to gather. Six colours.
+  // The evening star: a star-shaped board with four points; two bright colours to gather.
   {
-    id: 101, cols: 9, rows: 8, colors: 6, moves: 25,
+    id: 101, cols: 9, rows: 9, colors: 6, moves: 26,
+    pieces: [
+      '____.____',
+      '_......._',
+      '_......._',
+      '_......._',
+      '.........',
+      '_......._',
+      '_......._',
+      '_......._',
+      '____.____',
+    ],
+    goals: [{ kind: 'color', color: 1, target: 24 }, { kind: 'color', color: 5, target: 24 }],
+    stars: [3500, 6800, 9200],
+  },
+  // The ladle: seven stones laid out like a constellation.
+  {
+    id: 102, cols: 9, rows: 8, colors: 6, moves: 23,
     pieces: [
       '.........',
-      '.2.....2.',
-      '...2.2...',
+      '.2.......',
+      '...2.....',
+      '.....2...',
+      '......2.2',
       '.........',
-      '...2.2...',
-      '.2.....2.',
-      '.........',
+      '......2.2',
       '.........',
     ],
-    goals: [{ kind: 'color', color: 3, target: 30 }],
-    stars: [3800, 8600, 11700],
+    goals: [{ kind: 'stone' }, { kind: 'color', color: 3, target: 20 }],
+    stars: [4100, 8100, 10800],
   },
-  // [normal] The night garden: a square of deep sand with vines winding through it. Six colours.
+  // Shooting stars: three beams wait at the head of three trails of sand.
   {
-    id: 102, cols: 8, rows: 8, colors: 6, moves: 26,
+    id: 103, cols: 8, rows: 8, colors: 6, moves: 18,
+    pieces: [
+      '........',
+      'H.......',
+      '........',
+      '.......H',
+      '........',
+      'H.......',
+      '........',
+      '........',
+    ],
+    floor: [
+      '00000000',
+      '11111111',
+      '00000000',
+      '11111111',
+      '00000000',
+      '11111111',
+      '00000000',
+      '00000000',
+    ],
+    goals: [{ kind: 'sand' }],
+    stars: [3900, 7000, 9200],
+  },
+  // Twin stars: two round boards joined at the waist, a nova waiting in each.
+  {
+    id: 104, cols: 9, rows: 8, colors: 6, moves: 26,
+    pieces: [
+      '_..___.._',
+      '...._....',
+      '..N._....',
+      '.........',
+      '.........',
+      '...._.N..',
+      '...._....',
+      '_..___.._',
+    ],
+    goals: [{ kind: 'color', color: 0, target: 24 }, { kind: 'color', color: 3, target: 24 }],
+    stars: [3200, 6400, 8400],
+  },
+  // The nebula: a swirl of vines over a patch of deep sand.
+  {
+    id: 105, cols: 8, rows: 8, colors: 6, moves: 22,
     pieces: [
       '........',
       '........',
@@ -41,140 +98,53 @@ export const CHAPTER_6: readonly LevelDef[] = [
     ],
     floor: [
       '00000000',
-      '01111110',
-      '01222210',
-      '01222210',
-      '01222210',
-      '01222210',
-      '01111110',
+      '00000000',
+      '00222200',
+      '00222200',
+      '00222200',
+      '00222200',
+      '00000000',
       '00000000',
     ],
-    goals: [
-      { kind: 'sand' },
-      { kind: 'vine' },
-    ],
-    stars: [6400, 10500, 13400],
+    goals: [{ kind: 'sand' }, { kind: 'vine' }],
+    stars: [4900, 8500, 10900],
   },
-  // [build-up] The galaxy: a spiral of sand winding in to the middle of the board. Six colours.
+  // The belt: three lamps in a slanted line, a chained gem under each.
   {
-    id: 103, cols: 9, rows: 9, colors: 6, moves: 21,
-    pieces: [
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-    ],
-    floor: [
-      '000000000',
-      '011111110',
-      '000000010',
-      '011111010',
-      '010001010',
-      '010111010',
-      '010000010',
-      '011111110',
-      '000000000',
-    ],
-    goals: [{ kind: 'sand' }],
-    stars: [4400, 9200, 12900],
-  },
-  // [hard] The comet: a diagonal of stones, thickest in the middle, trailing sand on both sides. Six colours.
-  {
-    id: 104, cols: 8, rows: 8, colors: 6, moves: 21,
-    hard: true,
+    id: 106, cols: 8, rows: 8, colors: 5, moves: 22,
     pieces: [
       '........',
-      '.2......',
-      '..2.....',
-      '...3....',
-      '....3...',
-      '.....2..',
-      '......2.',
-      '........',
-    ],
-    floor: [
-      '00000000',
-      '01100000',
-      '01210000',
-      '00121000',
-      '00012100',
-      '00001210',
-      '00000110',
-      '00000000',
-    ],
-    goals: [
-      { kind: 'sand' },
-      { kind: 'stone' },
-    ],
-    stars: [4000, 7800, 10500],
-  },
-  // [breather] The compass: a board shaped like a compass rose; two colours to gather.
-  {
-    id: 105, cols: 9, rows: 9, colors: 5, moves: 22,
-    pieces: [
-      '____.____',
-      '_......._',
-      '_......._',
-      '_......._',
-      '.........',
-      '_......._',
-      '_......._',
-      '_......._',
-      '____.____',
-    ],
-    goals: [
-      { kind: 'color', color: 1, target: 32 },
-      { kind: 'color', color: 4, target: 32 },
-    ],
-    stars: [4700, 10000, 14400],
-  },
-  // [normal] The falling stars: three lamps on a diagonal, chained gems beside and below them.
-  {
-    id: 106, cols: 8, rows: 8, colors: 5, moves: 20,
-    pieces: [
-      '........',
-      '..L..c..',
-      '...L..c.',
+      '..L.....',
+      '...L....',
       '....L...',
-      '.cc.....',
+      '..c.....',
       '...c....',
       '....c...',
       '........',
     ],
-    goals: [
-      { kind: 'lamp', target: 3 },
-      { kind: 'chain' },
-    ],
-    stars: [5800, 12400, 18200],
+    goals: [{ kind: 'lamp', target: 3 }, { kind: 'chain' }],
+    stars: [6600, 13700, 19600],
   },
-  // [normal] The star map: eight stones in a ring pattern on a board with clipped corners; moonstone to gather. Six colours.
+  // The star chart: stones of every thickness scattered like stars.
   {
-    id: 107, cols: 9, rows: 9, colors: 6, moves: 19,
+    id: 107, cols: 9, rows: 9, colors: 6, moves: 24,
     pieces: [
-      '_......._',
-      '..2...2..',
+      '..1......',
+      '......2..',
+      '.2.......',
       '....3....',
-      '.........',
-      '...3.3...',
-      '.........',
-      '....3....',
-      '..2...2..',
-      '_......._',
+      '.......1.',
+      '..2......',
+      '.....1...',
+      '.3.....2.',
+      '....1....',
     ],
-    goals: [
-      { kind: 'stone' },
-      { kind: 'color', color: 5, target: 20 },
-    ],
-    stars: [3500, 7200, 9800],
+    goals: [{ kind: 'stone' }, { kind: 'color', color: 5, target: 20 }],
+    stars: [5100, 9400, 13200],
   },
-  // [build-up] The eclipse: a ring of sand around a prism locked in stone. Six colours.
+  // The orbit: a ring of sand around a prism locked in stone.
   {
-    id: 108, cols: 9, rows: 9, colors: 6, moves: 21,
+    id: 108, cols: 9, rows: 9, colors: 6, moves: 22,
     pieces: [
       '.........',
       '.........',
@@ -198,11 +168,27 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '000000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [4400, 9800, 13300],
+    stars: [5400, 10400, 14100],
   },
-  // [hard] The locked observatory: an eight-sided board, a ring of chained gems and a deep sand floor inside and under it.
+  // The meteor shower: four lamps rain down among scattered stones.
   {
-    id: 109, cols: 9, rows: 9, colors: 5, moves: 23,
+    id: 109, cols: 8, rows: 7, colors: 5, moves: 27,
+    pieces: [
+      '........',
+      '........',
+      '.1....1.',
+      '....1...',
+      '..1.....',
+      '.....1..',
+      '........',
+    ],
+    lamps: { total: 4, maxOnBoard: 3, everyMoves: 1 },
+    goals: [{ kind: 'lamp', target: 4 }],
+    stars: [8500, 14400, 18500],
+  },
+  // The eclipse: a round board — a disc of deep sand inside a corona of chains.
+  {
+    id: 110, cols: 9, rows: 9, colors: 6, moves: 21,
     hard: true,
     pieces: [
       '___...___',
@@ -217,24 +203,21 @@ export const CHAPTER_6: readonly LevelDef[] = [
     ],
     floor: [
       '000000000',
-      '002222200',
-      '002222200',
-      '022222220',
-      '022222220',
-      '022222220',
-      '002222200',
-      '002222200',
+      '000000000',
+      '000000000',
+      '000222000',
+      '000222000',
+      '000222000',
+      '000000000',
+      '000000000',
       '000000000',
     ],
-    goals: [
-      { kind: 'sand' },
-      { kind: 'chain' },
-    ],
-    stars: [8500, 15800, 20800],
+    goals: [{ kind: 'sand' }, { kind: 'chain' }],
+    stars: [3900, 7400, 9500],
   },
-  // [breather] The arrowhead: a small board shaped like an arrowhead; amber to gather.
+  // The crescent: a moon-shaped board that feeds itself around the bend. Points only.
   {
-    id: 110, cols: 8, rows: 8, colors: 5, moves: 22,
+    id: 111, cols: 8, rows: 8, colors: 5, moves: 22,
     pieces: [
       '__....._',
       '_.....__',
@@ -245,68 +228,28 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '_.....__',
       '__....._',
     ],
-    goals: [{ kind: 'color', color: 1, target: 26 }],
-    stars: [3000, 6600, 9000],
+    goals: [{ kind: 'score', target: 4600 }],
+    stars: [4600, 6200, 8100],
   },
-  // [normal] The crossed swords: an X of thick stones around a ring of chained gems.
+  // The pole star: two diagonals of stone crossing at a chained core.
   {
-    id: 111, cols: 9, rows: 9, colors: 5, moves: 19,
+    id: 112, cols: 8, rows: 8, colors: 6, moves: 22,
     pieces: [
-      '.........',
-      '.3.....3.',
-      '..3...3..',
-      '...ccc...',
-      '...c.c...',
-      '...ccc...',
-      '..3...3..',
-      '.3.....3.',
-      '.........',
-    ],
-    goals: [
-      { kind: 'stone' },
-      { kind: 'chain' },
-    ],
-    stars: [5100, 14100, 21300],
-  },
-  // [normal] The chained star: a star of chained gems on an eight-sided board; two colours to gather.
-  {
-    id: 112, cols: 9, rows: 9, colors: 5, moves: 19,
-    pieces: [
-      '___...___',
-      '_...c..._',
-      '_.c...c._',
-      '....c....',
-      '.c.c.c.c.',
-      '....c....',
-      '_.c...c._',
-      '_...c..._',
-      '___...___',
-    ],
-    goals: [
-      { kind: 'chain' },
-      { kind: 'color', color: 0, target: 28 },
-      { kind: 'color', color: 2, target: 28 },
-    ],
-    stars: [4900, 10500, 15100],
-  },
-  // [build-up] The four lanterns: four lamps and five stones scattered in their way.
-  {
-    id: 113, cols: 8, rows: 7, colors: 5, moves: 21,
-    pieces: [
-      '.L.LL.L.',
       '........',
-      '.1....1.',
-      '....1...',
-      '..1.....',
-      '.....1..',
+      '.2....2.',
+      '..2..2..',
+      '...cc...',
+      '...cc...',
+      '..2..2..',
+      '.2....2.',
       '........',
     ],
-    goals: [{ kind: 'lamp', target: 4 }],
-    stars: [5600, 11500, 16200],
+    goals: [{ kind: 'stone' }, { kind: 'chain' }],
+    stars: [3900, 7200, 9600],
   },
-  // [hard] The black hole: a ring of vine around a hole in the board — and a great deal of amethyst to gather.
+  // The black hole: vines ring the gap in the middle and creep outward.
   {
-    id: 114, cols: 9, rows: 9, colors: 5, moves: 20,
+    id: 113, cols: 9, rows: 9, colors: 6, moves: 18,
     hard: true,
     pieces: [
       '.........',
@@ -319,53 +262,119 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '.........',
       '.........',
     ],
-    goals: [
-      { kind: 'vine' },
-      { kind: 'color', color: 4, target: 40 },
-    ],
-    stars: [5600, 11300, 16100],
+    goals: [{ kind: 'vine' }, { kind: 'color', color: 4, target: 20 }],
+    stars: [2700, 6000, 8300],
   },
-  // [breather] The caged nova: a ring of thick stones with a nova waiting inside it.
+  // Galaxy arms: a spiral of sand.
   {
-    id: 115, cols: 9, rows: 9, colors: 5, moves: 18,
+    id: 114, cols: 9, rows: 9, colors: 6, moves: 26,
     pieces: [
       '.........',
       '.........',
-      '...333...',
-      '..3...3..',
-      '..3.N.3..',
-      '..3...3..',
-      '...333...',
       '.........',
       '.........',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+    ],
+    floor: [
+      '000000000',
+      '011111110',
+      '000000010',
+      '011111010',
+      '010001010',
+      '010111010',
+      '010000010',
+      '011111110',
+      '000000000',
+    ],
+    goals: [{ kind: 'sand' }],
+    stars: [5600, 11000, 14500],
+  },
+  // The supernova: two novas side by side inside a shell of stone.
+  {
+    id: 115, cols: 8, rows: 8, colors: 6, moves: 20,
+    pieces: [
+      '........',
+      '..2222..',
+      '.2....2.',
+      '.2.NN.2.',
+      '.2....2.',
+      '.2....2.',
+      '..2222..',
+      '........',
     ],
     goals: [{ kind: 'stone' }],
-    stars: [4800, 11700, 19300],
+    stars: [4000, 7200, 9500],
   },
-  // [normal] The meteor shower: four lamps in a V and an arch of vine below them.
+  // The wheel: twelve chained gems around a round board; two colours to gather.
   {
-    id: 116, cols: 9, rows: 8, colors: 5, moves: 22,
+    id: 116, cols: 9, rows: 9, colors: 6, moves: 30,
+    pieces: [
+      '___...___',
+      '_...c..._',
+      '_.c...c._',
+      '....c....',
+      '.c.c.c.c.',
+      '....c....',
+      '_.c...c._',
+      '_...c..._',
+      '___...___',
+    ],
+    goals: [{ kind: 'chain' }, { kind: 'color', color: 0, target: 16 }, { kind: 'color', color: 2, target: 16 }],
+    stars: [4400, 8700, 11000],
+  },
+  // The comet: three lamps in a slanted row, a tail of vines behind them.
+  {
+    id: 117, cols: 8, rows: 8, colors: 5, moves: 25,
+    pieces: [
+      'L.......',
+      '.L......',
+      '..L.....',
+      '........',
+      '....vv..',
+      '.....vv.',
+      '........',
+      '........',
+    ],
+    goals: [{ kind: 'lamp', target: 3 }, { kind: 'vine' }],
+    stars: [8700, 15500, 21100],
+  },
+  // The starfield: single cells of sand scattered all over a big board, some of them deep.
+  {
+    id: 118, cols: 9, rows: 9, colors: 6, moves: 25,
     pieces: [
       '.........',
-      '.L.....L.',
-      '..L...L..',
       '.........',
-      '...vvv...',
-      '..vv.vv..',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
+      '.........',
       '.........',
       '.........',
     ],
-    goals: [
-      { kind: 'lamp', target: 4 },
-      { kind: 'vine' },
+    floor: [
+      '000000010',
+      '010200000',
+      '000000100',
+      '001000000',
+      '000020010',
+      '010000000',
+      '000100200',
+      '000000000',
+      '001000100',
     ],
-    stars: [7800, 15800, 22100],
+    goals: [{ kind: 'sand' }],
+    stars: [4900, 10100, 13200],
   },
-  // [normal] The wings: a V of chained gems above a V of sand. Six colours.
+  // The aurora: a great V of chained gems above a smaller V of sand, deep at its point.
   {
-    id: 117, cols: 9, rows: 8, colors: 6, moves: 25,
+    id: 119, cols: 9, rows: 8, colors: 6, moves: 30,
     pieces: [
-      '_......._',
+      '.........',
       '.........',
       '.c.....c.',
       '..c...c..',
@@ -384,41 +393,12 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '000202000',
       '000020000',
     ],
-    goals: [
-      { kind: 'chain' },
-      { kind: 'sand' },
-    ],
-    stars: [3900, 8700, 11900],
+    goals: [{ kind: 'chain' }, { kind: 'sand' }],
+    stars: [5900, 10700, 13600],
   },
-  // [build-up] The starfield: single tiles of sand scattered over the whole board, a few of them deep. Six colours.
+  // The crown of stars: lamps on chains, vines at the walls and a deep sandy floor.
   {
-    id: 118, cols: 9, rows: 8, colors: 6, moves: 22,
-    pieces: [
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-    ],
-    floor: [
-      '000000010',
-      '010200000',
-      '000001100',
-      '001000000',
-      '000020010',
-      '010000000',
-      '000100200',
-      '001010010',
-    ],
-    goals: [{ kind: 'sand' }],
-    stars: [4000, 8000, 11100],
-  },
-  // [hard] The last gate: three lamps on chains, vines growing in from both sides, and a bed of sand at the bottom.
-  {
-    id: 119, cols: 9, rows: 9, colors: 5, moves: 23,
+    id: 120, cols: 9, rows: 9, colors: 5, moves: 22,
     hard: true,
     pieces: [
       '.L..L..L.',
@@ -442,39 +422,7 @@ export const CHAPTER_6: readonly LevelDef[] = [
       '001111100',
       '012222210',
     ],
-    goals: [
-      { kind: 'lamp', target: 3 },
-      { kind: 'sand' },
-      { kind: 'vine' },
-    ],
-    stars: [9400, 20300, 28600],
-  },
-  // [finale] The festival of lights: rows of sand with beams lying on them and a nova in the middle — a victory lap.
-  {
-    id: 120, cols: 9, rows: 9, colors: 5, moves: 19,
-    pieces: [
-      '_......._',
-      'H.......H',
-      '.........',
-      'H...N...H',
-      '.........',
-      'H.......H',
-      '.........',
-      'H.......H',
-      '_......._',
-    ],
-    floor: [
-      '000000000',
-      '111111111',
-      '000000000',
-      '111111111',
-      '000000000',
-      '111111111',
-      '000000000',
-      '111111111',
-      '000000000',
-    ],
-    goals: [{ kind: 'sand' }],
-    stars: [7100, 15100, 21900],
+    goals: [{ kind: 'lamp', target: 3 }, { kind: 'sand' }, { kind: 'vine' }],
+    stars: [11500, 21400, 29600],
   },
 ];

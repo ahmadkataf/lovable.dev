@@ -57,7 +57,7 @@ import java.util.concurrent.Executors
  */
 internal class AdMobController(
     activity: ComponentActivity,
-    private val host: StoreHost,
+    host: StoreHost,
     private val sink: StoreEventSink,
 ) : AdsController {
 
@@ -85,7 +85,7 @@ internal class AdMobController(
     }
 
     /** The full-screen ad that is on screen (or about to be). */
-    private class Showing(val format: String) {
+    private class Showing(val format: String, var ad: Ad?) {
         var shown = false
         var earned = false
         var dismissed = false
@@ -93,7 +93,10 @@ internal class AdMobController(
     }
 
     private val appContext: Context = activity.applicationContext
+
+    /** Both are let go in [onDestroy]: an ad still on screen keeps this object alive, not the activity. */
     private var activity: ComponentActivity? = activity
+    private var host: StoreHost? = host
 
     private val main = Handler(Looper.getMainLooper())
     private val background: ExecutorService =
@@ -116,10 +119,18 @@ internal class AdMobController(
     private var formWanted = false
     private var formShowing = false
 
+    /** Tries the consent update again while the game stays on screen (it also runs on every return to it). */
+    private val consentRetry = Runnable {
+        if (!destroyed && resumed && !consentUpToDate && !consentRequestRunning) requestConsentUpdate()
+    }
+
     // ── ad SDK ──
     private var sdk = Sdk.IDLE
     private var sdkFailures = 0
     private var nextSdkAttemptAt = 0L
+    private val sdkRetry = Runnable {
+        if (!destroyed && resumed && sdk == Sdk.IDLE) afterConsentChange()
+    }
 
     private val rewarded = Slot<RewardedAd>("rewarded", BuildConfig.ADMOB_REWARDED_ID) { request, callback ->
         RewardedAd.load(request, callback)
@@ -150,16 +161,16 @@ internal class AdMobController(
 
     override fun showRewarded(placement: String) {
         val ad = takeForShow(rewarded) ?: return
-        val state = Showing(rewarded.format).also { showing = it }
+        val state = Showing(rewarded.format, ad).also { showing = it }
         emitAds()
         Log.i(TAG, "showing a rewarded ad ($placement)")
         ad.adEventCallback = object : RewardedAdEventCallback {
             override fun onAdShowedFullScreenContent() = onMain { state.shown = true }
 
-            override fun onAdDismissedFullScreenContent() = onMain { dismissed(state, ad, rewarded) }
+            override fun onAdDismissedFullScreenContent() = onMain { dismissed(state, rewarded) }
 
             override fun onAdFailedToShowFullScreenContent(fullScreenContentError: FullScreenContentError) =
-                onMain { showFailed(state, ad, rewarded, fullScreenContentError.code.name) }
+                onMain { showFailed(state, rewarded, fullScreenContentError.code.name) }
         }
         val onReward = object : OnUserEarnedRewardListener {
             override fun onUserEarnedReward(reward: RewardItem) = onMain {
@@ -168,7 +179,7 @@ internal class AdMobController(
                 if (state.dismissed) settle(state, rewarded)
             }
         }
-        present(state, ad, rewarded) { host ->
+        present(state, rewarded) { host ->
             ad.setImmersiveMode(true)
             ad.show(host, onReward)
         }
@@ -176,18 +187,18 @@ internal class AdMobController(
 
     override fun showInterstitial() {
         val ad = takeForShow(interstitial) ?: return
-        val state = Showing(interstitial.format).also { showing = it }
+        val state = Showing(interstitial.format, ad).also { showing = it }
         emitAds()
         Log.i(TAG, "showing an interstitial ad")
         ad.adEventCallback = object : InterstitialAdEventCallback {
             override fun onAdShowedFullScreenContent() = onMain { state.shown = true }
 
-            override fun onAdDismissedFullScreenContent() = onMain { dismissed(state, ad, interstitial) }
+            override fun onAdDismissedFullScreenContent() = onMain { dismissed(state, interstitial) }
 
             override fun onAdFailedToShowFullScreenContent(fullScreenContentError: FullScreenContentError) =
-                onMain { showFailed(state, ad, interstitial, fullScreenContentError.code.name) }
+                onMain { showFailed(state, interstitial, fullScreenContentError.code.name) }
         }
-        present(state, ad, interstitial) { host ->
+        present(state, interstitial) { host ->
             ad.setImmersiveMode(true)
             ad.show(host)
         }
@@ -217,19 +228,32 @@ internal class AdMobController(
         resumed = true
         if (formWanted) showConsentFormIfRequired()
         val now = SystemClock.elapsedRealtime()
-        if (!consentUpToDate && !consentRequestRunning && now >= nextConsentAttemptAt) requestConsentUpdate()
-        if (sdk == Sdk.IDLE && now >= nextSdkAttemptAt) afterConsentChange()
+        if (!consentUpToDate && !consentRequestRunning) {
+            if (now >= nextConsentAttemptAt) requestConsentUpdate() else main.postDelayed(consentRetry, nextConsentAttemptAt - now)
+        }
+        if (sdk == Sdk.IDLE) {
+            if (now >= nextSdkAttemptAt) afterConsentChange() else if (adsAllowed()) main.postDelayed(sdkRetry, nextSdkAttemptAt - now)
+        }
         for (slot in listOf(rewarded, interstitial)) {
             dropExpired(slot)
             if (slot.loadWanted) load(slot)
         }
-        // Back on screen with an ad still marked as showing: its "dismissed" callback is due now.
+        // Back on screen with an ad still marked as showing: the game is in front, so the ad is
+        // not. Its "dismissed" (or "failed to show") callback is due now; if none comes — an ad
+        // that never opened, or one swept away with its screen — the page still gets its answer
+        // and the next ad can be shown.
         showing?.let { state ->
             main.postDelayed({
-                if (showing === state && !state.settled && resumed && state.shown) {
-                    Log.w(TAG, "the ${state.format} ad closed without reporting it")
-                    host.restoreImmersiveMode()
-                    settle(state, slotOf(state))
+                if (showing === state && !state.settled && resumed) {
+                    val slot = slotOf(state)
+                    if (state.shown || state.earned) {
+                        Log.w(TAG, "the ${state.format} ad closed without reporting it")
+                        state.ad?.let { destroy(it) }
+                        host?.restoreImmersiveMode()
+                        settle(state, slot)
+                    } else {
+                        showFailed(state, slot, "did not open")
+                    }
                 }
             }, RETURN_GRACE_MS)
         }
@@ -237,13 +261,18 @@ internal class AdMobController(
 
     override fun onPause() {
         resumed = false
+        main.removeCallbacks(consentRetry)
+        main.removeCallbacks(sdkRetry)
     }
 
     override fun onDestroy() {
         destroyed = true
         activity = null
+        host = null
         main.removeCallbacksAndMessages(null)
         for (slot in listOf(rewarded, interstitial)) discard(slot)
+        showing?.ad?.let { destroy(it) }
+        showing = null
         background.shutdown()
     }
 
@@ -288,10 +317,14 @@ internal class AdMobController(
             consentFailures = 0
             showConsentFormIfRequired()
         } else {
-            // Usually: no network. Tried again when the app returns to the screen, with growing pauses.
+            // Usually: no network. Tried again with growing pauses — while the game stays on
+            // screen, and whenever it returns to it.
             consentFailures++
-            nextConsentAttemptAt = SystemClock.elapsedRealtime() + backoff(CONSENT_RETRY_BASE_MS, consentFailures, CONSENT_RETRY_MAX_MS)
+            val pause = backoff(CONSENT_RETRY_BASE_MS, consentFailures, CONSENT_RETRY_MAX_MS)
+            nextConsentAttemptAt = SystemClock.elapsedRealtime() + pause
             Log.i(TAG, "consent information could not be updated: $problem")
+            main.removeCallbacks(consentRetry)
+            if (resumed) main.postDelayed(consentRetry, pause)
         }
         afterConsentChange()
     }
@@ -320,7 +353,7 @@ internal class AdMobController(
 
     private fun formClosed() {
         formShowing = false
-        host.restoreImmersiveMode()
+        host?.restoreImmersiveMode()
         afterConsentChange()
     }
 
@@ -394,8 +427,11 @@ internal class AdMobController(
                 } else {
                     sdk = Sdk.IDLE
                     sdkFailures++
-                    nextSdkAttemptAt = SystemClock.elapsedRealtime() + backoff(SDK_RETRY_BASE_MS, sdkFailures, SDK_RETRY_MAX_MS)
+                    val pause = backoff(SDK_RETRY_BASE_MS, sdkFailures, SDK_RETRY_MAX_MS)
+                    nextSdkAttemptAt = SystemClock.elapsedRealtime() + pause
                     Log.w(TAG, "the ad SDK did not start: $problem")
+                    main.removeCallbacks(sdkRetry)
+                    if (resumed) main.postDelayed(sdkRetry, pause)
                 }
                 emitAds()
             }
@@ -504,25 +540,27 @@ internal class AdMobController(
         return ad
     }
 
-    private fun present(state: Showing, ad: Ad, slot: Slot<*>, show: (ComponentActivity) -> Unit) {
+    private fun present(state: Showing, slot: Slot<*>, show: (ComponentActivity) -> Unit) {
         val host = activity
-        if (host == null) return showFailed(state, ad, slot, "no activity")
+        if (host == null) return showFailed(state, slot, "no activity")
         try {
             show(host)
         } catch (error: Throwable) {
-            return showFailed(state, ad, slot, error.javaClass.simpleName)
+            return showFailed(state, slot, error.javaClass.simpleName)
         }
-        // If the ad never opens (this activity is still in front and nothing was reported), give up.
+        // If the ad never opens (this activity is still in front and nothing was reported), give
+        // up. While the game is not in front the check waits: onResume makes it again.
         main.postDelayed({
-            if (showing === state && !state.settled && !state.shown && resumed) showFailed(state, ad, slot, "did not open")
+            if (showing === state && !state.settled && !state.shown && resumed) showFailed(state, slot, "did not open")
         }, SHOW_TIMEOUT_MS)
     }
 
-    private fun dismissed(state: Showing, ad: Ad, slot: Slot<*>) {
+    private fun dismissed(state: Showing, slot: Slot<*>) {
         if (state.settled || state.dismissed) return
         state.dismissed = true
-        destroy(ad)
-        host.restoreImmersiveMode()
+        state.ad?.let { destroy(it) }
+        state.ad = null
+        host?.restoreImmersiveMode()
         if (state.format == rewarded.format && !state.earned) {
             // Give a reward callback that is still on its way a moment to arrive.
             main.postDelayed({ settle(state, slot) }, REWARD_GRACE_MS)
@@ -531,13 +569,14 @@ internal class AdMobController(
         }
     }
 
-    private fun showFailed(state: Showing, ad: Ad, slot: Slot<*>, reason: String) {
+    private fun showFailed(state: Showing, slot: Slot<*>, reason: String) {
         if (state.settled) return
         state.settled = true
         if (showing === state) showing = null
         Log.w(TAG, "${state.format} ad could not be shown: $reason")
-        destroy(ad)
-        host.restoreImmersiveMode()
+        state.ad?.let { destroy(it) }
+        state.ad = null
+        host?.restoreImmersiveMode()
         sink.emit(StoreEvents.adResult(state.format, "failed"))
         emitAds()
         load(slot)

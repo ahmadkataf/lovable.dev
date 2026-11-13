@@ -142,7 +142,7 @@ describe.skipIf(!present)('the Kotlin wrapper and the page agree', () => {
       expect(code.slice(Math.max(0, at - 200), at), 'a "purchased" event that is not behind a PURCHASED check').toContain('PurchaseState.PURCHASED');
       expect(code.slice(at, at + 200)).toMatch(/purchaseToken[\s\S]*isAcknowledged[\s\S]*quantity/);
     }
-    expect(code).toMatch(/PurchaseState\.PENDING\s*->\s*emitPurchase\([^)]*"pending"\)/);
+    expect(code).toMatch(/PurchaseState\.PENDING\s*->\s*\{?\s*emitPurchase\([^)]*"pending"\)/);
     // a listing is marked complete by a computed truth, never by a literal — and a failed query says "not complete"
     expect(code).not.toMatch(/owned\([^)]*complete\s*=\s*true/);
     expect(code).toMatch(/owned\(emptyList\(\),\s*complete\s*=\s*false\)/);

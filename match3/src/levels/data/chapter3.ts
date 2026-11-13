@@ -1,94 +1,122 @@
 /**
- * Chapter 3 — Bazaar (levels 41–60). Vines arrive (41) and everything starts to mix.
- * Hard levels: 49 and 59, each followed by a breather; 60 is the chapter's generous finale.
+ * Chapter 3 — Bazaar (levels 41–60). Vines arrive (41): cut at least one every move or they
+ * spread. From here on the mechanics mix freely; five and six colours alternate.
  *
- * Layouts, colours and goals are designed by hand. `moves` and `stars` (and the target of a
- * score-only level) are fitted by `node tools/levelgen/tune.ts` — change a layout, then run the
- * tuner again. The comment above each level is its brief: tier, idea, intended feel.
- * Piece / floor notation: see `LevelDef` in src/engine/types.ts.
+ * Layouts, colours and goals are designed by hand. `moves`, score targets and `stars` are fitted
+ * by `node tools/levelgen/tune.ts` — change a layout, then run the tuner again.
  */
 import type { LevelDef } from '../../engine/types.ts';
 
 export const CHAPTER_3: readonly LevelDef[] = [
-  // [tutorial] Vines: two thick hedges of vine — match beside them to cut them back. Fixed start board: the hinted move cuts a vine.
+  // First shoots: two hedges of vines — match next to them before they spread.
   {
-    id: 41, cols: 9, rows: 8, colors: 5, moves: 10,
+    id: 41, cols: 8, rows: 8, colors: 5, moves: 11,
     tutorial: 'vine',
     pieces: [
-      'dbbCbebae',
-      'adCddCeed',
-      'bvvvdvvve',
-      'avvvevvva',
-      'bbeaeaaCC',
-      'evvvavvvd',
-      'bvvvevvva',
-      'beCCeCCed',
-    ],
-    goals: [{ kind: 'vine' }],
-    stars: [2500, 7400, 13000],
-  },
-  // [normal] The creeper: a column of vine down the middle while you gather amber — keep it trimmed or it takes the board.
-  {
-    id: 42, cols: 9, rows: 9, colors: 5, moves: 21,
-    pieces: [
-      '.........',
-      '.........',
-      '....v....',
-      '....v....',
-      '....v....',
-      '....v....',
-      '....v....',
-      '.........',
-      '.........',
-    ],
-    goals: [{ kind: 'color', color: 1, target: 52 }],
-    stars: [7000, 16600, 24400],
-  },
-  // [build-up] The overgrown court: a deep sand court with vines rooted in it — the sand under a vine waits for the vine.
-  {
-    id: 43, cols: 9, rows: 8, colors: 5, moves: 23,
-    pieces: [
-      '.........',
-      '.........',
-      '.v.v.v.v.',
-      '.........',
-      '.........',
-      '.v.v.v.v.',
-      '.........',
-      '.........',
-    ],
-    floor: [
-      '000000000',
-      '022222220',
-      '022222220',
-      '022222220',
-      '022222220',
-      '022222220',
-      '022222220',
-      '000000000',
-    ],
-    goals: [{ kind: 'sand' }],
-    stars: [10400, 18200, 24600],
-  },
-  // [spike] The hedge: three lamps and a hedge of vine across their way.
-  {
-    id: 44, cols: 8, rows: 8, colors: 5, moves: 20,
-    pieces: [
-      '.L..L.L.',
       '........',
       '........',
       '.vvvvvv.',
       '........',
       '........',
+      '.vvvvvv.',
       '........',
       '........',
     ],
-    goals: [{ kind: 'lamp', target: 3 }],
-    stars: [6000, 12400, 17800],
+    goals: [{ kind: 'vine' }],
+    stars: [2100, 6400, 10300],
   },
-  // [breather] The market square: a big open board with six pillars, three colours to gather — and a sixth colour in play.
+  // The creeper: one long vine down the middle of a wide board.
   {
-    id: 45, cols: 9, rows: 9, colors: 6, moves: 25,
+    id: 42, cols: 9, rows: 8, colors: 5, moves: 19,
+    pieces: [
+      '.........',
+      '....v....',
+      '....v....',
+      '....v....',
+      '....v....',
+      '....v....',
+      '....v....',
+      '.........',
+    ],
+    goals: [{ kind: 'vine' }, { kind: 'color', color: 1, target: 44 }],
+    stars: [6600, 13100, 18800],
+  },
+  // The overgrown path: a winding trail of sand, deep in the middle stretch, vines at its bends.
+  {
+    id: 43, cols: 8, rows: 8, colors: 5, moves: 14,
+    pieces: [
+      '........',
+      '.v......',
+      '......v.',
+      '........',
+      '.v......',
+      '......v.',
+      '........',
+      '........',
+    ],
+    floor: [
+      '00000000',
+      '01111110',
+      '00000010',
+      '02222220',
+      '01000000',
+      '01111110',
+      '00000000',
+      '00000000',
+    ],
+    goals: [{ kind: 'sand' }, { kind: 'vine' }],
+    stars: [4100, 9100, 14200],
+  },
+  // Lantern vines: a hedge grows right under the two lamps.
+  {
+    id: 44, cols: 7, rows: 7, colors: 5, moves: 17,
+    pieces: [
+      '..L.L..',
+      '.......',
+      '.......',
+      '..vvv..',
+      '.......',
+      '.......',
+      '.......',
+    ],
+    goals: [{ kind: 'lamp', target: 2 }, { kind: 'vine' }],
+    stars: [4100, 8100, 11100],
+  },
+  // The arcade: two stone arches, thick on top.
+  {
+    id: 45, cols: 9, rows: 8, colors: 6, moves: 22,
+    pieces: [
+      '.........',
+      '.........',
+      '.222.222.',
+      '.1.1.1.1.',
+      '.1.1.1.1.',
+      '.........',
+      '.........',
+      '.........',
+    ],
+    goals: [{ kind: 'stone' }, { kind: 'color', color: 4, target: 20 }],
+    stars: [3700, 7100, 9900],
+  },
+  // Tangled locks: chains above and below, vines creeping in from both sides.
+  {
+    id: 46, cols: 8, rows: 8, colors: 5, moves: 24,
+    pieces: [
+      '........',
+      'cc.cc.cc',
+      '........',
+      'v......v',
+      'v......v',
+      '........',
+      'cc.cc.cc',
+      '........',
+    ],
+    goals: [{ kind: 'chain' }, { kind: 'vine' }],
+    stars: [6100, 12900, 17700],
+  },
+  // Four pillars: a big six-colour board with four gaps; three colours to gather.
+  {
+    id: 47, cols: 9, rows: 9, colors: 6, moves: 29,
     pieces: [
       '.........',
       '.........',
@@ -101,36 +129,43 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '.........',
     ],
     goals: [
-      { kind: 'color', color: 0, target: 18 },
-      { kind: 'color', color: 1, target: 18 },
-      { kind: 'color', color: 3, target: 18 },
+      { kind: 'color', color: 0, target: 24 },
+      { kind: 'color', color: 1, target: 24 },
+      { kind: 'color', color: 3, target: 24 },
     ],
-    stars: [2800, 7600, 10600],
+    stars: [4000, 8400, 11400],
   },
-  // [normal] Locks and ivy: pairs of chained gems above and below, vines creeping in from both sides.
+  // The lattice: two deep lanes crossed by two shallow rows of sand.
   {
-    id: 46, cols: 8, rows: 8, colors: 5, moves: 23,
+    id: 48, cols: 8, rows: 8, colors: 5, moves: 22,
     pieces: [
       '........',
-      'cc.cc.cc',
       '........',
-      'v......v',
-      'v......v',
       '........',
-      'cc.cc.cc',
+      '........',
+      '........',
+      '........',
+      '........',
       '........',
     ],
-    goals: [
-      { kind: 'chain' },
-      { kind: 'vine' },
+    floor: [
+      '00200200',
+      '00200200',
+      '11211211',
+      '00200200',
+      '00200200',
+      '11211211',
+      '00200200',
+      '00200200',
     ],
-    stars: [4800, 12600, 17600],
+    goals: [{ kind: 'sand' }],
+    stars: [7200, 13400, 19300],
   },
-  // [normal] The low wall: four lamps and a stone wall with two gaps.
+  // The lamp market: three lamps come in together; a broken row of stones bars the way.
   {
-    id: 47, cols: 8, rows: 7, colors: 5, moves: 26,
+    id: 49, cols: 8, rows: 7, colors: 5, moves: 26,
     pieces: [
-      '.L.LL.L.',
+      '........',
       '........',
       '........',
       '11.11.11',
@@ -138,40 +173,13 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '........',
       '........',
     ],
-    goals: [{ kind: 'lamp', target: 4 }],
-    stars: [7300, 13000, 17300],
+    lamps: { total: 3, maxOnBoard: 3, everyMoves: 1 },
+    goals: [{ kind: 'lamp', target: 3 }],
+    stars: [7100, 12900, 17900],
   },
-  // [build-up] The lattice: a grid of sand lines, deep where they run down the board.
+  // The choked fountain: vines over a deep pool with a shallow rim, chains at its corners; six colours.
   {
-    id: 48, cols: 9, rows: 9, colors: 5, moves: 21,
-    pieces: [
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-    ],
-    floor: [
-      '002000200',
-      '002000200',
-      '112111211',
-      '002000200',
-      '002000200',
-      '002000200',
-      '112111211',
-      '002000200',
-      '002000200',
-    ],
-    goals: [{ kind: 'sand' }],
-    stars: [7400, 17400, 25000],
-  },
-  // [hard] The choked garden: a deep sand court, a knot of vine in its middle, chained corners — and six colours.
-  {
-    id: 49, cols: 8, rows: 8, colors: 6, moves: 25,
+    id: 50, cols: 8, rows: 8, colors: 6, moves: 24,
     hard: true,
     pieces: [
       '........',
@@ -193,95 +201,86 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '01111110',
       '00000000',
     ],
-    goals: [
-      { kind: 'sand' },
-      { kind: 'vine' },
-    ],
-    stars: [5800, 9900, 13000],
+    goals: [{ kind: 'sand' }, { kind: 'vine' }],
+    stars: [6100, 9900, 12400],
   },
-  // [breather] A gift of lights: two beams and a nova lie ready; two colours to gather on an open board.
+  // Lantern row: a breather — three specials are already hanging there. Points only.
   {
-    id: 50, cols: 9, rows: 9, colors: 6, moves: 23,
+    id: 51, cols: 8, rows: 8, colors: 6, moves: 20,
     pieces: [
-      '.........',
-      '.........',
-      '.........',
-      '.V.....V.',
-      '.........',
-      '....N....',
-      '.........',
-      '.........',
-      '.........',
-    ],
-    goals: [
-      { kind: 'color', color: 0, target: 26 },
-      { kind: 'color', color: 5, target: 26 },
-    ],
-    stars: [4100, 9500, 13000],
-  },
-  // [normal] The colonnade: thick lintels on rows of pillars — stone only.
-  {
-    id: 51, cols: 9, rows: 8, colors: 5, moves: 20,
-    pieces: [
-      '.........',
-      '.........',
-      '.333.333.',
-      '.2.2.2.2.',
-      '.2.2.2.2.',
-      '...2.2...',
-      '.........',
-      '.........',
-    ],
-    goals: [{ kind: 'stone' }],
-    stars: [4400, 10600, 16100],
-  },
-  // [normal] Ivy at the gates: three lamps come down between vines growing in from both edges.
-  {
-    id: 52, cols: 8, rows: 7, colors: 5, moves: 26,
-    pieces: [
-      '.L..L.L.',
       '........',
-      'v......v',
-      'v......v',
-      'v......v',
+      '........',
+      '........',
+      '.V....V.',
+      '....N...',
+      '........',
       '........',
       '........',
     ],
-    goals: [{ kind: 'lamp', target: 3 }],
-    stars: [6700, 12800, 17100],
+    goals: [{ kind: 'score', target: 4350 }],
+    stars: [4350, 6400, 8800],
   },
-  // [build-up] Two rooms: stones in the left room, deep sand in the right, one shared floor.
+  // The keystone cross: a cross of thick stone in the middle of a small board.
   {
-    id: 53, cols: 9, rows: 8, colors: 5, moves: 24,
+    id: 52, cols: 7, rows: 7, colors: 5, moves: 18,
+    pieces: [
+      '.......',
+      '...2...',
+      '...3...',
+      '.23332.',
+      '...3...',
+      '...2...',
+      '.......',
+    ],
+    goals: [{ kind: 'stone' }, { kind: 'color', color: 2, target: 20 }],
+    stars: [3500, 6900, 10300],
+  },
+  // Two courtyards: a wall splits the board — stones on the left, sand on the right.
+  {
+    id: 53, cols: 9, rows: 8, colors: 5, moves: 15,
     pieces: [
       '...._....',
-      '.22._....',
-      '.22._....',
-      '.22._....',
-      '.22._....',
+      '.11._....',
+      '.11._....',
+      '.11._....',
+      '.11._....',
       '.........',
       '.........',
       '.........',
     ],
     floor: [
       '000000000',
-      '000001220',
-      '000001220',
-      '000001220',
-      '000001220',
-      '000011110',
+      '000000110',
+      '000000110',
+      '000000110',
+      '000000220',
+      '000000000',
       '000000000',
       '000000000',
     ],
-    goals: [
-      { kind: 'stone' },
-      { kind: 'sand' },
-    ],
-    stars: [4900, 9500, 12600],
+    goals: [{ kind: 'stone' }, { kind: 'sand' }],
+    stars: [2900, 6100, 9300],
   },
-  // [spike] The chain mail: sixteen chained gems on a checkerboard.
+  // Thorn guard: vines on both walls close in while two lamps come down the middle.
   {
-    id: 54, cols: 8, rows: 8, colors: 5, moves: 20,
+    id: 54, cols: 8, rows: 7, colors: 5, moves: 25,
+    pieces: [
+      '........',
+      '........',
+      'v......v',
+      'v......v',
+      'v......v',
+      '........',
+      '........',
+    ],
+    lamps: { total: 2, maxOnBoard: 2, everyMoves: 1 },
+    goals: [{ kind: 'lamp', target: 2 }, { kind: 'vine' }],
+    stars: [6400, 12200, 16500],
+  },
+  // The iron grid: chained gems in a regular grid, six colours.
+  {
+    id: 55, cols: 8, rows: 8, colors: 6, moves: 28,
+    hard: true,
     pieces: [
       '........',
       '.c.c.c.c',
@@ -290,57 +289,40 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '........',
       '.c.c.c.c',
       '........',
-      'c.c.c.c.',
+      '........',
     ],
-    goals: [{ kind: 'chain' }],
-    stars: [4900, 12000, 17800],
+    goals: [{ kind: 'chain' }, { kind: 'color', color: 4, target: 20 }],
+    stars: [4700, 8300, 11500],
   },
-  // [breather] Rain on the dunes: slanting stripes of shallow sand on an open board.
+  // Sand ripples: diagonal stripes of sand, and sapphires to gather.
   {
-    id: 55, cols: 9, rows: 8, colors: 5, moves: 25,
+    id: 56, cols: 8, rows: 8, colors: 5, moves: 23,
     pieces: [
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
     ],
     floor: [
-      '100100100',
-      '010010010',
-      '001001001',
-      '100100100',
-      '010010010',
-      '001001001',
-      '100100100',
-      '010010010',
+      '10010010',
+      '01001001',
+      '00100100',
+      '10010010',
+      '01001001',
+      '00100100',
+      '10010010',
+      '01001001',
     ],
-    goals: [{ kind: 'sand' }],
-    stars: [7100, 15400, 21900],
+    goals: [{ kind: 'sand' }, { kind: 'color', color: 3, target: 24 }],
+    stars: [6400, 13800, 19400],
   },
-  // [normal] The stone cross: a cross of thick stones cuts the board into four gardens.
+  // The deep caravan: lamps behind chains, and a sandy floor that is deep at the very bottom.
   {
-    id: 56, cols: 9, rows: 9, colors: 5, moves: 21,
-    pieces: [
-      '.........',
-      '....2....',
-      '....3....',
-      '....3....',
-      '.2333332.',
-      '....3....',
-      '....3....',
-      '....2....',
-      '.........',
-    ],
-    goals: [{ kind: 'stone' }],
-    stars: [5000, 12200, 19400],
-  },
-  // [normal] Lamps over the wadi: two lamps held by chains, and three rows of sand at the bottom to sweep.
-  {
-    id: 57, cols: 8, rows: 8, colors: 5, moves: 28,
+    id: 57, cols: 8, rows: 8, colors: 5, moves: 33,
     pieces: [
       '..L..L..',
       '........',
@@ -357,42 +339,58 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '00000000',
       '00000000',
       '00000000',
+      '00000000',
       '11111111',
       '22222222',
-      '11111111',
     ],
-    goals: [
-      { kind: 'lamp', target: 2 },
-      { kind: 'sand' },
-    ],
-    stars: [9400, 16900, 22400],
+    goals: [{ kind: 'lamp', target: 2 }, { kind: 'sand' }],
+    stars: [10800, 19200, 24600],
   },
-  // [build-up] The thicket: a block of stones inside a wall of vine — cut your way in, then break the stones.
+  // The strangler: a wide ring of vines around a block of stone.
   {
-    id: 58, cols: 9, rows: 9, colors: 5, moves: 22,
+    id: 58, cols: 9, rows: 9, colors: 5, moves: 13,
     pieces: [
       '.........',
       '.........',
       '..vvvvv..',
-      '..v323v..',
-      '..v232v..',
-      '..v323v..',
+      '..v111v..',
+      '..v131v..',
+      '..v111v..',
       '..vvvvv..',
       '.........',
       '.........',
     ],
-    goals: [
-      { kind: 'vine' },
-      { kind: 'stone' },
-    ],
-    stars: [5800, 13400, 20500],
+    goals: [{ kind: 'vine' }, { kind: 'stone' }],
+    stars: [3500, 9600, 15600],
   },
-  // [hard] The sunken garden: three lamps, a hedge of vine across the board and a deep sand bed below it.
+  // The crossroads: a cross-shaped board, three colours out of six.
   {
-    id: 59, cols: 9, rows: 8, colors: 5, moves: 21,
+    id: 59, cols: 9, rows: 9, colors: 6, moves: 22,
+    pieces: [
+      '___...___',
+      '___...___',
+      '___...___',
+      '.........',
+      '.........',
+      '.........',
+      '___...___',
+      '___...___',
+      '___...___',
+    ],
+    goals: [
+      { kind: 'color', color: 0, target: 14 },
+      { kind: 'color', color: 2, target: 14 },
+      { kind: 'color', color: 3, target: 14 },
+    ],
+    stars: [2300, 4700, 6400],
+  },
+  // Bazaar at midnight: lamps above a hedge of vines, a sandy floor that is deep at the bottom.
+  {
+    id: 60, cols: 9, rows: 9, colors: 5, moves: 16,
     hard: true,
     pieces: [
-      '..L.L.L..',
+      '..L...L..',
+      '.........',
       '.........',
       '.vv.v.vv.',
       '.........',
@@ -405,38 +403,14 @@ export const CHAPTER_3: readonly LevelDef[] = [
       '000000000',
       '000000000',
       '000000000',
+      '000000000',
+      '000000000',
+      '011111110',
+      '011111110',
       '011111110',
       '022222220',
-      '022222220',
-      '022222220',
-      '011111110',
     ],
-    goals: [
-      { kind: 'lamp', target: 3 },
-      { kind: 'sand' },
-      { kind: 'vine' },
-    ],
-    stars: [10600, 17900, 23900],
-  },
-  // [finale] The crossroads: a wide plus-shaped board, three colours to gather and a prism at its heart.
-  {
-    id: 60, cols: 9, rows: 9, colors: 5, moves: 20,
-    pieces: [
-      '__.....__',
-      '__.....__',
-      '.........',
-      '.........',
-      '....P....',
-      '.........',
-      '.........',
-      '__.....__',
-      '__.....__',
-    ],
-    goals: [
-      { kind: 'color', color: 0, target: 30 },
-      { kind: 'color', color: 2, target: 30 },
-      { kind: 'color', color: 3, target: 30 },
-    ],
-    stars: [5300, 12300, 17500],
+    goals: [{ kind: 'lamp', target: 2 }, { kind: 'sand' }, { kind: 'vine' }],
+    stars: [8200, 17900, 26400],
   },
 ];

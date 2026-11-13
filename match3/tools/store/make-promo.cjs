@@ -521,6 +521,31 @@ async function captureBoard(browser, base, name, scene, stagePage) {
   }
 }
 
+/**
+ * CSS transitions and animations (a screen fading in, the map gliding to a level) run on the
+ * browser's own clock, not on the paused page clock: wait, in real time, until none is running.
+ * Used for the map, which is captured as a screenshot; the board scenes read the game's canvas,
+ * which is drawn on the page clock alone.
+ */
+async function settleCss(page) {
+  // endless loops (a pulsing badge) never finish and do not count: only what is on its way somewhere
+  const running = () =>
+    page.evaluate(
+      () =>
+        document.getAnimations().filter((a) => {
+          if (a.playState !== 'running' && a.playState !== 'pending') return false;
+          const timing = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+          return !timing || timing.iterations !== Infinity;
+        }).length,
+    );
+  let quiet = 0;
+  for (let i = 0; i < 80 && quiet < 3; i++) {
+    await page.waitForTimeout(100);
+    quiet = (await running()) === 0 ? quiet + 1 : 0;
+  }
+  if (quiet < 3) throw new Error('the page never came to rest (a CSS transition keeps running)');
+}
+
 /** The six chapters of the real level map, cropped between the top bar and the tray → [png × 6]. */
 async function captureMap(browser, base, lang, kind) {
   const tile = MAP_TILES[kind];
@@ -529,9 +554,11 @@ async function captureMap(browser, base, lang, kind) {
   const out = [];
   try {
     await page.clock.runFor(1500);
+    await settleCss(page);
     for (const focus of MAP_FOCUS) {
       await page.evaluate((n) => window.__app.goto('map', { focusLevel: n }), focus);
       await page.clock.runFor(2500);
+      await settleCss(page);
       const free = await page.evaluate(() => {
         const top = document.querySelector('.m-top');
         const tray = document.querySelector('.m-tray');
