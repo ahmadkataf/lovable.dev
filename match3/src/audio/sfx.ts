@@ -68,7 +68,7 @@ function bell(v: Voice, midi: number, at: number, dur: number, peak: number): vo
 const SFX: Record<SfxName, SfxDef> = {
   // ── interface ──────────────────────────────────────────────────────────
   button: {
-    gain: 0.51,
+    gain: 0.6,
     cls: 'ui',
     build(v) {
       tone(v, { f: 620, f2: 440, glide: 0.04, dur: 0.07, peak: 0.5, attack: 0.002 });
@@ -76,7 +76,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   popupOpen: {
-    gain: 0.66,
+    gain: 0.77,
     cls: 'ui',
     build(v) {
       tone(v, { f: 330, f2: 660, glide: 0.09, dur: 0.14, peak: 0.45, attack: 0.012 });
@@ -84,7 +84,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   popupClose: {
-    gain: 0.51,
+    gain: 0.6,
     cls: 'ui',
     build(v) {
       tone(v, { f: 620, f2: 310, glide: 0.08, dur: 0.12, peak: 0.45, attack: 0.008 });
@@ -94,7 +94,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── moving gems ────────────────────────────────────────────────────────
   select: {
-    gain: 0.56,
+    gain: 0.64,
     cls: 'ui',
     build(v) {
       tone(v, { type: 'triangle', f: hz(D5), f2: hz(A5), glide: 0.06, dur: 0.12, peak: 0.5, attack: 0.004 });
@@ -102,7 +102,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   swap: {
-    gain: 0.72,
+    gain: 0.83,
     cls: 'ui',
     build(v) {
       noise(v, { type: 'bandpass', f: 500, f2: 2400, q: 1.4, dur: 0.2, peak: 1.3, attack: 0.07 });
@@ -110,7 +110,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   invalid: {
-    gain: 1.07,
+    gain: 1.24,
     cls: 'game',
     build(v) {
       // Two dull, slightly buzzy bumps stepping down: "uh-uh".
@@ -122,7 +122,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   land: {
-    gain: 0.69,
+    gain: 0.8,
     cls: 'ui',
     build(v) {
       // A soft tap. The body sits high enough to be heard on a phone speaker.
@@ -134,7 +134,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── clears ─────────────────────────────────────────────────────────────
   match: {
-    gain: 0.59,
+    gain: 0.69,
     cls: 'game',
     build(v, step) {
       // A chime that climbs D F♯ G A C through two octaves with the cascade number.
@@ -146,7 +146,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   sand: {
-    gain: 0.49,
+    gain: 0.57,
     cls: 'game',
     build(v) {
       // A short hiss of grains.
@@ -156,19 +156,19 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   stone: {
-    gain: 0.68,
+    gain: 0.83,
     cls: 'game',
     build(v) {
       // A knock on rock: pitched tock, grit, and a little weight underneath.
       tone(v, { f: 640, f2: 420, glide: 0.05, dur: 0.11, peak: 0.6, attack: 0.001 });
       tone(v, { f: 970, f2: 640, glide: 0.04, dur: 0.07, peak: 0.26, attack: 0.001 });
       tone(v, { type: 'triangle', f: 230, f2: 150, glide: 0.05, dur: 0.11, peak: 0.22, attack: 0.002 });
-      noise(v, { type: 'bandpass', f: 1500, q: 0.9, dur: 0.07, peak: 0.8, attack: 0.001 });
-      noise(v, { type: 'highpass', f: 3500, q: 0.7, dur: 0.02, peak: 0.4, attack: 0.001 });
+      noise(v, { type: 'bandpass', f: 1500, q: 0.9, dur: 0.07, peak: 0.55, attack: 0.002 });
+      noise(v, { type: 'highpass', f: 3500, q: 0.7, dur: 0.02, peak: 0.25, attack: 0.001 });
     },
   },
   stoneBreak: {
-    gain: 0.79,
+    gain: 0.91,
     cls: 'game',
     build(v) {
       // The block gives way: a crack, a thud, and pieces tumbling after it.
@@ -186,7 +186,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   chain: {
-    gain: 1.1,
+    gain: 1.28,
     cls: 'game',
     build(v) {
       // Two links knocking: clangorous FM pairs.
@@ -196,7 +196,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   vine: {
-    gain: 0.79,
+    gain: 0.92,
     cls: 'game',
     build(v) {
       // A snip and a rustle of leaves.
@@ -206,7 +206,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   vineGrow: {
-    gain: 0.87,
+    gain: 1.01,
     cls: 'game',
     build(v) {
       // A creeping semitone rise, D → E♭, with a wobble.
@@ -217,7 +217,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   lamp: {
-    gain: 0.72,
+    gain: 0.84,
     cls: 'game',
     build(v) {
       bell(v, A5, 0, 0.3, 0.4);
@@ -229,7 +229,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── specials ───────────────────────────────────────────────────────────
   createBeam: {
-    gain: 1.48,
+    gain: 1.72,
     cls: 'game',
     build(v) {
       // A quick upward zip ending in a glint.
@@ -240,7 +240,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   createNova: {
-    gain: 0.95,
+    gain: 1.11,
     cls: 'game',
     build(v) {
       // A swelling charge that settles on a bell.
@@ -251,7 +251,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   createPrism: {
-    gain: 0.99,
+    gain: 1.15,
     cls: 'game',
     build(v) {
       // A run up the scale, each note a small bell; the last one rings.
@@ -265,7 +265,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   beam: {
-    gain: 0.59,
+    gain: 0.69,
     cls: 'game',
     build(v) {
       // Line blast: noise swept downwards over a falling tone.
@@ -276,7 +276,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   nova: {
-    gain: 0.58,
+    gain: 0.67,
     cls: 'game',
     build(v) {
       // Area blast: a soft boom under a burst of noise that closes down quickly.
@@ -287,7 +287,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   prism: {
-    gain: 1.3,
+    gain: 1.51,
     cls: 'game',
     build(v) {
       // Rays: a swirl of air with bright notes darting about above a rising tone.
@@ -301,7 +301,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   bigCombo: {
-    gain: 0.62,
+    gain: 0.76,
     cls: 'game',
     build(v) {
       // Two specials at once: a bright impact that falls away under a chord that mellows.
@@ -319,7 +319,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── tools ──────────────────────────────────────────────────────────────
   shuffle: {
-    gain: 1.18,
+    gain: 1.37,
     cls: 'game',
     build(v) {
       const seq = [D5, G5, Eb5, A5, Fs5, C6, A5, D6];
@@ -331,7 +331,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   booster: {
-    gain: 0.91,
+    gain: 1.06,
     cls: 'game',
     build(v) {
       tone(v, { type: 'triangle', f: hz(D4), f2: hz(D6), glide: 0.26, dur: 0.32, peak: 0.4, attack: 0.03 });
@@ -343,7 +343,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── feedback ───────────────────────────────────────────────────────────
   praise: {
-    gain: 0.89,
+    gain: 1.04,
     cls: 'game',
     build(v, step) {
       // Sparkle: three to six quick high notes; stronger praise adds notes, air and weight.
@@ -358,7 +358,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   goalDone: {
-    gain: 0.91,
+    gain: 1.06,
     cls: 'game',
     priority: true,
     build(v) {
@@ -370,7 +370,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   star: {
-    gain: 0.69,
+    gain: 0.81,
     cls: 'game',
     priority: true,
     build(v, step) {
@@ -387,7 +387,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   movesLow: {
-    gain: 0.96,
+    gain: 1.12,
     cls: 'game',
     priority: true,
     build(v) {
@@ -401,7 +401,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   lifeLost: {
-    gain: 1.31,
+    gain: 1.43,
     cls: 'game',
     priority: true,
     build(v) {
@@ -414,7 +414,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   levelStart: {
-    gain: 0.75,
+    gain: 0.87,
     cls: 'jingle',
     priority: true,
     build(v) {
@@ -431,7 +431,7 @@ const SFX: Record<SfxName, SfxDef> = {
 
   // ── rewards ────────────────────────────────────────────────────────────
   coin: {
-    gain: 0.66,
+    gain: 0.76,
     cls: 'game',
     build(v) {
       // One struck metal ring with shimmering overtones.
@@ -441,7 +441,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   purchase: {
-    gain: 1.03,
+    gain: 1.2,
     cls: 'jingle',
     priority: true,
     build(v) {
@@ -457,7 +457,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   reward: {
-    gain: 0.75,
+    gain: 0.87,
     cls: 'jingle',
     priority: true,
     build(v) {
@@ -475,7 +475,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   win: {
-    gain: 0.83,
+    gain: 0.97,
     cls: 'jingle',
     priority: true,
     build(v) {
@@ -503,7 +503,7 @@ const SFX: Record<SfxName, SfxDef> = {
     },
   },
   lose: {
-    gain: 0.67,
+    gain: 0.79,
     cls: 'jingle',
     priority: true,
     build(v) {

@@ -60,7 +60,7 @@ const LIMITS = {
 const TARGET = { game: -14.5, ui: -22.5 };
 const INTENT = {
   bigCombo: 0.5, nova: -1, prism: 1, beam: 0, stoneBreak: -1, win: 0.5, reward: 1, purchase: 0, goalDone: 1,
-  lose: -1, lifeLost: -1.5, invalid: -1.5, praise: -1.5, coin: -1, sand: -2.5, stone: -2, vine: -2, chain: -1,
+  lose: -1, lifeLost: -2, invalid: -1.5, praise: -1.5, coin: -1, sand: -2.5, stone: -2, vine: -2, chain: -1,
   vineGrow: -1.5, createBeam: -0.5, createNova: -0.5, createPrism: -0.5, shuffle: -0.5, swap: 1.5, button: -1, land: -1.5,
   levelStart: -0.5, movesLow: -0.5,
 };
@@ -156,7 +156,7 @@ async function checkEffects(page, report) {
   report.sfxMedianLoud = median(results.filter((r) => r.cls !== 'ui').map((r) => r.metrics.loudDb));
 
   out('');
-  out('SOUND EFFECTS — rendered offline at 44.1 kHz through sfx bus → master → limiter → guard');
+  out('SOUND EFFECTS — rendered offline at 44.1 kHz through sfx bus → master → limiter → trim → guard');
   out(
     pad('sound', 15) + pad('class', 7) + padL('dur s', 7) + padL('aud s', 7) + padL('peak', 7) + padL('rms', 7) + padL('loud', 7) +
       padL('loudA', 7) + padL('Δmed', 6) + padL('DC', 9) + padL('centroid Hz', 13) + padL('start→end', 13) + padL('pitch Hz', 10) + '  flags',
@@ -278,7 +278,7 @@ async function checkEffects(page, report) {
 // ───────────────────────── music ─────────────────────────
 async function checkMusic(page, report) {
   out('');
-  out('MUSIC — 20 s of each track, offline, through music bus → master → limiter → guard');
+  out('MUSIC — 20 s of each track, offline, through music bus → master → limiter → trim → guard');
   report.music = [];
   for (const track of ['menu', 'level']) {
     const r = await page.evaluate((t) => window.__audioLab.musicReport(t, 20, 20240521), track);

@@ -88,7 +88,8 @@ describe('coins', () => {
 
   it('addCoins ignores zero, negative and non-numeric amounts', () => {
     const h = harness();
-    for (const bad of [0, -5, NaN, -Infinity, 0.99, '10' as unknown as number, undefined as unknown as number]) {
+    // Infinity included: an unbounded amount is a bug in the caller, never a jackpot.
+    for (const bad of [0, -5, NaN, Infinity, -Infinity, 0.99, '10' as unknown as number, undefined as unknown as number]) {
       h.profile.addCoins(bad);
     }
     expect(h.profile.coins()).toBe(START_COINS);
@@ -100,7 +101,7 @@ describe('coins', () => {
     const h = harness();
     h.profile.addCoins(10.9);
     expect(h.profile.coins()).toBe(160);
-    h.profile.addCoins(Infinity);
+    h.profile.addCoins(1e300);
     expect(h.profile.coins()).toBe(MAX_COINS);
     const writes = h.storage.writes;
     h.profile.addCoins(5); // already at the cap: nothing changes

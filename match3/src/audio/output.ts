@@ -2,21 +2,26 @@
  * Output stage shared by the live engine and the offline checker:
  *
  *   sfx bus ─┐
- *            ├─► master gain ─► limiter (DynamicsCompressor) ─► guard ─► destination
+ *            ├─► master gain ─► limiter (DynamicsCompressor) ─► trim ─► guard ─► destination
  *   music bus┘
  *
- * The limiter catches the sum of many simultaneous effects. The guard is a wave shaper that
- * is exactly linear below {@link GUARD_KNEE} and bends smoothly towards {@link GUARD_CEILING}
- * above it; whatever gets past the limiter's attack therefore still cannot reach full scale.
+ * The limiter catches the sum of many simultaneous effects. Its make-up gain lets a heavy
+ * overload settle a little under full scale; the trim brings that ceiling down to just below
+ * the guard's knee. The guard is a wave shaper that is exactly linear below
+ * {@link GUARD_KNEE} and bends smoothly towards {@link GUARD_CEILING} above it, so whatever
+ * slips past the limiter's attack still cannot reach full scale. In normal play only the
+ * limiter ever works; the guard is a safety net.
  */
 
 export const LEVELS = {
   /** Effects bus. */
   sfx: 1,
   /** Music bus — the music sits well under the effects. */
-  music: 0.62,
+  music: 0.72,
   /** Master, ahead of the limiter. */
   master: 0.7,
+  /** After the limiter: keeps its ceiling under the guard's knee. */
+  trim: 0.86,
 };
 
 export const GUARD_KNEE = 0.8;
@@ -27,6 +32,7 @@ export interface OutputChain {
   musicBus: GainNode;
   master: GainNode;
   limiter: DynamicsCompressorNode;
+  trim: GainNode;
   guard: WaveShaperNode;
   /** Last node of the chain (already connected to the destination). */
   output: AudioNode;
@@ -64,6 +70,9 @@ export function createOutputChain(ctx: BaseAudioContext, destination?: AudioNode
   limiter.attack.value = 0.002;
   limiter.release.value = 0.18;
 
+  const trim = ctx.createGain();
+  trim.gain.value = LEVELS.trim;
+
   const guard = ctx.createWaveShaper();
   guard.curve = guardCurve();
   guard.oversample = 'none';
@@ -71,7 +80,8 @@ export function createOutputChain(ctx: BaseAudioContext, destination?: AudioNode
   sfxBus.connect(master);
   musicBus.connect(master);
   master.connect(limiter);
-  limiter.connect(guard);
+  limiter.connect(trim);
+  trim.connect(guard);
   guard.connect(destination || ctx.destination);
-  return { sfxBus, musicBus, master, limiter, guard, output: guard };
+  return { sfxBus, musicBus, master, limiter, trim, guard, output: guard };
 }
