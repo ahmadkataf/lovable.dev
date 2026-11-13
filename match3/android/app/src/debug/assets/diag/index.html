@@ -7,14 +7,17 @@
     <link rel="stylesheet" href="./diag.css" />
     <script>
       // If the module below never runs (wrong MIME type, blocked request), say so on screen.
+      // Module scripts run before the load event, so that is the moment to look.
       window.__diagModuleRan = false;
-      setTimeout(function () {
-        if (window.__diagModuleRan) return;
-        var out = document.getElementById('out');
-        if (out) out.textContent = 'FAIL  module script did not execute';
-        console.error('DIAG FAIL module: module script did not execute');
-        console.warn('DIAG SUMMARY pass=0 fail=1 wait=0');
-      }, 4000);
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          if (window.__diagModuleRan) return;
+          var out = document.getElementById('out');
+          if (out) out.textContent = 'FAIL  module script did not execute';
+          console.error('DIAG FAIL module: module script did not execute');
+          console.warn('DIAG SUMMARY pass=0 fail=1 wait=0');
+        }, 1500);
+      });
     </script>
     <script type="module" crossorigin src="./diag.js"></script>
   </head>

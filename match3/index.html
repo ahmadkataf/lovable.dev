@@ -2,17 +2,86 @@
 <html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8" />
+    <!--
+      Content-Security-Policy for a fully bundled, offline game: everything comes from the app's own
+      origin; nothing external can be loaded or contacted. The only inline script allowed is the
+      compatibility guard below (by its hash - tests/ui/csp.test.ts keeps the two in sync).
+      connect-src lists loopback only, which is what the dev server's hot reload needs; no remote
+      host is reachable in any build.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'sha256-ZdJUebO6OOL/+qOhdIecpZv4cqUrrpe008M/AWiXA2s='; connect-src ws://127.0.0.1:* http://127.0.0.1:*; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#14123a" />
-    <title>Match-3</title>
+    <meta name="color-scheme" content="dark" />
+    <title>Zumurud</title>
     <style>
       html, body { margin: 0; height: 100%; background: #14123a; overflow: hidden; }
-      #boot { position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; color: #f5d98b; font: 600 18px system-ui, sans-serif; text-align: center; padding: 24px; }
+      #boot { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #14123a; color: #ffe7a3; font: 600 17px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans Arabic', sans-serif; text-align: center; padding: 28px; box-sizing: border-box; }
+      #boot i { display: block; width: 44px; height: 44px; border-radius: 50%; border: 4px solid rgba(245, 201, 90, 0.25); border-top-color: #f5c95a; box-sizing: border-box; -webkit-animation: boot-spin 0.9s linear infinite; animation: boot-spin 0.9s linear infinite; }
+      #boot p { max-width: 420px; margin: 0 0 18px; }
+      #boot p[dir='rtl'] { font-size: 18px; }
+      @-webkit-keyframes boot-spin { to { -webkit-transform: rotate(360deg); } }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
     </style>
   </head>
   <body>
     <div id="app"></div>
-    <div id="boot"></div>
+    <div id="boot"><i></i></div>
+    <script>
+      (function () {
+        var shown = false;
+        function fail() {
+          if (shown || window.__booted) return;
+          shown = true;
+          var boot = document.getElementById('boot');
+          if (!boot) {
+            boot = document.createElement('div');
+            boot.id = 'boot';
+            document.body.appendChild(boot);
+          }
+          while (boot.firstChild) boot.removeChild(boot.firstChild);
+          var texts = [
+            ['ltr', 'en', 'This game needs a newer Android System WebView. Please update “Android System WebView” (or Chrome) in Google Play, then open the game again.'],
+            ['rtl', 'ar', 'تحتاج اللعبة إلى إصدار أحدث من Android System WebView. يُرجى تحديث «Android System WebView» (أو Chrome) من Google Play ثم فتح اللعبة من جديد.']
+          ];
+          for (var i = 0; i < texts.length; i++) {
+            var p = document.createElement('p');
+            p.setAttribute('dir', texts[i][0]);
+            p.setAttribute('lang', texts[i][1]);
+            p.appendChild(document.createTextNode(texts[i][2]));
+            boot.appendChild(p);
+          }
+        }
+        window.__bootFail = fail;
+        var ok = false;
+        try {
+          ok =
+            'noModule' in document.createElement('script') &&
+            typeof Promise === 'function' &&
+            typeof Symbol === 'function' &&
+            typeof window.PointerEvent === 'function' &&
+            typeof window.requestAnimationFrame === 'function' &&
+            !!(window.CSS && CSS.supports && CSS.supports('width', 'clamp(1px, 2vw, 3px)'));
+        } catch (e) {
+          ok = false;
+        }
+        if (!ok) {
+          fail();
+          return;
+        }
+        // The game's module script sets __bootStarted when it runs. A script error before that
+        // (syntax this WebView does not know) or silence for a few seconds means it cannot start.
+        window.addEventListener('error', function () {
+          if (!window.__bootStarted) fail();
+        });
+        setTimeout(function () {
+          if (!window.__bootStarted) fail();
+        }, 6000);
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

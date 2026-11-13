@@ -292,7 +292,6 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
         view.isHorizontalScrollBarEnabled = false
         // No long-press behaviour of any kind: no text selection, no context menu, and no buzz
         // (a consumed long click would otherwise vibrate each time a finger rests on the board).
-        view.isLongClickable = false
         view.isHapticFeedbackEnabled = false
         view.setOnLongClickListener { true }
         view.isFocusable = true

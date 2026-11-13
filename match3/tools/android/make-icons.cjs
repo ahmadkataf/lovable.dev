@@ -21,11 +21,13 @@
  *
  * drawable/ic_launcher_monochrome.xml (the themed-icon layer) is hand-written and only previewed here.
  *
- * Geometry (adaptive icon, in dp on the 108dp layer canvas): launchers show the middle 72dp through
- * their own mask; only the middle 66dp is guaranteed visible. The emblem's star spans STAR_DP inside
- * that safe zone; the round medallion plate behind it fades out before the edge of the safe zone,
- * so no launcher mask can ever cut through a visible edge. The background layer continues the
- * plate's colours to the corners.
+ * Geometry. An adaptive icon layer is 108dp; launchers show the middle 72dp through their own mask
+ * and only the middle 66dp is guaranteed to be visible. The art contract (src/art/types.ts) says the
+ * emblem keeps its star and jewel inside the middle 66% of its box, so the emblem is drawn 100dp
+ * wide: its 66% is exactly the 66dp safe zone. The round medallion plate behind the star is not
+ * part of the icon's shape: the foreground fades it out just outside the safe zone, and the
+ * background layer continues its colours (sampled from the rendered emblem, not copied from the
+ * art's source) to the corners — so no launcher mask can cut through a visible edge.
  */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -42,18 +44,21 @@ const SERVER = (process.env.ICONS_URL || 'http://127.0.0.1:5187').replace(/\/$/,
 
 const DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
 
-/** Shared by the canvas painter (in the page) and the vector background written below. */
+/** Shared by the canvas painter (in the page) and the vector background written below. All in dp. */
 const GEOMETRY = {
   layerDp: 108,
   visibleDp: 72,
-  /** Tip-to-tip size of the star. The emblem draws it at 60% of its own box. */
-  starDp: 58,
-  /** Plate fade, as fractions of the emblem box measured from its centre: opaque up to → gone at. */
-  fadeFrom: 0.315,
-  fadeTo: 0.365,
-  /** The emblem's plate gradient (src/art/logo.ts), in emblem units (box = 100), centre offset −8 in y. */
-  plate: { dy: -8, r0: 4, r1: 48, stops: [[0, '#5a41b4'], [0.5, '#2f2478'], [1, '#161240']] },
-  halo: { r0: 10, r1: 44, color: [255, 214, 120], alpha: 0.5 },
+  /** Size the emblem is drawn at: 1 emblem unit (of 100) = 1dp, see the header. */
+  emblemDp: 100,
+  /** The plate is opaque up to this radius and fully gone at the next (star tips reach 33dp at most). */
+  fadeFromDp: 33.4,
+  fadeToDp: 36,
+  /** Radii at which the plate's colour is sampled; inside the first one the foreground is opaque. */
+  sampleRadiiDp: [34, 36, 38, 40],
+  /** Beyond the plate the background settles on the game's night colour (res/values/colors.xml). */
+  night: '#14123a',
+  nightAtDp: 52,
+  /** Faint gold rays, as on the plate. */
   rays: { count: 16, halfAngle: 0.07, color: [255, 231, 163], alpha: 0.07, lengthDp: 90 },
 };
 
@@ -79,18 +84,25 @@ function fix(n) {
   return String(Math.round(n * 100) / 100);
 }
 
-/** The adaptive icon's background layer as a vector drawable: the same paint as paintBackground() below. */
-function backgroundVectorXml() {
+/** Half the diagonal of the layer: the radius at which a centred radial gradient reaches the corners. */
+function cornerRadius() {
+  return (GEOMETRY.layerDp / 2) * Math.SQRT2;
+}
+
+/** Gradient stops [offset 0..1, '#rrggbb'] of the background, from the sampled plate colours. */
+function backgroundStops(ring) {
   const g = GEOMETRY;
-  const emblemDp = g.starDp / 0.6;
-  const u = emblemDp / 100; // dp per emblem unit
+  const R = cornerRadius();
+  const stops = [[0, ring[0]]];
+  g.sampleRadiiDp.forEach((r, i) => stops.push([r / R, ring[i]]));
+  stops.push([g.nightAtDp / R, g.night], [1, g.night]);
+  return stops;
+}
+
+/** The adaptive icon's background layer as a vector drawable: the same paint as paintBackground() in the page. */
+function backgroundVectorXml(ring) {
+  const g = GEOMETRY;
   const c = g.layerDp / 2;
-  const plateStops = [
-    [g.plate.r0 / g.plate.r1, g.plate.stops[0][1]],
-    [(g.plate.r0 + (g.plate.r1 - g.plate.r0) * g.plate.stops[1][0]) / g.plate.r1, g.plate.stops[1][1]],
-    [1, g.plate.stops[2][1]],
-  ];
-  const haloRgb = g.halo.color.map(hex2).join('');
   const rayRgb = g.rays.color.map(hex2).join('');
   let rays = '';
   for (let i = 0; i < g.rays.count; i++) {
@@ -101,11 +113,13 @@ function backgroundVectorXml() {
     const y1 = c + Math.sin(a + g.rays.halfAngle) * g.rays.lengthDp;
     rays += `M${c},${c} L${fix(x0)},${fix(y0)} L${fix(x1)},${fix(y1)} Z `;
   }
-  const item = (offset, color) => `                <item android:offset="${fix(offset)}" android:color="${color}" />`;
+  const items = backgroundStops(ring)
+    .map(([offset, color]) => `                <item android:offset="${fix(offset)}" android:color="#FF${color.slice(1).toUpperCase()}" />`)
+    .join('\n');
   return `<?xml version="1.0" encoding="utf-8"?>
 <!--
-    Adaptive-icon background: the emblem's indigo medallion colours carried to the corners, with
-    its faint gold rays. GENERATED by tools/android/make-icons.cjs — edit the script, not this file.
+    Adaptive-icon background: the colours of the emblem's indigo medallion carried to the corners,
+    with its faint gold rays. GENERATED by tools/android/make-icons.cjs — edit the script, not this file.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -117,29 +131,16 @@ function backgroundVectorXml() {
         <aapt:attr name="android:fillColor">
             <gradient
                 android:centerX="${fix(c)}"
-                android:centerY="${fix(c + g.plate.dy * u)}"
-                android:gradientRadius="${fix(g.plate.r1 * u)}"
+                android:centerY="${fix(c)}"
+                android:gradientRadius="${fix(cornerRadius())}"
                 android:type="radial">
-${plateStops.map(([o, col]) => item(o, '#FF' + col.slice(1).toUpperCase())).join('\n')}
+${items}
             </gradient>
         </aapt:attr>
     </path>
     <path
         android:fillColor="#${hex2(g.rays.alpha * 255)}${rayRgb}"
         android:pathData="${rays.trim()}" />
-    <path android:pathData="M0,0h108v108h-108z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:centerX="${fix(c)}"
-                android:centerY="${fix(c)}"
-                android:gradientRadius="${fix(g.halo.r1 * u)}"
-                android:type="radial">
-${item(0, '#' + hex2(g.halo.alpha * 255) + haloRgb)}
-${item(g.halo.r0 / g.halo.r1, '#' + hex2(g.halo.alpha * 255) + haloRgb)}
-${item(1, '#00' + haloRgb)}
-            </gradient>
-        </aapt:attr>
-    </path>
 </vector>
 `;
 }
@@ -159,7 +160,7 @@ function readMonochromePaths() {
   return paths;
 }
 
-/** Runs inside the page. Returns { files: {name: dataUrl}, placeholder: boolean, error?: string }. */
+/** Runs inside the page. Returns { files: {name: dataUrl}, ring: ['#rrggbb'…], placeholder, error }. */
 async function renderInPage({ geometry, densities, monochrome }) {
   const g = geometry;
   let emblem;
@@ -174,7 +175,7 @@ async function renderInPage({ geometry, densities, monochrome }) {
   } catch (err) {
     placeholder = true;
     error = String(err && err.message ? err.message : err);
-    // Plain stand-in so the build still has an icon: a red round gem in a gold eight-pointed star.
+    // Plain stand-in so the build still has an icon: a green cut gem in a gold eight-pointed star.
     emblem = (px) => {
       const c = document.createElement('canvas');
       c.width = c.height = px;
@@ -189,20 +190,17 @@ async function renderInPage({ geometry, densities, monochrome }) {
       const k = Math.SQRT1_2 / Math.cos(Math.PI / 8);
       for (let i = 0; i < 16; i++) {
         const a = -Math.PI / 2 + (i * Math.PI) / 8;
-        const r = i % 2 === 0 ? 30 : 30 * k;
+        const r = i % 2 === 0 ? 32 : 32 * k;
         x.lineTo(50 + Math.cos(a) * r, 50 + Math.sin(a) * r);
       }
       x.closePath();
       x.fill();
-      x.fillStyle = '#ff4d5e';
-      x.beginPath();
-      x.arc(50, 50, 14, 0, Math.PI * 2);
-      x.fill();
+      x.fillStyle = '#2fd17c';
+      x.fillRect(37, 37, 26, 26);
       return c;
     };
   }
 
-  const emblemDp = g.starDp / 0.6;
   const canvas = (w, h) => {
     const c = document.createElement('canvas');
     c.width = w;
@@ -210,15 +208,46 @@ async function renderInPage({ geometry, densities, monochrome }) {
     return c;
   };
 
+  // ── the plate's colours, read from the rendered emblem ──
+  // Sampled between the star's points and away from the rays (which lie on multiples of 22.5°),
+  // averaged over eight directions because the plate's own gradient is not centred.
+  const ring = (function samplePlate() {
+    const size = 1000;
+    const unit = size / 100;
+    const ctx = emblem(size).getContext('2d');
+    return g.sampleRadiiDp.map((radiusDp) => {
+      const r = (radiusDp * 100) / g.emblemDp; // emblem units
+      const sum = [0, 0, 0];
+      let n = 0;
+      for (let k = 0; k < 8; k++) {
+        const a = Math.PI / 16 + (k * Math.PI) / 4;
+        const d = ctx.getImageData(Math.round(size / 2 + Math.cos(a) * r * unit) - 2, Math.round(size / 2 + Math.sin(a) * r * unit) - 2, 5, 5).data;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] < 250) continue;
+          sum[0] += d[i];
+          sum[1] += d[i + 1];
+          sum[2] += d[i + 2];
+          n++;
+        }
+      }
+      if (n === 0) return g.night;
+      return '#' + sum.map((v) => Math.round(v / n).toString(16).padStart(2, '0')).join('');
+    });
+  })();
+  const cornerR = (g.layerDp / 2) * Math.SQRT2;
+  const stops = [[0, ring[0]]];
+  g.sampleRadiiDp.forEach((r, i) => stops.push([r / cornerR, ring[i]]));
+  stops.push([g.nightAtDp / cornerR, g.night], [1, g.night]);
+
   /** Foreground layer: `px` = size of the 108dp canvas in pixels. */
   function foreground(px) {
     const s = px / g.layerDp;
-    const e = Math.round(emblemDp * s);
+    const e = Math.round(g.emblemDp * s);
     const em = canvas(e);
     const ex = em.getContext('2d');
     ex.drawImage(emblem(e), 0, 0);
-    // fade the medallion plate out towards the edge of the safe zone
-    const mask = ex.createRadialGradient(e / 2, e / 2, e * g.fadeFrom, e / 2, e / 2, e * g.fadeTo);
+    // fade the medallion plate out just outside the safe zone
+    const mask = ex.createRadialGradient(e / 2, e / 2, g.fadeFromDp * s, e / 2, e / 2, g.fadeToDp * s);
     mask.addColorStop(0, 'rgba(0,0,0,1)');
     mask.addColorStop(1, 'rgba(0,0,0,0)');
     ex.globalCompositeOperation = 'destination-in';
@@ -232,10 +261,9 @@ async function renderInPage({ geometry, densities, monochrome }) {
   /** Background layer painted into ctx; the 108dp canvas maps to [0, px]. Mirrors the vector drawable. */
   function paintBackground(ctx, px) {
     const s = px / g.layerDp;
-    const u = (emblemDp / 100) * s;
     const c = px / 2;
-    const plate = ctx.createRadialGradient(c, c + g.plate.dy * u, g.plate.r0 * u, c, c + g.plate.dy * u, g.plate.r1 * u);
-    for (const [o, col] of g.plate.stops) plate.addColorStop(o, col);
+    const plate = ctx.createRadialGradient(c, c, 0, c, c, cornerR * s);
+    for (const [o, col] of stops) plate.addColorStop(o, col);
     ctx.fillStyle = plate;
     ctx.fillRect(0, 0, px, px);
     ctx.fillStyle = 'rgba(' + g.rays.color.join(',') + ',' + g.rays.alpha + ')';
@@ -248,11 +276,6 @@ async function renderInPage({ geometry, densities, monochrome }) {
       ctx.closePath();
       ctx.fill();
     }
-    const halo = ctx.createRadialGradient(c, c, g.halo.r0 * u, c, c, g.halo.r1 * u);
-    halo.addColorStop(0, 'rgba(' + g.halo.color.join(',') + ',' + g.halo.alpha + ')');
-    halo.addColorStop(1, 'rgba(' + g.halo.color.join(',') + ',0)');
-    ctx.fillStyle = halo;
-    ctx.fillRect(0, 0, px, px);
   }
 
   /** Both layers, cropped to the middle `windowDp` and scaled to `px` pixels: what a launcher shows before masking. */
@@ -363,7 +386,7 @@ async function renderInPage({ geometry, densities, monochrome }) {
   const rowsH = sizes.reduce((sum, s) => sum + s + 28, 0);
   const sheet = canvas(sheetW, rowsH + 56 + 250);
   const sx = sheet.getContext('2d');
-  // wallpaper-like backdrop, half light and half dark, so both kinds of home screen are shown
+  // wallpaper-like backdrop, light with one dark band, so both kinds of home screen are shown
   sx.fillStyle = '#e9e6f2';
   sx.fillRect(0, 0, sheetW, sheet.height);
   sx.fillStyle = '#1b1b22';
@@ -395,7 +418,7 @@ async function renderInPage({ geometry, densities, monochrome }) {
     }
   }
   sx.drawImage(fg, 16, y0);
-  sx.fillStyle = '#14123a';
+  sx.fillStyle = g.night;
   sx.fillRect(16 + 232, y0, layerPx, layerPx);
   sx.drawImage(fg, 16 + 232, y0);
   const bg = canvas(layerPx);
@@ -420,7 +443,7 @@ async function renderInPage({ geometry, densities, monochrome }) {
   sx.fillText('48px ×4', 16 + 940, y0 + 210);
   files.preview = sheet.toDataURL('image/png');
 
-  return { files, placeholder, error };
+  return { files, ring, placeholder, error };
 }
 
 async function main() {
@@ -459,8 +482,8 @@ async function main() {
     else if (name === 'preview') write(PREVIEW, dataUrl);
     else write(path.join(RES, name), dataUrl);
   }
-  fs.writeFileSync(BACKGROUND_XML, backgroundVectorXml());
-  console.log('  ' + path.relative(ROOT, BACKGROUND_XML));
+  fs.writeFileSync(BACKGROUND_XML, backgroundVectorXml(result.ring));
+  console.log('  ' + path.relative(ROOT, BACKGROUND_XML) + '  (plate colours ' + result.ring.join(' ') + ')');
 
   if (result.placeholder) {
     console.error(

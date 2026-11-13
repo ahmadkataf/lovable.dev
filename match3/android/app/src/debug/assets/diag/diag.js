@@ -24,6 +24,7 @@ const frameEl = document.getElementById('frame');
 const order = [];
 const results = {};
 let summaryTimer = 0;
+let finished = false;
 
 function set(name, status, detail) {
   if (!results[name]) order.push(name);
@@ -51,7 +52,7 @@ function render() {
     outEl.appendChild(line);
   }
   const text = 'pass=' + pass + ' fail=' + fail + ' wait=' + wait;
-  summaryEl.textContent = text + (fail === 0 && wait === 0 ? '  — ALL PASS' : '');
+  summaryEl.textContent = text + (!finished ? '  (running…)' : fail === 0 && wait === 0 ? '  — ALL PASS' : '');
   summaryEl.className = fail > 0 ? 'FAIL' : wait > 0 ? 'WAIT' : 'PASS';
   clearTimeout(summaryTimer);
   summaryTimer = setTimeout(function () {
@@ -587,6 +588,7 @@ async function run() {
     set('renderer-recovery', 'PASS', 'this page was reloaded by the wrapper after losing the renderer ' + state.rendererRestarts + '×');
   }
 
+  finished = true;
   onLifecycle();
 }
 

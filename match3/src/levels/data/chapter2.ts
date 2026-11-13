@@ -8,12 +8,12 @@
 import type { LevelDef } from '../../engine/types.ts';
 
 export const CHAPTER_2: readonly LevelDef[] = [
-  // Three lamps: the first lamps wait at the top — clear the way beneath them.
+  // Two lamps: the first lamps wait at the top — clear the cells beneath them. Four colours keep it gentle.
   {
-    id: 21, cols: 7, rows: 7, colors: 5, moves: 22,
+    id: 21, cols: 7, rows: 7, colors: 4, moves: 15,
     tutorial: 'lamp',
     pieces: [
-      '.L.L.L.',
+      '..L.L..',
       '.......',
       '.......',
       '.......',
@@ -21,25 +21,23 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '.......',
       '.......',
     ],
-    goals: [{ kind: 'lamp', target: 3 }],
-    stars: [2000, 4000, 6000],
+    goals: [{ kind: 'lamp', target: 2 }],
+    stars: [5700, 15200, 22200],
   },
-  // The caravan: a tall, narrow board; lamps arrive one after another.
+  // The caravan: lamps arrive one after another; the outer columns end sooner.
   {
-    id: 22, cols: 6, rows: 8, colors: 5, moves: 24,
+    id: 22, cols: 7, rows: 6, colors: 4, moves: 15,
     pieces: [
-      '......',
-      '......',
-      '......',
-      '......',
-      '......',
-      '......',
-      '......',
-      '......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '_....._',
+      '__...__',
     ],
-    lamps: { total: 4, maxOnBoard: 2, everyMoves: 2 },
-    goals: [{ kind: 'lamp', target: 4 }],
-    stars: [3000, 5000, 7000],
+    lamps: { total: 3, maxOnBoard: 3, everyMoves: 1 },
+    goals: [{ kind: 'lamp', target: 3 }],
+    stars: [5000, 10100, 15200],
   },
   // Wet sand: two lamps must cross a belt of sand that has to go as well.
   {
@@ -65,11 +63,11 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '00000000',
     ],
     goals: [{ kind: 'lamp', target: 2 }, { kind: 'sand' }],
-    stars: [3000, 5000, 7000],
+    stars: [8000, 14600, 19900],
   },
   // The ridge: a stone staircase runs down the dune.
   {
-    id: 24, cols: 8, rows: 8, colors: 5, moves: 22,
+    id: 24, cols: 8, rows: 8, colors: 5, moves: 18,
     pieces: [
       '........',
       '........',
@@ -81,23 +79,22 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'stone' }, { kind: 'color', color: 3, target: 24 }],
-    stars: [2500, 4500, 6500],
+    stars: [4300, 10000, 14600],
   },
-  // Sealed shafts: a stone sits in every lamp's column.
+  // Sealed shafts: stone lids lie across both lamps' columns.
   {
-    id: 25, cols: 7, rows: 8, colors: 5, moves: 24,
+    id: 25, cols: 7, rows: 7, colors: 5, moves: 25,
     pieces: [
-      '.L.L.L.',
+      '..L.L..',
       '.......',
       '.......',
-      '.2.2.2.',
-      '.......',
+      '.22.22.',
       '.......',
       '.......',
       '.......',
     ],
-    goals: [{ kind: 'lamp', target: 3 }],
-    stars: [3000, 5000, 7000],
+    goals: [{ kind: 'lamp', target: 2 }],
+    stars: [6000, 10600, 14600],
   },
   // Six colours: a broad cross of a board and a sixth gem — points only.
   {
@@ -112,8 +109,8 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '__....__',
       '__....__',
     ],
-    goals: [{ kind: 'score', target: 3000 }],
-    stars: [3000, 5000, 7000],
+    goals: [{ kind: 'score', target: 2900 }],
+    stars: [2900, 4300, 5700],
   },
   // Quicksand: a checkerboard of deep sand over the whole board.
   {
@@ -138,11 +135,11 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '2020202',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [3000, 5000, 7000],
+    stars: [7900, 13400, 16900],
   },
   // The crest: a wide lozenge of a board, two colours to gather.
   {
-    id: 28, cols: 9, rows: 9, colors: 5, moves: 24,
+    id: 28, cols: 9, rows: 9, colors: 5, moves: 19,
     pieces: [
       '__.....__',
       '_......._',
@@ -158,13 +155,12 @@ export const CHAPTER_2: readonly LevelDef[] = [
       { kind: 'color', color: 1, target: 34 },
       { kind: 'color', color: 4, target: 34 },
     ],
-    stars: [3000, 5000, 7000],
+    stars: [5700, 11600, 16700],
   },
   // Terraces: the floor climbs to the left, so some columns are a much shorter way down.
   {
-    id: 29, cols: 8, rows: 8, colors: 5, moves: 26,
+    id: 29, cols: 8, rows: 7, colors: 5, moves: 37,
     pieces: [
-      '........',
       '........',
       '........',
       '........',
@@ -173,13 +169,13 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '___.....',
       '____....',
     ],
-    lamps: { total: 5, maxOnBoard: 2, everyMoves: 2 },
-    goals: [{ kind: 'lamp', target: 5 }],
-    stars: [3000, 5000, 7000],
+    lamps: { total: 3, maxOnBoard: 3, everyMoves: 1 },
+    goals: [{ kind: 'lamp', target: 3 }],
+    stars: [8700, 13600, 17000],
   },
   // The sunken road: lamps above stones, deep sand at the bottom.
   {
-    id: 30, cols: 8, rows: 8, colors: 5, moves: 28,
+    id: 30, cols: 8, rows: 8, colors: 5, moves: 18,
     hard: true,
     pieces: [
       '.L....L.',
@@ -202,11 +198,11 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '02222220',
     ],
     goals: [{ kind: 'lamp', target: 2 }, { kind: 'sand' }],
-    stars: [3000, 5000, 7000],
+    stars: [7500, 14300, 19000],
   },
   // Shackles: the first chained gems — match them to set them free.
   {
-    id: 31, cols: 7, rows: 7, colors: 5, moves: 22,
+    id: 31, cols: 7, rows: 7, colors: 5, moves: 27,
     tutorial: 'chain',
     pieces: [
       '.......',
@@ -218,11 +214,11 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '.......',
     ],
     goals: [{ kind: 'chain' }],
-    stars: [2000, 4000, 6000],
+    stars: [5100, 9500, 12800],
   },
   // The guarded pool: chained gems stand around a pool of sand.
   {
-    id: 32, cols: 8, rows: 8, colors: 5, moves: 26,
+    id: 32, cols: 8, rows: 8, colors: 5, moves: 20,
     pieces: [
       '........',
       '........',
@@ -244,11 +240,11 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '00000000',
     ],
     goals: [{ kind: 'sand' }, { kind: 'chain' }],
-    stars: [3000, 5000, 7000],
+    stars: [4900, 10800, 16100],
   },
-  // The shackled floor: chains zigzag along the bottom, where nothing moves by itself.
+  // The shackled floor: chains along the bottom, where nothing moves by itself.
   {
-    id: 33, cols: 8, rows: 8, colors: 5, moves: 26,
+    id: 33, cols: 8, rows: 8, colors: 5, moves: 31,
     pieces: [
       '........',
       '........',
@@ -256,31 +252,30 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '........',
       '........',
       '........',
-      'c.c.c.c.',
-      '.c.c.c.c',
+      '..c..c..',
+      'c..cc..c',
     ],
     goals: [{ kind: 'chain' }, { kind: 'color', color: 0, target: 24 }],
-    stars: [3000, 5000, 7000],
+    stars: [8900, 15900, 21400],
   },
-  // Locked shafts: each lamp has two chained gems in its way.
+  // Locked shafts: each lamp rests on a chained gem that has to be freed first.
   {
-    id: 34, cols: 7, rows: 8, colors: 5, moves: 26,
+    id: 34, cols: 7, rows: 7, colors: 5, moves: 36,
     pieces: [
       '.L...L.',
       '.c...c.',
       '.......',
       '.......',
-      '.c...c.',
       '.......',
       '.......',
       '.......',
     ],
     goals: [{ kind: 'lamp', target: 2 }],
-    stars: [3000, 5000, 7000],
+    stars: [8700, 13800, 17500],
   },
   // Chain mail: stones and chains woven into two rows.
   {
-    id: 35, cols: 8, rows: 8, colors: 5, moves: 26,
+    id: 35, cols: 8, rows: 8, colors: 5, moves: 18,
     pieces: [
       '........',
       '........',
@@ -292,11 +287,11 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '........',
     ],
     goals: [{ kind: 'stone' }, { kind: 'chain' }],
-    stars: [3000, 5000, 7000],
+    stars: [3800, 8800, 14200],
   },
   // The strongbox: a prism locked behind stone — break in and use it.
   {
-    id: 36, cols: 7, rows: 7, colors: 5, moves: 24,
+    id: 36, cols: 7, rows: 7, colors: 5, moves: 22,
     pieces: [
       '.......',
       '.......',
@@ -307,46 +302,46 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '.......',
     ],
     goals: [{ kind: 'stone' }, { kind: 'score', target: 6000 }],
-    stars: [6000, 8000, 10000],
+    stars: [6200, 10000, 13200],
   },
-  // The ring road: a board around a gap, deep sand along its inner edge.
+  // The ring road: a tall board around a gap, sand along the gap's edge, deep at the corners.
   {
-    id: 37, cols: 9, rows: 9, colors: 6, moves: 28,
+    id: 37, cols: 8, rows: 9, colors: 5, moves: 19,
     pieces: [
-      '.........',
-      '.........',
-      '.........',
-      '...___...',
-      '...___...',
-      '...___...',
-      '.........',
-      '.........',
-      '.........',
+      '........',
+      '........',
+      '........',
+      '...__...',
+      '...__...',
+      '...__...',
+      '........',
+      '........',
+      '........',
     ],
     floor: [
-      '000000000',
-      '000000000',
-      '002111200',
-      '001000100',
-      '001000100',
-      '001000100',
-      '002111200',
-      '000000000',
-      '000000000',
+      '00000000',
+      '00000000',
+      '00211200',
+      '00100100',
+      '00100100',
+      '00100100',
+      '00211200',
+      '00000000',
+      '00000000',
     ],
     goals: [{ kind: 'sand' }],
-    stars: [3000, 5000, 7000],
+    stars: [4300, 8500, 13100],
   },
   // The sand timer: lamps fall through the neck of an hourglass into a sandy bulb.
   {
-    id: 38, cols: 7, rows: 8, colors: 5, moves: 26,
+    id: 38, cols: 7, rows: 8, colors: 5, moves: 32,
     pieces: [
       '.......',
       '.......',
       '_....._',
       '__...__',
-      '__...__',
       '_....._',
+      '.......',
       '.......',
       '.......',
     ],
@@ -357,16 +352,16 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '0000000',
       '0000000',
       '0000000',
-      '1111111',
-      '1111111',
+      '0111110',
+      '0111110',
     ],
-    lamps: { total: 3, maxOnBoard: 1, everyMoves: 3 },
-    goals: [{ kind: 'lamp', target: 3 }, { kind: 'sand' }],
-    stars: [3000, 5000, 7000],
+    lamps: { total: 2, maxOnBoard: 1, everyMoves: 2 },
+    goals: [{ kind: 'lamp', target: 2 }, { kind: 'sand' }],
+    stars: [7500, 12800, 16300],
   },
   // Market colours: three colours out of six, with a few obstacles in the way.
   {
-    id: 39, cols: 8, rows: 8, colors: 6, moves: 28,
+    id: 39, cols: 8, rows: 8, colors: 6, moves: 24,
     pieces: [
       '........',
       '.c....c.',
@@ -382,11 +377,11 @@ export const CHAPTER_2: readonly LevelDef[] = [
       { kind: 'color', color: 2, target: 18 },
       { kind: 'color', color: 5, target: 18 },
     ],
-    stars: [3000, 5000, 7000],
+    stars: [3700, 7400, 10500],
   },
   // The great dune: three lamps behind chains, and a dune of deep sand to clear.
   {
-    id: 40, cols: 9, rows: 9, colors: 5, moves: 30,
+    id: 40, cols: 9, rows: 9, colors: 5, moves: 21,
     hard: true,
     pieces: [
       '.L..L..L.',
@@ -411,6 +406,6 @@ export const CHAPTER_2: readonly LevelDef[] = [
       '122222221',
     ],
     goals: [{ kind: 'lamp', target: 3 }, { kind: 'sand' }],
-    stars: [4000, 6000, 8000],
+    stars: [11100, 22100, 29400],
   },
 ];

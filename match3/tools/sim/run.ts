@@ -101,7 +101,7 @@ function printTable(levels: readonly LevelDef[], bot: BotKind, stats: readonly L
     const s = stats[k]!;
     const flag = flagFor(level, bot, s);
     if (flag !== '') flagged++;
-    const band = bot === 'expert' ? `≥${EXPERT_MIN}` : bandFor(level).label;
+    const band = bot === 'expert' ? `≥${EXPERT_MIN}` : bot === 'casual' ? bandFor(level).label : '—';
     console.log(
       `${pad(level.id, 4)}  ${pad(band, 13)}  ${pad(s.winRate.toFixed(1), 6)}  ${pad(s.movesLeft.toFixed(1), 5)}  ${pad(s.p10, 6)} ${pad(s.p50, 6)} ${pad(s.p90, 6)}  ${pad(s.shufflesPerGame.toFixed(2), 6)}  ${flag}${s.deadBoards > 0 ? ` dead×${s.deadBoards}` : ''}`,
     );
@@ -156,7 +156,8 @@ async function main(): Promise<void> {
   const stats = results.map(summarise);
   const flagged = printTable(levels, bot, stats);
   const mean = stats.reduce((sum, s) => sum + s.winRate, 0) / Math.max(1, stats.length);
-  console.log(`\n${levels.length - flagged}/${levels.length} levels in band · mean win rate ${mean.toFixed(1)} % · ${((Date.now() - started) / 1000).toFixed(1)} s`);
+  const verdict = bot === 'casual' ? `${levels.length - flagged}/${levels.length} levels in band · ` : bot === 'expert' ? `${levels.length - flagged}/${levels.length} levels at ≥ ${EXPERT_MIN} % · ` : '';
+  console.log(`\n${verdict}mean win rate ${mean.toFixed(1)} % · ${((Date.now() - started) / 1000).toFixed(1)} s`);
 
   if (args.report) {
     const t1 = Date.now();

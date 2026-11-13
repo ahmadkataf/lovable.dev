@@ -15,7 +15,7 @@
  * the expert bot proves that a level rewards good play and is not luck-only.
  */
 import { Game, createRng } from '../../src/engine/index.ts';
-import type { GameApi, Goal, GoalProgress, LevelDef, Move, Pos, Rng, Snapshot } from '../../src/engine/index.ts';
+import type { GameApi, Goal, GoalProgress, LevelDef, Move, Rng, Snapshot } from '../../src/engine/index.ts';
 
 export type BotKind = 'random' | 'casual' | 'expert';
 export const BOT_KINDS: readonly BotKind[] = ['random', 'casual', 'expert'];
