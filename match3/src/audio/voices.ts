@@ -64,7 +64,7 @@ export class Voice {
     for (let i = 0; i < nodes.length; i++) {
       try {
         nodes[i].disconnect();
-      } catch (_e) {
+      } catch {
         /* already disconnected */
       }
     }

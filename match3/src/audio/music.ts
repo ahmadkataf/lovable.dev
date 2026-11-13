@@ -157,7 +157,7 @@ export function createMusicPlayer(
       g.gain.linearRampToValueAtTime(level, t + attack);
       g.gain.setValueAtTime(level, t + attack + hold);
       g.gain.linearRampToValueAtTime(0, end);
-      g.connect(padBus);
+      g.connect(v.out);
       const osc = ctx.createOscillator();
       osc.type = i < 2 ? 'triangle' : 'sine';
       osc.frequency.value = f;
@@ -177,7 +177,7 @@ export function createMusicPlayer(
         tg.gain.setValueAtTime(level * 0.35, t + attack + hold);
         tg.gain.linearRampToValueAtTime(0, end);
         twin.connect(tg);
-        tg.connect(padBus);
+        tg.connect(v.out);
         v.run(twin, t, end + 0.02);
       }
     }

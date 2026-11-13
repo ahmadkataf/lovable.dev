@@ -35,7 +35,6 @@ const Eb4 = 63;
 const Fs4 = 66;
 const G4 = 67;
 const A4 = 69;
-const C5 = 72;
 const D5 = 74;
 const Eb5 = 75;
 const Fs5 = 78;
@@ -44,7 +43,9 @@ const A5 = 81;
 const C6 = 84;
 const D6 = 86;
 const Fs6 = 90;
+const G6 = 91;
 const A6 = 93;
+const C7 = 96;
 const D7 = 98;
 
 /** Struck chime: pure body with a brief metallic "tine" at the attack. */
@@ -274,7 +275,7 @@ const SFX: Record<SfxName, SfxDef> = {
       // Rays: a swirl of air with bright notes darting about above a rising tone.
       noise(v, { type: 'bandpass', f: 900, f2: 7000, q: 2.5, dur: 0.3, peak: 0.25, attack: 0.12 });
       noise(v, { type: 'bandpass', f: 7000, f2: 1500, q: 2.5, at: 0.25, dur: 0.36, peak: 0.2, attack: 0.02 });
-      const rays = [D6, Fs6, A6, 91, 96, D7, A6];
+      const rays = [D6, Fs6, A6, G6, C7, D7, A6];
       for (let k = 0; k < rays.length; k++) {
         fm(v, { f: hz(rays[k]), ratio: 2, index: 0.5, at: 0.03 + k * 0.055, dur: 0.2, peak: 0.26 });
       }
