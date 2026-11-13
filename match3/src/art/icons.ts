@@ -7,6 +7,7 @@ import type { IconKey } from './types.ts';
 import type { Ctx } from './util.ts';
 import { PAL, TAU, khatamPts, poly, roundPoly, rrect, starPts, vGrad } from './util.ts';
 import { drawPrism } from './gems.ts';
+import { drawChain, drawSand, drawStone, drawVine } from './blockers.ts';
 
 const INK = PAL.night;
 /** ink outline thickness, in grid units */
@@ -302,8 +303,8 @@ const ICONS: Record<IconKey, IconFn> = {
     g.stroke(D('M2.6 9.6 H21.4 M6.6 4.2 L9.1 9.6 L12 4.2 L14.9 9.6 L17.4 4.2 M9.1 9.6 L12 20.2 L14.9 9.6'), 0.95, '#8a5a12', false);
   },
   settings(g) {
-    g.fill(gear(12, 12, 10.2, 7.5, 8), 'gold');
-    g.stroke(gear(12, 12, 10.2, 7.5, 8), 0.8, 'gold');
+    g.fill(gear(12, 12, 9.9, 7.3, 8), 'gold');
+    g.stroke(gear(12, 12, 9.9, 7.3, 8), 0.8, 'gold');
     g.fill(C(12, 12, 3.3), INK, false);
     g.stroke(C(12, 12, 5.2), 0.8, SHADE, false);
   },
@@ -349,9 +350,9 @@ const ICONS: Record<IconKey, IconFn> = {
   },
   retry(g) {
     const arc = new Path2D();
-    arc.arc(12, 12.5, 7.5, -0.52, Math.PI * 1.5, false);
+    arc.arc(12, 13, 7.2, -0.52, Math.PI * 1.5, false);
     g.stroke(arc, 2.7, 'gold');
-    g.fill(head(17.2, 5, 0.12, 5.6, 4.2), 'gold');
+    g.fill(head(17.2, 5.8, 0.12, 5.4, 3.9), 'gold');
   },
   next(g) {
     g.stroke(D('M4.4 12 H17.6'), 3.1, 'gold');
@@ -488,17 +489,21 @@ const ICONS: Record<IconKey, IconFn> = {
     });
   },
   beamNova(g) {
-    // a beam of light (double arrow) passing behind a nova ring with its jewel
-    g.stroke(D('M5 12 H19'), 2.8, 'cream');
-    g.fill(head(0.8, 12, Math.PI, 5.6, 4.9), 'cream');
-    g.fill(head(23.2, 12, 0, 5.6, 4.9), 'cream');
+    // the two specials side by side: a beam (double arrow of light) and a nova (ring with spark points)
+    g.stroke(D('M5 7 V17'), 2.5, 'cream');
+    g.fill(head(5, 2, -Math.PI / 2, 5, 4), 'cream');
+    g.fill(head(5, 22, Math.PI / 2, 5, 4), 'cream');
     g.layer();
-    g.fill(C(12, 12, 6.2), '#3a2a7a');
-    g.stroke(C(12, 12, 5.4), 2.1, 'gold', false);
-    g.fill(PP([12, 8.9, 15.1, 12, 12, 15.1, 8.9, 12], 0.4), '#ff5d6c', false);
-    g.fill(PP([12, 9.9, 14, 12, 12, 12, 10, 12]), 'rgba(255,255,255,0.5)', false);
+    g.stroke(C(15.6, 12, 5.2), 2.2, 'gold');
+    const d = 5.2 * Math.SQRT1_2;
+    for (let i = 0; i < 4; i++) {
+      const x = 15.6 + (i % 2 === 0 ? -d : d);
+      const y = 12 + (i < 2 ? -d : d);
+      g.fill(PP([x, y - 2.5, x + 2.5, y, x, y + 2.5, x - 2.5, y], 0.3), 'cream');
+    }
   },
 
+  // Goal icons show the very thing on the board, so a goal chip and its target look alike.
   goalScore(g) {
     g.fill(scallop(12, 12, 9.3, 0.9, 10), 'gold');
     g.stroke(C(12, 12, 6.9), 0.9, '#c88d24', false);
@@ -507,39 +512,41 @@ const ICONS: Record<IconKey, IconFn> = {
     g.stroke(s, 0.6, '#fffaf0', false);
   },
   goalSand(g) {
-    const dune = D('M1.8 19.8 C5.2 19 7 12.4 10.2 8.4 C11.6 6.8 13.2 7 14.2 8.8 C16.6 13.2 18.6 19 22.2 19.8 Z');
-    g.fill(dune, 'sand');
-    g.stroke(dune, 1, 'sand');
-    g.fill(D('M12.2 7.6 C13.4 7.4 13.8 8.2 14.2 8.8 C16.6 13.2 18.6 19 22.2 19.8 H13 C15.2 16.4 10.6 12.6 12.2 7.6 Z'), 'rgba(150,92,30,0.35)', false);
-    g.stroke(D('M5.8 17.6 C7.4 16.6 8.6 17.8 10.2 16.8 M8.4 13.6 C9.4 13 10 13.8 11 13.2'), 0.9, 'rgba(140,84,24,0.75)', false);
-    g.fill(C(17.6, 5.2, 0.9), 'sand');
-    g.fill(C(20.4, 8.2, 0.75), 'sand');
-    g.fill(C(5.6, 8.6, 0.75), 'sand');
+    g.fill(RR(2.4, 2.4, 19.2, 19.2, 3.4), '#e2bb77');
+    g.custom((ctx) => {
+      ctx.save();
+      ctx.translate(2.4, 2.4);
+      ctx.scale(0.192, 0.192);
+      drawSand(ctx, 2);
+      ctx.restore();
+    });
   },
   goalStone(g) {
-    g.fill(RR(3, 3, 18, 18, 3.4), 'stone');
-    g.stroke(D('M5 18.4 V7.2 A2.2 2.2 0 0 1 7.2 5 H18.4'), 1.3, 'rgba(255,246,220,0.8)', false);
-    g.stroke(D('M19.3 6.8 V17 A2.3 2.3 0 0 1 17 19.3 H6.8'), 1.3, 'rgba(120,76,36,0.6)', false);
-    g.stroke(KH(12, 12, 4.6), 1, '#8a5a30', false);
-    g.stroke(D('M14.6 3.4 L13.2 7 L15.4 9.4 M9.4 20.4 L10.6 17.4 L8.8 15.4'), 1.1, '#4a2c16', false);
+    g.custom((ctx) => {
+      ctx.save();
+      ctx.translate(0.6, 0.4);
+      ctx.scale(0.228, 0.228);
+      drawStone(ctx, g.px * 0.95, 3);
+      ctx.restore();
+    });
   },
   goalVine(g) {
-    g.fill(PP([9.6, 4.8, 8.2, 1.9, 11.6, 3.9], 0.3), 'cream');
-    g.fill(PP([19.6, 8.2, 22.6, 7, 20.6, 10.4], 0.3), 'cream');
-    g.fill(PP([4.2, 12.6, 1.4, 11.2, 3.4, 14.6], 0.3), 'cream');
-    g.fill(PP([15.8, 16.4, 17.6, 19.2, 14.2, 17.6], 0.3), 'cream');
-    g.stroke(D('M4.4 20.6 C2.8 11 8 4.4 14 4.4 C18.2 4.4 20.6 7.4 20.6 10.6 C20.6 14 18.2 16 15.4 16 C12.8 16 11.2 14.4 11.2 12.4 C11.2 10.8 12.4 9.8 13.8 9.8'), 2.7, 'green');
-    g.layer();
-    g.fill(D('M4.4 20.6 C5 17.6 7.4 16.6 10 17.4 C9.4 20 7 21.4 4.4 20.6 Z'), '#a6ee7a');
+    g.custom((ctx) => {
+      ctx.save();
+      ctx.translate(0.6, 0.4);
+      ctx.scale(0.228, 0.228);
+      drawVine(ctx, g.px * 0.95);
+      ctx.restore();
+    });
   },
   goalChain(g) {
-    const a = -Math.PI / 4;
-    const ringA = RRot(6.9, 17.1, 9.4, 6.2, 3.1, a);
-    const ringB = RRot(17.1, 6.9, 9.4, 6.2, 3.1, a);
-    g.stroke(ringA, 2.1, 'iron');
-    g.stroke(ringB, 2.1, 'iron');
-    g.layer();
-    g.stroke(D('M9.3 14.7 L14.7 9.3'), 2.7, 'iron');
+    g.custom((ctx) => {
+      ctx.save();
+      ctx.translate(-1.2, -1.2);
+      ctx.scale(0.264, 0.264);
+      drawChain(ctx, g.px * 1.1);
+      ctx.restore();
+    });
   },
 
   adVideo(g) {
@@ -572,10 +579,10 @@ const ICONS: Record<IconKey, IconFn> = {
   },
   restore(g) {
     const arc = new Path2D();
-    arc.arc(12, 12.5, 7.5, Math.PI + 0.52, -Math.PI * 0.5, true);
+    arc.arc(12, 13, 7.2, Math.PI + 0.52, -Math.PI * 0.5, true);
     g.stroke(arc, 2.6, 'gold');
-    g.fill(head(6.8, 5, Math.PI - 0.12, 5.6, 4.2), 'gold');
-    g.stroke(D('M8.8 12.8 L11.2 15.2 L15.4 10.2'), 2.1, 'cream');
+    g.fill(head(6.8, 5.8, Math.PI - 0.12, 5.4, 3.9), 'gold');
+    g.stroke(D('M8.8 13.2 L11.2 15.6 L15.4 10.6'), 2.1, 'cream');
   },
 };
 
@@ -604,6 +611,10 @@ export function drawIcon(ctx: Ctx, key: IconKey, px: number): void {
     },
   };
   ctx.save();
+  // a small inset keeps every outline clear of the canvas edge
+  ctx.translate(12, 12);
+  ctx.scale(0.94, 0.94);
+  ctx.translate(-12, -12);
   ICONS[key](pen);
   flush(ctx, ops);
   ctx.restore();

@@ -4,7 +4,9 @@
  */
 export const BRAND = {
   /** Short wordmark shown in the logo. */
-  name: { en: 'Jawhara', ar: 'جوهرة' },
+  name: { en: 'Zumurud', ar: 'زمرد' },
   /** Descriptive tail shown under the wordmark. */
   tagline: { en: 'Gem Match Puzzle', ar: 'لعبة تطابق الجواهر' },
+  /** Android applicationId (must match android/gradle.properties APP_ID). */
+  appId: 'com.zumurud.game',
 } as const;

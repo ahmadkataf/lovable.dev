@@ -85,6 +85,15 @@ function gems(): void {
   b.className += ' grey';
   b.style.marginTop = '8px';
   grey.appendChild(b);
+
+  const cvd = section('gems-cvd', 'Colour-vision check (simulated): normal / protan / deutan, 64 px');
+  const modes = ['', 'protan', 'deutan'];
+  for (let i = 0; i < modes.length; i++) {
+    const c = gemSheet(64, 1.5, [GEM_ROWS[0]]);
+    c.className = modes[i];
+    c.style.marginBottom = '6px';
+    cvd.appendChild(c);
+  }
 }
 
 // ───────────────────────────── (b) mock board ─────────────────────────────
@@ -422,7 +431,150 @@ function logos(): void {
   e.appendChild(erow);
 }
 
+// ───────────────────────────── self-checks ─────────────────────────────
+
+interface CheckResult {
+  ok: boolean;
+  failures: string[];
+  notes: string[];
+}
+
+/** Alpha coverage of a canvas: total painted pixels and painted pixels on the outermost ring. */
+function coverage(c: HTMLCanvasElement): { painted: number; edge: number; edgeMax: number } {
+  const g = c.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  let painted = 0;
+  let edge = 0;
+  let edgeMax = 0;
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      const a = d[(y * c.width + x) * 4 + 3];
+      if (a > 8) painted++;
+      if (x === 0 || y === 0 || x === c.width - 1 || y === c.height - 1) {
+        if (a > 40) edge++;
+        if (a > edgeMax) edgeMax = a;
+      }
+    }
+  }
+  return { painted, edge, edgeMax };
+}
+
+function hashCanvas(c: HTMLCanvasElement): number {
+  const g = c.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  let h = 2166136261;
+  for (let i = 0; i < d.length; i += 7) h = Math.imul(h ^ d[i], 16777619);
+  return h >>> 0;
+}
+
+function checks(): CheckResult {
+  const failures: string[] = [];
+  const notes: string[] = [];
+  const fullBleed = ['tileA', 'tileB', 'sand2', 'exit'];
+  // every sprite renders, is cached, and (unless full-bleed by design) does not touch its border
+  for (let i = 0; i < SPRITE_KEYS.length; i++) {
+    const k = SPRITE_KEYS[i];
+    const sizes = [36, 96];
+    for (let j = 0; j < sizes.length; j++) {
+      const c = art.sprite(k, sizes[j]);
+      if (c.width !== sizes[j] || c.height !== sizes[j]) failures.push(k + ': wrong size ' + c.width + 'x' + c.height);
+      if (art.sprite(k, sizes[j]) !== c) failures.push(k + ': not cached');
+      const cov = coverage(c);
+      if (cov.painted < sizes[j] * sizes[j] * 0.04) failures.push(k + '@' + sizes[j] + ': looks empty');
+      if (fullBleed.indexOf(k) < 0 && cov.edge > 0) failures.push(k + '@' + sizes[j] + ': ' + cov.edge + ' opaque border pixels (clipped?) max alpha ' + cov.edgeMax);
+      else if (fullBleed.indexOf(k) < 0 && cov.edgeMax > 16) notes.push(k + '@' + sizes[j] + ': faint border alpha ' + cov.edgeMax);
+    }
+  }
+  // every icon renders at 20 CSS px with the right backing size, and iconUrl is a stable PNG data URL
+  for (let i = 0; i < ICON_KEYS.length; i++) {
+    const k = ICON_KEYS[i];
+    const c = art.icon(k, 20);
+    if (c.width !== Math.round(20 * DPR)) failures.push(k + ': icon backing ' + c.width + ' for dpr ' + DPR);
+    if (c.style.width !== '20px') failures.push(k + ': icon css width ' + c.style.width);
+    if (art.icon(k, 20) === c) failures.push(k + ': icon() must return a new canvas');
+    const cov = coverage(c);
+    if (cov.painted < c.width * c.width * 0.08) failures.push(k + ': icon looks empty');
+    if (cov.edge > 0) failures.push(k + ': icon touches its border (' + cov.edge + ' px)');
+    const u = art.iconUrl(k, 20);
+    if (u.indexOf('data:image/png') !== 0 || u !== art.iconUrl(k, 20)) failures.push(k + ': bad iconUrl');
+  }
+  if (ICON_KEYS.length !== 48) notes.push('icon count = ' + ICON_KEYS.length);
+  // backdrops are deterministic and fill the whole canvas
+  for (let i = 0; i < THEMES.length; i++) {
+    const a = document.createElement('canvas');
+    a.width = 206;
+    a.height = 458;
+    const b = document.createElement('canvas');
+    b.width = 206;
+    b.height = 458;
+    art.paintBackdrop(ctxOf(a), THEMES[i], 206, 458);
+    art.paintBackdrop(ctxOf(b), THEMES[i], 206, 458);
+    if (hashCanvas(a) !== hashCanvas(b)) failures.push('backdrop ' + THEMES[i] + ' is not deterministic');
+    const cov = coverage(a);
+    if (cov.painted !== 206 * 458) failures.push('backdrop ' + THEMES[i] + ' leaves ' + (206 * 458 - cov.painted) + ' transparent pixels');
+    const p = art.palette(THEMES[i]);
+    if (!/^#[0-9a-f]{6}$/i.test(p.bgTop + '') || !/^#[0-9a-f]{6}$/i.test(p.bgBottom) || !p.accent || !p.frame) failures.push('palette ' + THEMES[i]);
+  }
+  // gem colours match the design table
+  const want = ['#ff4d5e', '#ffa630', '#2fd17c', '#3d8bff', '#b05cff', '#8ff0ff'];
+  for (let i = 0; i < 6; i++) if (art.gemColor(i as 0 | 1 | 2 | 3 | 4 | 5) !== want[i]) failures.push('gemColor ' + i);
+  // logo / emblem sizes
+  const lg = art.logo(200, 'ar');
+  if (lg.width !== Math.round(200 * DPR) || lg.style.width !== '200px') failures.push('logo size ' + lg.width + ' / ' + lg.style.width);
+  const em = art.emblem(96);
+  if (em.width !== 96 || em.height !== 96) failures.push('emblem size');
+  // emblem: the star and jewel must stay inside the middle 66%; outside it only the plate may appear
+  const e2 = art.emblem(200);
+  const eg = e2.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
+  const ed = eg.getImageData(0, 0, 200, 200).data;
+  let goldOutside = 0;
+  for (let y = 0; y < 200; y++) {
+    for (let x = 0; x < 200; x++) {
+      const dx = x - 100;
+      const dy = y - 100;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r > 68 && r < 84) {
+        const o = (y * 200 + x) * 4;
+        // strongly gold pixel between the safe zone and the rim = star spilling out
+        if (ed[o] > 215 && ed[o + 1] > 170 && ed[o + 2] < 130) goldOutside++;
+      }
+    }
+  }
+  if (goldOutside > 40) failures.push('emblem: gold content outside the safe zone (' + goldOutside + ' px)');
+  if (earlyLogo) {
+    const late = art.logo(240, 'ar');
+    if (hashCanvas(earlyLogo) !== hashCanvas(late)) failures.push('logo requested before the font loaded did not repaint itself');
+    notes.push('font loaded when the early logo was requested: ' + fontReadyAtStart);
+  }
+  // cost of drawing every sprite once at a large phone cell size, and every icon at dpr 3
+  const fresh = createArt();
+  const t0 = performance.now();
+  for (let i = 0; i < SPRITE_KEYS.length; i++) fresh.sprite(SPRITE_KEYS[i], 132);
+  const t1 = performance.now();
+  for (let i = 0; i < ICON_KEYS.length; i++) fresh.sprite(ICON_KEYS[i] as unknown as SpriteKey, 84);
+  const t2 = performance.now();
+  notes.push('render all ' + SPRITE_KEYS.length + ' sprites @132px: ' + Math.round(t1 - t0) + ' ms; all ' + ICON_KEYS.length + ' icons @84px: ' + Math.round(t2 - t1) + ' ms');
+  return { ok: failures.length === 0, failures, notes };
+}
+
+function showChecks(): void {
+  const r = checks();
+  const s = section('checks', 'Self-checks');
+  const pre = el('pre', '', (r.ok ? 'ALL CHECKS PASSED' : 'FAILURES:\n' + r.failures.join('\n')) + (r.notes.length ? '\n\nnotes:\n' + r.notes.join('\n') : ''));
+  pre.className = 'report';
+  pre.style.color = r.ok ? '#3ecf8e' : '#ff5d6c';
+  pre.style.margin = '0';
+  s.appendChild(pre);
+  (window as unknown as { __galleryChecks: CheckResult }).__galleryChecks = r;
+}
+
+// a logo requested before the font has loaded: it must repaint itself once the font arrives
+let earlyLogo: HTMLCanvasElement | null = null;
+let fontReadyAtStart = true;
+
 async function main(): Promise<void> {
+  fontReadyAtStart = document.fonts.check('800 40px "Baloo Bhaijaan 2 Variable"', 'جوهرة');
+  earlyLogo = art.logo(240, 'ar');
   try {
     await Promise.all([document.fonts.load('800 40px "Baloo Bhaijaan 2 Variable"', 'Jawhara جوهرة'), document.fonts.load('600 20px "Baloo Bhaijaan 2 Variable"', 'Gem لعبة')]);
     await document.fonts.ready;
@@ -430,7 +582,7 @@ async function main(): Promise<void> {
     console.warn('font load failed', err);
   }
   const only = new URLSearchParams(location.search).get('only');
-  const parts: Record<string, () => void> = { gems, board, icons, backdrops, logos };
+  const parts: Record<string, () => void> = { gems, board, icons, backdrops, logos, checks: showChecks };
   const names = Object.keys(parts);
   for (let i = 0; i < names.length; i++) {
     if (only && only.split(',').indexOf(names[i]) < 0) continue;

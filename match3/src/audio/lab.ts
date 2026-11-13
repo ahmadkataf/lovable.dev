@@ -25,7 +25,13 @@ import {
 import { analyze, detectOnsets, encodeWav, longestSilence, sliceRmsDb, spectrogram, toDb, type Metrics } from './analysis.ts';
 
 const SR = 44100;
-/** Effects are rendered starting here, leaving a little silence in front. */
+/**
+ * Effects are rendered starting here. Chrome's DynamicsCompressor holds its gain down for
+ * the first ~150 ms of a context's life, which would shave the attack off anything rendered
+ * at time zero; a live context is long past that, so the measurement must be too.
+ */
+const START = 0.6;
+/** Silence kept in front of the sound in the analysed/saved audio. */
 const LEAD_IN = 0.02;
 
 export interface SfxVariant {
@@ -105,9 +111,10 @@ function variants(): SfxVariant[] {
 
 async function sfxReport(name: SfxName, step?: number): Promise<SoundReport> {
   let nominal = 0;
-  const data = await renderOffline(3.4, (ctx, chain) => {
-    nominal = renderSfx(ctx, chain.sfxBus, name, LEAD_IN, step === undefined ? undefined : { step });
+  const full = await renderOffline(START + 3, (ctx, chain) => {
+    nominal = renderSfx(ctx, chain.sfxBus, name, START, step === undefined ? undefined : { step });
   });
+  const data = full.subarray(Math.floor((START - LEAD_IN) * SR));
   // The limiter delays its input by a few milliseconds; allow for that when cutting the tail.
   const cut = Math.min(data.length, Math.ceil((LEAD_IN + nominal + 0.03) * SR));
   let tailPeak = 0;

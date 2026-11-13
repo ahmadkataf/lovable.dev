@@ -3,7 +3,7 @@
  * can be reviewed. Dev tool only.
  *
  *   node tools/art-shots.cjs                 all sections
- *   node tools/art-shots.cjs gems,board      only these gallery parts (gems, board, icons, backdrops, logos)
+ *   node tools/art-shots.cjs gems,board      only these gallery parts (gems, board, icons, backdrops, logos, checks)
  *
  * Uses the dev server at http://127.0.0.1:5181 (ART_PORT / ART_URL override); if none is running it
  * starts `vite --port 5181 --strictPort` itself and stops it afterwards.
@@ -67,7 +67,7 @@ async function main() {
     });
     await page.goto(URL_BASE + (only ? '?only=' + encodeURIComponent(only) : ''), { waitUntil: 'load' });
     await page.waitForFunction(() => window.__galleryReady === true, null, { timeout: 120000 });
-    const errors = await page.$$eval('pre', (list) => list.map((p) => p.textContent));
+    const errors = await page.$$eval('pre:not(.report)', (list) => list.map((p) => p.textContent));
     for (const e of errors) {
       failed = true;
       console.log(e);
@@ -79,6 +79,12 @@ async function main() {
       await s.screenshot({ path: file });
       const box = await s.boundingBox();
       console.log('shot ' + name + '.png  ' + Math.round(box.width * 2) + 'x' + Math.round(box.height * 2));
+    }
+    const checks = await page.evaluate(() => window.__galleryChecks);
+    if (checks) {
+      console.log(checks.ok ? 'self-checks: all passed' : 'self-checks FAILED:\n  ' + checks.failures.join('\n  '));
+      if (checks.notes.length) console.log('  notes: ' + checks.notes.join('; '));
+      if (!checks.ok) failed = true;
     }
     const timings = await page.evaluate(() => window.__galleryTimings);
     if (timings && Object.keys(timings).length) console.log('paintBackdrop 1440x3120 ms: ' + JSON.stringify(timings));

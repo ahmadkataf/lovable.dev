@@ -383,7 +383,8 @@ export interface Reshuffle {
  *
  * Stage 1 permutes the free gems (greedy placement + local repair, a bounded number of tries).
  * Stage 2 — only when no permutation works, e.g. too few gems of any one colour — plants a
- * guaranteed move and recolours the remaining free gems around it.
+ * guaranteed move by recolouring its gems (and, if that alone leaves a match, the other free
+ * gems around it).
  * Returns null when neither is possible (nothing on the board can ever form a move); the board
  * is then left exactly as it was. Never loops: every stage has a fixed budget.
  *
@@ -424,37 +425,59 @@ export function reshuffle(b: Board, rng: Rng, colors: number, mustChange: boolea
     for (let k = 0; k < cells.length; k++) pieces[cells[k] as number] = original[k] as Piece;
   }
 
+  const restore = (): void => {
+    for (let k = 0; k < original.length; k++) (original[k] as Piece).color = originalColors[k] as Color | -1;
+  };
   const patterns = movePatterns(b);
   rng.shuffle(patterns);
   const tries = Math.min(patterns.length, RECOLOR_TRIES);
-  for (let attempt = 0; attempt < tries; attempt++) {
-    const pattern = patterns[attempt] as number[];
-    // Members that cannot be recoloured (specials, chained gems) dictate the colour.
-    let color = -1;
-    let consistent = true;
-    for (const m of pattern) {
-      const p = pieces[m] as Piece;
-      if (isFreeGem(p)) continue;
-      if (color >= 0 && p.color !== color) consistent = false;
-      color = p.color;
+  // Pass 0 is gentle: only the gems of the planted move change colour. Pass 1 recolours every
+  // free gem around the planted move (needed when the old colours would leave a match).
+  for (let pass = 0; pass < 2; pass++) {
+    for (let attempt = 0; attempt < tries; attempt++) {
+      const pattern = patterns[attempt] as number[];
+      restore();
+      // Members that cannot be recoloured (specials, chained gems) dictate the colour.
+      let fixed = -1;
+      let consistent = true;
+      for (const m of pattern) {
+        const p = pieces[m] as Piece;
+        if (isFreeGem(p)) continue;
+        if (fixed >= 0 && p.color !== fixed) consistent = false;
+        fixed = p.color;
+      }
+      if (!consistent) continue;
+      const candidates: number[] = [];
+      if (fixed >= 0) candidates.push(fixed);
+      else if (pass === 1) candidates.push(rng.int(colors));
+      else {
+        // the members' own colours, the one two of them already share first
+        const own = pattern.map((m) => (pieces[m] as Piece).color);
+        if (own[0] === own[1] || own[0] === own[2]) candidates.push(own[0] as number);
+        else if (own[1] === own[2]) candidates.push(own[1] as number);
+        for (const color of own) if (candidates.indexOf(color) < 0) candidates.push(color);
+      }
+      for (const color of candidates) {
+        restore();
+        if (pass === 1) for (const p of original) p.color = -1;
+        for (const m of pattern) (pieces[m] as Piece).color = color as Color;
+        if (pass === 1) {
+          for (const i of cells) {
+            const p = pieces[i] as Piece;
+            if (p.color < 0) p.color = colourWithoutMatch(b, i, colors, rng);
+          }
+        }
+        if (hasAnyMatch(b) || !hasValidMove(b)) continue;
+        const recolored: number[] = [];
+        for (let k = 0; k < cells.length; k++) {
+          if ((original[k] as Piece).color !== originalColors[k]) recolored.push(cells[k] as number);
+        }
+        if (mustChange && recolored.length === 0) continue;
+        return { moved: [], recolored };
+      }
     }
-    if (!consistent) continue;
-    if (color < 0) color = rng.int(colors);
-    for (const p of original) p.color = -1;
-    for (const m of pattern) (pieces[m] as Piece).color = color as Color;
-    for (const i of cells) {
-      const p = pieces[i] as Piece;
-      if (p.color < 0) p.color = colourWithoutMatch(b, i, colors, rng);
-    }
-    if (hasAnyMatch(b) || !hasValidMove(b)) continue;
-    const recolored: number[] = [];
-    for (let k = 0; k < cells.length; k++) {
-      if ((original[k] as Piece).color !== originalColors[k]) recolored.push(cells[k] as number);
-    }
-    if (mustChange && recolored.length === 0) continue;
-    return { moved: [], recolored };
   }
-  for (let k = 0; k < original.length; k++) (original[k] as Piece).color = originalColors[k] as Color | -1;
+  restore();
   return null;
 }
 

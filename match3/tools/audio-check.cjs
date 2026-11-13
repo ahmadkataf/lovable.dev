@@ -59,9 +59,10 @@ const LIMITS = {
 // sounds 8 dB lower, plus small deliberate offsets (a double blast should out-weigh a tap).
 const TARGET = { game: -14.5, ui: -22.5 };
 const INTENT = {
-  bigCombo: 1.5, nova: 0.5, prism: 1, beam: 0.5, stoneBreak: -0.5, win: 1, reward: 1, purchase: 0, goalDone: 1,
-  lose: -1, lifeLost: -1, invalid: -1.5, praise: -1.5, coin: -1, sand: -2.5, stone: -2, vine: -2, chain: -1,
+  bigCombo: 0.5, nova: -1, prism: 1, beam: 0, stoneBreak: -1, win: 0.5, reward: 1, purchase: 0, goalDone: 1,
+  lose: -1, lifeLost: -1.5, invalid: -1.5, praise: -1.5, coin: -1, sand: -2.5, stone: -2, vine: -2, chain: -1,
   vineGrow: -1.5, createBeam: -0.5, createNova: -0.5, createPrism: -0.5, shuffle: -0.5, swap: 1.5, button: -1, land: -1.5,
+  levelStart: -0.5, movesLow: -0.5,
 };
 
 const failures = [];

@@ -158,6 +158,7 @@ function palm(ctx: Ctx, rnd: Rnd, x: number, y: number, hgt: number, lean: numbe
     const ey = topY + Math.sin(a) * len * 0.62 + len * 0.36;
     const mx = topX + Math.cos(a) * len * 0.55;
     const my = topY + Math.sin(a) * len * 0.62 - len * 0.2;
+    const outward = Math.cos(a) >= 0;
     ux.length = 0;
     uy.length = 0;
     dxs.length = 0;
@@ -174,13 +175,9 @@ function palm(ctx: Ctx, rnd: Rnd, x: number, y: number, hgt: number, lean: numbe
       const tl = Math.sqrt(tx * tx + ty * ty) || 1;
       tx /= tl;
       ty /= tl;
-      // which normal is the underside: the one pointing more downwards
-      let nx = -ty;
-      let ny = tx;
-      if (ny < 0) {
-        nx = -nx;
-        ny = -ny;
-      }
+      // leaflets hang from the outer / under side: fixed per frond so the outline never folds over
+      const nx = outward ? -ty : ty;
+      const ny = outward ? tx : -tx;
       const taper = Math.sin(Math.PI * Math.pow(t, 0.75)) * (1 - t * 0.25);
       const tipOut = j % 2 === 1 ? 1 : 0.34;
       const lu = len * 0.014;
@@ -432,7 +429,7 @@ function caravan(ctx: Ctx, ys: readonly number[], w: number, u: number): void {
     const y = ridgeAt(ys, w, x + s * 0.5) + 0.25 * u;
     camel(ctx, x, y, s);
     if (i > 0) {
-      // lead rope from this camel's muzzle... to the one in front is behind it on screen: tail to muzzle
+      // lead rope: from the tail of the camel in front to this one's muzzle
       ctx.lineWidth = Math.max(1, 0.14 * u);
       ctx.beginPath();
       ctx.moveTo(px + s * 0.12, py - s * 0.5);
@@ -1174,7 +1171,8 @@ function crystalCluster(ctx: Ctx, rnd: Rnd, x: number, y: number, s: number, dir
     const i = order[k];
     const a = dir + (i - 2) * 0.36 + (rnd() - 0.5) * 0.14;
     const len = s * (i === 2 ? 1 : 0.5 + rnd() * 0.32);
-    crystal(ctx, x + (i - 2) * s * 0.14, y, len, len * (0.13 + rnd() * 0.04), a, c[0], c[1], c[2]);
+    // bases spread across the cluster's own width, whatever way it points
+    crystal(ctx, x + Math.cos(dir) * (i - 2) * s * 0.14, y + Math.sin(dir) * (i - 2) * s * 0.14, len, len * (0.13 + rnd() * 0.04), a, c[0], c[1], c[2]);
   }
 }
 
@@ -1287,8 +1285,8 @@ function caverns(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   // foreground crystals
   crystalCluster(ctx, rnd, w * 0.1, h * 0.965, 17 * u, 0.3, 0);
   crystalCluster(ctx, rnd, w * 0.9, h * 0.97, 15 * u, -0.34, 2);
-  crystalCluster(ctx, rnd, w * 0.035, h * 0.36, 9 * u, 1.25, 1);
-  crystalCluster(ctx, rnd, w * 0.965, h * 0.47, 10 * u, -1.2, 0);
+  crystalCluster(ctx, rnd, -0.5 * u, h * 0.36, 12 * u, 1.25, 1);
+  crystalCluster(ctx, rnd, w + 0.5 * u, h * 0.47, 13 * u, -1.2, 0);
   crystalCluster(ctx, rnd, w * 0.3, h * 0.006, 13 * u, Math.PI - 0.15, 2);
   crystalCluster(ctx, rnd, w * 0.74, h * 0.008, 15 * u, Math.PI + 0.2, 1);
 

@@ -68,12 +68,12 @@ export function drawExit(ctx: Ctx): void {
 /** Selection ring: crisp gold-white rounded frame with heavier corners. */
 export function drawSelect(ctx: Ctx, px: number): void {
   const frame = new Path2D();
-  rrect(frame, 6, 6, 88, 88, 20);
+  rrect(frame, 7.5, 7.5, 85, 85, 19);
   ctx.save();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.shadowColor = 'rgba(255,220,120,0.95)';
-  ctx.shadowBlur = px * 0.07;
+  ctx.shadowBlur = px * 0.045;
   ctx.strokeStyle = 'rgba(40,22,4,0.6)';
   ctx.lineWidth = 7.4;
   ctx.stroke(frame);
@@ -92,10 +92,10 @@ export function drawSelect(ctx: Ctx, px: number): void {
   ctx.beginPath();
   for (let i = 0; i < 4; i++) {
     const a = Math.PI + (i * Math.PI) / 2;
-    const cx = i === 0 || i === 3 ? 26 : 74;
-    const cy = i < 2 ? 26 : 74;
-    ctx.moveTo(cx + Math.cos(a + 0.2) * 20, cy + Math.sin(a + 0.2) * 20);
-    ctx.arc(cx, cy, 20, a + 0.2, a + Math.PI / 2 - 0.2);
+    const cx = i === 0 || i === 3 ? 26.5 : 73.5;
+    const cy = i < 2 ? 26.5 : 73.5;
+    ctx.moveTo(cx + Math.cos(a + 0.2) * 19, cy + Math.sin(a + 0.2) * 19);
+    ctx.arc(cx, cy, 19, a + 0.2, a + Math.PI / 2 - 0.2);
   }
   ctx.stroke();
   ctx.restore();
@@ -103,11 +103,11 @@ export function drawSelect(ctx: Ctx, px: number): void {
 
 /** Hint glow: a soft, ring-shaped halo (transparent in the middle so it never washes out the gem). */
 export function drawHint(ctx: Ctx): void {
-  const g = ctx.createRadialGradient(50, 50, 20, 50, 50, 50);
+  const g = ctx.createRadialGradient(50, 50, 19, 50, 50, 47.5);
   g.addColorStop(0, 'rgba(255,246,220,0)');
   g.addColorStop(0.5, 'rgba(255,240,190,0.5)');
-  g.addColorStop(0.72, 'rgba(255,250,225,0.95)');
-  g.addColorStop(0.86, 'rgba(255,225,140,0.5)');
+  g.addColorStop(0.74, 'rgba(255,250,225,0.95)');
+  g.addColorStop(0.88, 'rgba(255,225,140,0.5)');
   g.addColorStop(1, 'rgba(255,210,100,0)');
   ctx.fillStyle = g;
   ctx.beginPath();

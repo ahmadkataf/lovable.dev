@@ -17,6 +17,8 @@
       canvas, img { display: block; }
       .px { image-rendering: pixelated; }
       .grey { filter: grayscale(1); }
+      .protan { filter: url(#protan); }
+      .deutan { filter: url(#deutan); }
       .ui { background: #231f5c; padding: 8px; border-radius: 8px; }
       .gold { background: linear-gradient(#ffe7a3, #f5c95a); padding: 8px; border-radius: 8px; }
       .violet { background: #3a2a7a; padding: 8px; border-radius: 8px; }
@@ -27,6 +29,15 @@
     </style>
   </head>
   <body>
+    <!-- colour-vision simulation matrices (approximate) used by the gem check -->
+    <svg width="0" height="0" style="position: absolute">
+      <filter id="protan" color-interpolation-filters="linearRGB">
+        <feColorMatrix type="matrix" values="0.152 1.053 -0.205 0 0  0.115 0.786 0.099 0 0  -0.004 -0.048 1.052 0 0  0 0 0 1 0" />
+      </filter>
+      <filter id="deutan" color-interpolation-filters="linearRGB">
+        <feColorMatrix type="matrix" values="0.367 0.861 -0.228 0 0  0.280 0.673 0.047 0 0  -0.012 0.043 0.969 0 0  0 0 0 1 0" />
+      </filter>
+    </svg>
     <div id="root"></div>
     <script type="module" src="/src/art/gallery/main.ts"></script>
   </body>

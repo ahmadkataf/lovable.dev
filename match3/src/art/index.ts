@@ -11,6 +11,12 @@
  *  - `chain`, `select`: draw on the cell rect, above the piece.
  *  - `hint`: a ring-shaped halo, transparent in the middle; draw on the cell rect above or below
  *    the piece and pulse its alpha / scale.
+ *  - Ask for a sprite at the size you draw it (the cell size) and scale with drawImage for tweens;
+ *    each key keeps its last few sizes only.
+ *
+ * `logo()` uses the UI font ("Baloo Bhaijaan 2 Variable", bundled by the UI kit) with a system-ui
+ * fallback; if that font is declared but not loaded yet, the returned canvas repaints itself once
+ * it is. `emblem()` keeps its star and jewel inside the middle 66% (launcher-icon safe zone).
  */
 import { BRAND } from '../app/brand.ts';
 import type { Color } from '../engine/types.ts';
@@ -22,7 +28,7 @@ import { drawChain, drawLamp, drawSand, drawStone, drawVine } from './blockers.t
 import { drawExit, drawHint, drawSelect, drawTile } from './board.ts';
 import { drawIcon, isIconKey } from './icons.ts';
 import { PALETTES, paintBackdrop } from './backdrops.ts';
-import { LOGO_ASPECT, drawEmblem, drawLogo } from './logo.ts';
+import { LOGO_ASPECT, LOGO_FONT, drawEmblem, drawLogo } from './logo.ts';
 
 export type { ArtApi, ChapterTheme, IconKey, SpriteKey, ThemePalette } from './types.ts';
 export { ICON_KEYS } from './icons.ts';
@@ -165,7 +171,26 @@ export function createArt(): ArtApi {
     logo(cssW: number, lang: 'en' | 'ar'): HTMLCanvasElement {
       const c = cssCanvas(cssW, Math.round(cssW * LOGO_ASPECT));
       const which = lang === 'ar' ? 'ar' : 'en';
-      drawLogo(ctx2d(c), c.width, which, BRAND.name[which], BRAND.tagline[which]);
+      const name = BRAND.name[which];
+      const tagline = BRAND.tagline[which];
+      const paint = (): void => {
+        const g = ctx2d(c);
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.clearRect(0, 0, c.width, c.height);
+        drawLogo(g, c.width, which, name, tagline);
+      };
+      paint();
+      // If the bundled font is declared but still loading, repaint this same canvas once it arrives.
+      try {
+        const fonts = document.fonts;
+        const spec = '800 40px ' + LOGO_FONT;
+        const text = name + ' ' + tagline;
+        if (fonts && typeof fonts.check === 'function' && !fonts.check(spec, text)) {
+          Promise.all([fonts.load(spec, text), fonts.load('600 20px ' + LOGO_FONT, text)]).then(paint, () => undefined);
+        }
+      } catch (_err) {
+        // FontFaceSet unavailable: the fallback font stays
+      }
       return c;
     },
 

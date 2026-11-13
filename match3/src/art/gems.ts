@@ -184,7 +184,8 @@ function emeraldShape(): GemShape {
   const big = sq(37);
   const mid = sq(25);
   const table = sq(16);
-  const facets = ringFacets(cx, cy, big, mid, () => 0).concat(ringFacets(cx, cy, mid, table, () => 0.16));
+  // top / left steps catch the light, bottom / right steps fall into shade
+  const facets = ringFacets(cx, cy, big, mid, (i) => (i === 0 || i === 3 ? 0.14 : -0.16)).concat(ringFacets(cx, cy, mid, table, (i) => (i === 0 || i === 3 ? 0.3 : 0.02)));
   return {
     cx,
     cy,
@@ -322,12 +323,18 @@ export function drawGem(ctx: Ctx, color: Color, px: number, shadow: boolean = tr
   const outline = new Path2D();
   sh.outline(outline);
 
+  ctx.save();
+  // slightly inset and raised so the soft shadow below the tallest stones stays inside the box
+  ctx.translate(50, 48.4);
+  ctx.scale(0.965, 0.965);
+  ctx.translate(-50, -50);
+
   // soft drop shadow + rim colour
   ctx.save();
   if (shadow) {
     ctx.shadowColor = 'rgba(4,2,22,0.72)';
-    ctx.shadowBlur = px * 0.075;
-    ctx.shadowOffsetY = px * 0.05;
+    ctx.shadowBlur = px * 0.06;
+    ctx.shadowOffsetY = px * 0.042;
   }
   ctx.fillStyle = tone.deep;
   ctx.fill(outline);
@@ -354,7 +361,7 @@ export function drawGem(ctx: Ctx, color: Color, px: number, shadow: boolean = tr
     const s = f.s;
     if (s >= 0.55) ctx.fillStyle = 'rgba(' + pale[0] + ',' + pale[1] + ',' + pale[2] + ',' + ((s - 0.3) * 0.62).toFixed(3) + ')';
     else if (s >= 0) ctx.fillStyle = 'rgba(' + lit[0] + ',' + lit[1] + ',' + lit[2] + ',' + (s * 0.8).toFixed(3) + ')';
-    else ctx.fillStyle = 'rgba(' + deep[0] + ',' + deep[1] + ',' + deep[2] + ',' + (-s * 0.5).toFixed(3) + ')';
+    else ctx.fillStyle = 'rgba(' + deep[0] + ',' + deep[1] + ',' + deep[2] + ',' + (-s * 0.58).toFixed(3) + ')';
     ctx.beginPath();
     poly(ctx, f.pts);
     ctx.fill();
@@ -380,9 +387,20 @@ export function drawGem(ctx: Ctx, color: Color, px: number, shadow: boolean = tr
   ctx.strokeStyle = rgba(tone.pale, 0.7);
   ctx.stroke(table);
 
+  // a narrow glint sliding across the table
+  ctx.save();
+  ctx.clip(table);
+  ctx.translate(sh.cx, sh.cy);
+  ctx.rotate(-0.72);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillRect(-40, -1.5, 80, 5);
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(-40, 6, 80, 2.2);
+  ctx.restore();
+
   // light gathering in the lower-right of the stone
-  const bounce = ctx.createRadialGradient(sh.cx + 16, sh.cy + 20, 0, sh.cx + 16, sh.cy + 20, 26);
-  bounce.addColorStop(0, rgba(tone.light, 0.55));
+  const bounce = ctx.createRadialGradient(sh.cx + 17, sh.cy + 21, 0, sh.cx + 17, sh.cy + 21, 21);
+  bounce.addColorStop(0, rgba(tone.light, 0.5));
   bounce.addColorStop(1, rgba(tone.light, 0));
   ctx.fillStyle = bounce;
   ctx.fillRect(0, 0, 100, 100);
@@ -418,6 +436,8 @@ export function drawGem(ctx: Ctx, color: Color, px: number, shadow: boolean = tr
   ctx.ellipse(0, 0, sh.spec[2], sh.spec[3], 0, 0, TAU);
   ctx.fill();
   ctx.restore();
+
+  ctx.restore();
 }
 
 function centred(ctx: Ctx, k: number, cy: number): void {
@@ -430,8 +450,8 @@ function centred(ctx: Ctx, k: number, cy: number): void {
 function drawStreak(ctx: Ctx, px: number): void {
   const sh = 3.9; // shaft half thickness
   const hh = 10.5; // head half height
-  const x0 = 1.6; // tip
-  const x1 = 14; // back of the head
+  const x0 = 4.4; // tip (leaves room for the halo inside the sprite)
+  const x1 = 16; // back of the head
   const p = new Path2D();
   p.moveTo(x0, 50);
   p.lineTo(x1, 50 - hh);
@@ -453,14 +473,14 @@ function drawStreak(ctx: Ctx, px: number): void {
   g.addColorStop(1, 'rgba(255,214,96,0)');
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.moveTo(4, 50);
-  ctx.quadraticCurveTo(50, 50 - 30, 96, 50);
-  ctx.quadraticCurveTo(50, 50 + 30, 4, 50);
+  ctx.moveTo(7, 50);
+  ctx.quadraticCurveTo(50, 50 - 30, 93, 50);
+  ctx.quadraticCurveTo(50, 50 + 30, 7, 50);
   ctx.fill();
 
   ctx.lineJoin = 'round';
   ctx.shadowColor = 'rgba(255,205,80,0.95)';
-  ctx.shadowBlur = px * 0.08;
+  ctx.shadowBlur = px * 0.04;
   ctx.strokeStyle = '#6a3f06';
   ctx.lineWidth = 2.6;
   ctx.stroke(p);
@@ -479,8 +499,8 @@ function drawStreak(ctx: Ctx, px: number): void {
   ctx.lineWidth = 2.4;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(8, 50);
-  ctx.lineTo(92, 50);
+  ctx.moveTo(10.5, 50);
+  ctx.lineTo(89.5, 50);
   ctx.stroke();
   ctx.restore();
 }
@@ -504,9 +524,9 @@ export function drawBeam(ctx: Ctx, color: Color, px: number, vertical: boolean):
 /** Nova: the gem inside a golden ring with four spark points. */
 export function drawNova(ctx: Ctx, color: Color, px: number): void {
   const tone = GEM_TONES[color];
-  const R = 41.5;
+  const R = 40.5;
   // aura
-  const aura = ctx.createRadialGradient(50, 50, 8, 50, 50, 48);
+  const aura = ctx.createRadialGradient(50, 50, 8, 50, 50, 47);
   aura.addColorStop(0, rgba(tone.light, 0.05));
   aura.addColorStop(0.7, rgba(tone.light, 0.42));
   aura.addColorStop(0.86, rgba(PAL.goldLight, 0.3));
@@ -519,7 +539,7 @@ export function drawNova(ctx: Ctx, color: Color, px: number): void {
   const ring = new Path2D();
   circle(ring, 50, 50, R);
   ctx.shadowColor = 'rgba(255,205,80,0.9)';
-  ctx.shadowBlur = px * 0.08;
+  ctx.shadowBlur = px * 0.055;
   ctx.lineWidth = 7;
   ctx.strokeStyle = '#5a3606';
   ctx.stroke(ring);
@@ -542,8 +562,8 @@ export function drawNova(ctx: Ctx, color: Color, px: number): void {
 
   // gem
   ctx.save();
-  centred(ctx, 0.72, 50);
-  drawGem(ctx, color, px * 0.72);
+  centred(ctx, 0.73, 51);
+  drawGem(ctx, color, px * 0.73);
   ctx.restore();
 
   // four spark points on the ring
@@ -569,20 +589,20 @@ export function drawNova(ctx: Ctx, color: Color, px: number): void {
 }
 
 // rainbow made of the game's own six gem hues (no conic gradients in Chrome 80: thin wedges instead)
-const PRISM_WHEEL: readonly string[] = ['#ff4d5e', '#ffa630', '#ffe45c', '#2fd17c', '#5fe9f2', '#3d8bff', '#b05cff', '#ff5fb4'];
+const PRISM_WHEEL: readonly string[] = ['#ff3d55', '#ff9a1f', '#ffe040', '#22cf74', '#3fe0f0', '#2f7dff', '#a64dff', '#ff4fb0'];
 
 /** Prism: eight-pointed khatam star with a rainbow sheen and a white core. */
 export function drawPrism(ctx: Ctx, px: number): void {
   const cx = 50;
-  const cy = 50;
-  const R = 45;
+  const cy = 49;
+  const R = 44;
   const pts = khatamPts(cx, cy, R, -Math.PI / 2);
   const star = new Path2D();
   roundPoly(star, pts, 1.6);
 
   ctx.save();
-  ctx.shadowColor = 'rgba(5,3,26,0.62)';
-  ctx.shadowBlur = px * 0.07;
+  ctx.shadowColor = 'rgba(4,2,22,0.7)';
+  ctx.shadowBlur = px * 0.055;
   ctx.shadowOffsetY = px * 0.04;
   ctx.fillStyle = '#4a2c08';
   ctx.fill(star);
@@ -643,6 +663,12 @@ export function drawPrism(ctx: Ctx, px: number): void {
   core.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = core;
   ctx.fillRect(0, 0, 100, 100);
+  // inner octagon: the table of the star
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  poly(ctx, ngon(cx, cy, R * 0.4, 8, Math.PI / 8));
+  ctx.stroke();
   // sheen
   ctx.fillStyle = lGrad(ctx, 0, 4, 0, 52, [
     [0, 'rgba(255,255,255,0.26)'],
@@ -668,6 +694,6 @@ export function drawPrism(ctx: Ctx, px: number): void {
   // glint
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
   ctx.beginPath();
-  sparkle(ctx, 37, 35, 7.5, 0.22);
+  sparkle(ctx, 37, 34, 7.5, 0.22);
   ctx.fill();
 }

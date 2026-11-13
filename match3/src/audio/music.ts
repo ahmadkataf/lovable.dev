@@ -123,16 +123,20 @@ export function createMusicPlayer(
   const busNodes: AudioNode[] = [leadBus, body, top, echoSend, echo, echoTone, echoBack, padBus, padTone, percBus, output];
 
   // ── voices ──
+  let strokes = 0;
   function playLead(ev: Extract<MusicEvent, { layer: 'lead' }>): void {
     const v = new Voice(ctx, leadBus, ev.time, 1);
-    // Let the string ring past its written length, as an undamped course does.
-    const ring = ev.kind === 'bass' ? ev.dur + 0.5 : ev.kind === 'grace' ? ev.dur + 0.04 : Math.max(0.3, ev.dur * 1.25 + 0.18);
-    pluck(v, { midi: ev.midi, dur: ring, peak: ev.vel });
+    // The melody is played as on one string: a note is stopped as the next one begins, with
+    // a short overlap. The open low string is left to ring.
+    const ring = ev.kind === 'bass' ? ev.dur + 0.5 : ev.kind === 'grace' ? ev.dur + 0.03 : ev.dur + 0.07;
+    // Tremolo alternates two takes of the note, like down- and up-strokes of the plectrum.
+    const alt = ev.kind === 'trem' && (strokes++ & 1) === 1;
+    pluck(v, { midi: ev.midi, dur: ring, peak: ev.vel * (ev.kind === 'bass' ? 0.85 : 1), alt, cents: alt ? 3 : 0 });
   }
 
   function playPerc(ev: Extract<MusicEvent, { layer: 'perc' }>): void {
     const v = new Voice(ctx, percBus, ev.time, 1);
-    if (ev.hit === 'dum') dum(v, 0, 0.5 * ev.vel);
+    if (ev.hit === 'dum') dum(v, 0, 0.44 * ev.vel);
     else if (ev.hit === 'tek') tek(v, 0, 0.34 * ev.vel);
     else if (ev.hit === 'ka') ka(v, 0, 0.3 * ev.vel);
     else shake(v, 0, 0.22 * ev.vel);

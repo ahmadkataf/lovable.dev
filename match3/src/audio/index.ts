@@ -110,8 +110,8 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
   let musicStarts = 0;
   let sfxPlayed = 0;
   let sfxDropped = 0;
-  let resumeAskedAt = 0;
-  let pendingSince = 0;
+  let resumeAskedAt = -1;
+  let pendingSince = -1;
   let listening = false;
   const gate = new SfxGate();
   const baseSeed = options.seed === undefined ? (Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0 : options.seed >>> 0;
@@ -199,8 +199,8 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
     if (disposed || !ctx) return;
     if (stateOf() === 'running') {
       // Effects queued while the context was starting are stale if that took long: drop them.
-      if (pendingSince && wall() - pendingSince > PENDING_WINDOW_MS) cutSfx(true);
-      pendingSince = 0;
+      if (pendingSince >= 0 && wall() - pendingSince > PENDING_WINDOW_MS) cutSfx(true);
+      pendingSince = -1;
       unlisten();
     }
     sync();
@@ -382,8 +382,8 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
           // unlock() was called a moment ago and the context is still starting: queue the
           // effect on its (frozen) clock so the tap that unlocked audio is heard too.
           const w = wall();
-          if (!resumeAskedAt || w - resumeAskedAt > PENDING_WINDOW_MS) return;
-          if (!pendingSince) pendingSince = w;
+          if (resumeAskedAt < 0 || w - resumeAskedAt > PENDING_WINDOW_MS) return;
+          if (pendingSince < 0) pendingSince = w;
         }
         const now = ctx.currentTime;
         if (!gate.admit(sfxKey(name, opts), now, isPrioritySfx(name))) {

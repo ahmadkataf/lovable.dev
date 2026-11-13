@@ -14,7 +14,7 @@ export const LEVELS = {
   /** Effects bus. */
   sfx: 1,
   /** Music bus — the music sits well under the effects. */
-  music: 0.5,
+  music: 0.62,
   /** Master, ahead of the limiter. */
   master: 0.7,
 };
@@ -56,8 +56,10 @@ export function createOutputChain(ctx: BaseAudioContext, destination?: AudioNode
   master.gain.value = LEVELS.master;
 
   const limiter = ctx.createDynamicsCompressor();
-  limiter.threshold.value = -10;
-  limiter.knee.value = 6;
+  // A hard knee just under full scale: one effect on its own passes untouched (the chain is
+  // linear up to a bus level of about 0.9); only sums of several are held back.
+  limiter.threshold.value = -4;
+  limiter.knee.value = 0;
   limiter.ratio.value = 20;
   limiter.attack.value = 0.002;
   limiter.release.value = 0.18;

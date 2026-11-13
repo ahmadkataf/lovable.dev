@@ -19,6 +19,7 @@ export class Voice {
   private nodes: AudioNode[] = [];
   private running = 0;
   private released = false;
+  private noiseCount = 0;
 
   constructor(ctx: BaseAudioContext, dest: AudioNode, t0: number, gain: number) {
     this.ctx = ctx;
@@ -33,6 +34,16 @@ export class Voice {
   /** Seconds from the voice's start until its last source stops. */
   get duration(): number {
     return this.end - this.t0;
+  }
+
+  /**
+   * Where the next noise burst of this voice starts reading the shared noise buffer (s).
+   * It depends only on the voice's start time and the burst's position in the recipe, so an
+   * offline render is reproducible while live repeats of a sound still differ slightly.
+   */
+  noiseOffset(): number {
+    const x = this.t0 * 7.31 + this.noiseCount++ * 0.173;
+    return (x - Math.floor(x / 1.2) * 1.2 + 1.2) % 1.2;
   }
 
   /** Register a node so it is disconnected with the voice. */
@@ -74,11 +85,16 @@ export class Voice {
 
 // ───────────────────────────── envelopes ─────────────────────────────
 
-/** 0 → peak (linear, `attack` s) → silence (exponential) at `t + dur`. */
-export function adEnv(param: AudioParam, t: number, dur: number, peak: number, attack: number): void {
+/**
+ * 0 → peak (linear, `attack` s) → held for `hold` s → silence (exponential) at `t + dur`.
+ * Without a hold the sound is percussive: it starts dying away as soon as it has spoken.
+ */
+export function adEnv(param: AudioParam, t: number, dur: number, peak: number, attack: number, hold: number = 0): void {
   const a = Math.min(Math.max(attack, 0.001), dur * 0.9);
+  const h = Math.min(Math.max(hold, 0), Math.max(0, dur * 0.95 - a));
   param.setValueAtTime(0, t);
   param.linearRampToValueAtTime(peak, t + a);
+  if (h > 0) param.setValueAtTime(peak, t + a + h);
   param.exponentialRampToValueAtTime(Math.max(peak * 0.001, 1e-5), t + dur);
   param.setValueAtTime(0, t + dur);
 }
@@ -96,6 +112,8 @@ export interface ToneOpts {
   dur: number;
   peak: number;
   attack?: number;
+  /** Time held at the peak before the decay starts (s). */
+  hold?: number;
   /** Vibrato rate (Hz) and depth (Hz). */
   vib?: number;
   vibDepth?: number;
@@ -114,7 +132,7 @@ export function tone(v: Voice, o: ToneOpts): void {
   }
   const g = v.keep(ctx.createGain());
   g.gain.value = 0;
-  adEnv(g.gain, t, o.dur, o.peak, o.attack === undefined ? 0.004 : o.attack);
+  adEnv(g.gain, t, o.dur, o.peak, o.attack === undefined ? 0.004 : o.attack, o.hold);
   osc.connect(g);
   g.connect(o.to || v.out);
   const stop = t + o.dur + 0.02;
@@ -181,7 +199,6 @@ export function fm(v: Voice, o: FmOpts): void {
 // ───────────────────────────── noise ─────────────────────────────
 
 const noiseBuffers = new WeakMap<BaseAudioContext, AudioBuffer>();
-let noiseCursor = 0;
 
 /** One shared buffer of white noise per context (generated, not sampled). */
 export function noiseBuffer(ctx: BaseAudioContext): AudioBuffer {
@@ -229,8 +246,7 @@ export function noise(v: Voice, o: NoiseOpts): void {
   src.connect(filter);
   filter.connect(g);
   g.connect(o.to || v.out);
-  noiseCursor = (noiseCursor + 0.173) % 1.2;
-  v.run(src, t, t + o.dur + 0.02, noiseCursor);
+  v.run(src, t, t + o.dur + 0.02, v.noiseOffset());
 }
 
 /** A filter inside the voice that other blocks can be routed through (`to`). */
@@ -348,28 +364,32 @@ export function pluckSeconds(freq: number): number {
 }
 
 const pluckData: { [key: string]: Float32Array } = {};
-const pluckBuffers = new WeakMap<BaseAudioContext, { [midi: number]: AudioBuffer }>();
+const pluckBuffers = new WeakMap<BaseAudioContext, { [key: number]: AudioBuffer }>();
 
-/** Cached pluck for a MIDI note, synthesised on first use. */
-export function pluckBuffer(ctx: BaseAudioContext, midi: number): AudioBuffer {
+/**
+ * Cached pluck for a MIDI note, synthesised on first use. `alt` selects a second take of the
+ * same note (another pluck of the string), so quick repeats do not sound stamped out.
+ */
+export function pluckBuffer(ctx: BaseAudioContext, midi: number, alt: boolean = false): AudioBuffer {
   const m = Math.round(midi);
+  const slot = m * 2 + (alt ? 1 : 0);
   let table = pluckBuffers.get(ctx);
   if (!table) {
     table = {};
     pluckBuffers.set(ctx, table);
   }
-  let buf = table[m];
+  let buf = table[slot];
   if (!buf) {
-    const key = ctx.sampleRate + ':' + m;
+    const key = ctx.sampleRate + ':' + slot;
     let data = pluckData[key];
     if (!data) {
       const f = midiToFreq(m);
-      data = synthPluck(ctx.sampleRate, f, pluckSeconds(f), 1000 + m);
+      data = synthPluck(ctx.sampleRate, f, pluckSeconds(f), 1000 + m + (alt ? 5000 : 0));
       pluckData[key] = data;
     }
     buf = ctx.createBuffer(1, data.length, ctx.sampleRate);
     buf.getChannelData(0).set(data);
-    table[m] = buf;
+    table[slot] = buf;
   }
   return buf;
 }
@@ -382,13 +402,15 @@ export interface PluckOpts {
   peak: number;
   /** Detune in cents. */
   cents?: number;
+  /** Use the second take of the note (see pluckBuffer). */
+  alt?: boolean;
   to?: AudioNode;
 }
 
 export function pluck(v: Voice, o: PluckOpts): void {
   const ctx = v.ctx;
   const t = v.t0 + (o.at || 0);
-  const buf = pluckBuffer(ctx, o.midi);
+  const buf = pluckBuffer(ctx, o.midi, o.alt === true);
   const src = ctx.createBufferSource();
   src.buffer = buf;
   if (o.cents) src.detune.value = o.cents;

@@ -103,6 +103,8 @@ const MAX_DAY = MAX_TIME / DAY_MS;
 const MAX_STREAK = 1_000_000;
 const MAX_SEEN = 2_000;
 const MAX_SEEN_ID_LENGTH = 1_024;
+/** What the profile's clock reads until the injected one has produced a usable value. */
+const NO_CLOCK = 0;
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -113,7 +115,7 @@ function int(v: unknown, min: number, max: number, fallback: number): number {
   if (typeof v !== 'number' || v !== v) return fallback;
   if (v <= min) return min;
   if (v >= max) return max;
-  return Math.floor(v);
+  return Math.floor(v) + 0; // "+ 0": never −0, which JSON would write as 0 (memory and storage must agree)
 }
 
 function isBooster(id: unknown): id is BoosterId {
@@ -201,6 +203,15 @@ function repairStats(v: unknown): SaveData['stats'] {
  * The lives timer is only range-checked here; `createProfile` reconciles it with the clock.
  */
 export function repairSave(raw: unknown): SaveData {
+  try {
+    return repairObject(raw);
+  } catch {
+    // Only reachable with things JSON cannot produce (throwing getters, proxies): treat as unreadable.
+    return freshSave();
+  }
+}
+
+function repairObject(raw: unknown): SaveData {
   if (!isObject(raw)) return freshSave();
   const lives = int(raw.lives, 0, MAX_LIVES, MAX_LIVES);
   const dailyDay = int(raw.dailyDay, -1, MAX_DAY, -1);
@@ -223,16 +234,20 @@ export function repairSave(raw: unknown): SaveData {
   };
 }
 
-/** Parse a raw save string. Null, empty, corrupt or foreign input ⇒ a fresh profile. Never throws. */
+function withoutBom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+/**
+ * Parse a raw save string. Null, empty, corrupt or foreign input ⇒ a fresh profile. Never throws.
+ * Two harmless wrappings a storage layer may add are undone, because the alternative is to throw a
+ * good save away: a leading byte-order mark, and one extra layer of JSON string encoding.
+ */
 export function parseSave(json: string | null | undefined): SaveData {
   if (typeof json !== 'string' || json.length === 0) return freshSave();
-  let raw: unknown;
   try {
-    raw = JSON.parse(json);
-  } catch {
-    return freshSave();
-  }
-  try {
+    let raw: unknown = JSON.parse(withoutBom(json));
+    if (typeof raw === 'string') raw = JSON.parse(withoutBom(raw));
     return repairSave(raw);
   } catch {
     return freshSave();
@@ -246,8 +261,12 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
   const dayOf = typeof deps.dayNumber === 'function' ? deps.dayNumber : localDayNumber;
   const listeners: { fn: () => void }[] = [];
 
-  let lastClock = 1;
-  /** The injected clock, made safe: a whole number ≥ 1; a broken clock repeats its last good value. */
+  let lastClock = NO_CLOCK;
+  /**
+   * The injected clock, made safe: a whole number ≥ 1. A clock that throws or returns nonsense
+   * repeats its last good value (time stands still); one that never worked yields NO_CLOCK, and
+   * then nothing that depends on time happens — no life regenerates, no daily reward is claimable.
+   */
   function clock(): number {
     let t: number;
     try {
@@ -293,6 +312,15 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
     notify();
   }
 
+  /**
+   * End of an operation that first brought the lives up to date: a real change is saved and
+   * announced; otherwise a life that merely regenerated is saved quietly. Never two saves.
+   */
+  function finish(changed: boolean, livesSynced: boolean): void {
+    if (changed) commit();
+    else if (livesSynced) persist();
+  }
+
   // ── lives ──
 
   /**
@@ -301,9 +329,12 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
    * A timer that is missing or lies in the future (damaged save, device clock moved backwards) is
    * restarted from `t`: that can only cost the player the partly-elapsed interval, never grant a
    * life, and the wait is never longer than one interval.
+   * Without a clock (NO_CLOCK) nothing is touched; a life lost meanwhile leaves the timer at 0,
+   * which is exactly the "missing timer" case above once the clock works.
    */
   function syncLives(t: number): boolean {
     const d = data;
+    if (t === NO_CLOCK) return false;
     if (d.lives >= MAX_LIVES) {
       if (d.lives === MAX_LIVES && d.lifeTimer === 0) return false;
       d.lives = MAX_LIVES;
@@ -322,8 +353,9 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
   }
 
   /**
-   * Sync and quietly persist the normalised pair (no notification — see file header). Called at the
-   * start of every operation that looks at lives, so memory and storage never disagree about them.
+   * Sync and quietly persist the normalised pair (no notification — see file header), so memory
+   * and storage never disagree about lives. For the read-only operations; mutating ones call
+   * `syncLives` themselves and end with `finish`, which saves once for both.
    */
   function readLives(t: number): void {
     if (syncLives(t)) persist();
@@ -339,9 +371,12 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
 
   // ── raw mutations (no save / notify; return whether anything changed) ──
 
-  /** Whole coins/boosters only: grants round down, so nothing is ever given for a fraction. */
+  /**
+   * Whole coins/boosters only: grants round down, so nothing is ever given for a fraction.
+   * NaN and ±Infinity are a bug in the caller, not an amount: they give nothing.
+   */
   function wholeAmount(n: unknown): number {
-    return typeof n === 'number' && n >= 1 ? Math.floor(Math.min(n, MAX_COINS)) : 0;
+    return typeof n === 'number' && isFinite(n) && n >= 1 ? Math.floor(Math.min(n, MAX_COINS)) : 0;
   }
 
   function addCoinsRaw(n: unknown): boolean {
@@ -408,7 +443,8 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
     const last = data.dailyDay;
     const streak = data.dailyStreak;
     const claimedSlot = streak > 0 ? (streak - 1) % DAILY_CYCLE_DAYS : 0;
-    if (!isFinite(today)) return { canClaim: false, cycleDay: claimedSlot, streak, today: last, nextStreak: streak };
+    // No usable calendar or clock: nothing can be claimed (and nothing is lost) until there is one.
+    if (!isFinite(today) || t === NO_CLOCK) return { canClaim: false, cycleDay: claimedSlot, streak, today: last, nextStreak: streak };
     if (last < 0) return { canClaim: true, cycleDay: 0, streak: 0, today, nextStreak: 1 };
     // Same day — or an earlier one, when the device clock was moved back: nothing to claim.
     if (today <= last) return { canClaim: false, cycleDay: claimedSlot, streak, today, nextStreak: streak };
@@ -450,27 +486,33 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
       readLives(t);
       if (data.lives >= MAX_LIVES) return { count: MAX_LIVES, max: MAX_LIVES, nextInMs: 0 };
       // After syncing, 0 ≤ t − lifeTimer < LIFE_REGEN_MS, so the wait is within (0, LIFE_REGEN_MS].
-      return { count: data.lives, max: MAX_LIVES, nextInMs: data.lifeTimer + LIFE_REGEN_MS - t };
+      // Without a clock the timer cannot be read: report a full interval rather than nonsense.
+      const wait = t === NO_CLOCK || data.lifeTimer <= 0 ? LIFE_REGEN_MS : data.lifeTimer + LIFE_REGEN_MS - t;
+      return { count: data.lives, max: MAX_LIVES, nextInMs: Math.min(LIFE_REGEN_MS, Math.max(1, wait)) };
     },
 
     loseLife(): boolean {
       const t = clock();
-      readLives(t);
-      if (data.lives <= 0) return false;
-      if (data.lives >= MAX_LIVES) data.lifeTimer = t; // dropping from full starts the timer
-      data.lives -= 1;
-      commit();
-      return true;
+      const synced = syncLives(t);
+      const ok = data.lives > 0;
+      if (ok) {
+        if (data.lives >= MAX_LIVES) data.lifeTimer = t; // dropping from full starts the timer
+        data.lives -= 1;
+      }
+      finish(ok, synced);
+      return ok;
     },
 
     refillLives(): boolean {
-      readLives(clock());
-      if (data.lives >= MAX_LIVES || data.coins < REFILL_LIVES_PRICE) return false;
-      data.coins -= REFILL_LIVES_PRICE;
-      data.lives = MAX_LIVES;
-      data.lifeTimer = 0;
-      commit();
-      return true;
+      const synced = syncLives(clock());
+      const ok = data.lives < MAX_LIVES && data.coins >= REFILL_LIVES_PRICE;
+      if (ok) {
+        data.coins -= REFILL_LIVES_PRICE;
+        data.lives = MAX_LIVES;
+        data.lifeTimer = 0;
+      }
+      finish(ok, synced);
+      return ok;
     },
 
     // ── economy ──
@@ -525,10 +567,10 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
 
     grant(rewards: Reward[]): void {
       if (!Array.isArray(rewards)) return;
-      readLives(clock());
+      const synced = syncLives(clock());
       let changed = false;
       for (const r of rewards) changed = applyReward(r) || changed;
-      if (changed) commit();
+      finish(changed, synced);
     },
 
     // ── progress ──
@@ -597,7 +639,7 @@ export function createProfile(deps: ProfileDeps): ProfileApi {
       const s = dailyState(t);
       if (!s.canClaim) return null;
       const rewards = copyRewards(DAILY_CYCLE[s.cycleDay]!);
-      readLives(t);
+      syncLives(t); // a reward may hold lives; the commit below stores the synced pair as well
       data.dailyDay = s.today;
       data.dailyStreak = s.nextStreak;
       for (const r of rewards) applyReward(r);

@@ -9,8 +9,8 @@ const INK = '#150e2e';
 
 function dropShadow(ctx: Ctx, px: number, strength: number): void {
   ctx.shadowColor = 'rgba(5,3,26,' + strength + ')';
-  ctx.shadowBlur = px * 0.07;
-  ctx.shadowOffsetY = px * 0.04;
+  ctx.shadowBlur = px * 0.05;
+  ctx.shadowOffsetY = px * 0.03;
 }
 
 function noShadow(ctx: Ctx): void {
@@ -41,6 +41,14 @@ function crack(ctx: Ctx, pts: readonly number[], w: number): void {
 
 /** Carved sandstone block. hp 3 = intact, 2 = cracked, 1 = crumbling. */
 export function drawStone(ctx: Ctx, px: number, hp: number): void {
+  ctx.save();
+  // raised a touch so the shadow under the block stays inside the sprite
+  ctx.translate(0, -1.2);
+  stoneBlock(ctx, px, hp);
+  ctx.restore();
+}
+
+function stoneBlock(ctx: Ctx, px: number, hp: number): void {
   const rnd = mulberry32(0x57a9e);
   const body = new Path2D();
   rrect(body, 5, 5, 90, 90, 14);
@@ -228,8 +236,8 @@ export function drawChain(ctx: Ctx, px: number): void {
   ctx.shadowColor = 'rgba(5,3,26,0.55)';
   ctx.shadowBlur = px * 0.04;
   ctx.shadowOffsetY = px * 0.025;
-  chainRun(ctx, 9.5, 9.5, 90.5, 90.5);
-  chainRun(ctx, 90.5, 9.5, 9.5, 90.5);
+  chainRun(ctx, 14.5, 14.5, 85.5, 85.5);
+  chainRun(ctx, 85.5, 14.5, 14.5, 85.5);
   ctx.restore();
 
   // padlock
@@ -361,6 +369,13 @@ function vineSegment(ctx: Ctx, pts: readonly number[], from: number, to: number)
 
 /** Vine: a knot of thorny green stems with a tiny leaf, on a bed of dark foliage. */
 export function drawVine(ctx: Ctx, px: number): void {
+  ctx.save();
+  ctx.translate(0, -1.2);
+  vineKnotPiece(ctx, px);
+  ctx.restore();
+}
+
+function vineKnotPiece(ctx: Ctx, px: number): void {
   // bed of dark leaves
   const bed = new Path2D();
   rrect(bed, 5, 5, 90, 90, 24);
@@ -453,6 +468,16 @@ export function drawVine(ctx: Ctx, px: number): void {
 
 /** Lamp: a brass oil lamp with a small flame at the spout. */
 export function drawLamp(ctx: Ctx, px: number): void {
+  ctx.save();
+  // inset so the flame's halo and the shadow stay inside the sprite
+  ctx.translate(50, 51);
+  ctx.scale(0.95, 0.95);
+  ctx.translate(-51.5, -52);
+  lampBody(ctx, px);
+  ctx.restore();
+}
+
+function lampBody(ctx: Ctx, px: number): void {
   const OUT = '#4a2c08';
   const brass = lGrad(ctx, 0, 40, 0, 90, [
     [0, '#fff3c2'],
@@ -570,12 +595,12 @@ export function drawLamp(ctx: Ctx, px: number): void {
   // flame
   const fx = 90.2;
   const fy = 41;
-  const halo = ctx.createRadialGradient(fx, fy - 11, 0, fx, fy - 11, 19);
-  halo.addColorStop(0, 'rgba(255,214,110,0.75)');
-  halo.addColorStop(0.5, 'rgba(255,170,60,0.3)');
+  const halo = ctx.createRadialGradient(fx, fy - 11, 0, fx, fy - 11, 12.5);
+  halo.addColorStop(0, 'rgba(255,214,110,0.8)');
+  halo.addColorStop(0.5, 'rgba(255,170,60,0.34)');
   halo.addColorStop(1, 'rgba(255,150,40,0)');
   ctx.fillStyle = halo;
-  ctx.fillRect(fx - 20, fy - 31, 30, 40);
+  ctx.fillRect(fx - 13, fy - 24, 26, 26);
   const flame = new Path2D();
   flame.moveTo(fx, fy);
   flame.bezierCurveTo(fx - 7.2, fy - 6, fx - 3.4, fy - 15, fx + 0.6, fy - 24);
@@ -667,8 +692,8 @@ export function drawSand(ctx: Ctx, layers: number): void {
         [1, '#cc9c55'],
       ]
     : [
-        [0, '#dcb26a'],
-        [1, '#c2924c'],
+        [0, '#e2ba72'],
+        [1, '#c99a52'],
       ]);
   ctx.fillRect(0, 0, 100, 100);
 
