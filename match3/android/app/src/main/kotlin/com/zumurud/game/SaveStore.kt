@@ -2,6 +2,7 @@ package com.zumurud.game
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 /**
  * The player's progress: one opaque string the game writes through the bridge.
@@ -23,7 +24,7 @@ internal class SaveStore(context: Context) {
     /** Stores [value]; returns false (and keeps the previous save) when it is missing or larger than [MAX_BYTES]. */
     fun store(value: String?): Boolean {
         if (value == null || value.length > MAX_BYTES || utf8Length(value) > MAX_BYTES) return false
-        prefs.edit().putString(KEY, value).apply()
+        prefs.edit { putString(KEY, value) } // apply(): memory now, disk in the background
         return true
     }
 

@@ -12,6 +12,8 @@ import type {
   Countdown,
   CountdownOptions,
   IconName,
+  ListItem,
+  ListItemOptions,
   Progress,
   ProgressOptions,
   Segmented,
@@ -35,6 +37,7 @@ export interface Widgets {
   segmented<V extends string>(items: readonly SegmentedItem<V>[], opts: SegmentedOptions<V>): Segmented<V>;
   tweenNumber(node: Element, from: number, to: number, ms: number, format?: (n: number) => string): Promise<void>;
   countdown(opts: CountdownOptions): Countdown;
+  listItem(opts: ListItemOptions): ListItem;
   screen(className?: string): HTMLDivElement;
   panel(className?: string | null, ...children: Child[]): HTMLDivElement;
   title(text: string, size?: 'sm' | 'md' | 'lg'): HTMLHeadingElement;
@@ -407,6 +410,63 @@ export function createWidgets(core: KitCore): Widgets {
     return { el: node, stop };
   }
 
+  // ───────────────────────────── list item ─────────────────────────────
+
+  function listItem(opts: ListItemOptions): ListItem {
+    const clickable = typeof opts.onClick === 'function';
+    const labelEl = el('span', { class: 'k-item__label', text: opts.label });
+    const valueEl = el('span', { class: 'k-item__value' });
+    const row = el('span', { class: 'k-item__in' }, opts.icon ? core.icon(opts.icon, 28) : null, labelEl);
+    const chevron = clickable && !opts.noChevron ? el('span', { class: 'k-item__chevron', 'aria-hidden': 'true' }) : null;
+    if (chevron) row.appendChild(chevron);
+    const node = el(clickable ? 'button' : 'div', { class: 'k-item' + (clickable ? ' k-item--button' : '') + (opts.danger ? ' k-item--danger' : '') }, row);
+    function setValue(value: string | null | undefined): void {
+      if (value) {
+        valueEl.textContent = value;
+        if (valueEl.parentNode !== row) row.insertBefore(valueEl, chevron);
+      } else if (valueEl.parentNode) {
+        valueEl.parentNode.removeChild(valueEl);
+      }
+    }
+    setValue(opts.value);
+    if (clickable) {
+      const btn = node as HTMLButtonElement;
+      btn.type = 'button';
+      btn.disabled = opts.disabled === true;
+      core.pressable(btn);
+      let lockedUntil = 0;
+      let busy = false;
+      btn.addEventListener('click', (ev: MouseEvent) => {
+        const t = now();
+        if (btn.disabled || busy || t < lockedUntil) return;
+        lockedUntil = t + 350;
+        core.tap();
+        let result: unknown;
+        try {
+          result = opts.onClick!(ev);
+        } catch (err) {
+          if (typeof console !== 'undefined') console.error('[kit] list item handler failed', err);
+          return;
+        }
+        if (isThenable(result)) {
+          busy = true;
+          const done = (): void => {
+            busy = false;
+          };
+          result.then(done, done);
+        }
+      });
+    }
+    return {
+      el: node,
+      set(patch: { label?: string; value?: string | null; disabled?: boolean }): void {
+        if (patch.label !== undefined) labelEl.textContent = patch.label;
+        if (patch.value !== undefined) setValue(patch.value);
+        if (patch.disabled !== undefined && clickable) (node as HTMLButtonElement).disabled = patch.disabled === true;
+      },
+    };
+  }
+
   // ───────────────────────────── static containers ─────────────────────────────
 
   return {
@@ -417,6 +477,7 @@ export function createWidgets(core: KitCore): Widgets {
     segmented,
     tweenNumber,
     countdown,
+    listItem,
 
     screen: (className?: string) => el('div', { class: 'k-screen' + (className ? ' ' + className : '') }),
 

@@ -133,6 +133,7 @@ body {
 .k-btn:focus,
 .k-chip:focus,
 .k-toggle:focus,
+.k-item:focus,
 .k-seg__opt:focus,
 .k-dialog:focus {
   outline: none;
@@ -141,6 +142,7 @@ body {
 .k-kbd .k-btn:focus,
 .k-kbd .k-chip:focus,
 .k-kbd .k-toggle:focus,
+.k-kbd .k-item:focus,
 .k-kbd .k-seg__opt:focus {
   outline: calc(var(--k-u) * 3) solid var(--k-info);
   outline-offset: calc(var(--k-u) * 2);
@@ -683,6 +685,28 @@ body {
 .k-price {
   unicode-bidi: plaintext;
   white-space: nowrap;
+}
+
+/* a band of light sweeps across the main call to action every few seconds */
+.k-btn--shine .k-btn__face {
+  overflow: hidden;
+}
+
+.k-btn--shine .k-btn__face::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 46%;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
+  transform: translateX(-130%) skewX(-18deg);
+  animation: k-shine 3600ms var(--k-ease-out) 900ms infinite;
+  pointer-events: none;
+}
+
+.k-btn--shine:disabled .k-btn__face::after {
+  animation: none;
 }
 
 /* count / attention badge on a button corner */
@@ -1965,6 +1989,102 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* settings-style row */
+.k-item {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: calc(var(--k-u) * 54);
+  margin: 0;
+  padding: calc(var(--k-u) * 6) calc(var(--k-u) * 4);
+  border: 0;
+  background: none;
+  color: var(--k-cream);
+  font-family: inherit;
+  font-size: calc(var(--k-u) * 17);
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: start;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.k-item--button {
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--k-med) var(--k-ease-back);
+}
+
+.k-item--button.k-pressed {
+  transform: scale(0.98);
+  transition-duration: 60ms;
+}
+
+.k-item--button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.k-item__in {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: calc(var(--k-u) * 42);
+}
+
+.k-item__in > .k-icon {
+  margin-inline-end: calc(var(--k-u) * 12);
+}
+
+.k-item__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.k-item--danger .k-item__label {
+  color: #ff9aa5;
+}
+
+.k-item__value {
+  flex: none;
+  max-width: 50%;
+  margin-inline-start: calc(var(--k-u) * 10);
+  color: var(--k-muted);
+  font-weight: 600;
+  text-align: end;
+  /* a version number or a price keeps its own direction inside Arabic */
+  unicode-bidi: plaintext;
+  overflow-wrap: anywhere;
+}
+
+/* chevron pointing "forward" in the reading direction */
+.k-item__chevron {
+  flex: none;
+  box-sizing: border-box;
+  width: calc(var(--k-u) * 10);
+  height: calc(var(--k-u) * 10);
+  margin-inline-start: calc(var(--k-u) * 10);
+  margin-inline-end: calc(var(--k-u) * 6);
+  border-top: calc(var(--k-u) * 3) solid var(--k-gold);
+  border-right: calc(var(--k-u) * 3) solid var(--k-gold);
+  border-radius: calc(var(--k-u) * 1);
+  transform: rotate(45deg);
+}
+
+[dir='rtl'] .k-item__chevron {
+  transform: rotate(-135deg);
+}
+
+/* rows inside a column get a hairline between them */
+.k-list > .k-item + .k-item,
+.k-list > .k-toggle + .k-toggle,
+.k-list > .k-item + .k-toggle,
+.k-list > .k-toggle + .k-item {
+  box-shadow: inset 0 calc(var(--k-u) * 1) 0 rgba(168, 152, 245, 0.22);
+}
+
 /* countdown text */
 .k-countdown {
   display: inline-flex;
@@ -1988,6 +2108,16 @@ body {
 @keyframes k-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes k-shine {
+  0% {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  28%,
+  100% {
+    transform: translateX(340%) skewX(-18deg);
   }
 }
 

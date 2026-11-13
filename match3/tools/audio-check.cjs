@@ -8,14 +8,24 @@
  *   node tools/audio-check.cjs --suggest  also print the gain change that would bring each
  *                                         effect to its intended loudness (for tuning sfx.ts)
  *
+ *   node tools/audio-check.cjs --no-long  skip the three-minute music renders
+ *
  * It opens /audio-lab.html from the Vite dev server (port 5182; started here if it is not
  * already running) in headless Chromium and
  *   1. renders EVERY sound effect (each step of the stepped ones) and 20 s of each music
  *      track through OfflineAudioContext at 44.1 kHz, through the real output chain, and
- *      measures duration, peak, RMS, loudness, DC offset, spectral centroid and pitch;
- *   2. renders a worst-case storm of effects over music to prove the output cannot clip;
- *   3. drives the live engine: unlock by a real click, 200 effects in one frame, toggles,
- *      track switching, suspend/resume, a stalled main thread.
+ *      measures duration, peak, RMS, loudness, DC offset, spectral centroid, pitch and how
+ *      much of the energy is harsh (above 6 kHz) or boom (below 150 Hz);
+ *   2. renders three minutes of each track with the scheduler stepped as in live play:
+ *      no clipping, no silence, no drift, no loop, a bounded number of audio nodes;
+ *   3. renders a worst-case storm of effects over music to prove the output cannot clip, and
+ *      checks that the first sound of a new context is not swallowed by the limiter;
+ *   4. drives the live engine: unlock by a real click, 200 effects in one frame, toggles,
+ *      track switching, suspend/resume, a stalled main thread;
+ *   5. attacks the live engine while recording its real output sample by sample: 500
+ *      effects in one tick, rapid track switching, suspend in the middle of a cross-fade,
+ *      a three-second stall of the main thread, a hidden page, a context suspended behind
+ *      the engine's back, fades that must not be chopped.
  * Rendered audio goes to shots/audio/<id>.wav with a spectrogram <id>.png next to it, plus
  * report.txt / report.json. Exit code 1 if any check fails.
  */
@@ -33,6 +43,7 @@ const PAGE_URL = 'http://127.0.0.1:' + PORT + '/audio-lab.html';
 const OUT = path.join(ROOT, 'shots', 'audio');
 const args = process.argv.slice(2);
 const NO_LIVE = args.indexOf('--no-live') >= 0;
+const NO_LONG = args.indexOf('--no-long') >= 0;
 const SUGGEST = args.indexOf('--suggest') >= 0;
 const onlyArg = args.filter((a) => a.indexOf('--only=') === 0)[0];
 const ONLY = onlyArg ? onlyArg.slice(7).split(',') : null;
@@ -48,11 +59,28 @@ const LIMITS = {
   // loudness (A-weighted loudest frame, dB) relative to the median of the game effects
   gameSpread: 3, // game + jingle: within ±3 dB (a 6 dB window)
   uiBelow: [4, 14], // UI sounds: this many dB under the median
+  // tone: share of a sound's energy above 6 kHz (harsh, hissy) and below 150 Hz (boom that
+  // costs headroom and that a phone speaker cannot play)
+  harsh: 0.3,
+  boom: 0.3,
   // music
   musicHalves: 3.5, // dB between first and second half
-  musicGap: 2, // s of silence
+  musicGap: 1, // s of silence
   musicUnderSfx: 8, // music RMS at least this many dB under the median effect
+  // like for like (A-weighted loudest frame, as for the effects): the music's loudest moment
+  // and its 95th percentile must sit this far under the median game effect
+  musicMaxUnder: 5,
+  musicP95Under: 8,
+  musicPeak: 0.5, // sample peak of music alone
   musicOnsetsPerBar: [2.5, 22],
+  // three minutes of music
+  longSeconds: 180,
+  longMinutes: 3, // dB between any two whole minutes
+  longTenSeconds: 6, // dB between the loudest and the quietest 10 s
+  longDifference: 0.5, // first vs last minute: 0 = identical samples, ~1 = unrelated
+  longNodes: 160, // live audio nodes of the music at any time
+  // first sound of a new context vs the same sound later (dB)
+  startup: 1.5,
 };
 
 // Intended loudness (A-weighted, dB) used by --suggest: one level for game effects, UI
@@ -159,7 +187,7 @@ async function checkEffects(page, report) {
   out('SOUND EFFECTS — rendered offline at 44.1 kHz through sfx bus → master → limiter → trim → guard');
   out(
     pad('sound', 15) + pad('class', 7) + padL('dur s', 7) + padL('aud s', 7) + padL('peak', 7) + padL('rms', 7) + padL('loud', 7) +
-      padL('loudA', 7) + padL('Δmed', 6) + padL('DC', 9) + padL('centroid Hz', 13) + padL('start→end', 13) + padL('pitch Hz', 10) + '  flags',
+      padL('loudA', 7) + padL('Δmed', 6) + padL('DC', 9) + padL('centroid Hz', 13) + padL('start→end', 13) + padL('pitch Hz', 10) + padL('>6k %', 7) + padL('<150 %', 8) + '  flags',
   );
   for (const r of results) {
     const m = r.metrics;
@@ -171,6 +199,8 @@ async function checkEffects(page, report) {
     if (r.tailPeak > LIMITS.tailPeak) flags.push('TAIL(' + f(r.tailPeak, 4) + ')');
     if (r.nominal < lim[0] || r.nominal > lim[1]) flags.push('DURATION');
     if (m.effective < 0.02 + r.nominal * 0.5) flags.push('DEAD-AIR');
+    if (m.hfShare > LIMITS.harsh) flags.push('HARSH');
+    if (m.lfShare > LIMITS.boom) flags.push('BOOM');
     const delta = m.loudADb - ref;
     if (!ONLY) {
       if (r.cls === 'ui') {
@@ -182,16 +212,36 @@ async function checkEffects(page, report) {
     out(
       pad(r.id, 15) + pad(r.cls, 7) + padL(f(r.nominal, 3), 7) + padL(f(m.effective - 0.02, 3), 7) + padL(f(m.peakDb), 7) + padL(f(m.rmsDb), 7) +
         padL(f(m.loudDb), 7) + padL(f(m.loudADb), 7) + padL((delta >= 0 ? '+' : '') + f(delta), 6) + padL(m.dc.toExponential(0), 9) +
-        padL(f(m.centroid, 0), 13) + padL(f(m.centroidStart, 0) + '→' + f(m.centroidEnd, 0), 13) + padL(f(m.pitch, 0), 10) + '  ' + (flags.join(' ') || 'ok'),
+        padL(f(m.centroid, 0), 13) + padL(f(m.centroidStart, 0) + '→' + f(m.centroidEnd, 0), 13) + padL(f(m.pitch, 0), 10) +
+        padL(f(m.hfShare * 100, 0), 7) + padL(f(m.lfShare * 100, 0), 8) + '  ' + (flags.join(' ') || 'ok'),
     );
     for (const fl of flags) fail('sfx ' + r.id, fl);
   }
   out('median loudness of game effects: ' + f(ref) + ' dB(A)   (game/jingle must be within ±' + LIMITS.gameSpread + ' dB, UI ' + LIMITS.uiBelow[0] + '–' + LIMITS.uiBelow[1] + ' dB below)');
   out('columns: dur = duration reported by renderSfx · aud = until 60 dB below the peak · peak, rms, loud (loudest 50 ms) in dBFS ·');
   out('         loudA = loudest frame, A-weighted (dB) · Δmed = loudA minus the median · DC = mean sample · centroid = power-weighted');
-  out('         mean frequency (whole sound, then first third → last third) · pitch = strongest spectral peak');
+  out('         mean frequency (whole sound, then first third → last third) · pitch = strongest spectral peak ·');
+  out('         >6k / <150 = share of the energy above 6 kHz / below 150 Hz');
   out('flags:   CLIPS |sample| ≥ ' + LIMITS.clipPeak + ' · SILENT rms < ' + LIMITS.silentRms + ' · DC |mean| > ' + LIMITS.dc + ' · TAIL sound after its reported end ·');
-  out('         DURATION outside ' + JSON.stringify(LIMITS.duration).replace(/"/g, '') + ' s · DEAD-AIR audible < half of dur · LEVEL / UI-LEVEL loudness window');
+  out('         DURATION outside ' + JSON.stringify(LIMITS.duration).replace(/"/g, '') + ' s · DEAD-AIR audible < half of dur · LEVEL / UI-LEVEL loudness window ·');
+  out('         HARSH more than ' + LIMITS.harsh * 100 + ' % of the energy above 6 kHz · BOOM more than ' + LIMITS.boom * 100 + ' % below 150 Hz');
+  const uiLoud = results.filter((r) => r.cls === 'ui').map((r) => r.metrics.loudADb);
+  if (uiLoud.length) report.uiMedianLoudA = median(uiLoud);
+  // Class summary: the three levels the mix is built on.
+  const cls = (name) => results.filter((r) => r.cls === name);
+  const span = (rs, key) => (rs.length ? f(Math.min.apply(null, rs.map((r) => r.metrics[key]))) + ' … ' + f(Math.max.apply(null, rs.map((r) => r.metrics[key]))) : '—');
+  out('');
+  out('LOUDNESS BY CLASS (A-weighted loudest frame, dB · sample peak, dBFS · RMS, dBFS)');
+  for (const name of ['ui', 'game', 'jingle']) {
+    const rs = cls(name);
+    if (!rs.length) continue;
+    out('  ' + pad(name, 7) + padL(rs.length + ' sounds', 10) + '   loudA ' + pad(span(rs, 'loudADb'), 15) + ' median ' + padL(f(median(rs.map((r) => r.metrics.loudADb))), 6) + '   peak ' + pad(span(rs, 'peakDb'), 14) + '   rms ' + span(rs, 'rmsDb'));
+  }
+  report.classLoudness = {};
+  for (const name of ['ui', 'game', 'jingle']) {
+    const rs = cls(name);
+    if (rs.length) report.classLoudness[name] = { count: rs.length, medianLoudA: median(rs.map((r) => r.metrics.loudADb)), minLoudA: Math.min.apply(null, rs.map((r) => r.metrics.loudADb)), maxLoudA: Math.max.apply(null, rs.map((r) => r.metrics.loudADb)) };
+  }
 
   if (SUGGEST) {
     // Average the steps of a stepped effect, then say how to scale its gain in sfx.ts.
@@ -283,7 +333,7 @@ async function checkEffects(page, report) {
 // ───────────────────────── music ─────────────────────────
 async function checkMusic(page, report) {
   out('');
-  out('MUSIC — 20 s of each track, offline, through music bus → master → limiter → trim → guard');
+  out('MUSIC — 20 s of each track, offline (scheduler stepped every 100 ms), through music bus → master → limiter → trim → guard');
   report.music = [];
   for (const track of ['menu', 'level']) {
     const r = await page.evaluate((t) => window.__audioLab.musicReport(t, 20, 20240521), track);
@@ -314,6 +364,9 @@ async function checkMusic(page, report) {
     if (r.longestSilence > LIMITS.musicGap) flags.push('SILENCE-GAP');
     if (report.sfxMedianLoud !== undefined && m.rmsDb > report.sfxMedianLoud - LIMITS.musicUnderSfx) flags.push('TOO-LOUD-VS-SFX');
     if (report.sfxMedianLoud !== undefined && m.rmsDb < report.sfxMedianLoud - 24) flags.push('TOO-QUIET');
+    if (report.sfxMedianLoudA !== undefined && r.loudness.max > report.sfxMedianLoudA - LIMITS.musicMaxUnder) flags.push('LOUD-MOMENTS');
+    if (report.sfxMedianLoudA !== undefined && r.loudness.p95 > report.sfxMedianLoudA - LIMITS.musicP95Under) flags.push('LOUD-P95');
+    if (m.peak > LIMITS.musicPeak) flags.push('PEAK');
     out('');
     out(r.id + ': ' + r.bpm + ' BPM, bar ' + f(r.barDuration, 3) + ' s, ' + r.bars + ' full bars   ' + (flags.join(' ') || 'ok'));
     out('  peak ' + f(m.peakDb) + ' dBFS · rms ' + f(m.rmsDb) + ' dBFS · loudest 50 ms ' + f(m.loudDb) + ' dBFS · A-weighted ' + f(m.loudADb) + ' dB · DC ' + m.dc.toExponential(0) + ' · centroid ' + f(m.centroid, 0) + ' Hz');
@@ -324,6 +377,11 @@ async function checkMusic(page, report) {
     out('  longest silence ' + f(r.longestSilence, 2) + ' s · layers alone: lead ' + f(r.layerDb.lead) + ' · pad ' + f(r.layerDb.pad) + ' · perc ' + f(r.layerDb.perc) + ' dBFS');
     if (report.sfxMedianLoud !== undefined) {
       out('  music rms is ' + f(report.sfxMedianLoud - m.rmsDb) + ' dB under the median effect (loudest 50 ms ' + f(report.sfxMedianLoud) + ' dBFS)');
+    }
+    if (report.sfxMedianLoudA !== undefined) {
+      out('  like for like, A-weighted frames: loudest ' + f(r.loudness.max) + ' · 95th percentile ' + f(r.loudness.p95) + ' · median ' + f(r.loudness.p50) + ' dB — the loudest moment is ' +
+        f(report.sfxMedianLoudA - r.loudness.max) + ' dB under the median game effect (' + f(report.sfxMedianLoudA) + ')' +
+        (report.uiMedianLoudA !== undefined ? ' and ' + f(report.uiMedianLoudA - r.loudness.max) + ' dB under the median UI sound (' + f(report.uiMedianLoudA) + ')' : ''));
     }
     for (const fl of flags) fail(r.id, fl);
   }
@@ -348,6 +406,61 @@ async function checkOutput(page, report) {
   out('    out rms   ' + transfer.map((t) => padL(f(t.outRmsDb), 7)).join(''));
   for (const t of transfer) {
     if (Math.pow(10, t.outPeakDb / 20) >= LIMITS.clipPeak) fail('output stage', 'clips at ' + t.inDb + ' dBFS in');
+  }
+  // The limiter starts life half shut (about 0.18 s); the first tap of a session must not
+  // be swallowed by that.
+  out('  first sound of a brand-new context (5 ms after its start) against the same sound later (loudest 50 ms, dBFS):');
+  report.startup = [];
+  for (const v of [{ name: 'button' }, { name: 'match', step: 1 }, { name: 'land' }, { name: 'levelStart' }]) {
+    const r = await page.evaluate((x) => window.__audioLab.startupReport(x.name, x.step), v);
+    const diff = r.earlyDb - r.lateDb;
+    const ok = Math.abs(diff) <= LIMITS.startup && r.earlyPeak < LIMITS.clipPeak;
+    report.startup.push(Object.assign({ id: v.name }, r));
+    out('    ' + pad(v.name, 11) + ' first ' + padL(f(r.earlyDb), 6) + '   later ' + padL(f(r.lateDb), 6) + '   difference ' + padL((diff >= 0 ? '+' : '') + f(diff), 5) + ' dB   ' + (ok ? 'ok' : 'FAIL'));
+    if (!ok) fail('output stage', 'first sound of a context (' + v.name + ') is ' + f(diff) + ' dB off');
+  }
+}
+
+// ───────────────────────── three minutes of music ─────────────────────────
+async function checkLongMusic(page, report) {
+  out('');
+  out('LONG-FORM MUSIC — ' + LIMITS.longSeconds + ' s of each track, offline, scheduler stepped every 100 ms exactly as the live engine ticks');
+  report.longMusic = [];
+  for (const track of ['menu', 'level']) {
+    const r = await page.evaluate((a) => window.__audioLab.longMusicReport(a.track, a.seconds, 20240521, 0.1), { track, seconds: LIMITS.longSeconds });
+    fs.writeFileSync(path.join(OUT, 'music-' + track + '-long.wav'), Buffer.from(r.wav, 'base64'));
+    fs.writeFileSync(path.join(OUT, 'music-' + track + '-long.png'), Buffer.from(r.png.split(',')[1], 'base64'));
+    report.longMusic.push(slim(r));
+    const flags = [];
+    const minuteSpread = Math.max.apply(null, r.minuteDb) - Math.min.apply(null, r.minuteDb);
+    const tenSpread = Math.max.apply(null, r.tenSecondDb) - Math.min.apply(null, r.tenSecondDb);
+    const firstLast = Math.abs(r.minuteDb[0] - r.minuteDb[r.minuteDb.length - 1]);
+    if (r.clips) flags.push('CLIPS');
+    if (r.peak > LIMITS.musicPeak) flags.push('PEAK');
+    if (r.longestSilence > LIMITS.musicGap) flags.push('SILENCE-GAP');
+    if (minuteSpread > LIMITS.longMinutes) flags.push('DRIFT');
+    if (tenSpread > LIMITS.longTenSeconds) flags.push('UNEVEN');
+    if (r.firstLastDifference < LIMITS.longDifference) flags.push('LOOPS(samples)');
+    if (r.repeatedBars > r.barsPerMinute * 0.5) flags.push('LOOPS(notes)');
+    if (r.distinctBars < r.leadBars * 0.5) flags.push('REPETITIVE');
+    if (r.dropped !== 0 || r.resyncs !== 0) flags.push('SCHEDULER');
+    if (r.maxNodes > LIMITS.longNodes) flags.push('NODES');
+    if (r.lastMinuteNodes > r.firstMinuteNodes * 1.5 + 10) flags.push('NODE-GROWTH');
+    if (r.endVoices !== 0 || r.endNodes !== 0) flags.push('LEAK');
+    if (report.sfxMedianLoudA !== undefined && r.loudness.max > report.sfxMedianLoudA - LIMITS.musicMaxUnder) flags.push('LOUD-MOMENTS');
+    if (report.sfxMedianLoudA !== undefined && r.loudness.p95 > report.sfxMedianLoudA - LIMITS.musicP95Under) flags.push('LOUD-P95');
+    out('');
+    out('music-' + track + ' ' + r.seconds + ' s: ' + r.bars + ' bars, ' + r.events + ' events scheduled, ' + r.dropped + ' dropped, ' + r.resyncs + ' grid restarts   ' + (flags.join(' ') || 'ok'));
+    out('  peak ' + f(r.peak, 3) + ' (' + f(20 * Math.log10(r.peak)) + ' dBFS) · rms ' + f(r.rmsDb) + ' dBFS · A-weighted frames: loudest ' + f(r.loudness.max) + ', 95th percentile ' + f(r.loudness.p95) + ', median ' + f(r.loudness.p50) + ' dB');
+    out('  layers alone (first minute): lead ' + f(r.layerDb.lead) + ' · pad ' + f(r.layerDb.pad) + ' · perc ' + f(r.layerDb.perc) + ' dBFS');
+    out('  loudness per minute ' + r.minuteDb.map((x) => f(x)).join(' / ') + ' dBFS (first vs last ' + f(firstLast) + ' dB apart, spread ' + f(minuteSpread) + ' dB) · per 10 s from ' + f(Math.min.apply(null, r.tenSecondDb)) + ' to ' + f(Math.max.apply(null, r.tenSecondDb)) + ' (spread ' + f(tenSpread) + ' dB)');
+    out('  longest silence ' + f(r.longestSilence, 2) + ' s');
+    out('  first vs last minute: waveform difference ' + f(r.firstLastDifference, 2) + ' (0 = same samples, ~1 = unrelated) · ' + r.repeatedBars + ' of ' + r.barsPerMinute + ' bars note-for-note the same · ' + r.distinctBars + ' distinct lead lines in ' + r.leadBars + ' bars');
+    out('  audio nodes alive: at most ' + r.maxNodes + ' in ' + r.maxVoices + ' voices (first minute ' + r.firstMinuteNodes + ', last minute ' + r.lastMinuteNodes + ') · left when everything had ended: ' + r.endVoices + ' voices, ' + r.endNodes + ' nodes');
+    if (report.sfxMedianLoudA !== undefined) {
+      out('  loudest moment is ' + f(report.sfxMedianLoudA - r.loudness.max) + ' dB under the median game effect' + (report.uiMedianLoudA !== undefined ? ' and ' + f(report.uiMedianLoudA - r.loudness.max) + ' dB under the median UI sound' : '') + '; the 95th percentile is ' + f(report.sfxMedianLoudA - r.loudness.p95) + ' dB under');
+    }
+    for (const fl of flags) fail('music-' + track + ' long', fl);
   }
 }
 

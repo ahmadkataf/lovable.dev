@@ -196,7 +196,9 @@ androidComponents {
 
 if (uploadKey == null) {
     gradle.taskGraph.whenReady {
-        val buildsRelease = allTasks.any { it.project == project && it.name.contains("Release") && it.name.startsWith("package") }
+        // The tasks that actually sign a release APK or bundle (also with product flavours in the name).
+        val signing = Regex("package\\w*Release(Bundle)?|sign\\w*ReleaseBundle")
+        val buildsRelease = allTasks.any { it.project == project && signing.matches(it.name) }
         if (buildsRelease) {
             logger.warn(
                 "\nWARNING: no upload key configured (android/keystore.properties or ZUMURUD_KEYSTORE…): " +

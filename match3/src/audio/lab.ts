@@ -30,11 +30,13 @@ import {
   encodeWav,
   hardCutLevel,
   longestSilence,
+  loudnessStats,
   maxStep,
   rmsTrack,
   sliceRmsDb,
   spectrogram,
   toDb,
+  type LoudnessStats,
   type Metrics,
 } from './analysis.ts';
 
@@ -86,6 +88,8 @@ export interface MusicReport extends SoundReport {
   longestSilence: number;
   /** RMS (dBFS) of each layer rendered on its own. */
   layerDb: { lead: number; pad: number; perc: number };
+  /** A-weighted short-term level: loudest frame, 95th percentile, median (dB). */
+  loudness: LoudnessStats;
 }
 
 // ───────────────────────────── offline rendering ─────────────────────────────
@@ -148,26 +152,114 @@ async function sfxReport(name: SfxName, step?: number): Promise<SoundReport> {
   };
 }
 
-async function musicReport(track: MusicTrack, seconds: number, seed: number): Promise<MusicReport> {
+/** What a stepped offline render of a music track gives back. */
+interface SteppedMusic {
+  /** The first `seconds` of audio (the render itself runs a little longer, see `tail`). */
+  data: Float32Array;
+  events: MusicEvent[];
+  barDuration: number;
+  stats: { bars: number; events: number; dropped: number; resyncs: number };
+  /** Live voices / nodes, sampled at every scheduler tick. */
+  maxVoices: number;
+  maxNodes: number;
+  firstMinuteNodes: number;
+  lastMinuteNodes: number;
+  /** Still alive after the tail, when every scheduled note has ended. */
+  endVoices: number;
+  endNodes: number;
+}
+
+/** Start of the first bar in the offline music renders (s). */
+const MUSIC_START = 0.05;
+/** Extra time rendered after the music stops being scheduled, so every voice can end (s). */
+const MUSIC_TAIL = 10;
+
+/**
+ * Music rendered offline, scheduled the way the live engine does it: the render is paused at
+ * every scheduler tick, the player is asked for the next lookahead window, and the render
+ * continues. That exercises the transport, the voices' clean-up and the output chain exactly
+ * as in play — and it is far quicker than scheduling minutes of notes up front, which makes
+ * the browser carry every future note through every render quantum.
+ */
+async function steppedMusic(
+  track: MusicTrack,
+  seconds: number,
+  seed: number,
+  tick: number,
+  layers?: { lead: boolean; pad: boolean; perc: boolean },
+): Promise<SteppedMusic> {
+  const w = window as unknown as { OfflineAudioContext?: typeof OfflineAudioContext; webkitOfflineAudioContext?: typeof OfflineAudioContext };
+  const Ctor = w.OfflineAudioContext || w.webkitOfflineAudioContext;
+  if (!Ctor) throw new Error('OfflineAudioContext is not available');
+  const total = seconds + MUSIC_TAIL;
+  const ctx = new Ctor(1, Math.ceil(total * SR), SR);
+  const chain = createOutputChain(ctx);
   const events: MusicEvent[] = [];
-  let barDuration = 0;
-  const start = 0.05;
-  const data = await renderOffline(seconds, (ctx, chain) => {
-    const p = createMusicPlayer(ctx, chain.musicBus, track, { seed, startAt: start, onEvent: (e) => events.push(e) });
-    barDuration = p.barDuration;
-    p.schedule(seconds);
-  });
-  const solo = async (layers: { lead: boolean; pad: boolean; perc: boolean }): Promise<number> => {
-    const d = await renderOffline(seconds, (ctx, chain) => {
-      createMusicPlayer(ctx, chain.musicBus, track, { seed, startAt: start, layers }).schedule(seconds);
+  const player = createMusicPlayer(ctx, chain.musicBus, track, { seed, startAt: MUSIC_START, layers, onEvent: (e) => events.push(e) });
+  const lookahead = lookaheadFor(tick);
+  player.schedule(Math.min(seconds, MUSIC_START + lookahead));
+  let maxVoices = 0;
+  let maxNodes = 0;
+  let firstMinuteNodes = 0;
+  let lastMinuteNodes = 0;
+  let failure: unknown = null;
+  const yieldTask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+  for (let t = tick; t < total - 0.01; t += tick) {
+    ctx.suspend(t).then(async () => {
+      try {
+        // Let the "ended" events of finished notes arrive, as they would between live ticks.
+        await yieldTask();
+        const now = ctx.currentTime;
+        const c = voiceCensus(ctx);
+        if (c.voices > maxVoices) maxVoices = c.voices;
+        if (c.nodes > maxNodes) maxNodes = c.nodes;
+        if (now <= 60 && c.nodes > firstMinuteNodes) firstMinuteNodes = c.nodes;
+        if (now >= seconds - 60 && now <= seconds && c.nodes > lastMinuteNodes) lastMinuteNodes = c.nodes;
+        if (now < seconds) player.schedule(Math.min(seconds, now + lookahead));
+      } catch (e) {
+        failure = e;
+      }
+      ctx.resume();
     });
-    return sliceRmsDb(d, SR, 1, seconds);
+  }
+  const buffer = await ctx.startRendering();
+  if (failure) throw failure;
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const left = voiceCensus(ctx);
+  const st = player.stats();
+  return {
+    data: buffer.getChannelData(0).slice(0, Math.floor(seconds * SR)),
+    events,
+    barDuration: player.barDuration,
+    stats: { bars: st.bars, events: st.events, dropped: st.dropped, resyncs: st.resyncs },
+    maxVoices,
+    maxNodes,
+    firstMinuteNodes,
+    lastMinuteNodes,
+    endVoices: left.voices,
+    endNodes: left.nodes,
   };
-  const layerDb = {
+}
+
+async function layerLevels(track: MusicTrack, seconds: number, seed: number, tick: number): Promise<{ lead: number; pad: number; perc: number }> {
+  const solo = async (layers: { lead: boolean; pad: boolean; perc: boolean }): Promise<number> => {
+    const r = await steppedMusic(track, seconds, seed, tick, layers);
+    return sliceRmsDb(r.data, SR, 1, seconds);
+  };
+  return {
     lead: await solo({ lead: true, pad: false, perc: false }),
     pad: await solo({ lead: false, pad: true, perc: false }),
     perc: await solo({ lead: false, pad: false, perc: true }),
   };
+}
+
+async function musicReport(track: MusicTrack, seconds: number, seed: number): Promise<MusicReport> {
+  const start = MUSIC_START;
+  const render = await steppedMusic(track, seconds, seed, 0.1);
+  const data = render.data;
+  const events = render.events;
+  const barDuration = render.barDuration;
+  const layerDb = await layerLevels(track, seconds, seed, 0.1);
 
   const bars = Math.max(1, Math.floor((seconds - start) / barDuration));
   const leadPerBar: number[] = [];
@@ -220,6 +312,7 @@ async function musicReport(track: MusicTrack, seconds: number, seed: number): Pr
     secondHalfDb: sliceRmsDb(data, SR, seconds / 2, seconds),
     longestSilence: longestSilence(afterFade, SR, 0.002),
     layerDb,
+    loudness: loudnessStats(data.subarray(SR), SR),
   };
 }
 
@@ -290,6 +383,11 @@ export interface LongMusicReport {
   tick: number;
   peak: number;
   clips: boolean;
+  rmsDb: number;
+  /** A-weighted short-term level: loudest frame, 95th percentile, median (dB). */
+  loudness: LoudnessStats;
+  /** RMS (dBFS) of each layer on its own over the whole render. */
+  layerDb: { lead: number; pad: number; perc: number };
   /** Longest stretch below −54 dBFS (50 ms windows) after the fade-in (s). */
   longestSilence: number;
   /** RMS (dBFS) of each whole minute. */
@@ -325,53 +423,14 @@ export interface LongMusicReport {
 }
 
 /**
- * Minutes of music rendered offline, scheduled the way the live engine does it: the render is
- * paused at every scheduler tick, the player is asked for the next lookahead window, and the
- * render continues. That exercises the transport, the voices' clean-up and the output chain
- * over a long time — things a 20 s clip scheduled in one go cannot show.
+ * Minutes of music, rendered with the stepped scheduler (see steppedMusic): shows what a 20 s
+ * clip cannot — drift, repetition, silence gaps and whether finished notes are cleaned up.
  */
 async function longMusicReport(track: MusicTrack, seconds: number, seed: number, tick: number = 0.1): Promise<LongMusicReport> {
-  const w = window as unknown as { OfflineAudioContext?: typeof OfflineAudioContext; webkitOfflineAudioContext?: typeof OfflineAudioContext };
-  const Ctor = w.OfflineAudioContext || w.webkitOfflineAudioContext;
-  if (!Ctor) throw new Error('OfflineAudioContext is not available');
-  const ctx = new Ctor(1, Math.ceil(seconds * SR), SR);
-  const chain = createOutputChain(ctx);
-  const events: MusicEvent[] = [];
-  const start = 0.05;
-  const player = createMusicPlayer(ctx, chain.musicBus, track, { seed, startAt: start, onEvent: (e) => events.push(e) });
-  const lookahead = lookaheadFor(tick);
-  player.schedule(start + lookahead);
-  let maxVoices = 0;
-  let maxNodes = 0;
-  let firstMinuteNodes = 0;
-  let lastMinuteNodes = 0;
-  const yieldTask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
-  let failure: unknown = null;
-  for (let t = tick; t < seconds - 0.01; t += tick) {
-    ctx.suspend(t).then(async () => {
-      try {
-        // Let the "ended" events of finished notes arrive, as they would between live ticks.
-        await yieldTask();
-        const c = voiceCensus(ctx);
-        if (c.voices > maxVoices) maxVoices = c.voices;
-        if (c.nodes > maxNodes) maxNodes = c.nodes;
-        if (ctx.currentTime <= 60 && c.nodes > firstMinuteNodes) firstMinuteNodes = c.nodes;
-        if (ctx.currentTime >= seconds - 60 && c.nodes > lastMinuteNodes) lastMinuteNodes = c.nodes;
-        player.schedule(ctx.currentTime + lookahead);
-      } catch (e) {
-        failure = e;
-      }
-      ctx.resume();
-    });
-  }
-  const buffer = await ctx.startRendering();
-  if (failure) throw failure;
-  const data = buffer.getChannelData(0).slice();
-  // Everything scheduled has ended by now, give or take the last drone chord: wait for the
-  // last "ended" events, then count what is left.
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  const left = voiceCensus(ctx);
-  const stats = player.stats();
+  const render = await steppedMusic(track, seconds, seed, tick);
+  const data = render.data;
+  const events = render.events;
+  const start = MUSIC_START;
 
   let peak = 0;
   for (let i = 0; i < data.length; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i]);
@@ -382,7 +441,7 @@ async function longMusicReport(track: MusicTrack, seconds: number, seed: number,
   for (let t = 0; t + 10 <= seconds; t += 10) tenSecondDb.push(sliceRmsDb(data, SR, t === 0 ? 1 : t, t + 10));
 
   // First against last minute, sample for sample.
-  const n = 60 * SR;
+  const n = Math.min(60 * SR, data.length);
   const lastStart = data.length - n;
   let diff = 0;
   let energy = 0;
@@ -394,7 +453,7 @@ async function longMusicReport(track: MusicTrack, seconds: number, seed: number,
   }
 
   // … and note for note.
-  const barDur = player.barDuration;
+  const barDur = render.barDuration;
   const barsPerMinute = Math.floor(60 / barDur);
   const lines: { [bar: number]: string } = {};
   for (let i = 0; i < events.length; i++) {
@@ -427,6 +486,9 @@ async function longMusicReport(track: MusicTrack, seconds: number, seed: number,
     tick,
     peak,
     clips: peak >= 0.99,
+    rmsDb: sliceRmsDb(data, SR, 1, seconds),
+    loudness: loudnessStats(data.subarray(SR), SR),
+    layerDb: await layerLevels(track, Math.min(seconds, 60), seed, tick),
     longestSilence: longestSilence(data.subarray(Math.floor(1.5 * SR)), SR, 0.002),
     minuteDb,
     tenSecondDb,
@@ -435,16 +497,16 @@ async function longMusicReport(track: MusicTrack, seconds: number, seed: number,
     barsPerMinute,
     distinctBars,
     leadBars,
-    events: stats.events,
-    bars: stats.bars,
-    dropped: stats.dropped,
-    resyncs: stats.resyncs,
-    maxVoices,
-    maxNodes,
-    firstMinuteNodes,
-    lastMinuteNodes,
-    endVoices: left.voices,
-    endNodes: left.nodes,
+    events: render.stats.events,
+    bars: render.stats.bars,
+    dropped: render.stats.dropped,
+    resyncs: render.stats.resyncs,
+    maxVoices: render.maxVoices,
+    maxNodes: render.maxNodes,
+    firstMinuteNodes: render.firstMinuteNodes,
+    lastMinuteNodes: render.lastMinuteNodes,
+    endVoices: render.endVoices,
+    endNodes: render.endNodes,
     wav: base64(encodeWav(data.subarray(0, Math.min(data.length, 30 * SR)), SR)),
     png: canvas.toDataURL('image/png'),
   };

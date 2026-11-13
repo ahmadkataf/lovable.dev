@@ -13,6 +13,7 @@
  * Writes:
  *   android/app/src/main/res/mipmap-<density>/ic_launcher_foreground.png   adaptive foreground, 108dp
  *   android/app/src/main/res/drawable/ic_launcher_background.xml           adaptive background (vector)
+ *   android/app/src/main/res/drawable-xxhdpi/splash_emblem.webp            splash-screen icon, 288dp
  *   android/app/src/main/res/mipmap-<density>/ic_launcher.png              legacy square icon (API 24–25)
  *   android/app/src/main/res/mipmap-<density>/ic_launcher_round.png        legacy round icon  (API 25)
  *   store/graphics/icon-512.png                                            Google Play listing icon
@@ -339,6 +340,9 @@ async function renderInPage({ geometry, densities, monochrome }) {
     files['mipmap-' + name + '/ic_launcher_round.png'] = masked(composite(roundShape, g.visibleDp), legacy, roundShape, 'circle').toDataURL('image/png');
     files['mipmap-' + name + '/ic_launcher.png'] = masked(composite(squareShape, g.visibleDp), legacy, squareShape, 'rounded', 0.2).toDataURL('image/png');
   }
+  // Splash screen icon: the foreground layer again, large enough for the 288dp splash box
+  // (864px = 288dp at xxhdpi; one density is enough, WebP keeps it small).
+  files['drawable-xxhdpi/splash_emblem.webp'] = foreground(864).toDataURL('image/webp', 0.92);
   // Google Play: full-bleed square, opaque, no rounded corners, no shadow (Play masks it itself).
   files['store-icon'] = composite(512, g.visibleDp).toDataURL('image/png');
 

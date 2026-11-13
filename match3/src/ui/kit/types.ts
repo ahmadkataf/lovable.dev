@@ -59,6 +59,8 @@ export interface ButtonOptions {
   silent?: boolean;
   /** Minimum time between two activations, ms. Default 350. */
   cooldown?: number;
+  /** A band of light sweeps across the button every few seconds — for THE call to action of a screen. */
+  shine?: boolean;
 }
 
 export interface ButtonPatch {
@@ -149,6 +151,8 @@ export interface DialogButton<T = unknown> {
   onClick?: (dialog: DialogHandle<T>) => unknown;
   /** Never close the dialog from this button (close it yourself with `dialog.close()`). */
   keepOpen?: boolean;
+  /** Light sweep on the button (see ButtonOptions.shine). */
+  shine?: boolean;
 }
 
 export interface DialogOptions<T = unknown> {
@@ -188,6 +192,8 @@ export interface DialogHandle<T = unknown> {
   readonly el: HTMLElement;
   /** The scrolling content container. */
   readonly body: HTMLElement;
+  /** The footer buttons, in the order given (e.g. `dialog.buttons[1].update({ disabled: false })`). */
+  readonly buttons: readonly KitButton[];
   /** Close with an optional result. Safe to call twice. */
   close(result?: T): void;
   /** Resolves when the dialog is closed (at once — it does not wait for the exit animation). */
@@ -301,6 +307,25 @@ export interface Segmented<V extends string = string> {
   get(): V;
   /** Select without calling onChange. */
   set(value: V): void;
+}
+
+export interface ListItemOptions {
+  label: string;
+  icon?: IconName;
+  /** Secondary text at the end ("1.0.3", "English"). */
+  value?: string;
+  /** Makes the row a button with a chevron at the end. */
+  onClick?: (ev: MouseEvent) => unknown;
+  /** Red label (destructive entries such as "Reset progress"). */
+  danger?: boolean;
+  disabled?: boolean;
+  /** Hide the chevron of a clickable row. */
+  noChevron?: boolean;
+}
+
+export interface ListItem {
+  readonly el: HTMLElement;
+  set(patch: { label?: string; value?: string | null; disabled?: boolean }): void;
 }
 
 export interface CountdownOptions {
@@ -428,6 +453,7 @@ export interface Kit {
   segmented<V extends string>(items: readonly SegmentedItem<V>[], opts: SegmentedOptions<V>): Segmented<V>;
   tweenNumber(node: Element, from: number, to: number, ms: number, format?: (n: number) => string): Promise<void>;
   countdown(opts: CountdownOptions): Countdown;
+  listItem(opts: ListItemOptions): ListItem;
   screen(className?: string): HTMLDivElement;
   panel(className?: string | null, ...children: Child[]): HTMLDivElement;
   title(text: string, size?: 'sm' | 'md' | 'lg'): HTMLHeadingElement;

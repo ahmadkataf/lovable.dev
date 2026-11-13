@@ -74,6 +74,7 @@ export function createButtons(core: KitCore): Buttons {
           (round ? ' k-btn--round' : '') +
           (opts.block ? ' k-btn--block' : '') +
           (kind === 'price' ? ' k-btn--price' : '') +
+          (opts.shine ? ' k-btn--shine' : '') +
           (opts.className ? ' ' + opts.className : ''),
       },
       face,

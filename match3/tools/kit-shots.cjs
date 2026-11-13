@@ -546,7 +546,7 @@ async function checks(browser, problems) {
       await load(page, lang, '');
       state = await demo(() => {
         const small = [];
-        const nodes = document.querySelectorAll('#app .k-btn, #app .k-chip--button, #app .k-toggle, #app .k-seg');
+        const nodes = document.querySelectorAll('#app .k-btn, #app .k-chip--button, #app .k-toggle, #app .k-seg, #app .k-item--button');
         for (const node of nodes) {
           // layout size (a held button is drawn slightly smaller, its touch target is not)
           const r = { width: node.offsetWidth, height: node.offsetHeight };

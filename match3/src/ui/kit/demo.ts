@@ -129,6 +129,9 @@ const STR: Record<string, [string, string]> = {
   toast3: ['Purchases restored. Thank you for playing — enjoy the journey!', 'تمّت استعادة المشتريات. شكرًا للعبك — استمتع بالرحلة!'],
   panelTitle: ['Chapter 2 · Dunes', 'الفصل 2 · الكثبان'],
   panelBody: ['Rolling dunes under a violet sunset. 20 levels, 60 stars.', 'كثبان متموّجة تحت غروب بنفسجي. 20 مرحلة و60 نجمة.'],
+  language: ['Language', 'اللغة'],
+  privacy: ['Privacy policy', 'سياسة الخصوصية'],
+  version: ['Version', 'الإصدار'],
   easy: ['Easy', 'سهل'],
   normal: ['Normal', 'عادي'],
   hard: ['Hard', 'صعب'],
@@ -180,7 +183,7 @@ function pressed<T extends HTMLElement>(node: T): T {
 
 // ───────────────────────────── 1. buttons ─────────────────────────────
 
-const guardBtn = kit.button({ label: t('play'), icon: 'play', variant: 'primary', size: 'lg', onClick: counted('guard') });
+const guardBtn = kit.button({ label: t('play'), icon: 'play', variant: 'primary', size: 'lg', shine: true, onClick: counted('guard') });
 guardBtn.id = 'demo-guard';
 const asyncBtn = kit.button({
   label: t('buy'),
@@ -306,7 +309,7 @@ section(
   flow(
     kit.adButton({ label: t('plusMoves'), caption: t('watch'), size: 'md', onClick: counted('ad') }),
     kit.adButton({ label: t('freeCoins'), size: 'md', badge: 5 }),
-    kit.adButton({ label: '+25', rewardIcon: 'coin', size: 'sm' }),
+    kit.adButton({ label: '\u200e+25', rewardIcon: 'coin', size: 'sm' }),
   ),
   flow(kit.adButton({ label: t('plusLife'), caption: t('watch'), size: 'md', disabled: true }), kit.adButton({ label: t('doubleReward'), size: 'md', loading: true })),
   cap('offer cards (tile)'),
@@ -413,11 +416,16 @@ section(
     kit.rule(),
     el(
       'div',
-      { style: { marginTop: 'calc(var(--k-u) * 8)' } },
+      { class: 'k-list', style: { marginTop: 'calc(var(--k-u) * 8)' } },
       musicToggle.el,
       kit.toggle({ checked: false, label: t('sound'), icon: 'soundOff', onChange: () => undefined }).el,
       kit.toggle({ checked: true, label: t('haptics'), icon: 'haptics', disabled: true, onChange: () => undefined }).el,
       kit.toggle({ checked: false, label: t('longToggle'), onChange: () => undefined }).el,
+      kit.listItem({ icon: 'language', label: t('language'), value: lang === 'ar' ? 'العربية' : 'English', onClick: counted('item') }).el,
+      kit.listItem({ icon: 'shield', label: t('privacy'), onClick: counted('item') }).el,
+      kit.listItem({ icon: 'restore', label: t('longLabel2'), onClick: counted('item'), disabled: true }).el,
+      kit.listItem({ icon: 'trash', label: t('resetTitle'), danger: true, onClick: counted('item') }).el,
+      kit.listItem({ icon: 'info', label: t('version'), value: '1.0.0 (12)' }).el,
     ),
     el('div', { class: 'k-col k-gap-12', style: { marginTop: 'calc(var(--k-u) * 10)' } }, langSeg.el, levelSeg.el, kit.segmented([{ value: 'a', icon: 'sound', ariaLabel: 'on' }, { value: 'b', icon: 'soundOff', ariaLabel: 'off' }], { value: 'a', onChange: () => undefined }).el),
   ),
@@ -539,7 +547,7 @@ function openScenario(name: Scenario): DialogHandle<unknown> | null {
           buttonLayout: 'column',
           buttons: [
             kit.adButton({ label: t('doubleReward'), caption: t('watch'), block: true, onClick: () => kit.toast(t('toast2'), { icon: 'coin' }) }),
-            { label: t('next'), icon: 'next', variant: 'primary', size: 'lg', result: 'next' },
+            { label: t('next'), icon: 'next', variant: 'primary', size: 'lg', result: 'next', shine: true },
             { label: t('map'), variant: 'ghost', size: 'sm', result: 'map' },
           ],
         }),

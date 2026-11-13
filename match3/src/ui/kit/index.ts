@@ -34,7 +34,7 @@
  * on activation, ≥ 48 px touch target, double activation guarded (350 ms cooldown; while an
  * onClick Promise is pending the button ignores presses).
  *   button({ label?, icon?, variant?, size?, onClick?, disabled?, badge?, ariaLabel?, round?,
- *            block?, caption?, className?, silent?, cooldown? })
+ *            block?, caption?, className?, silent?, cooldown?, shine? })
  *       variant: 'primary' (gold, default) | 'secondary' (violet) | 'ghost' | 'danger' | 'success'
  *       size:    'sm' | 'md' (default) | 'lg'
  *   iconButton({ icon, ariaLabel, variant?, size?, onClick?, disabled?, badge? })      round, icon only
@@ -46,7 +46,7 @@
  * Overlays — a stack of modal dialogs; focus and pointer events are blocked underneath.
  *   openDialog({ title?, icon?, body, buttons?, dismissible?, onClose?, className?, wide?,
  *                closeButton?, backdropClose?, buttonLayout?, onBack?, silent?, ariaLabel? })
- *       → { el, body, close(result?), closed: Promise<result | undefined>, isOpen(), setTitle() }
+ *       → { el, body, buttons, close(result?), closed: Promise<result | undefined>, isOpen(), setTitle() }
  *       buttons: [{ label, icon?, variant?, result?, onClick?(dialog) (return false to stay open),
  *                   keepOpen?, disabled?, … }] or ready-made kit buttons
  *       'popupOpen' / 'popupClose' sounds; the body scrolls inside when taller than the viewport.
@@ -65,6 +65,8 @@
  *   segmented(items, { value, onChange, ariaLabel? }) → { el, get(), set() }   items: [{ value, label?, icon? }]
  *   tweenNumber(node, from, to, ms, format?) → Promise<void>      counts with i18n.num by default
  *   countdown({ until | remaining, onDone?, icon?, label?, format? }) → { el, stop() }
+ *   listItem({ label, icon?, value?, onClick?, danger?, disabled?, noChevron? }) → { el, set({ label, value, disabled }) }
+ *       a settings-style row; with onClick it is a button with a chevron
  *   screen(className?) → <div class="k-screen">   full-screen flex column with safe-area padding
  *   panel(className?, ...children) → gold-trimmed static panel (children go into its inner box)
  *   title(text, size?) · text(text, className?) · rule() · spinner()
@@ -162,10 +164,15 @@ function installGlobalBehaviour(root: HTMLElement | null, host: HTMLElement): vo
     true,
   );
   document.addEventListener('pointerdown', () => doc.classList.remove('k-kbd'), true);
-  // Long-press must not open the browser's context menu / image callout inside the game.
+  // A long-press must not open the browser's context menu / image callout inside the game.
+  // (A real mouse right-click is left alone: it only exists on a developer's desktop.)
   document.addEventListener('contextmenu', (ev: MouseEvent) => {
     const target = ev.target as Node | null;
     if (!target) return;
+    const pointerType = (ev as PointerEvent).pointerType;
+    const source = (ev as MouseEvent & { sourceCapabilities?: { firesTouchEvents?: boolean } | null }).sourceCapabilities;
+    const fromMouse = pointerType ? pointerType === 'mouse' : !!source && source.firesTouchEvents === false;
+    if (fromMouse) return;
     if ((root && root.contains(target)) || (target as Element).closest?.('.k-layer, .k-toasts')) ev.preventDefault();
   });
   // A drag must never pick up an icon or a piece of text as a "ghost".
@@ -210,6 +217,7 @@ export function createKit(deps: KitDeps): Kit {
     segmented: widgets.segmented,
     tweenNumber: widgets.tweenNumber,
     countdown: widgets.countdown,
+    listItem: widgets.listItem,
     screen: widgets.screen,
     panel: widgets.panel,
     title: widgets.title,

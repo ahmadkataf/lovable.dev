@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.drawable.GradientDrawable
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
@@ -34,9 +33,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.graphics.Insets
+import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -376,6 +377,7 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
 
         override fun onPageFinished(view: WebView, url: String?) {
             if (view !== webView) return
+            Log.i(TAG, "page loaded ${SystemClock.uptimeMillis() - createdAt} ms after start")
             callPageHook("insets", bridge.insetsJson)
             if (!resumed) callPageHook("pause")
         }
@@ -393,6 +395,7 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
          * Returning true keeps the app alive; the dead WebView is replaced and the game reloads
          * (its progress is in the save file).
          */
+        @RequiresApi(Build.VERSION_CODES.O) // the platform only makes this call on Android 8+
         override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
             Log.w(TAG, "WebView renderer gone (${if (detail.didCrash()) "crashed" else "killed by the system"})")
             if (view === webView) {
@@ -556,8 +559,8 @@ class MainActivity : ComponentActivity(), GameBridge.Host {
         val now = SystemClock.uptimeMillis()
         if (!resumed || now - lastStorePageAt < STORE_PAGE_MIN_GAP_MS) return
         lastStorePageAt = now
-        val market = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName"))
-        val web = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$packageName"))
+        val market = Intent(Intent.ACTION_VIEW, "market://details?id=$packageName".toUri())
+        val web = Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=$packageName".toUri())
         if (!tryStart(market)) tryStart(web)
     }
 

@@ -49,6 +49,19 @@ export interface AndroidBridge {
   /** JSON of AppInfo (without `platform`). */
   info(): string;
   rate(): void;
+  /**
+   * Optional (feature-detect it). Tell the wrapper that the first screen is on display, so it can
+   * take its splash screen away. Without this call the splash screen leaves by itself after 3 s.
+   * Animation frames do run behind the splash screen, so waiting for one before calling is fine.
+   */
+  ready?(): void;
+  /**
+   * Optional (feature-detect it). JSON `{"top":n,"right":n,"bottom":n,"left":n}` in CSS pixels:
+   * how much of each edge is covered by the display cutout or by a visible system bar. The wrapper
+   * draws the page edge to edge and never pads it, so the UI must keep clear of these areas itself.
+   * (CSS `env(safe-area-inset-*)` is not reliable in older WebViews; this is.)
+   */
+  insets?(): string;
 }
 
 /**
@@ -56,11 +69,15 @@ export interface AndroidBridge {
  *   window.__native.back()   — Back pressed while not at root
  *   window.__native.pause()  — Activity.onPause
  *   window.__native.resume() — Activity.onResume
+ *   window.__native.insets(json) — the insets changed (also sent once when the page has loaded);
+ *                                  same JSON as AndroidBridge.insets()
  */
 export interface NativeHooks {
   back(): void;
   pause(): void;
   resume(): void;
+  /** Optional: install it to follow inset changes (rotation, cutout, bars shown or hidden). */
+  insets?(json: string): void;
 }
 
 declare global {

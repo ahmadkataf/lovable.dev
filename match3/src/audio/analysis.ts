@@ -255,6 +255,43 @@ export function analyze(x: Float32Array, sampleRate: number): Metrics {
   };
 }
 
+export interface LoudnessStats {
+  /** A-weighted level (dB) of the loudest ~46 ms frame — the measure used for effects. */
+  max: number;
+  /** Level exceeded by only 5 % of the frames: the loud moments, without the single worst one. */
+  p95: number;
+  /** Median frame: the typical level. */
+  p50: number;
+}
+
+/**
+ * Distribution of the A-weighted short-term level over a long sound (music). Its `max` is
+ * measured exactly like an effect's `loudADb`, so music and effects can be compared like
+ * for like instead of comparing an average with a peak.
+ */
+export function loudnessStats(x: Float32Array, sampleRate: number): LoudnessStats {
+  const size = 2048;
+  const hop = 1024;
+  const sg = spectrogram(x, sampleRate, size, hop);
+  const bins = size / 2 + 1;
+  const binHz = sampleRate / size;
+  const weights = new Float64Array(bins);
+  for (let k = 0; k < bins; k++) {
+    const a = aWeight(k * binHz);
+    weights[k] = a * a;
+  }
+  const levels: number[] = [];
+  for (let f = 0; f < sg.frames.length; f++) {
+    const p = sg.frames[f];
+    let w = 0;
+    for (let k = 1; k < bins; k++) w += p[k] * weights[k];
+    levels.push(10 * Math.log10(Math.max(w, 1e-18)));
+  }
+  levels.sort((a, b) => a - b);
+  const at = (q: number): number => levels[Math.min(levels.length - 1, Math.max(0, Math.floor(q * (levels.length - 1))))];
+  return { max: levels[levels.length - 1], p95: at(0.95), p50: at(0.5) };
+}
+
 /** Largest jump between two neighbouring samples in [from, to) seconds: a click shows up as one. */
 export function maxStep(x: Float32Array, sampleRate: number, from: number = 0, to: number = Infinity): number {
   const a = Math.max(1, Math.floor(from * sampleRate));

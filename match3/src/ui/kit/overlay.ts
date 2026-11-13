@@ -272,9 +272,11 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
       resolveClosed(result);
     }
 
+    const footButtons: KitButton[] = [];
     const handle: DialogHandle<T> = {
       el: panel,
       body,
+      buttons: footButtons,
       close: (result?: T) => finish(result, false),
       closed,
       isOpen: () => !entry.closed,
@@ -294,11 +296,9 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
       foot = el('div', { class: 'k-dialog__foot' + (column ? ' k-dialog__foot--col' : '') });
       for (let i = 0; i < defs.length; i++) {
         const def = defs[i]!;
-        if (isKitButton(def)) {
-          foot.appendChild(def);
-          continue;
-        }
-        foot.appendChild(dialogButton(def, i === defs.length - 1));
+        const button = isKitButton(def) ? def : dialogButton(def, i === defs.length - 1);
+        footButtons.push(button);
+        foot.appendChild(button);
       }
       inner.appendChild(foot);
     }
@@ -313,6 +313,7 @@ export function createOverlays(core: KitCore, buttons: Buttons, host: HTMLElemen
         disabled: def.disabled,
         badge: def.badge,
         ariaLabel: def.ariaLabel,
+        shine: def.shine,
         onClick: () => {
           if (entry.closed) return undefined;
           const settle = (value: unknown): void => {
