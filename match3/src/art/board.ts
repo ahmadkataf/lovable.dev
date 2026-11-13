@@ -106,7 +106,7 @@ export function drawSelect(ctx: Ctx, px: number): void {
  * piece that fills most of the cell and never washes out the piece itself.
  */
 export function drawHint(ctx: Ctx): void {
-  const g = ctx.createRadialGradient(50, 50, 28, 50, 50, 50);
+  const g = ctx.createRadialGradient(50, 50, 27, 50, 50, 48.6);
   g.addColorStop(0, 'rgba(255,246,220,0)');
   g.addColorStop(0.42, 'rgba(255,240,190,0.5)');
   g.addColorStop(0.72, 'rgba(255,252,232,0.98)');

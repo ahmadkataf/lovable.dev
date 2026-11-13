@@ -664,7 +664,7 @@ function hashCanvas(c: HTMLCanvasElement): number {
 function checks(): CheckResult {
   const failures: string[] = [];
   const notes: string[] = [];
-  const fullBleed = ['tileA', 'tileB', 'sand2', 'exit'];
+  const fullBleed = ['tileA', 'tileB', 'sand1', 'sand2', 'exit'];
   // every sprite renders, is cached, and (unless full-bleed by design) does not touch its border
   for (let i = 0; i < SPRITE_KEYS.length; i++) {
     const k = SPRITE_KEYS[i];

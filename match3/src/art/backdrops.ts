@@ -14,10 +14,10 @@ type Rnd = () => number;
 
 export const PALETTES: Record<ChapterTheme, ThemePalette> = {
   oasis: { bgTop: '#2c3c9a', bgBottom: '#1b648e', accent: '#4fd8c0', frame: '#f5c95a' },
-  dunes: { bgTop: '#191246', bgBottom: '#150f38', accent: '#ff9d5c', frame: '#ffc56e' },
-  bazaar: { bgTop: '#150c36', bgBottom: '#2a1030', accent: '#ff7f8f', frame: '#f2b24d' },
-  palace: { bgTop: '#100d3a', bgBottom: '#141046', accent: '#b99cff', frame: '#ffe7a3' },
-  caverns: { bgTop: '#080a26', bgBottom: '#0a1c38', accent: '#5fe6e0', frame: '#f0d98a' },
+  dunes: { bgTop: '#8f2f3e', bgBottom: '#531c2c', accent: '#ffb347', frame: '#ffd27a' },
+  bazaar: { bgTop: '#3b1766', bgBottom: '#33103f', accent: '#ff8f6a', frame: '#ffcf70' },
+  palace: { bgTop: '#141a6a', bgBottom: '#121c56', accent: '#7fe0d6', frame: '#ffe7a3' },
+  caverns: { bgTop: '#0b1d44', bgBottom: '#0b1d44', accent: '#5fe6e0', frame: '#f0d98a' },
   stars: { bgTop: '#070620', bgBottom: '#2a1a68', accent: '#8fb8ff', frame: '#ffe7a3' },
 };
 
@@ -484,8 +484,8 @@ function camel(ctx: Ctx, x: number, y: number, s: number): void {
 
 /** A tiny caravan crossing a ridge towards the sun. */
 function caravan(ctx: Ctx, ys: readonly number[], w: number, u: number): void {
-  ctx.fillStyle = '#3a1c4e';
-  ctx.strokeStyle = '#3a1c4e';
+  ctx.fillStyle = '#5c1f2a';
+  ctx.strokeStyle = '#5c1f2a';
   const s = 5.4 * u;
   let px = 0;
   let py = 0;
@@ -508,58 +508,61 @@ function caravan(ctx: Ctx, ys: readonly number[], w: number, u: number): void {
 
 // ───────────────────────────── dunes ─────────────────────────────
 
+// Chapter 2 — the dunes at golden hour: a hot amber sky, a huge low sun, and sand that runs from
+// molten gold on the far crests to deep sienna and wine in the near shadows.
 function dunes(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
   const hz = h * 0.5;
-  ctx.fillStyle = '#ffc56e';
-  ctx.fillRect(0, hz, w, h - hz);
   fillV(ctx, w, 0, hz + 2, [
-    [0, '#191246'],
-    [0.3, '#3a2173'],
-    [0.56, '#793283'],
-    [0.76, '#c4506e'],
-    [0.9, '#f1894d'],
-    [1, '#ffc56e'],
+    [0, '#8f2f3e'],
+    [0.26, '#c44a38'],
+    [0.52, '#ee7d33'],
+    [0.76, '#ffb347'],
+    [0.92, '#ffd876'],
+    [1, '#ffeba4'],
   ]);
-  starField(ctx, rnd, w, 0, hz * 0.5, 90, u, '#fff0e0');
-  twinkles(ctx, rnd, w, h * 0.02, hz * 0.3, 4, u, '#ffe9c9');
 
-  // sun sinking behind the far ridge
+  // sun sinking towards the far ridge
   const sx = w * 0.3;
-  const sy = hz - 2 * u;
-  glow(ctx, sx, sy, 62 * u, '#ffb463', 0.5);
-  glow(ctx, sx, sy, 26 * u, '#fff0c0', 0.6);
-  const sun = ctx.createRadialGradient(sx, sy, 0, sx, sy, 10.5 * u);
-  sun.addColorStop(0, '#fffdf0');
-  sun.addColorStop(0.8, '#ffe9a8');
-  sun.addColorStop(1, '#ffd27a');
+  const sy = hz - 4 * u;
+  glow(ctx, sx, sy, 78 * u, '#ffe08a', 0.6);
+  glow(ctx, sx, sy, 34 * u, '#fff6c8', 0.75);
+  const sun = ctx.createRadialGradient(sx, sy, 0, sx, sy, 12.5 * u);
+  sun.addColorStop(0, '#ffffff');
+  sun.addColorStop(0.75, '#fff6cc');
+  sun.addColorStop(1, '#ffe89a');
   ctx.fillStyle = sun;
   ctx.beginPath();
-  ctx.arc(sx, sy, 10.5 * u, 0, TAU);
+  ctx.arc(sx, sy, 12.5 * u, 0, TAU);
   ctx.fill();
 
-  // long thin clouds
-  for (let i = 0; i < 7; i++) {
-    const cy = hz * (0.5 + rnd() * 0.42);
-    const cx = rnd() * w;
-    const cw = (22 + rnd() * 40) * u;
-    const ch = (0.7 + rnd() * 1.1) * u;
-    const warm = cy > hz * 0.72;
-    ctx.fillStyle = warm ? 'rgba(255,196,150,0.42)' : 'rgba(120,62,150,0.5)';
+  // long thin clouds, dark against the upper sky and glowing near the sun
+  for (let i = 0; i < 8; i++) {
+    const cy = hz * (0.2 + rnd() * 0.68);
+    const warm = cy > hz * 0.6;
+    cloudBar(ctx, rnd() * w, cy, (22 + rnd() * 44) * u, (0.7 + rnd() * 1.2) * u, warm ? 'rgba(255,240,190,0.5)' : 'rgba(120,32,52,0.42)');
+  }
+  // heat shimmer: a few motes of dust catching the light
+  for (let i = 0; i < 22; i++) {
+    const x = rnd() * w;
+    const y = hz * (0.5 + rnd() * 0.46);
+    const r = (0.14 + rnd() * 0.26) * u;
+    ctx.fillStyle = 'rgba(255,250,220,' + (0.2 + rnd() * 0.4).toFixed(3) + ')';
     ctx.beginPath();
-    ctx.moveTo(cx - cw / 2, cy);
-    ctx.quadraticCurveTo(cx, cy - ch * 2, cx + cw / 2, cy);
-    ctx.quadraticCurveTo(cx, cy + ch, cx - cw / 2, cy);
+    ctx.arc(x, y, r, 0, TAU);
     ctx.fill();
   }
 
+  ctx.fillStyle = '#ffd876';
+  ctx.fillRect(0, hz, w, h - hz);
   const span = h - hz;
+  // [start, amplitude, waves, lit colour, shade colour, crest highlight alpha]
   const layers: [number, number, number, string, string, number][] = [
-    [0, 2.6, 1.3, '#dc7c58', '#b4586a', 0.75],
-    [0.11, 5.2, 1.1, '#b6536f', '#803b7a', 0.6],
-    [0.29, 7.4, 0.9, '#7e3c7e', '#4d2b72', 0.45],
-    [0.52, 9.5, 0.75, '#4c2b70', '#2d1d5a', 0.32],
-    [0.79, 8.5, 0.6, '#2b1b54', '#130d34', 0.24],
+    [0, 2.6, 1.3, '#ffc85a', '#f39a3e', 0.85],
+    [0.11, 5.2, 1.1, '#f9a53e', '#de6f30', 0.75],
+    [0.29, 7.4, 0.9, '#e6782f', '#b84a2c', 0.6],
+    [0.52, 9.5, 0.75, '#bd4f2d', '#84302e', 0.45],
+    [0.79, 8.5, 0.6, '#84302e', '#531c2c', 0.34],
   ];
   for (let li = 0; li < layers.length; li++) {
     const L = layers[li];
@@ -583,9 +586,9 @@ function dunes(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
         const sw = (30 + li * 10) * u;
         const sh = (14 + li * 6) * u;
         const g = ctx.createLinearGradient(x0, 0, x0 + sw, 0);
-        g.addColorStop(0, 'rgba(24,10,56,0.42)');
-        g.addColorStop(0.55, 'rgba(24,10,56,0.16)');
-        g.addColorStop(1, 'rgba(24,10,56,0)');
+        g.addColorStop(0, 'rgba(96,22,34,0.46)');
+        g.addColorStop(0.55, 'rgba(96,22,34,0.18)');
+        g.addColorStop(1, 'rgba(96,22,34,0)');
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.moveTo(x0, y0 - u);
@@ -601,7 +604,7 @@ function dunes(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     }
     // wind ripples on the nearest dunes
     if (li >= 3) {
-      ctx.strokeStyle = 'rgba(255,190,150,0.07)';
+      ctx.strokeStyle = 'rgba(255,206,140,0.1)';
       ctx.lineWidth = Math.max(1, 0.2 * u);
       for (let k = 0; k < 9; k++) {
         const yy = base + (k + 1) * 2.6 * u;
@@ -617,8 +620,8 @@ function dunes(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     }
     ctx.restore();
     ridgeLine(ctx, ys, w);
-    ctx.strokeStyle = 'rgba(255,206,150,' + L[5] + ')';
-    ctx.lineWidth = Math.max(1, 0.28 * u);
+    ctx.strokeStyle = 'rgba(255,240,190,' + L[5] + ')';
+    ctx.lineWidth = Math.max(1, 0.3 * u);
     ctx.stroke();
     if (li === 1) caravan(ctx, ys, w, u);
   }
@@ -629,7 +632,7 @@ function dunes(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
 function lantern(ctx: Ctx, x: number, top: number, drop: number, s: number, glass: string, hot: string): void {
   const y0 = top + drop;
   // cord
-  ctx.strokeStyle = 'rgba(12,6,30,0.9)';
+  ctx.strokeStyle = 'rgba(36,12,52,0.9)';
   ctx.lineWidth = Math.max(1, s * 0.07);
   ctx.beginPath();
   ctx.moveTo(x, top);
@@ -751,15 +754,15 @@ function stall(ctx: Ctx, w: number, h: number, u: number, side: number): void {
   const Yt = (t: number): number => top + t * slope;
 
   // warm light pooling under the canopy
-  glow(ctx, X(0.5), top + 10.5 * u, 15 * u, '#ffb060', 0.4);
+  glow(ctx, X(0.5), top + 10.5 * u, 17 * u, '#ffbe6a', 0.55);
   // counter
   const cy = top + 13 * u;
-  ctx.fillStyle = '#0d071f';
+  ctx.fillStyle = '#3a123c';
   ctx.fillRect(Math.min(X(0), X(0.9)), cy, aw * 0.9, h - cy + 1);
-  ctx.fillStyle = 'rgba(255,190,110,0.28)';
-  ctx.fillRect(Math.min(X(0), X(0.9)), cy, aw * 0.9, Math.max(1, 0.3 * u));
+  ctx.fillStyle = 'rgba(255,200,120,0.5)';
+  ctx.fillRect(Math.min(X(0), X(0.9)), cy, aw * 0.9, Math.max(1, 0.34 * u));
   // jars and a bowl on the counter
-  ctx.fillStyle = '#0d071f';
+  ctx.fillStyle = '#2a0c30';
   const jars = [0.16, 3.2, 4.4, 0.36, 2.4, 3, 0.56, 3.6, 5.2, 0.76, 2.6, 2.4];
   for (let i = 0; i < jars.length; i += 3) {
     const jx = X(jars[i]);
@@ -782,7 +785,7 @@ function stall(ctx: Ctx, w: number, h: number, u: number, side: number): void {
   for (let i = 0; i < stripes; i++) {
     const t0 = i / stripes;
     const t1 = (i + 1) / stripes;
-    ctx.fillStyle = i % 2 === 0 ? '#8a2d52' : '#e09a64';
+    ctx.fillStyle = i % 2 === 0 ? (side === 0 ? '#d8344e' : '#1fa39a') : '#ffe2a6';
     ctx.beginPath();
     ctx.moveTo(X(t0), Yt(t0));
     ctx.lineTo(X(t1), Yt(t1));
@@ -791,7 +794,7 @@ function stall(ctx: Ctx, w: number, h: number, u: number, side: number): void {
     ctx.closePath();
     ctx.fill();
     // valance scallop
-    ctx.fillStyle = i % 2 === 0 ? '#6c2244' : '#c47f4e';
+    ctx.fillStyle = i % 2 === 0 ? (side === 0 ? '#a8223f' : '#147f7c') : '#e6bd7a';
     ctx.beginPath();
     ctx.moveTo(X(t0), Yt(t0) + depth - 0.5);
     ctx.lineTo(X(t1), Yt(t1) + depth - 0.5);
@@ -799,39 +802,49 @@ function stall(ctx: Ctx, w: number, h: number, u: number, side: number): void {
     ctx.fill();
   }
   // lit top edge of the canopy
-  ctx.strokeStyle = 'rgba(255,214,150,0.55)';
-  ctx.lineWidth = Math.max(1, 0.28 * u);
+  ctx.strokeStyle = 'rgba(255,240,200,0.75)';
+  ctx.lineWidth = Math.max(1, 0.3 * u);
   ctx.beginPath();
   ctx.moveTo(X(0), Yt(0));
   ctx.lineTo(X(1), Yt(1));
   ctx.stroke();
 }
 
+// Chapter 3 — the bazaar at dusk, seen through a great arch: a violet-to-rose sky going orange over
+// the rooftops, lit windows, strings of lights and glowing lanterns.
 function bazaar(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
   fillV(ctx, w, 0, h, [
-    [0, '#150c36'],
-    [0.36, '#2b1650'],
-    [0.62, '#57234f'],
-    [0.8, '#873848'],
-    [1, '#2a1030'],
+    [0, '#2a1a70'],
+    [0.18, '#5a2590'],
+    [0.34, '#a23394'],
+    [0.46, '#e2567c'],
+    [0.55, '#ff9060'],
+    [0.64, '#ffc878'],
+    [0.8, '#ffb070'],
+    [1, '#7a2a50'],
   ]);
-  starField(ctx, rnd, w, 0, h * 0.42, 110, u, '#ffeedd');
-  glow(ctx, w * 0.5, h * 0.74, 70 * u, '#ff9a4a', 0.3);
+  starField(ctx, rnd, w, 0, h * 0.34, 90, u, '#fff0e6');
+  glow(ctx, w * 0.5, h * 0.72, 74 * u, '#ffb060', 0.42);
+  // a few dusk clouds
+  for (let i = 0; i < 5; i++) {
+    const cy = h * (0.4 + rnd() * 0.22);
+    cloudBar(ctx, rnd() * w, cy, (24 + rnd() * 36) * u, (0.8 + rnd() * 1.1) * u, cy > h * 0.52 ? 'rgba(255,226,170,0.5)' : 'rgba(255,150,170,0.34)');
+  }
 
   // the town beyond the arch
-  skyline(ctx, rnd, w, h * 0.66, h, u, '#3a1b55', '#ffd27a', 0.8);
-  skyline(ctx, rnd, w, h * 0.76, h, u, '#27123f', '#ffc260', 0.95);
+  skyline(ctx, rnd, w, h * 0.66, h, u, '#8a3378', '#ffe08a', 0.9);
+  skyline(ctx, rnd, w, h * 0.76, h, u, '#5c2163', '#ffd070', 1);
   // street: warm light spilling towards us between the houses
   fillV(ctx, w, h * 0.8, h, [
     [0, 'rgba(255,170,90,0)'],
-    [0.3, 'rgba(255,150,80,0.2)'],
-    [1, 'rgba(26,10,38,0.92)'],
+    [0.3, 'rgba(255,150,80,0.26)'],
+    [1, 'rgba(70,20,60,0.9)'],
   ]);
   ctx.fillStyle = lGrad(ctx, 0, h * 0.8, 0, h, [
-    [0, 'rgba(255,196,120,0)'],
-    [0.3, 'rgba(255,196,120,0.42)'],
-    [1, 'rgba(255,170,100,0)'],
+    [0, 'rgba(255,206,130,0)'],
+    [0.3, 'rgba(255,206,130,0.5)'],
+    [1, 'rgba(255,180,110,0.1)'],
   ]);
   ctx.beginPath();
   ctx.moveTo(w * 0.485, h * 0.8);
@@ -840,7 +853,7 @@ function bazaar(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   ctx.lineTo(w * 0.24, h);
   ctx.closePath();
   ctx.fill();
-  glow(ctx, w * 0.5, h * 0.83, 14 * u, '#ffd9a0', 0.45);
+  glow(ctx, w * 0.5, h * 0.83, 15 * u, '#ffe0a8', 0.55);
 
   // strings of little lights
   for (let s = 0; s < 3; s++) {
@@ -848,7 +861,7 @@ function bazaar(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     const sag = (7 + s * 2.5) * u;
     const yL = y0 + (rnd() - 0.5) * 4 * u;
     const yR = y0 + (rnd() - 0.5) * 4 * u;
-    ctx.strokeStyle = 'rgba(14,8,32,0.85)';
+    ctx.strokeStyle = 'rgba(40,14,60,0.85)';
     ctx.lineWidth = Math.max(1, 0.18 * u);
     ctx.beginPath();
     ctx.moveTo(0, yL);
@@ -873,9 +886,9 @@ function bazaar(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const spring = h * 0.26;
   const apex = h * 0.035;
   const wall = lGrad(ctx, 0, 0, 0, h, [
-    [0, '#170d34'],
-    [0.6, '#120a2a'],
-    [1, '#0c061e'],
+    [0, '#3b1766'],
+    [0.5, '#4a1a62'],
+    [1, '#33103f'],
   ]);
   ctx.fillStyle = wall;
   ctx.beginPath();
@@ -893,7 +906,7 @@ function bazaar(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   // gold inlay following the arch
   for (let k = 0; k < 2; k++) {
     const o = (1 + k * 1.3) * u;
-    ctx.strokeStyle = k === 0 ? 'rgba(245,201,90,0.62)' : 'rgba(245,201,90,0.26)';
+    ctx.strokeStyle = k === 0 ? 'rgba(255,214,110,0.85)' : 'rgba(255,214,110,0.4)';
     ctx.lineWidth = Math.max(1, (k === 0 ? 0.4 : 0.22) * u);
     ctx.beginPath();
     ctx.moveTo(jamb - o, h);
@@ -907,12 +920,12 @@ function bazaar(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   ctx.lineJoin = 'miter';
   const med = [w * 0.1, h * 0.06, 4.2, w * 0.9, h * 0.06, 4.2, jamb * 0.5, spring + 5 * u, 2.4, w - jamb * 0.5, spring + 5 * u, 2.4];
   for (let i = 0; i < med.length; i += 3) {
-    ctx.strokeStyle = 'rgba(245,201,90,0.5)';
+    ctx.strokeStyle = 'rgba(255,214,110,0.7)';
     ctx.lineWidth = Math.max(1, 0.3 * u);
     ctx.beginPath();
     khatam(ctx, med[i], med[i + 1], med[i + 2] * u, -Math.PI / 2);
     ctx.stroke();
-    ctx.fillStyle = 'rgba(245,201,90,0.3)';
+    ctx.fillStyle = 'rgba(255,214,110,0.45)';
     ctx.beginPath();
     khatam(ctx, med[i], med[i + 1], med[i + 2] * u * 0.45, -Math.PI / 2);
     ctx.fill();
@@ -962,9 +975,10 @@ function lattice(ctx: Ctx, w: number, y0: number, y1: number, period: number, co
   ctx.stroke();
 }
 
-/** Palace watchtower: tapering shaft, crenellated platform, small cupola. */
-function tower(ctx: Ctx, cx: number, base: number, hgt: number, wd: number): void {
+/** Palace watchtower: tapering shaft, crenellated platform, small cupola with its own dome colour. */
+function tower(ctx: Ctx, cx: number, base: number, hgt: number, wd: number, wall: string | CanvasGradient, dome: string | CanvasGradient): void {
   const topY = base - hgt;
+  ctx.fillStyle = wall;
   ctx.beginPath();
   ctx.moveTo(cx - wd * 0.62, base);
   ctx.lineTo(cx - wd * 0.46, topY);
@@ -978,101 +992,115 @@ function tower(ctx: Ctx, cx: number, base: number, hgt: number, wd: number): voi
   // cupola drum
   ctx.rect(cx - wd * 0.34, topY - wd * 1.5, wd * 0.68, wd * 1.3);
   ctx.fill();
+  ctx.fillStyle = dome;
   ctx.beginPath();
   onionDome(ctx, cx, topY - wd * 1.45, wd * 0.52, wd * 0.95);
   ctx.fill();
 }
 
+/** Turquoise dome glaze: lit from the upper left, deep on the far side. */
+function domeGlaze(ctx: Ctx, cx: number, half: number): CanvasGradient {
+  return lGrad(ctx, cx - half * 1.3, 0, cx + half * 1.3, 0, [
+    [0, '#9ff5e6'],
+    [0.3, '#3fd2c4'],
+    [0.7, '#1f9aa6'],
+    [1, '#14707f'],
+  ]);
+}
+
+// Chapter 4 — the palace at twilight (the blue hour): royal-blue sky sinking through periwinkle to
+// a rose horizon, turquoise domes, gold finials and lit windows, a lantern path through the garden.
 function palace(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
   const ground = h * 0.8;
   fillV(ctx, w, 0, h, [
-    [0, '#100d3a'],
-    [0.3, '#211966'],
-    [0.52, '#463293'],
-    [0.67, '#8660b6'],
-    [0.76, '#d894b0'],
-    [0.82, '#f3c4a2'],
-    [1, '#141046'],
+    [0, '#141a6a'],
+    [0.28, '#2638a4'],
+    [0.5, '#5560d6'],
+    [0.64, '#9c88ea'],
+    [0.73, '#f0a4c8'],
+    [0.8, '#ffd6b0'],
+    [1, '#1a2a70'],
   ]);
-  starField(ctx, rnd, w, 0, h * 0.5, 130, u, '#ffffff');
-  lattice(ctx, w, 0, h * 0.44, Math.max(11 * u, w / 7), '#ffe7a3', 0.13);
-  twinkles(ctx, rnd, w * 0.62, h * 0.2, h * 0.4, 3, u, '#fff3cf');
+  starField(ctx, rnd, w, 0, h * 0.46, 120, u, '#ffffff');
+  lattice(ctx, w, 0, h * 0.42, Math.max(11 * u, w / 7), '#cfe0ff', 0.12);
+  twinkles(ctx, rnd, w * 0.62, h * 0.2, h * 0.4, 3, u, '#fff6dc');
   ctx.save();
   ctx.translate(w * 0.4, 0);
-  twinkles(ctx, rnd, w * 0.6, h * 0.03, h * 0.34, 4, u, '#fff3cf');
+  twinkles(ctx, rnd, w * 0.6, h * 0.03, h * 0.34, 4, u, '#fff6dc');
   ctx.restore();
 
   // crescent moon
   const mx = w * 0.22;
   const my = h * 0.13;
   const mr = 5.6 * u;
-  glow(ctx, mx, my, mr * 6, '#d9c8ff', 0.3);
-  ctx.fillStyle = '#fff6d6';
+  glow(ctx, mx, my, mr * 6, '#cfd8ff', 0.34);
+  ctx.fillStyle = '#fff8dc';
   ctx.beginPath();
   ctx.arc(mx, my, mr, Math.PI * 0.32, Math.PI * 1.68, false);
   ctx.arc(mx + mr * 0.52, my, mr * 0.84, Math.PI * 1.58, Math.PI * 0.42, true);
   ctx.closePath();
   ctx.fill();
 
-  glow(ctx, w * 0.5, ground, 60 * u, '#ffd9a0', 0.42);
+  // soft clouds low in the afterglow
+  for (let i = 0; i < 5; i++) {
+    const cy = h * (0.56 + rnd() * 0.14);
+    cloudBar(ctx, rnd() * w, cy, (22 + rnd() * 36) * u, (0.8 + rnd() * 1.1) * u, cy > h * 0.64 ? 'rgba(255,236,214,0.5)' : 'rgba(255,190,226,0.3)');
+  }
+  glow(ctx, w * 0.5, ground, 62 * u, '#ffe0b8', 0.5);
 
-  // far wings of the palace
-  ctx.fillStyle = '#5a48a8';
+  // far wings of the palace, hazy in the distance
+  const farWall = '#8a86e4';
+  ctx.fillStyle = farWall;
   const farDomes = [0.08, 5, 0.3, 7, 0.7, 7, 0.92, 5];
   ctx.fillRect(0, ground - 9 * u, w, 12 * u);
   for (let i = 0; i < farDomes.length; i += 2) {
-    const cx = w * farDomes[i];
-    const s = farDomes[i + 1] * u;
-    ctx.fillRect(cx - s * 1.1, ground - 9 * u - s * 0.9, s * 2.2, s);
+    const fx = w * farDomes[i];
+    const fs = farDomes[i + 1] * u;
+    ctx.fillStyle = farWall;
+    ctx.fillRect(fx - fs * 1.1, ground - 9 * u - fs * 0.9, fs * 2.2, fs);
+    ctx.fillStyle = '#7fc8e0';
     ctx.beginPath();
-    onionDome(ctx, cx, ground - 9 * u - s * 0.85, s, s * 1.25);
+    onionDome(ctx, fx, ground - 9 * u - fs * 0.85, fs, fs * 1.25);
     ctx.fill();
   }
-  tower(ctx, w * 0.19, ground, 31 * u, 3 * u);
-  tower(ctx, w * 0.81, ground, 31 * u, 3 * u);
+  tower(ctx, w * 0.19, ground, 31 * u, 3 * u, '#7672dc', '#6fc0de');
+  tower(ctx, w * 0.81, ground, 31 * u, 3 * u, '#7672dc', '#6fc0de');
 
   // main palace
-  const body = '#1d1558';
-  ctx.fillStyle = body;
   const cx = w * 0.5;
   const drumW = 15 * u;
   const drumTop = ground - 22 * u;
+  const wall = lGrad(ctx, cx - 30 * u, 0, cx + 30 * u, 0, [
+    [0, '#5a58cc'],
+    [0.45, '#4442b0'],
+    [1, '#33329a'],
+  ]);
+  ctx.fillStyle = wall;
   ctx.fillRect(cx - 24 * u, ground - 14 * u, 48 * u, 15 * u);
   ctx.fillRect(cx - drumW, drumTop, drumW * 2, 9 * u);
-  ctx.beginPath();
-  onionDome(ctx, cx, drumTop + 0.3 * u, drumW * 1.02, 19 * u);
-  ctx.fill();
   const sideDomes = [-0.6, 0.6];
   for (let i = 0; i < 2; i++) {
     const sx = cx + sideDomes[i] * 30 * u;
+    ctx.fillStyle = wall;
     ctx.fillRect(sx - 6 * u, ground - 19 * u, 12 * u, 6 * u);
+    ctx.fillStyle = domeGlaze(ctx, sx, 6 * u);
     ctx.beginPath();
     onionDome(ctx, sx, ground - 18.8 * u, 6 * u, 8 * u);
     ctx.fill();
   }
-  tower(ctx, w * 0.07, ground + u, 44 * u, 4.4 * u);
-  tower(ctx, w * 0.93, ground + u, 44 * u, 4.4 * u);
-  // curtain wall with crenellations
-  const wallTop = ground - 5.5 * u;
-  ctx.fillRect(0, wallTop, w, h - wallTop);
-  const nb = Math.round(w / (3.2 * u));
-  for (let i = 0; i < nb; i += 2) ctx.fillRect((i / nb) * w, wallTop - 1.5 * u, w / nb, 1.6 * u);
-
-  // moonlight along the left of the great dome
+  // the great dome
+  ctx.fillStyle = domeGlaze(ctx, cx, drumW);
+  ctx.beginPath();
+  onionDome(ctx, cx, drumTop + 0.3 * u, drumW * 1.02, 19 * u);
+  ctx.fill();
   ctx.save();
   ctx.beginPath();
   onionDome(ctx, cx, drumTop + 0.3 * u, drumW * 1.02, 19 * u);
   ctx.clip();
-  const lit = ctx.createLinearGradient(cx - drumW * 1.3, 0, cx + drumW * 0.4, 0);
-  lit.addColorStop(0, 'rgba(210,190,255,0.55)');
-  lit.addColorStop(0.5, 'rgba(160,140,240,0.12)');
-  lit.addColorStop(1, 'rgba(160,140,240,0)');
-  ctx.fillStyle = lit;
-  ctx.fillRect(cx - drumW * 1.4, drumTop - 24 * u, drumW * 2.8, 26 * u);
   // ribs
-  ctx.strokeStyle = 'rgba(255,231,163,0.22)';
-  ctx.lineWidth = Math.max(1, 0.22 * u);
+  ctx.strokeStyle = 'rgba(255,246,210,0.4)';
+  ctx.lineWidth = Math.max(1, 0.24 * u);
   for (let i = -2; i <= 2; i++) {
     if (i === 0) continue;
     ctx.beginPath();
@@ -1080,29 +1108,49 @@ function palace(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     ctx.quadraticCurveTo(cx + i * drumW * 0.62, drumTop - 10 * u, cx, drumTop - 21.5 * u);
     ctx.stroke();
   }
+  // shade gathering under the swell
+  ctx.fillStyle = lGrad(ctx, 0, drumTop - 8 * u, 0, drumTop + u, [
+    [0, 'rgba(12,40,90,0)'],
+    [1, 'rgba(12,40,90,0.4)'],
+  ]);
+  ctx.fillRect(cx - drumW * 1.4, drumTop - 8 * u, drumW * 2.8, 9 * u);
   ctx.restore();
-  const gold = '#f5c95a';
+
+  const towerWall = lGrad(ctx, 0, ground - 50 * u, 0, ground, [
+    [0, '#4a48b8'],
+    [1, '#33329a'],
+  ]);
+  tower(ctx, w * 0.07, ground + u, 44 * u, 4.4 * u, towerWall, domeGlaze(ctx, w * 0.07, 2.4 * u));
+  tower(ctx, w * 0.93, ground + u, 44 * u, 4.4 * u, towerWall, domeGlaze(ctx, w * 0.93, 2.4 * u));
+  // curtain wall with crenellations
+  const wallTop = ground - 5.5 * u;
+  ctx.fillStyle = '#2b2a8a';
+  ctx.fillRect(0, wallTop, w, h - wallTop);
+  const nb = Math.round(w / (3.2 * u));
+  for (let i = 0; i < nb; i += 2) ctx.fillRect((i / nb) * w, wallTop - 1.5 * u, w / nb, 1.6 * u);
+
+  const gold = '#ffd76a';
   finial(ctx, cx, drumTop - 21.6 * u, 1.9 * u, gold);
   finial(ctx, cx - 18 * u, ground - 27.9 * u, 1.05 * u, gold);
   finial(ctx, cx + 18 * u, ground - 27.9 * u, 1.05 * u, gold);
   finial(ctx, w * 0.07, ground - 54.3 * u, 1.05 * u, gold);
   finial(ctx, w * 0.93, ground - 54.3 * u, 1.05 * u, gold);
   // lit slits in the towers
-  ctx.fillStyle = 'rgba(255,210,122,0.85)';
+  ctx.fillStyle = 'rgba(255,220,130,0.95)';
   for (let i = 0; i < 2; i++) {
     const tx = i === 0 ? w * 0.07 : w * 0.93;
     for (let k = 0; k < 3; k++) ctx.fillRect(tx - 0.35 * u, ground - (36 - k * 11) * u, 0.7 * u, 2.4 * u);
   }
-  // gold band on the drum
-  ctx.fillStyle = 'rgba(245,201,90,0.5)';
+  // gold bands on the drum and the façade
+  ctx.fillStyle = 'rgba(255,215,106,0.85)';
   ctx.fillRect(cx - drumW, drumTop + 0.6 * u, drumW * 2, 0.5 * u);
   ctx.fillRect(cx - 24 * u, ground - 13.6 * u, 48 * u, 0.45 * u);
 
   // lit windows and the great gate
-  const warm = '#ffd27a';
+  const warm = '#ffdc82';
   for (let i = 0; i < 7; i++) {
     const wx = cx - drumW * 0.78 + (i / 6) * drumW * 1.56;
-    ctx.fillStyle = rgba(warm, 0.9);
+    ctx.fillStyle = rgba(warm, 0.95);
     ctx.beginPath();
     archPath(ctx, wx, drumTop + 7.4 * u, 0.8 * u, 4.4 * u);
     ctx.fill();
@@ -1110,32 +1158,32 @@ function palace(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   for (let i = 0; i < 8; i++) {
     if (i === 3 || i === 4) continue;
     const wx = cx - 21 * u + (i / 7) * 42 * u;
-    glow(ctx, wx, ground - 9 * u, 4 * u, warm, 0.25);
-    ctx.fillStyle = rgba(warm, 0.92);
+    glow(ctx, wx, ground - 9 * u, 4 * u, warm, 0.3);
+    ctx.fillStyle = rgba(warm, 0.96);
     ctx.beginPath();
     archPath(ctx, wx, ground - 6.6 * u, 1.3 * u, 5.4 * u);
     ctx.fill();
   }
-  glow(ctx, cx, ground - 3 * u, 16 * u, warm, 0.5);
+  glow(ctx, cx, ground - 3 * u, 16 * u, warm, 0.55);
   ctx.fillStyle = lGrad(ctx, 0, ground - 11 * u, 0, ground + 2 * u, [
-    [0, '#fff3cf'],
-    [1, '#ffb85a'],
+    [0, '#fff6d6'],
+    [1, '#ffc060'],
   ]);
   ctx.beginPath();
   archPath(ctx, cx, ground + 2 * u, 4.6 * u, 13.5 * u);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(245,201,90,0.8)';
+  ctx.strokeStyle = 'rgba(255,215,106,0.9)';
   ctx.lineWidth = Math.max(1, 0.4 * u);
   ctx.stroke();
 
   // gardens: path of light, cypress trees
   fillV(ctx, w, ground + 2 * u, h, [
-    [0, '#1a1350'],
-    [1, '#0b0828'],
+    [0, '#24348c'],
+    [1, '#121c56'],
   ]);
   ctx.fillStyle = lGrad(ctx, 0, ground + 2 * u, 0, h, [
-    [0, 'rgba(255,200,120,0.55)'],
-    [1, 'rgba(255,200,120,0)'],
+    [0, 'rgba(255,210,130,0.62)'],
+    [1, 'rgba(255,210,130,0.04)'],
   ]);
   ctx.beginPath();
   ctx.moveTo(cx - 4.6 * u, ground + 2 * u);
@@ -1152,8 +1200,8 @@ function palace(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     const r = (0.35 + t * 0.75) * u;
     for (let side = -1; side <= 1; side += 2) {
       const lx = cx + side * (spread + r * 2);
-      glow(ctx, lx, ly, r * 7, '#ffd27a', 0.42);
-      ctx.fillStyle = '#fff3cf';
+      glow(ctx, lx, ly, r * 7, '#ffd27a', 0.46);
+      ctx.fillStyle = '#fff6d6';
       ctx.beginPath();
       ctx.arc(lx, ly, r, 0, TAU);
       ctx.fill();
@@ -1164,16 +1212,21 @@ function palace(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
     const tx = w * trees[i] + (rnd() - 0.5) * u;
     const th = trees[i + 1] * u;
     const by = h - (h - ground) * 0.12 * (i % 4 === 2 ? 0.2 : 1);
-    ctx.fillStyle = '#080624';
+    ctx.fillStyle = lGrad(ctx, tx - th * 0.2, 0, tx + th * 0.2, 0, [
+      [0, '#1c6a72'],
+      [0.5, '#12495c'],
+      [1, '#0d3048'],
+    ]);
     ctx.beginPath();
     ctx.moveTo(tx, by - th);
     ctx.bezierCurveTo(tx + th * 0.2, by - th * 0.6, tx + th * 0.2, by - th * 0.15, tx + th * 0.06, by);
     ctx.lineTo(tx - th * 0.06, by);
     ctx.bezierCurveTo(tx - th * 0.2, by - th * 0.15, tx - th * 0.2, by - th * 0.6, tx, by - th);
     ctx.fill();
+    ctx.fillStyle = '#0d3048';
     ctx.fillRect(tx - th * 0.02, by - u, th * 0.04, h - by + u);
   }
-  ctx.fillStyle = '#080624';
+  ctx.fillStyle = '#0d2a48';
   ctx.fillRect(0, h - (h - ground) * 0.1, w * 0.3, (h - ground) * 0.1 + 1);
   ctx.fillRect(w * 0.7, h - (h - ground) * 0.1, w * 0.3, (h - ground) * 0.1 + 1);
 }
@@ -1265,16 +1318,16 @@ function rockTeeth(ctx: Ctx, rnd: Rnd, w: number, edge: number, y: number, dir: 
 
 function caverns(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
-  ctx.fillStyle = '#080a26';
+  ctx.fillStyle = '#0a1438';
   ctx.fillRect(0, 0, w, h);
   const gx = w * 0.5;
   const gy = h * 0.6;
   const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.max(w, h) * 0.72);
-  g.addColorStop(0, '#2ab3a6');
-  g.addColorStop(0.2, '#178090');
-  g.addColorStop(0.5, '#103f66');
-  g.addColorStop(0.8, '#0a1a40');
-  g.addColorStop(1, '#080a26');
+  g.addColorStop(0, '#46e0c6');
+  g.addColorStop(0.2, '#1fa9a6');
+  g.addColorStop(0.48, '#14688a');
+  g.addColorStop(0.8, '#0f2f60');
+  g.addColorStop(1, '#0a1438');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
 
@@ -1297,9 +1350,9 @@ function caverns(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   }
 
   // far rock
-  ctx.fillStyle = '#123c62';
+  ctx.fillStyle = '#17567c';
   rockTeeth(ctx, rnd, w, 0, h * 0.07, 1, u, 11, 4, 22);
-  ctx.fillStyle = '#113757';
+  ctx.fillStyle = '#154e70';
   rockTeeth(ctx, rnd, w, h, h * 0.86, -1, u, 9, 3, 17);
   for (let i = 0; i < 5; i++) {
     const x = w * (0.12 + i * 0.19 + rnd() * 0.06);
@@ -1324,7 +1377,7 @@ function caverns(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   }
 
   // near rock: walls, ceiling, floor
-  const near = '#070920';
+  const near = '#0b1d44';
   ctx.fillStyle = near;
   rockTeeth(ctx, rnd, w, 0, h * 0.025, 1, u, 7, 5, 30);
   rockTeeth(ctx, rnd, w, h, h * 0.955, -1, u, 6, 3, 15);

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The game's palette (docs/DESIGN.md §3). "night" is the page background colour. -->
+    <color name="night">#14123A</color>
+    <color name="gold">#F5C95A</color>
+    <color name="cream">#FFF6DC</color>
+</resources>

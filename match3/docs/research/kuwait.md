@@ -30,4 +30,6 @@ Consequences for the publishing and earnings guide:
     review directly. An internal or closed test first is still recommended, but it is the owner's choice.
   - Whether a payments (merchant) profile is already set up. The existing apps are free and sell activation codes
     outside the store, so it may not be; it is required before in-app products can be created.
-  - Whether an AdMob account exists (needed for the ad unit ids of the `ads` build).
+  - RESOLVED: the owner already has an AdMob account with apps on it. What is still needed from them for the
+    `ads` build: a new AdMob app entry for this game (App ID `ca-app-pub-…~…`) and two ad units — one Rewarded,
+    one Interstitial (`ca-app-pub-…/…` each). Requested from the owner on 2026-11-13.

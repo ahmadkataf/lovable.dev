@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The app looks the same in light and dark mode. The two Base themes below are repeated
+        word for word in values-night/themes.xml; the themes the manifest names (Theme.Zumurud and
+        Theme.Zumurud.Starting) only add the display-cutout mode per Android version
+        (values-v28, values-v30).
+    -->
+
+    <!-- The game screen: dark, no action bar, the night colour behind everything. -->
+    <style name="Base.Theme.Zumurud" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/night</item>
+        <item name="android:colorBackground">@color/night</item>
+        <item name="android:colorAccent">@color/gold</item>
+        <item name="android:statusBarColor">@color/night</item>
+        <item name="android:navigationBarColor">@color/night</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!-- The launch theme: the emblem on the night colour, then MainActivity switches to the game theme. -->
+    <style name="Base.Theme.Zumurud.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/night</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Zumurud</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="Theme.Zumurud" parent="Base.Theme.Zumurud" />
+
+    <style name="Theme.Zumurud.Starting" parent="Base.Theme.Zumurud.Starting" />
+</resources>

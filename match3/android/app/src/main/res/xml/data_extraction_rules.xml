@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup and device-to-device transfer rules for Android 12 and higher
+    (android:dataExtractionRules): only the save file travels, in both cases.
+    The file name is SaveStore.FILE + ".xml".
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="zumurud_save.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="zumurud_save.xml" />
+    </device-transfer>
+</data-extraction-rules>

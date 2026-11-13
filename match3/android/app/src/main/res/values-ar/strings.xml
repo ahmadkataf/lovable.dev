@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The game's Arabic name: "emerald". -->
+    <string name="app_name">زمرد</string>
+
+    <string name="error_title">حدث خطأ ما</string>
+    <string name="error_message">تعذّر تشغيل اللعبة. تقدّمك محفوظ.</string>
+    <string name="error_retry">إعادة المحاولة</string>
+</resources>

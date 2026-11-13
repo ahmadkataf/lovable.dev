@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 11+: always draw into the display cutout (the game pads its own UI). -->
+    <style name="Theme.Zumurud" parent="Base.Theme.Zumurud">
+        <item name="android:windowLayoutInDisplayCutoutMode">always</item>
+    </style>
+
+    <style name="Theme.Zumurud.Starting" parent="Base.Theme.Zumurud.Starting">
+        <item name="android:windowLayoutInDisplayCutoutMode">always</item>
+    </style>
+</resources>

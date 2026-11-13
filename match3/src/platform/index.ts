@@ -28,6 +28,7 @@ export { APP_VERSION_CODE, APP_VERSION_NAME };
 export const SAVE_KEY = 'match3.save.v1';
 
 const DEFAULT_LOCALE = 'en-US';
+const MAX_VERSION_CODE = 2_147_483_647;
 
 // ───────────────────────────── small pure helpers ─────────────────────────────
 
@@ -65,9 +66,10 @@ export function parseAndroidInfo(raw: unknown, fallbackLocale: string): AppInfo 
   if (typeof o.versionName === 'string' && o.versionName.length > 0 && o.versionName.length <= 64) {
     info.versionName = o.versionName;
   }
-  // A number, or a string of digits (some bridges stringify everything).
-  const code = typeof o.versionCode === 'string' && /^\d{1,15}$/.test(o.versionCode) ? Number(o.versionCode) : o.versionCode;
-  if (typeof code === 'number' && isFinite(code) && code >= 0) info.versionCode = Math.floor(code);
+  // A number, or a string of digits (some bridges stringify everything). Android version codes are
+  // positive 32-bit integers; anything beyond that is not a version code.
+  const code = typeof o.versionCode === 'string' && /^\d{1,10}$/.test(o.versionCode) ? Number(o.versionCode) : o.versionCode;
+  if (typeof code === 'number' && code >= 0 && code <= MAX_VERSION_CODE) info.versionCode = Math.floor(code);
   const locale = normalizeLocale(o.locale);
   if (locale) info.locale = locale;
   return info;
@@ -429,7 +431,9 @@ function createWeb(win: Window | undefined): PlatformApi {
 
     loadSave(): string | null {
       // `memory` is only set while the latest write could not reach localStorage — then it is newer.
-      return memory !== null ? memory : storage.read();
+      // An empty string means "nothing saved" wherever it is kept.
+      if (memory !== null) return memory.length > 0 ? memory : null;
+      return storage.read();
     },
 
     storeSave(json: string): void {

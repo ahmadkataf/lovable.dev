@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        The app itself declares no permissions: the game is bundled, offline and single-player.
+        (androidx.core merges one signature-level permission that only this app can hold,
+        <applicationId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION. It must stay: libraries register
+        their internal broadcast receivers through it.)
+    -->
+
+    <!-- Playable with a mouse or trackpad too, so devices without a touchscreen are welcome. -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <!--
+        appCategory="game" marks the app as a game for the system: it keeps the phone portrait lock
+        valid on large screens and enables the game display-compatibility behaviour.
+        Backup: only the save file is backed up and transferred (two rule files, one per Android
+        generation). usesCleartextTraffic=false documents that nothing is ever loaded over http.
+    -->
+    <application
+        android:allowBackup="true"
+        android:appCategory="game"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:localeConfig="@xml/locale_config"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Zumurud"
+        android:usesCleartextTraffic="false"
+        tools:targetApi="36">
+
+        <!-- The WebView only ever shows bundled files: opt out of its anonymous usage upload. -->
+        <meta-data
+            android:name="android.webkit.WebView.MetricsOptOut"
+            android:value="true" />
+
+        <!--
+            configChanges lists every configuration change, so the activity (and with it the
+            WebView and the level in progress) is never recreated; MainActivity adapts in place.
+            Orientation is decided in code: portrait on phones, free on tablets and foldables.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="colorMode|density|fontScale|fontWeightAdjustment|grammaticalGender|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.Zumurud.Starting">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

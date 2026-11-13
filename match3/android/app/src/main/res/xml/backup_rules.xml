@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Auto Backup rules for Android 11 and lower (android:fullBackupContent).
+    An <include> switches from "everything" to "only this": the save file and nothing else
+    (in particular not the WebView's own storage). The file name is SaveStore.FILE + ".xml".
+-->
+<full-backup-content>
+    <include domain="sharedpref" path="zumurud_save.xml" />
+</full-backup-content>
