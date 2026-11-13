@@ -14,3 +14,8 @@ android/keystore.properties
 *.keystore
 *.jks
 release
+
+# scratch renders from audio checks
+/music-*.wav
+/music-*.png
+*.wav
