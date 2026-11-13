@@ -623,11 +623,21 @@ export function drawBeam(ctx: Ctx, color: Color, px: number, vertical: boolean):
 export function drawNova(ctx: Ctx, color: Color, px: number): void {
   const tone = GEM_TONES[color];
   const R = 40.5;
-  // aura
+  // a dusky backing disc so the ring and the gem keep their contrast on any floor (bare tile or
+  // pale sand), then the gem's own colour glowing inside the ring
+  const back = ctx.createRadialGradient(50, 50, 6, 50, 50, R + 1);
+  back.addColorStop(0, 'rgba(46,30,122,0.86)');
+  back.addColorStop(0.75, 'rgba(32,18,92,0.9)');
+  back.addColorStop(1, 'rgba(24,12,70,0.94)');
+  ctx.fillStyle = back;
+  ctx.beginPath();
+  ctx.arc(50, 50, R + 1, 0, TAU);
+  ctx.fill();
   const aura = ctx.createRadialGradient(50, 50, 8, 50, 50, 47);
-  aura.addColorStop(0, rgba(tone.light, 0.05));
-  aura.addColorStop(0.7, rgba(tone.light, 0.42));
-  aura.addColorStop(0.86, rgba(PAL.goldLight, 0.3));
+  aura.addColorStop(0, rgba(tone.light, 0.04));
+  aura.addColorStop(0.62, rgba(tone.light, 0.3));
+  aura.addColorStop(0.84, rgba(tone.light, 0.55));
+  aura.addColorStop(0.9, rgba(PAL.goldLight, 0.3));
   aura.addColorStop(1, rgba(PAL.gold, 0));
   ctx.fillStyle = aura;
   ctx.fillRect(0, 0, 100, 100);
@@ -638,12 +648,12 @@ export function drawNova(ctx: Ctx, color: Color, px: number): void {
   circle(ring, 50, 50, R);
   ctx.shadowColor = 'rgba(255,205,80,0.9)';
   ctx.shadowBlur = px * 0.055;
-  ctx.lineWidth = 7;
+  ctx.lineWidth = 7.6;
   ctx.strokeStyle = '#5a3606';
   ctx.stroke(ring);
   ctx.shadowBlur = 0;
   ctx.shadowColor = 'transparent';
-  ctx.lineWidth = 4.6;
+  ctx.lineWidth = 5.2;
   ctx.strokeStyle = lGrad(ctx, 20, 8, 80, 92, [
     [0, '#fff6cf'],
     [0.4, PAL.gold],

@@ -361,6 +361,38 @@ export class Game implements GameApi {
     return best < 0 ? null : { a: this.pos(from), b: this.pos(to) };
   }
 
+  /**
+   * An independent deep copy of this game, RNG state included: the copy and the original give
+   * identical results for identical inputs from here on, and neither affects the other. Used by
+   * the level simulator's bots to look ahead. (Not part of `GameApi`.)
+   */
+  clone(): Game {
+    const source = this as unknown as Record<string, unknown>;
+    const copy = Object.create(Game.prototype) as Record<string, unknown>;
+    for (const key of Object.keys(source)) {
+      const value = source[key];
+      // Arrays of numbers / flags are copied; everything else here is a primitive or is never
+      // mutated after construction (level, goals, lamp settings), so it can be shared.
+      if (value instanceof Uint8Array) copy[key] = value.slice();
+      else if (Array.isArray(value)) copy[key] = value.slice();
+      else copy[key] = value;
+    }
+    const b = this.b;
+    const board: Board = {
+      cols: b.cols,
+      rows: b.rows,
+      n: b.n,
+      exists: b.exists,
+      spawner: b.spawner,
+      exit: b.exit,
+      sand: b.sand.slice(),
+      pieces: b.pieces.map((p) => (p === null ? null : clonePiece(p))),
+    };
+    copy.b = board;
+    copy.rng = this.rng.clone();
+    return copy as unknown as Game;
+  }
+
   // ───────────────────────────── player actions ─────────────────────────────
 
   swap(a: Pos, b: Pos): TurnResult {

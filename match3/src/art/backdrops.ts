@@ -20,7 +20,7 @@ type Rnd = () => number;
 
 export const PALETTES: Record<ChapterTheme, ThemePalette> = {
   oasis: { bgTop: '#3d4bb4', bgBottom: '#1b648e', accent: '#4fd8c0', frame: '#f5c95a' },
-  dunes: { bgTop: '#d4532c', bgBottom: '#6c2429', accent: '#ffb347', frame: '#ffdc8a' },
+  dunes: { bgTop: '#b23a2a', bgBottom: '#6c2429', accent: '#ffb347', frame: '#ffdc8a' },
   bazaar: { bgTop: '#3b1766', bgBottom: '#33103f', accent: '#ff8f6a', frame: '#ffcf70' },
   palace: { bgTop: '#141a6a', bgBottom: '#121c56', accent: '#7fe0d6', frame: '#ffe7a3' },
   caverns: { bgTop: '#0b1d44', bgBottom: '#0b1d44', accent: '#5fe6e0', frame: '#f0d98a' },
@@ -523,10 +523,11 @@ function dunes(ctx: Ctx, w: number, h: number, rnd: Rnd): void {
   const u = Math.min(w, h) / 100;
   const hz = h * 0.62;
   fillV(ctx, w, 0, hz + 2, [
-    [0, '#d4532c'],
-    [0.2, '#f07c2c'],
-    [0.42, '#ffa83e'],
-    [0.7, '#ffcf66'],
+    [0, '#b23a2a'],
+    [0.14, '#dc5e2b'],
+    [0.3, '#f5892f'],
+    [0.5, '#ffb144'],
+    [0.74, '#ffd36c'],
     [1, '#ffeeb2'],
   ]);
 

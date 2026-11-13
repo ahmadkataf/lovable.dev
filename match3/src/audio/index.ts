@@ -81,6 +81,8 @@ export const MENU_SIGNATURE_SEED = 13;
 const JINGLE_DUCK = 0.4;
 /** Pause between two plucked-string buffers synthesised in the background (ms). */
 const WARMUP_GAP_MS = 60;
+/** This far into its fade-in (s) a new track is still inaudible (under 4 % of its level). */
+const INAUDIBLE_FADE_IN = 0.02;
 /** A ctx.suspend() is given this long (ms) to settle before it is assumed not to have happened. */
 const SUSPEND_SETTLE_MS = 1000;
 /**
@@ -135,6 +137,8 @@ export interface AudioDebugInfo {
   musicLevel: number;
   /** Old music players that are still fading out. */
   fading: number;
+  /** Music players started so far (a redundant call must not add one). */
+  musicStarts: number;
   /** Voices (effects, notes, drum hits, drone chords) alive on the context, and their nodes. */
   liveVoices: number;
   liveNodes: number;
@@ -406,6 +410,12 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
 
   /** Fade a player out and disconnect it once it is silent. */
   function retire(old: MusicPlayer, now: number): void {
+    // A player that was replaced before its fade-in had got anywhere is inaudible: drop it
+    // on the spot, so a burst of track changes cannot stack up fading players.
+    if (now <= old.startAt + INAUDIBLE_FADE_IN) {
+      old.dispose();
+      return;
+    }
     try {
       old.stop(now, CROSSFADE);
     } catch {
@@ -687,6 +697,7 @@ export function createAudio(options: AudioOptions = {}): AudioEngine {
         music: stats ? { bars: stats.bars, events: stats.events, dropped: stats.dropped, resyncs: stats.resyncs } : null,
         musicLevel: chain ? chain.musicBus.gain.value : 0,
         fading: fading.length,
+        musicStarts,
         liveVoices: census ? census.voices : 0,
         liveNodes: census ? census.nodes : 0,
         context: ctx,

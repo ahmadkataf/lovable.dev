@@ -11,18 +11,32 @@ import {
   createAudio,
   createMusicPlayer,
   createOutputChain,
+  lookaheadFor,
   matchStepFreq,
   midiToFreq,
   renderSfx,
   sfxClass,
   starStepMidi,
+  voiceCensus,
   type AudioEngine,
   type MusicEvent,
   type MusicTrack,
   type OutputChain,
   type SfxName,
 } from './index.ts';
-import { analyze, detectOnsets, encodeWav, longestSilence, sliceRmsDb, spectrogram, toDb, type Metrics } from './analysis.ts';
+import {
+  analyze,
+  detectOnsets,
+  encodeWav,
+  hardCutLevel,
+  longestSilence,
+  maxStep,
+  rmsTrack,
+  sliceRmsDb,
+  spectrogram,
+  toDb,
+  type Metrics,
+} from './analysis.ts';
 
 const SR = 44100;
 /**
@@ -265,6 +279,423 @@ async function chainTransfer(): Promise<{ inDb: number; outPeakDb: number; outRm
     out.push({ inDb: levels[i], outPeakDb: toDb(peak), outRmsDb: sliceRmsDb(data, SR, 0.5, 1) });
   }
   return out;
+}
+
+// ───────────────────────────── long-form music ─────────────────────────────
+
+export interface LongMusicReport {
+  track: MusicTrack;
+  seconds: number;
+  seed: number;
+  tick: number;
+  peak: number;
+  clips: boolean;
+  /** Longest stretch below −54 dBFS (50 ms windows) after the fade-in (s). */
+  longestSilence: number;
+  /** RMS (dBFS) of each whole minute. */
+  minuteDb: number[];
+  /** RMS (dBFS) of every 10 s. */
+  tenSecondDb: number[];
+  /**
+   * How different the first and the last minute are as waveforms: Σ(a−b)² / Σ(a²+b²).
+   * 0 = the same samples (a loop); about 1 = unrelated audio.
+   */
+  firstLastDifference: number;
+  /** Bars of the last minute whose lead line is note-for-note the bar at the same place in the first minute. */
+  repeatedBars: number;
+  barsPerMinute: number;
+  /** Distinct lead lines among all bars / bars with a lead line. */
+  distinctBars: number;
+  leadBars: number;
+  events: number;
+  bars: number;
+  dropped: number;
+  resyncs: number;
+  /** Live voices / nodes, sampled at every scheduler tick. */
+  maxVoices: number;
+  maxNodes: number;
+  /** The same maxima within the first and within the last minute (a leak would make the last one larger). */
+  firstMinuteNodes: number;
+  lastMinuteNodes: number;
+  /** Still alive when the render had finished and every note had ended. */
+  endVoices: number;
+  endNodes: number;
+  wav: string;
+  png: string;
+}
+
+/**
+ * Minutes of music rendered offline, scheduled the way the live engine does it: the render is
+ * paused at every scheduler tick, the player is asked for the next lookahead window, and the
+ * render continues. That exercises the transport, the voices' clean-up and the output chain
+ * over a long time — things a 20 s clip scheduled in one go cannot show.
+ */
+async function longMusicReport(track: MusicTrack, seconds: number, seed: number, tick: number = 0.1): Promise<LongMusicReport> {
+  const w = window as unknown as { OfflineAudioContext?: typeof OfflineAudioContext; webkitOfflineAudioContext?: typeof OfflineAudioContext };
+  const Ctor = w.OfflineAudioContext || w.webkitOfflineAudioContext;
+  if (!Ctor) throw new Error('OfflineAudioContext is not available');
+  const ctx = new Ctor(1, Math.ceil(seconds * SR), SR);
+  const chain = createOutputChain(ctx);
+  const events: MusicEvent[] = [];
+  const start = 0.05;
+  const player = createMusicPlayer(ctx, chain.musicBus, track, { seed, startAt: start, onEvent: (e) => events.push(e) });
+  const lookahead = lookaheadFor(tick);
+  player.schedule(start + lookahead);
+  let maxVoices = 0;
+  let maxNodes = 0;
+  let firstMinuteNodes = 0;
+  let lastMinuteNodes = 0;
+  const yieldTask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+  let failure: unknown = null;
+  for (let t = tick; t < seconds - 0.01; t += tick) {
+    ctx.suspend(t).then(async () => {
+      try {
+        // Let the "ended" events of finished notes arrive, as they would between live ticks.
+        await yieldTask();
+        const c = voiceCensus(ctx);
+        if (c.voices > maxVoices) maxVoices = c.voices;
+        if (c.nodes > maxNodes) maxNodes = c.nodes;
+        if (ctx.currentTime <= 60 && c.nodes > firstMinuteNodes) firstMinuteNodes = c.nodes;
+        if (ctx.currentTime >= seconds - 60 && c.nodes > lastMinuteNodes) lastMinuteNodes = c.nodes;
+        player.schedule(ctx.currentTime + lookahead);
+      } catch (e) {
+        failure = e;
+      }
+      ctx.resume();
+    });
+  }
+  const buffer = await ctx.startRendering();
+  if (failure) throw failure;
+  const data = buffer.getChannelData(0).slice();
+  // Everything scheduled has ended by now, give or take the last drone chord: wait for the
+  // last "ended" events, then count what is left.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const left = voiceCensus(ctx);
+  const stats = player.stats();
+
+  let peak = 0;
+  for (let i = 0; i < data.length; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i]);
+  const minutes = Math.floor(seconds / 60);
+  const minuteDb: number[] = [];
+  for (let m = 0; m < minutes; m++) minuteDb.push(sliceRmsDb(data, SR, m * 60 + (m === 0 ? 1 : 0), (m + 1) * 60));
+  const tenSecondDb: number[] = [];
+  for (let t = 0; t + 10 <= seconds; t += 10) tenSecondDb.push(sliceRmsDb(data, SR, t === 0 ? 1 : t, t + 10));
+
+  // First against last minute, sample for sample.
+  const n = 60 * SR;
+  const lastStart = data.length - n;
+  let diff = 0;
+  let energy = 0;
+  for (let i = SR; i < n; i++) {
+    const a = data[i];
+    const b = data[lastStart + i];
+    diff += (a - b) * (a - b);
+    energy += a * a + b * b;
+  }
+
+  // … and note for note.
+  const barDur = player.barDuration;
+  const barsPerMinute = Math.floor(60 / barDur);
+  const lines: { [bar: number]: string } = {};
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i];
+    if (e.layer !== 'lead' || e.kind === 'bass') continue;
+    const pos = Math.round(((e.time - start) / barDur - e.bar) * 32);
+    lines[e.bar] = (lines[e.bar] || '') + pos + ':' + e.midi + ' ';
+  }
+  const lastBar0 = Math.ceil((seconds - 60 - start) / barDur);
+  let repeatedBars = 0;
+  for (let b = 0; b < barsPerMinute; b++) {
+    if (lines[b] !== undefined && lines[b] === lines[lastBar0 + b]) repeatedBars++;
+  }
+  const seen: { [line: string]: boolean } = {};
+  let distinctBars = 0;
+  let leadBars = 0;
+  for (const key in lines) {
+    leadBars++;
+    if (!seen[lines[key]]) {
+      seen[lines[key]] = true;
+      distinctBars++;
+    }
+  }
+
+  const canvas = drawSpectrogram(data, 'music-' + track + '-long  (' + seconds + ' s, seed ' + seed + ', scheduled every ' + tick * 1000 + ' ms)', true);
+  return {
+    track,
+    seconds,
+    seed,
+    tick,
+    peak,
+    clips: peak >= 0.99,
+    longestSilence: longestSilence(data.subarray(Math.floor(1.5 * SR)), SR, 0.002),
+    minuteDb,
+    tenSecondDb,
+    firstLastDifference: energy > 0 ? diff / energy : 0,
+    repeatedBars,
+    barsPerMinute,
+    distinctBars,
+    leadBars,
+    events: stats.events,
+    bars: stats.bars,
+    dropped: stats.dropped,
+    resyncs: stats.resyncs,
+    maxVoices,
+    maxNodes,
+    firstMinuteNodes,
+    lastMinuteNodes,
+    endVoices: left.voices,
+    endNodes: left.nodes,
+    wav: base64(encodeWav(data.subarray(0, Math.min(data.length, 30 * SR)), SR)),
+    png: canvas.toDataURL('image/png'),
+  };
+}
+
+/**
+ * The first sound of a brand-new context against the same sound later on. The limiter starts
+ * life half shut; the output chain's start-up bypass must hide that.
+ */
+async function startupReport(name: SfxName, step?: number): Promise<{ earlyDb: number; lateDb: number; earlyPeak: number; latePeak: number }> {
+  const measure = async (at: number): Promise<{ db: number; peak: number }> => {
+    const data = await renderOffline(at + 1.2, (ctx, chain) => {
+      renderSfx(ctx, chain.sfxBus, name, at, step === undefined ? undefined : { step });
+    });
+    const m = analyze(data.subarray(Math.max(0, Math.floor((at - 0.005) * SR))), SR);
+    return { db: m.loudDb, peak: m.peak };
+  };
+  const early = await measure(0.005);
+  const late = await measure(START);
+  return { earlyDb: early.db, lateDb: late.db, earlyPeak: early.peak, latePeak: late.peak };
+}
+
+// ───────────────────────────── live instruments ─────────────────────────────
+
+/**
+ * Recorder for the engine's real output: an AudioWorklet copies every sample that leaves the
+ * output chain and posts it to the page, so a test can look at exactly what was played —
+ * also across a blocked main thread, which a polling meter would miss.
+ */
+const RECORDER_SOURCE = `
+class LabRecorder extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.buf = new Float32Array(2048);
+    this.n = 0;
+    this.t = 0;
+    this.port.onmessage = (e) => { if (e.data === 'flush') this.flush(); };
+  }
+  flush() {
+    if (this.n > 0) {
+      this.port.postMessage({ t: this.t, data: this.buf.slice(0, this.n) });
+      this.n = 0;
+    }
+  }
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0];
+    const len = ch ? ch.length : 128;
+    if (this.n + len > this.buf.length) this.flush();
+    if (this.n === 0) this.t = currentTime;
+    if (ch) this.buf.set(ch, this.n); else this.buf.fill(0, this.n, this.n + len);
+    this.n += len;
+    return true;
+  }
+}
+registerProcessor('lab-recorder', LabRecorder);
+`;
+
+interface Chunk {
+  t: number;
+  data: Float32Array;
+}
+
+export interface Recording {
+  sampleRate: number;
+  /** Context time of the first sample. */
+  t0: number;
+  seconds: number;
+  /** Samples missing between chunks (should be 0: the context clock and the audio agree). */
+  holes: number;
+  peak: number;
+  rmsDb: number;
+  /** RMS of consecutive 20 ms windows (linear). */
+  rms20: number[];
+  /** Largest sample-to-sample jump. */
+  maxStep: number;
+  /** Largest level right before a stretch of digital silence (a hard cut). */
+  hardCut: number;
+  /** Largest |sample| in the last 3 ms of the recording. */
+  tailEdge: number;
+  /** Onset times (s from the start of the recording). */
+  onsets: number[];
+}
+
+let recNode: AudioWorkletNode | null = null;
+let recContext: BaseAudioContext | null = null;
+let recChunks: Chunk[] = [];
+let recOn = false;
+let recLast: { data: Float32Array; sampleRate: number } | null = null;
+
+async function recStart(engine: AudioEngine): Promise<number> {
+  const d = engine.debug();
+  if (!d.context || !d.output) throw new Error('recorder: the engine has no context yet');
+  if (!recNode || recContext !== d.context) {
+    const url = URL.createObjectURL(new Blob([RECORDER_SOURCE], { type: 'application/javascript' }));
+    await d.context.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+    const node = new AudioWorkletNode(d.context, 'lab-recorder', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: 'explicit' });
+    node.port.onmessage = (e: MessageEvent) => {
+      if (recOn) recChunks.push(e.data as Chunk);
+    };
+    d.output.connect(node);
+    // Keep the recorder in the rendered graph without adding anything to the output.
+    const mute = d.context.createGain();
+    mute.gain.value = 0;
+    node.connect(mute);
+    mute.connect(d.context.destination);
+    recNode = node;
+    recContext = d.context;
+  }
+  recChunks = [];
+  recOn = true;
+  return d.context.currentTime;
+}
+
+async function recStop(): Promise<Recording> {
+  if (!recNode || !recContext) throw new Error('recorder: not started');
+  recNode.port.postMessage('flush');
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  recOn = false;
+  const sr = recContext.sampleRate;
+  const chunks = recChunks;
+  recChunks = [];
+  let total = 0;
+  for (let i = 0; i < chunks.length; i++) total += chunks[i].data.length;
+  const data = new Float32Array(total);
+  let at = 0;
+  let holes = 0;
+  for (let i = 0; i < chunks.length; i++) {
+    if (i > 0) {
+      const expected = chunks[i - 1].t + chunks[i - 1].data.length / sr;
+      const gap = Math.round((chunks[i].t - expected) * sr);
+      if (gap !== 0) holes += Math.abs(gap);
+    }
+    data.set(chunks[i].data, at);
+    at += chunks[i].data.length;
+  }
+  recLast = { data, sampleRate: sr };
+  let peak = 0;
+  let sq = 0;
+  for (let i = 0; i < data.length; i++) {
+    const v = Math.abs(data[i]);
+    if (v > peak) peak = v;
+    sq += v * v;
+  }
+  let tailEdge = 0;
+  for (let i = Math.max(0, data.length - Math.round(0.003 * sr)); i < data.length; i++) if (Math.abs(data[i]) > tailEdge) tailEdge = Math.abs(data[i]);
+  return {
+    sampleRate: sr,
+    t0: chunks.length ? chunks[0].t : 0,
+    seconds: data.length / sr,
+    holes,
+    peak,
+    rmsDb: toDb(Math.sqrt(sq / Math.max(1, data.length))),
+    rms20: Array.prototype.slice.call(rmsTrack(data, sr, 0.02)) as number[],
+    maxStep: maxStep(data, sr),
+    hardCut: hardCutLevel(data, sr),
+    tailEdge,
+    onsets: data.length > 4096 ? detectOnsets(data, sr) : [],
+  };
+}
+
+/** WAV and spectrogram of the last recording, for the files the checker writes. */
+function recFiles(title: string): { wav: string; png: string } | null {
+  if (!recLast) return null;
+  // The drawing code assumes the lab's 44.1 kHz; a live context may run at another rate, which
+  // only shifts the frequency labels slightly, so resample by picking samples.
+  const src = recLast.data;
+  const ratio = recLast.sampleRate / SR;
+  const out = new Float32Array(Math.floor(src.length / ratio));
+  for (let i = 0; i < out.length; i++) out[i] = src[Math.min(src.length - 1, Math.round(i * ratio))];
+  const canvas = drawSpectrogram(out, title, out.length > 3 * SR);
+  return { wav: base64(encodeWav(src, recLast.sampleRate)), png: canvas.toDataURL('image/png') };
+}
+
+/**
+ * Probe: notes every source the engine starts on its context — when it was asked to start
+ * and what the audio clock said at that moment. A start time in the past is a late note; many
+ * starts crowded into one instant are a burst.
+ */
+export interface ProbeReport {
+  starts: number;
+  /** Starts scheduled more than 5 ms in the past. */
+  late: number;
+  /** Smallest (start time − clock) seen, s. */
+  worstLead: number;
+  /** Start times (context seconds), in call order. */
+  when: number[];
+  /** Audio clock at each call. */
+  at: number[];
+}
+
+let probeLog: { when: number; at: number }[] | null = null;
+let probeInstalled = false;
+
+function probeInstall(): void {
+  if (probeInstalled) return;
+  probeInstalled = true;
+  const patch = (proto: { start: (...a: number[]) => void } | undefined): void => {
+    if (!proto || !Object.prototype.hasOwnProperty.call(proto, 'start')) return;
+    const original = proto.start;
+    proto.start = function (this: AudioScheduledSourceNode, ...a: number[]): void {
+      const log = probeLog;
+      const engineCtx = audio.debug().context;
+      if (log && engineCtx && this.context === engineCtx) {
+        const now = engineCtx.currentTime;
+        log.push({ when: a.length > 0 && typeof a[0] === 'number' ? a[0] : now, at: now });
+      }
+      return original.apply(this, a);
+    };
+  };
+  const w = window as unknown as { [name: string]: { prototype: { start: (...a: number[]) => void } } | undefined };
+  for (const name of ['AudioScheduledSourceNode', 'AudioBufferSourceNode', 'OscillatorNode', 'ConstantSourceNode']) {
+    const C = w[name];
+    patch(C ? C.prototype : undefined);
+  }
+}
+
+function probeStart(): void {
+  probeInstall();
+  probeLog = [];
+}
+
+function probeStop(): ProbeReport {
+  const log = probeLog || [];
+  probeLog = null;
+  let late = 0;
+  let worst = Infinity;
+  for (let i = 0; i < log.length; i++) {
+    const lead = log[i].when - log[i].at;
+    if (lead < worst) worst = lead;
+    if (lead < -0.005) late++;
+  }
+  return { starts: log.length, late, worstLead: log.length ? worst : 0, when: log.map((x) => x.when), at: log.map((x) => x.at) };
+}
+
+/** Block the main thread (and with it the scheduler's timer) for `ms` milliseconds. */
+function stall(ms: number): { before: number; after: number } {
+  const ctx = audio.debug().context;
+  const before = ctx ? ctx.currentTime : 0;
+  const t0 = performance.now();
+  while (performance.now() - t0 < ms) {
+    /* busy */
+  }
+  return { before, after: ctx ? ctx.currentTime : 0 };
+}
+
+/** Pretend the page was hidden or shown (the engine's own safety net listens for this). */
+function setHidden(hidden: boolean): void {
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') });
+  document.dispatchEvent(new Event('visibilitychange'));
 }
 
 // ───────────────────────────── spectrogram drawing ─────────────────────────────
@@ -619,6 +1050,11 @@ function snapshot(audio: AudioEngine): { [key: string]: unknown } {
     sfxDropped: d.sfxDropped,
     music: d.music,
     musicLevel: d.musicLevel,
+    hidden: d.hidden,
+    fading: d.fading,
+    musicStarts: d.musicStarts,
+    liveVoices: d.liveVoices,
+    liveNodes: d.liveNodes,
     time: d.context ? d.context.currentTime : 0,
   };
 }
@@ -643,8 +1079,14 @@ const lab = {
   musicReport,
   stormReport,
   chainTransfer,
+  longMusicReport,
+  startupReport,
   snapshot: () => snapshot(audio),
   listen: (ms: number) => listen(audio, ms),
+  rec: { start: () => recStart(audio), stop: recStop, files: recFiles },
+  probe: { start: probeStart, stop: probeStop },
+  stall,
+  setHidden,
 };
 
 export type AudioLab = typeof lab;

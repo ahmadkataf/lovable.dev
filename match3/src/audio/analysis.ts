@@ -117,11 +117,20 @@ export interface Metrics {
   centroidEnd: number;
   /** Strongest spectral peak (Hz). */
   pitch: number;
+  /** Share of the sound's energy above 6 kHz (0..1): a lot of it makes a sound harsh or hissy. */
+  hfShare: number;
+  /** Share of the energy below 150 Hz (0..1): boom that a phone speaker cannot even play. */
+  lfShare: number;
   /** |sample| ≥ 0.99 anywhere. */
   clips: boolean;
   /** RMS < 0.003. */
   silent: boolean;
 }
+
+/** Energy above this frequency counts as "harsh" … */
+export const HARSH_HZ = 6000;
+/** … and below this one as "boom". */
+export const BOOM_HZ = 150;
 
 export function analyze(x: Float32Array, sampleRate: number): Metrics {
   let peak = 0;
@@ -204,6 +213,16 @@ export function analyze(x: Float32Array, sampleRate: number): Metrics {
       eDen += den;
     }
   }
+  // Where the energy sits: above 6 kHz (harshness) and below 150 Hz (boom).
+  let total = 0;
+  let high = 0;
+  let low = 0;
+  for (let k = 1; k < bins; k++) {
+    total += avg[k];
+    if (k * binHz >= HARSH_HZ) high += avg[k];
+    if (k * binHz < BOOM_HZ) low += avg[k];
+  }
+
   // Strongest peak of the average spectrum above 60 Hz, refined by parabolic interpolation.
   let best = 1;
   for (let k = Math.ceil(60 / binHz); k < bins - 1; k++) if (avg[k] > avg[best]) best = k;
@@ -229,9 +248,64 @@ export function analyze(x: Float32Array, sampleRate: number): Metrics {
     centroidStart: sDen > 0 ? sNum / sDen : 0,
     centroidEnd: eDen > 0 ? eNum / eDen : 0,
     pitch,
+    hfShare: total > 0 ? high / total : 0,
+    lfShare: total > 0 ? low / total : 0,
     clips: peak >= 0.99,
     silent: rms < 0.003,
   };
+}
+
+/** Largest jump between two neighbouring samples in [from, to) seconds: a click shows up as one. */
+export function maxStep(x: Float32Array, sampleRate: number, from: number = 0, to: number = Infinity): number {
+  const a = Math.max(1, Math.floor(from * sampleRate));
+  const b = Math.min(x.length, to === Infinity ? x.length : Math.floor(to * sampleRate));
+  let worst = 0;
+  for (let i = a; i < b; i++) {
+    const d = Math.abs(x[i] - x[i - 1]);
+    if (d > worst) worst = d;
+  }
+  return worst;
+}
+
+/**
+ * Hard cuts: places where sound stops dead instead of fading. Looks for every stretch of at
+ * least `minSilence` seconds of (near) digital silence and returns the largest level found in
+ * the half millisecond just before one of them. A sound that was faded out, or that decayed by
+ * itself, arrives at silence quietly; one that was chopped does not.
+ */
+export function hardCutLevel(x: Float32Array, sampleRate: number, minSilence: number = 0.004): number {
+  const quiet = 2e-5;
+  const need = Math.max(1, Math.round(minSilence * sampleRate));
+  const edge = Math.max(2, Math.round(0.0005 * sampleRate));
+  let worst = 0;
+  let run = 0;
+  for (let i = 0; i < x.length; i++) {
+    if (Math.abs(x[i]) < quiet) {
+      run++;
+      if (run === need) {
+        const start = i - need + 1;
+        for (let j = Math.max(0, start - edge); j < start; j++) {
+          const v = Math.abs(x[j]);
+          if (v > worst) worst = v;
+        }
+      }
+    } else {
+      run = 0;
+    }
+  }
+  return worst;
+}
+
+/** Largest |sample| in [from, to) seconds. */
+export function slicePeak(x: Float32Array, sampleRate: number, from: number, to: number): number {
+  const a = Math.max(0, Math.floor(from * sampleRate));
+  const b = Math.min(x.length, Math.floor(to * sampleRate));
+  let peak = 0;
+  for (let i = a; i < b; i++) {
+    const v = Math.abs(x[i]);
+    if (v > peak) peak = v;
+  }
+  return peak;
 }
 
 /** RMS of consecutive windows (linear). */

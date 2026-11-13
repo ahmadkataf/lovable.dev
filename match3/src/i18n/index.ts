@@ -78,8 +78,11 @@ function two(n: number): string {
 /**
  * Milliseconds → "mm:ss" ("h:mm:ss" from one hour up). Meant for countdowns, so it rounds UP to
  * the next second: it shows "00:01" until the time is really over, and "20:00" for a full 20 minutes.
+ * Nothing left (zero, negative, not a number) ⇒ "00:00"; an endless wait (Infinity) ⇒ "∞", never
+ * "00:00", which would read as "ready now".
  */
 export function formatClock(ms: number): string {
+  if (ms === Infinity) return '∞';
   const total = typeof ms === 'number' && isFinite(ms) && ms > 0 ? Math.ceil(ms / 1000) : 0;
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
@@ -396,11 +399,14 @@ function applyToDocument(lang: Lang): void {
   }
 }
 
+const MAX_WARNED_KEYS = 500;
+
 /** Build the API from explicit tables (tests, Node tools). */
 export function createI18nFromTables(tables: StringTable[], initial: Lang): I18nApi {
   const merged = mergeTables(Array.isArray(tables) ? tables : []);
   const listeners: { fn: (lang: Lang) => void }[] = [];
   const warned: Record<string, true> = Object.create(null);
+  let warnedCount = 0;
   let current: Lang = initial === 'ar' ? 'ar' : 'en';
   applyToDocument(current);
 
@@ -436,8 +442,10 @@ export function createI18nFromTables(tables: StringTable[], initial: Lang): I18n
       if (template === undefined) {
         // Missing in this language only: better the other language than a raw key.
         template = lookup(current === 'ar' ? 'en' : 'ar', key);
-        if (!warned[key]) {
+        // Each missing key is reported once; the memory of them is bounded (keys can be built at run time).
+        if (!warned[key] && warnedCount < MAX_WARNED_KEYS) {
           warned[key] = true;
+          warnedCount += 1;
           warn('missing ' + (template === undefined ? 'key' : 'translation (' + current + ') for') + ' "' + key + '"');
         }
         if (template === undefined) return key;
@@ -449,6 +457,7 @@ export function createI18nFromTables(tables: StringTable[], initial: Lang): I18n
     clock: formatClock,
 
     onChange(listener: (lang: Lang) => void): () => void {
+      if (typeof listener !== 'function') return () => {};
       const entry = { fn: listener };
       listeners.push(entry);
       return () => {

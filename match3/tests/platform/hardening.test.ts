@@ -626,6 +626,30 @@ describe('hardening: native hooks and the order things are registered in', () =>
     expect(log).toEqual(['second', 'pause']);
   });
 
+  it('things that are not functions are never registered as listeners or handlers', () => {
+    quiet();
+    for (const withBridge of [true, false]) {
+      const l = withBridge ? lab({ bridge: bridge() }) : lab();
+      const p = createPlatform();
+      for (const junk of [undefined, null, 0, 'listener', {}, [], true]) {
+        p.onPause(junk as unknown as () => void);
+        p.onResume(junk as unknown as () => void);
+        p.setBackHandler(junk as unknown as () => boolean);
+      }
+      const log: string[] = [];
+      p.onPause(() => log.push('pause'));
+      p.onResume(() => log.push('resume'));
+      for (let i = 0; i < 3; i++) {
+        l.hide(true);
+        l.hide(false);
+        if (withBridge) l.native().back();
+        else l.key({ key: 'Escape' });
+      }
+      expect(log).toEqual(['pause', 'resume', 'pause', 'resume', 'pause', 'resume']);
+      expect(errors).not.toHaveBeenCalled(); // nothing bogus was called, so nothing failed
+    }
+  });
+
   it('throwing handlers and listeners never reach the wrapper, and are reported once each', () => {
     quiet();
     const l = lab({ bridge: bridge() });

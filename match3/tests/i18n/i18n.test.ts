@@ -141,9 +141,11 @@ describe('formatClock', () => {
   });
 
   it('shows 00:00 for anything that is not a positive time', () => {
-    for (const bad of [-1, -60_000, NaN, Infinity, undefined as unknown as number, '5' as unknown as number]) {
+    for (const bad of [-1, -60_000, NaN, -Infinity, undefined as unknown as number, '5' as unknown as number]) {
       expect(formatClock(bad)).toBe('00:00');
     }
+    // An endless wait is not "ready now".
+    expect(formatClock(Infinity)).toBe('∞');
   });
 });
 

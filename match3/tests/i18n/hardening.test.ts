@@ -125,10 +125,12 @@ describe('hardening: clock()', () => {
     return parts.length === 3 ? parts[0]! * 3600 + parts[1]! * 60 + parts[2]! : parts[0]! * 60 + parts[1]!;
   }
 
-  it('zero, negatives and non-times are "00:00"', () => {
-    for (const bad of [0, -0, -1, -999, -1e15, -Infinity, NaN, Infinity, undefined, null, '5000', true, {}, [], 10n]) {
+  it('zero, negatives and non-times are "00:00"; an endless wait is "∞"', () => {
+    for (const bad of [0, -0, -1, -999, -1e15, -Infinity, NaN, undefined, null, '5000', 'Infinity', true, {}, [], 10n]) {
       expect(formatClock(bad as unknown as number), String(bad)).toBe('00:00');
     }
+    expect(formatClock(Infinity)).toBe('∞');
+    expect(createI18nFromTables([], 'ar').clock(Infinity)).toBe('∞');
   });
 
   it('boundaries: the last second, the minute and the hour', () => {
@@ -313,6 +315,45 @@ describe('hardening: t()', () => {
       expect(made.lang()).toBe('en');
       expect(made.t('x.level', { n: 1 })).toBe('Level 1');
     }
+  });
+
+  it('things that are not functions cannot listen, and listeners may switch the language themselves', () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const i18n = createI18nFromTables([TABLE], 'en');
+    const offs = [undefined, null, 5, 'fn', {}, []].map((junk) => i18n.onChange(junk as unknown as (lang: Lang) => void));
+    const seen: string[] = [];
+    let bounce = true;
+    i18n.onChange((lang) => {
+      seen.push('a:' + lang);
+      if (bounce && lang === 'ar') {
+        bounce = false;
+        i18n.setLang('en'); // a listener that refuses Arabic once
+      }
+    });
+    i18n.onChange((lang) => seen.push('b:' + lang));
+    i18n.setLang('ar');
+    for (const off of offs) {
+      expect(typeof off).toBe('function');
+      off();
+      off();
+    }
+    expect(errors).not.toHaveBeenCalled();
+    expect(i18n.lang()).toBe('en');
+    // Every listener ends up knowing the final language; nobody is left believing it is Arabic.
+    expect(seen[seen.length - 1]).toBe('b:en');
+    expect(seen.filter((s) => s.startsWith('a:')).pop()).toBe('a:en');
+    i18n.setLang('ar');
+    expect(seen.slice(-2)).toEqual(['a:ar', 'b:ar']);
+    errors.mockRestore();
+  });
+
+  it('thousands of different missing keys are answered without the bookkeeping growing forever', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const i18n = createI18nFromTables([TABLE], 'en');
+    for (let i = 0; i < 20_000; i++) expect(i18n.t('missing.' + i)).toBe('missing.' + i);
+    expect(warn.mock.calls.length).toBeLessThanOrEqual(500); // zero outside dev builds
+    expect(i18n.t('x.level', { n: 2 })).toBe('Level 2');
+    warn.mockRestore();
   });
 
   it('tables that are not tables are ignored', () => {

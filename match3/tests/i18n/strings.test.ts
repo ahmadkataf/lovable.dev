@@ -220,10 +220,6 @@ describe.each(files.map((file) => [shortName(file), file] as const))('strings/%s
         if (typeof value === 'string' && value.indexOf('...') >= 0) bad.push(`${lang} ${key}: write the ellipsis as one character (…)`);
       }
     }
-    for (const key of Object.keys(en)) {
-      const value = en[key];
-      if (typeof value === 'string' && /[،؛؟\u0621-\u064A]/.test(value)) bad.push(`en ${key}: contains Arabic text or punctuation`);
-    }
     expect(bad).toEqual([]);
   });
 

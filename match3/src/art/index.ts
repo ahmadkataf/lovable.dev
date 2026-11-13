@@ -7,10 +7,14 @@
  * Sprite conventions for the board renderer (px = cell size in device pixels):
  *  - `tileA` / `tileB` are full-bleed; draw them exactly on the cell rect.
  *  - `sand1` / `sand2`, `exit`: draw on the cell rect, above the tile and BELOW the piece.
- *  - gems, specials, lamp, stone, vine: draw on the cell rect (they carry their own margin and shadow).
+ *  - gems, specials, lamp, stone, vine: draw on the cell rect (they carry their own margin and
+ *    shadow). Pieces are chunky on purpose: a gem's longer side spans about 86% of the cell, so do
+ *    not scale them up further; the cast shadow needs the few pixels that are left.
  *  - `chain`, `select`: draw on the cell rect, above the piece.
- *  - `hint`: a ring-shaped halo, transparent in the middle; draw on the cell rect above or below
- *    the piece and pulse its alpha / scale.
+ *  - `hint`: a ring-shaped halo that sits out near the cell edge, transparent in the middle; draw
+ *    on the cell rect above or below the piece and pulse its alpha / scale.
+ *  - Backdrops are bright in places (dawn at the oasis, golden hour on the dunes): HUD text and
+ *    icons drawn straight on a backdrop need their own dark chip or outline.
  *  - Ask for a sprite at the size you draw it (the cell size) and scale with drawImage for tweens;
  *    each key keeps its last few sizes only.
  *

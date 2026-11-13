@@ -135,6 +135,8 @@ export function createCore(deps: { art: ArtApi; audio: AudioApi; i18n: I18nApi; 
       canvas.style.width = css;
       canvas.style.height = css;
       canvas.classList.add('k-icon');
+      // arrows that mean "forward" / "back" follow the reading direction
+      if (key === 'next' || key === 'back') canvas.classList.add('k-icon--dir');
       return canvas;
     },
 

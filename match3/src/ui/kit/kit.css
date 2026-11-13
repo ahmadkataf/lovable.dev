@@ -316,6 +316,11 @@ body {
   pointer-events: none;
 }
 
+/* directional icons ('next', 'back') point the other way in right-to-left layouts */
+[dir='rtl'] .k-icon--dir {
+  transform: scaleX(-1);
+}
+
 /* Ornament: a gold hairline with a small eight-pointed star in the middle. */
 .k-rule {
   position: relative;

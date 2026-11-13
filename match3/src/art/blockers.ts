@@ -25,13 +25,13 @@ function crack(ctx: Ctx, pts: readonly number[], w: number): void {
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   // light lip on the lower-right of the fissure, then the fissure itself
-  ctx.strokeStyle = 'rgba(255,238,200,0.55)';
+  ctx.strokeStyle = 'rgba(255,226,200,0.6)';
   ctx.lineWidth = w * 0.7;
   ctx.beginPath();
   ctx.moveTo(pts[0] + 1.1, pts[1] + 1.1);
   for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] + 1.1, pts[i + 1] + 1.1);
   ctx.stroke();
-  ctx.strokeStyle = '#3a2210';
+  ctx.strokeStyle = '#3c170f';
   ctx.lineWidth = w;
   ctx.beginPath();
   ctx.moveTo(pts[0], pts[1]);
@@ -39,11 +39,18 @@ function crack(ctx: Ctx, pts: readonly number[], w: number): void {
   ctx.stroke();
 }
 
-/** Carved sandstone block. hp 3 = intact, 2 = cracked, 1 = crumbling. */
+/**
+ * Carved sandstone block. hp 3 = intact, 2 = cracked, 1 = crumbling.
+ * It is a rosy, red-desert sandstone on purpose: the sand floor layers are pale yellow, and the two
+ * must never be mistaken for each other.
+ */
 export function drawStone(ctx: Ctx, px: number, hp: number): void {
   ctx.save();
-  // raised a touch so the shadow under the block stays inside the sprite
-  ctx.translate(0, -1.2);
+  // drawn a hair smaller and raised a touch so the outline and the shadow under the block stay
+  // inside the sprite
+  ctx.translate(50, 49);
+  ctx.scale(0.975, 0.975);
+  ctx.translate(-50, -50);
   stoneBlock(ctx, px, hp);
   ctx.restore();
 }
@@ -55,16 +62,16 @@ function stoneBlock(ctx: Ctx, px: number, hp: number): void {
 
   ctx.save();
   dropShadow(ctx, px, 0.6);
-  ctx.fillStyle = '#3d2614';
+  ctx.fillStyle = '#4a2015';
   ctx.fill(body);
   ctx.restore();
 
   ctx.save();
   ctx.clip(body);
   // bevel: lit top / left edges, shaded bottom / right edges
-  ctx.fillStyle = '#8c5f36';
+  ctx.fillStyle = '#8f4a36';
   ctx.fillRect(0, 0, 100, 100);
-  ctx.fillStyle = '#f6dcae';
+  ctx.fillStyle = '#fbd3b4';
   ctx.beginPath();
   poly(ctx, [0, 0, 100, 0, 86, 14, 14, 86, 0, 100]);
   ctx.fill();
@@ -72,9 +79,9 @@ function stoneBlock(ctx: Ctx, px: number, hp: number): void {
   const face = new Path2D();
   rrect(face, 13, 13, 74, 74, 8);
   ctx.fillStyle = lGrad(ctx, 14, 12, 86, 90, [
-    [0, '#ecc994'],
-    [0.55, '#d6aa72'],
-    [1, '#bf8f58'],
+    [0, '#eeb28e'],
+    [0.55, '#d98f6c'],
+    [1, '#c27656'],
   ]);
   ctx.fill(face);
   // grain
@@ -82,7 +89,7 @@ function stoneBlock(ctx: Ctx, px: number, hp: number): void {
     const x = 14 + rnd() * 72;
     const y = 14 + rnd() * 72;
     const r = 0.5 + rnd() * 1.1;
-    ctx.fillStyle = rnd() < 0.5 ? 'rgba(120,78,38,0.28)' : 'rgba(255,240,205,0.4)';
+    ctx.fillStyle = rnd() < 0.5 ? 'rgba(126,58,36,0.28)' : 'rgba(255,232,210,0.42)';
     ctx.beginPath();
     ctx.arc(x, y, r, 0, TAU);
     ctx.fill();
@@ -90,23 +97,23 @@ function stoneBlock(ctx: Ctx, px: number, hp: number): void {
   // carved khatam: recessed star with a shaded upper lip and a lit lower lip
   const star = new Path2D();
   khatam(star, 50, 50, 25, -Math.PI / 2);
-  ctx.fillStyle = 'rgba(150,100,52,0.42)';
+  ctx.fillStyle = 'rgba(150,72,46,0.42)';
   ctx.fill(star);
   ctx.lineJoin = 'miter';
   ctx.save();
   ctx.translate(1.2, 1.2);
-  ctx.strokeStyle = 'rgba(255,240,205,0.75)';
+  ctx.strokeStyle = 'rgba(255,230,208,0.8)';
   ctx.lineWidth = 1.6;
   ctx.stroke(star);
   ctx.restore();
-  ctx.strokeStyle = '#7a4f28';
+  ctx.strokeStyle = '#7c3a26';
   ctx.lineWidth = 2;
   ctx.stroke(star);
   const inner = new Path2D();
   khatam(inner, 50, 50, 11, -Math.PI / 2);
-  ctx.fillStyle = 'rgba(110,70,34,0.5)';
+  ctx.fillStyle = 'rgba(112,50,30,0.5)';
   ctx.fill(inner);
-  ctx.fillStyle = 'rgba(255,238,200,0.75)';
+  ctx.fillStyle = 'rgba(255,230,208,0.8)';
   ctx.beginPath();
   ctx.arc(50, 50, 3, 0, TAU);
   ctx.fill();
@@ -123,14 +130,14 @@ function stoneBlock(ctx: Ctx, px: number, hp: number): void {
     crack(ctx, [37, 72, 22, 70, 15, 76], 2.2);
     crack(ctx, [76, 74, 80, 86, 76, 95], 2.2);
     // the block is losing colour as it breaks up
-    ctx.fillStyle = 'rgba(60,34,20,0.16)';
+    ctx.fillStyle = 'rgba(70,28,20,0.16)';
     ctx.fillRect(0, 0, 100, 100);
   }
   ctx.restore();
 
   // outline
-  ctx.strokeStyle = '#3d2614';
-  ctx.lineWidth = 2.4;
+  ctx.strokeStyle = '#4a2015';
+  ctx.lineWidth = 2.8;
   ctx.stroke(body);
 
   if (hp <= 1) {
@@ -145,8 +152,8 @@ function stoneBlock(ctx: Ctx, px: number, hp: number): void {
     ctx.fill();
     ctx.restore();
     // broken faces of the chips
-    ctx.strokeStyle = '#4a2c16';
-    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = '#4a2015';
+    ctx.lineWidth = 2.6;
     ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.moveTo(70.5, 5.5);
@@ -165,8 +172,8 @@ function stoneBlock(ctx: Ctx, px: number, hp: number): void {
     ctx.lineTo(84, 94);
     ctx.stroke();
     // rubble
-    ctx.fillStyle = '#c99a64';
-    ctx.strokeStyle = '#4a2c16';
+    ctx.fillStyle = '#d08a68';
+    ctx.strokeStyle = '#4a2015';
     ctx.lineWidth = 1.4;
     const bits = [88, 9, 4, 93, 16, 3, 9, 92, 3.4];
     for (let i = 0; i < bits.length; i += 3) {

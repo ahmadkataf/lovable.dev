@@ -39,6 +39,8 @@ export interface MusicPlayer {
   /** The player's own output gain (fades), connected to the destination passed in. */
   readonly output: GainNode;
   readonly barDuration: number;
+  /** Context time of the first bar; the fade-in starts here. */
+  readonly startAt: number;
   /** Schedule every event that starts before context time `until`. Returns how many were scheduled. */
   schedule(until: number): number;
   /** Fade out over `fade` seconds starting at `at`; nothing more is scheduled. */
@@ -199,6 +201,7 @@ export function createMusicPlayer(
     track,
     output,
     barDuration: transport.barDur,
+    startAt,
     schedule(until: number): number {
       if (stopped || disposed) return 0;
       const events = transport.collect(ctx.currentTime, until);

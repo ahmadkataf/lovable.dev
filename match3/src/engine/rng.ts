@@ -13,6 +13,8 @@ export interface Rng {
   pick<T>(arr: readonly T[]): T;
   /** In-place Fisher–Yates shuffle. Returns the same array for chaining. */
   shuffle<T>(arr: T[]): T[];
+  /** An independent generator that continues with exactly the same sequence (used by `Game.clone`). */
+  clone(): Rng;
 }
 
 export function createRng(seed: number): Rng {
@@ -45,5 +47,7 @@ export function createRng(seed: number): Rng {
       }
       return arr;
     },
+    // The whole state is one unsigned 32-bit number, and createRng() folds its seed to exactly that.
+    clone: (): Rng => createRng(state),
   };
 }
