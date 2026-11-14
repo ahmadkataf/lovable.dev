@@ -298,3 +298,72 @@ most 5 per local day. Never for anyone who has bought anything with real money (
 **Builds:** the Android project has two flavours — `plain` (purchases, no ad SDK) and `ads`
 (purchases + AdMob, needs the developer's AdMob ids). In a browser the store is unavailable, except
 with `?fakestore=1` (or in dev), which simulates products and ads for testing.
+
+## 8. Rescue stages (version 1.1)
+
+A special kind of stage with a small story scene above the board. It is our own design: our own cast,
+scene, wording and rules. Art specification: `docs/RESCUE-ART.md`.
+
+**The fiction.** *Fenn* (فِنّ), a fennec fox cub, keeps the Emerald — the *zumurud* the game is named
+after. *Jamr* (جَمر, "ember"), a jewel-hoarding cave dragon, wants it. From time to time Jamr corners
+Fenn on a ledge of the jewel cave, and the player has to finish the board before the dragon gets there.
+The game is rated for everyone: the dragon never touches Fenn. If the player fails, Jamr takes the
+Emerald and Fenn ducks behind a rock; if the player wins, the lanterns blaze and Jamr runs away.
+
+### 8.1 Rules
+- A Rescue stage is an ordinary board (a `LevelDef` with the usual goals) that carries a `rescue` block.
+  Boards are at most 8 columns by 7 rows, so the scene has room above them.
+- **The moves are the dragon's distance.** The stage starts with the dragon `moves` steps away. Every
+  move the player spends brings Jamr one step closer; the HUD shows "steps away" instead of "moves".
+- **Dazzle (the stage's own twist).** A move that sets off a nova or a prism, or that swaps two special
+  pieces together, dazzles the dragon: he flinches back one step (+1 move). At most once per move and at
+  most `rescue.dazzleMax` times per attempt (default 5). A beam alone does not dazzle. The rule is one
+  pure function shared by the play screen and the balance simulator (`src/rescue/rules.ts`), so both
+  always agree.
+- **Win:** all goals done while the dragon is still on his way. The remaining steps become the usual
+  end bonus. **Lose:** no steps left and goals unfinished.
+- **Continue after losing:** as in any level (§5, §7): +5 steps for coins (rising price) or +3 once for
+  a rewarded video — the dragon is pushed back that many steps.
+- **Generous by design:** a Rescue stage never costs a life, win or lose, and can be retried at once.
+  It neither grows nor breaks the Caravan. Boosters work as usual. No interstitial ad is ever shown
+  after a Rescue stage.
+- There are no stars: the result is "rescued" or not. The score is still shown.
+
+### 8.2 Where they appear
+- Twelve stages, R1…R12. R1 opens when level 15 is won, then one every ten levels (25, 35, … 115),
+  and R12 opens when level 120 is won. Each uses only board elements the player has already been taught
+  (lamps from R2 on, chains from R3, vines from R4).
+- **Map:** a side node with the dragon's badge next to the path, just after the level that opened it.
+  States: hidden (not opened yet) · open (pulsing, with a "!") · rescued (Fenn's badge; replayable for
+  fun, no reward). A Rescue stage never blocks the journey.
+- **Announcement:** the first time the player is back on the map after opening a stage, one dialog says
+  that Fenn is in trouble — "Rescue now" or "Later". It is queued behind any booster-unlock dialog, one
+  dialog per map visit.
+- **Intro dialog:** the goals, the rule in one sentence ("Every move brings Jamr one step closer —
+  dazzle him with a nova or a prism to push him back"), start boosters as usual.
+- **Reward, once per stage:** 150 coins and one booster, cycling hammer → shuffle → freeSwap → beamNova
+  → prism → extraMoves (a booster that is still locked is paid as 150 coins instead, as in the daily
+  reward). The map shows "Rescues k / 12".
+- Balance target (casual bot, first attempt): 55–70 %; the expert bot wins comfortably; the same
+  simulator gates as ordinary levels (§ levels in `docs/STRATEGY.md`).
+
+### 8.3 The scene
+- A band between the HUD and the board (about 150–190 CSS px tall on a phone, never less than 96; in
+  landscape it sits beside the board). Back to front: the cave plate, the ledge path with one marker per
+  step, Jamr, Fenn on his rock at the far end, foreground crystals, dust motes and lantern glow.
+- Jamr's place on the path is the number of steps left. Clips: *idle* while the player thinks; *step*
+  after every move; *recoil* on a dazzle; *menace* when three or fewer steps remain (Fenn plays *alarm*,
+  the music gains a tension layer, the HUD counter pulses); *flee* + Fenn's *cheer* on a win; *snatch* +
+  Fenn's *hide* on a loss. The result dialog opens after the closing clip (which can be skipped by a tap).
+- The art is pre-rendered 3D (Blender), shipped as sprite atlases with a manifest under `public/rescue/`
+  and loaded only when a Rescue stage starts (and released when it ends); at most about 48 MB of decoded
+  frames in memory at once. If the files cannot be loaded the stage is simply not offered — never a
+  broken scene, never an error.
+- `?still=1` and reduced-motion show held poses; the `fast` setting halves the clips.
+- New sounds, synthesised like every other sound in the game: Jamr's footfall, a low growl, a roar, a
+  yelp when dazzled; Fenn's squeak; a tension layer for the last three steps.
+
+### 8.4 Save data
+Rescue progress is kept apart from the journey so that it can never move the frontier: the profile holds
+the list of opened stages, the list of rescued ones, and whether each announcement was shown. Old saves
+load with empty lists; a save from a newer version is read as far as it is understood.
