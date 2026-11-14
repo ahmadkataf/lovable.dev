@@ -74,6 +74,21 @@ the left; the hero is cornered at the right end, on a slightly raised rock.
 - Everything is made by script, so every asset can be rebuilt: keep the Python sources, and write
   nothing outside your own folder.
 
+## Free CC0 kit — allowed (added by the lead; this overrides "no downloaded assets" for these files only)
+
+The owner will not pay for any asset or service, so everything must be free. The folder
+`/home/user/zw/art3d/cc0/` holds a small kit of **CC0 (public domain)** files from Poly Haven; read its
+README. You MAY use them, and for lighting you SHOULD try them:
+- **HDRI studio lighting** (`cc0/hdri/studio_small_08_1k.hdr` and the others): light the characters
+  with an HDRI as the world environment (hidden from the camera: the film stays transparent) in
+  addition to the key and rim lights. Image-based light gives the realistic, rich reflections that make
+  a glossy character look expensive. Rotate and tint it to taste, and keep the result vivid.
+- **Photoscanned rocks, lanterns and rock textures** (`cc0/models`, `cc0/textures`): for the cave plate
+  and for Fenn's rock. Import a `.gltf` with `bpy.ops.import_scene.gltf(filepath=...)`.
+The two characters themselves remain entirely our own models: no downloaded mesh may be used for any
+part of the dragon or the hero. Nothing else may be downloaded. List every CC0 file that is visible in a
+delivery render in your report.
+
 ## Animation clips (for the animation stage; design the models so these are possible)
 
 The model must be posable: head, jaw, eyelids/brows, neck, body, four legs, both wings, tail (several
