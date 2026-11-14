@@ -33,16 +33,16 @@
 | `store/UPLOAD-RUNBOOK.md` | دليل الرفع للمساعد الآلي. الجداول المولَّدة فيه (الصور، أمان البيانات، المنتجات، النصوص الطويلة) يكتبها السكربت أدناه. |
 | `store/play-console.json` | قيم Play Console بصيغة JSON؛ **يُولَّد ولا يُعدَّل باليد**. |
 | `store/build-play-console.cjs` | يولّد الملفين السابقين من <span dir="ltr">`fields.json`</span> و<span dir="ltr">`owner.json`</span> وبيان اللقطات، ويتحقق من وجود كل ملف ومقاسه. <span dir="ltr">`--check`</span> للفحص فقط. |
-| `store/make-package.sh` | يجمع الحزمة في <span dir="ltr">`release/Zumurud-store-kit.zip`</span> (بلا اللقطات الخام وبلا مجلدات مصادر الترويج الكبيرة). |
+| `store/make-package.sh` | يجمع ثلاثة ملفات مضغوطة في <span dir="ltr">`release/`</span>: <span dir="ltr">`Zumurud-store-kit.zip`</span> (ملف الرفع + الأدلة + النصوص + الصور + لقطات الهاتف)، <span dir="ltr">`Zumurud-store-kit-tablets.zip`</span> (لقطات الأجهزة اللوحية)، <span dir="ltr">`Zumurud-ads-creatives.zip`</span> (صور الإعلانات ونصوصها). |
 | `store/owner.json` | اسم المطوّر والروابط ومعرّفات AdMob. |
 | `store/app-ads.txt` | محتوى ملف <span dir="ltr">`app-ads.txt`</span> المنشور على موقع المطوّر. |
 | `store/listing/` | نصوص البطاقة: <span dir="ltr">`fields.json`</span> (المرجع للّصق)، و<span dir="ltr">`en-US.md`</span> و<span dir="ltr">`ar.md`</span> (المصدر مع الشرح)، وبدائل للتجارب. |
 | `store/aso/` | خطة الكلمات المفتاحية وفاحص النصوص (<span dir="ltr">`check-listing.cjs`</span>). |
-| `store/privacy/index.html` | مصدر صفحة سياسة الخصوصية المنشورة (مطابق للمنشور حرفيًّا يوم 13 نوفمبر 2026). |
+| `store/privacy/index.html` | مصدر صفحة سياسة الخصوصية المنشورة (مطابق للمنشور حرفيًّا يوم 14 نوفمبر 2026). |
 | `store/privacy/HOSTING.md` | أين تُستضاف الصفحة وكيف تُحدَّث. |
 | `store/graphics/` | الأيقونة 512×512 والصورة المميّزة <span dir="ltr">1024×500</span> بالإنجليزية والعربية. |
 | `store/screenshots/` | لقطات الشاشة: 8 للهاتف و8 للوحي 7 بوصات و8 للوحي 10 بوصات لكل لغة، مع <span dir="ltr">`MANIFEST.md`</span> الذي يثبت أنها لقطات حقيقية من اللعبة. |
-| `store/promo/` | مواد ترويجية خارج المتجر (مسؤولية زميل آخر). |
+| `store/promo/` | مواد إعلانية خارج المتجر: 3 تصاميم × 5 مقاسات × لغتان (PNG و JPEG ونسخة بلا سطر المتجر)، مع <span dir="ltr">`AD-COPY.md`</span> (نصوص إعلانات Google و Meta و TikTok) و<span dir="ltr">`SOCIAL-CAPTIONS.md`</span>. التفاصيل في <span dir="ltr">`store/promo/README.md`</span>. |
 
 ## الأدوات (تُشغَّل من مجلد `match3`)
 
@@ -51,7 +51,7 @@
 | `node tools/store/check-kit.cjs` | الفحص الآلي للحزمة: حدود الأحرف، العبارات الممنوعة، مقاسات الصور، اللقطات مقارنةً بالالتقاط الخام، وصفحة الخصوصية. |
 | `node store/aso/check-listing.cjs` | فحص نصوص البطاقة ومطابقة <span dir="ltr">`fields.json`</span> لمصادره. |
 | `node store/build-play-console.cjs --check` | فحص دليل الرفع و<span dir="ltr">`play-console.json`</span> ووجود كل ملف. |
-| `sh store/make-package.sh` | إنشاء ملف الحزمة المضغوط. |
+| `sh store/make-package.sh` | إنشاء الملفات المضغوطة الثلاثة في <span dir="ltr">`release/`</span>. |
 
 ## ما يلزم منك أنت (لا يستطيع أحد غيرك تقديمه)
 
@@ -64,10 +64,21 @@
 - [ ] بعد النشر: ربط التطبيق في AdMob بصفحته على المتجر.
 - [ ] مفتاح الرفع (<span dir="ltr">`.jks`</span>) وكلمات سرّه محفوظة في مكانين آمنين.
 
-## مسائل مفتوحة قبل الرفع (13 نوفمبر 2026)
+## روابط التنزيل المباشرة
 
-1. **لقطات الشاشة من مجموعة مراحل سابقة:** اللقطات حقيقية من اللعبة، لكنها التُقطت قبل إعادة مجموعة المراحل المعتمدة؛ المراحل 28 و45 و79 و82 و105 في اللقطات تختلف في شكلها أو أهدافها عن المراحل نفسها في النسخة الحالية (المرحلة 17 مطابقة). يلزم إعادة الالتقاط (`node tools/store/make-screenshots.cjs`) ثم `node store/build-play-console.cjs` ثم `sh store/make-package.sh`. وإعادة الالتقاط تعالج أيضًا الملاحظة الوحيدة التي يطبعها `check-kit` (عنوان اللقطة العربية 2 أقرب بكسل واحد من الحد الأعلى المسموح به في الفاحص).
-2. **مجلد <span dir="ltr">`release/`</span> مستثنى من Git** (<span dir="ltr">`match3/.gitignore`</span>)، فرابط تنزيل ملف <span dir="ltr">`.aab`</span> على GitHub لا يعمل إلا إذا رُفع الملف إلى الفرع عمدًا؛ وإلا يرفعه المالك من جهازه.
+| الملف | الرابط |
+|---|---|
+| ملف الرفع إلى Google Play (`.aab`) | <https://github.com/ahmadkataf/lovable.dev/raw/ccr-bcb81736-74rbji/match3/release/Zumurud-1.0.0-ads.aab> |
+| ملف التجربة على الهاتف (`.apk`) | <https://github.com/ahmadkataf/lovable.dev/raw/ccr-bcb81736-74rbji/match3/release/Zumurud-1.0.0-ads.apk> |
+| الحزمة كاملة في ملف واحد (`.zip`) | <https://github.com/ahmadkataf/lovable.dev/raw/ccr-bcb81736-74rbji/match3/release/Zumurud-store-kit.zip> |
+| دليل الرفع | <https://github.com/ahmadkataf/lovable.dev/blob/ccr-bcb81736-74rbji/match3/store/UPLOAD-RUNBOOK.md> |
+
+رابط كل صورة على حدة مكتوب في دليل الرفع (القسم 4.7). بعد دمج الفرع في `main` استبدل اسم الفرع في الروابط بـ `main`.
+
+## حالة الحزمة (14 نوفمبر 2026)
+
+- لقطات الشاشة وصور الإعلانات أُعيد التقاطها من النسخة النهائية نفسها التي بُني منها ملف `.aab`، فكل ما يظهر فيها موجود في اللعبة المرفوعة.
+- ملفات `release/` النهائية موقّعة بمفتاح الرفع ومرفوعة إلى الفرع، فروابط التنزيل أعلاه تعمل.
 
 ## تنبيهان
 

@@ -430,7 +430,7 @@ Choose the option meaning **my app does not have any health features**. Save.
 
 ### 7.10. Anything else on the App content page
 
-The app requests no sensitive permission (no location, SMS, call log, photos, files, accessibility, foreground service, exact alarms). If another declaration appears, answer with these facts; if it does not fit, **STOP (owner)**.
+The app requests no sensitive permission (no location, SMS, call log, photos, files, accessibility, exact alarms). Its full permission list is: `INTERNET`, `ACCESS_NETWORK_STATE`, `com.android.vending.BILLING`, `com.google.android.gms.permission.AD_ID`, `READ_BASIC_PHONE_STATE`, `WAKE_LOCK` and the plain `FOREGROUND_SERVICE` permission — the last four are added by the Google Mobile Ads SDK and its libraries. The app declares no foreground-service **type** and never starts a foreground service, so the "Foreground service permissions" declaration should not appear; if it does, **STOP (owner)**. If another declaration appears, answer with these facts; if it does not fit, **STOP (owner)**.
 
 ## 8. Countries / regions
 

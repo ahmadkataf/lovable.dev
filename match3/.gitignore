@@ -13,7 +13,13 @@ android/app/src/main/assets/www
 android/keystore.properties
 *.keystore
 *.jks
-release
+# release/: only the final signed files and the main store kit are tracked (store/make-package.sh rebuilds the zips)
+release/*
+!release/Zumurud-1.0.0-*.aab
+!release/Zumurud-1.0.0-*.apk
+!release/SHA256SUMS.txt
+!release/README.md
+!release/Zumurud-store-kit.zip
 
 # scratch renders from audio checks
 /music-*.wav
