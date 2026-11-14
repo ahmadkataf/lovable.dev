@@ -1,0 +1,13 @@
+# The page calls these classes' methods by name through WebView.addJavascriptInterface, so R8 must
+# neither rename nor remove them, and the @JavascriptInterface annotation must survive in the dex
+# file (WebView only exposes methods that carry it).
+-keepattributes RuntimeVisibleAnnotations
+
+-keepclassmembers class com.zumurud.game.GameBridge {
+    @android.webkit.JavascriptInterface public <methods>;
+}
+
+# Any further bridge object (debug diagnostics, a later store bridge) is covered the same way.
+-keepclassmembers class com.zumurud.game.** {
+    @android.webkit.JavascriptInterface <methods>;
+}

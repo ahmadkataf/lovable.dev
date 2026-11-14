@@ -1,0 +1,2884 @@
+{
+  "captures": {
+    "raw/en/01-title.png": {
+      "scene": "title",
+      "what": "Title screen",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "world": "Caverns",
+      "moment": "title screen after start-up",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "c1d56c10d6b8092bc47c1967ca990f47ccd42a76ce21aff454bd79422a4aada7",
+      "bytes": 834854
+    },
+    "raw/en/02-map.png": {
+      "scene": "map",
+      "what": "World map, mid-journey",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "world": "Caverns",
+      "moment": "map as it opens, scrolled by the game to the current level 82",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "d520d0c5e26658a5e14928ace7ecd22bd0c46eec8c48429dee1bb98f2d207337",
+      "bytes": 1089932
+    },
+    "raw/en/03-level-intro.png": {
+      "scene": "intro",
+      "what": "Level intro: goals, Caravan, start boosters",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives, Caravan streak 2",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "world": "Caverns",
+      "level": 82,
+      "moment": "intro dialog of the current level 82 (tap on its map node)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "eafc2ab027a90f7ba39596cfa80bccfbfdab03c134d2af114b1caaf70de486a6",
+      "bytes": 975281
+    },
+    "raw/en/04-play-combo.png": {
+      "scene": "combo",
+      "what": "Gameplay: two special pieces swapped — a big combo",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 28,
+      "world": "Dunes",
+      "theme": "dunes",
+      "worldLocal": "Dunes",
+      "blockers": [],
+      "seed": 7,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 15 of 32 taken while the effect runs, 525 ms after the swipe on the game's own clock (16.7 % of the board is effect light, 29.7 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "a0809676583c154b4ddbc4b250fd383e4bbaa4a5067bf99f9697ee3434fb9c75",
+      "bytes": 1746755
+    },
+    "raw/en/05-play-beam.png": {
+      "scene": "beam",
+      "what": "Gameplay: a beam fires along its line",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 51,
+      "world": "Bazaar",
+      "theme": "bazaar",
+      "worldLocal": "Bazaar",
+      "blockers": [],
+      "seed": 4,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
+      "moves": [
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
+      ],
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 12 of 25 taken while the effect runs, 626 ms after the swipe on the game's own clock (4.9 % of the board is effect light, 29.4 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "a7bdeba57c4823cc80922a29088cdb6d63902e1f3f0e94b26c38cd692e114ed0",
+      "bytes": 1544054
+    },
+    "raw/en/06-play-blockers.png": {
+      "scene": "blockers",
+      "what": "Gameplay: lamps, stone, chains, vines and sand on one board",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 80,
+      "world": "Palace",
+      "theme": "palace",
+      "worldLocal": "Palace",
+      "blockers": [
+        "stone",
+        "chain",
+        "vine",
+        "lamp",
+        "sand"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, before the first move",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "df4d9af67380fe3b4f48571fb163f599988b2dc5154560227002a2b47aadedcf",
+      "bytes": 1260854
+    },
+    "raw/en/07-play-booster.png": {
+      "scene": "booster",
+      "what": "Gameplay: the Hammer booster, choosing where to strike",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 17,
+      "world": "Oasis",
+      "theme": "oasis",
+      "worldLocal": "Oasis",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–16 cleared; level 17 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "1fc7cef2d0d5246ea93f637026da35774a89965fe1c2a72b69c76d24cf9f23ca",
+      "bytes": 1185017
+    },
+    "raw/en/08-play-praise.png": {
+      "scene": "praise",
+      "what": "Gameplay: a long cascade and the praise word it earns",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 104,
+      "world": "Starlit Sky",
+      "theme": "stars",
+      "worldLocal": "Starlit Sky",
+      "blockers": [],
+      "seed": 3,
+      "startBoosters": "none",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
+      "moves": [
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"Splendour!\" (about 0.4 s after it appears)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "d23d09bbe64f966f74740d160b7ccca3d959386ed0525b1ae78b97714f698a01",
+      "bytes": 1436741
+    },
+    "raw/en/09-win.png": {
+      "scene": "win",
+      "what": "Level complete: three stars, score and coins",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 82,
+      "world": "Caverns",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 2,
+      "startBoosters": "none",
+      "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "moves": [
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
+      ],
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "stars": 3,
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "80ee5a7549e39110598a0e5b0ef2f03a5c72de44ab9318eef58aa937b9dfc64e",
+      "bytes": 1139774
+    },
+    "raw/en/10-daily-gift.png": {
+      "scene": "daily",
+      "what": "Daily gift: seven-day cycle, day 4 ready",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives, daily gift of day 4 not yet taken",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "world": "Caverns",
+      "moment": "daily gift dialog, day 4 of the seven-day cycle ready to take",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "2400aa635ef17261f44606a39ad4508644fd1bee6f9e44454950eb869faf35e3",
+      "bytes": 1002057
+    },
+    "raw/en/11-shop-boosters.png": {
+      "scene": "shop",
+      "what": "Shop: boosters priced in coins",
+      "lang": "en",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "world": "Caverns",
+      "moment": "shop dialog as it opens: boosters for coins (no store is connected, so no money price exists)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "b1aee11b4ec8c020d4648f9b0ef3ecdd8e840cd5ee72fced1089e178d89dbc47",
+      "bytes": 928329
+    },
+    "raw/tablet7/en/01-title.png": {
+      "scene": "title",
+      "what": "Title screen",
+      "lang": "en",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "world": "Caverns",
+      "moment": "title screen after start-up",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "265360b7a1c0b6089cf7fa9d48923d3e48d5fe334a5d1843f46443723deb9345",
+      "bytes": 959825
+    },
+    "raw/tablet7/en/02-map.png": {
+      "scene": "map",
+      "what": "World map, mid-journey",
+      "lang": "en",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "world": "Caverns",
+      "moment": "map as it opens, scrolled by the game to the current level 82",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "f0c5a592716652fbe6af398df465f4ff2e6f23329aeca9afc0d4175925a28199",
+      "bytes": 1377875
+    },
+    "raw/tablet7/en/04-play-combo.png": {
+      "scene": "combo",
+      "what": "Gameplay: two special pieces swapped — a big combo",
+      "lang": "en",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 28,
+      "world": "Dunes",
+      "theme": "dunes",
+      "worldLocal": "Dunes",
+      "blockers": [],
+      "seed": 7,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 20 of 42 taken while the effect runs, 514 ms after the swipe on the game's own clock (16.5 % of the board is effect light, 28.9 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "22b49f922e22524c46afc0c64fbbb66152491ef6a5d745f1982be00170e5e7f8",
+      "bytes": 1995809
+    },
+    "raw/tablet7/en/05-play-beam.png": {
+      "scene": "beam",
+      "what": "Gameplay: a beam fires along its line",
+      "lang": "en",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 51,
+      "world": "Bazaar",
+      "theme": "bazaar",
+      "worldLocal": "Bazaar",
+      "blockers": [],
+      "seed": 4,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
+      "moves": [
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
+      ],
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 13 of 27 taken while the effect runs, 592 ms after the swipe on the game's own clock (5.7 % of the board is effect light, 29.5 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "c763e68de1facbfcac1bfab1e4bad24b2825249e231573057157610565ca330a",
+      "bytes": 1714038
+    },
+    "raw/tablet7/en/06-play-blockers.png": {
+      "scene": "blockers",
+      "what": "Gameplay: lamps, stone, chains, vines and sand on one board",
+      "lang": "en",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 80,
+      "world": "Palace",
+      "theme": "palace",
+      "worldLocal": "Palace",
+      "blockers": [
+        "stone",
+        "chain",
+        "vine",
+        "lamp",
+        "sand"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, before the first move",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "8dd0e5b5316fd50923447a7a2da54c98a417e0ae98bcae4b066effadac5aadab",
+      "bytes": 1379232
+    },
+    "raw/tablet7/en/07-play-booster.png": {
+      "scene": "booster",
+      "what": "Gameplay: the Hammer booster, choosing where to strike",
+      "lang": "en",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 17,
+      "world": "Oasis",
+      "theme": "oasis",
+      "worldLocal": "Oasis",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–16 cleared; level 17 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "295cfb231c776382c8d99633ee28e01c7447ade17d955934d225daf6adfd625d",
+      "bytes": 1336197
+    },
+    "raw/tablet7/en/08-play-praise.png": {
+      "scene": "praise",
+      "what": "Gameplay: a long cascade and the praise word it earns",
+      "lang": "en",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 104,
+      "world": "Starlit Sky",
+      "theme": "stars",
+      "worldLocal": "Starlit Sky",
+      "blockers": [],
+      "seed": 3,
+      "startBoosters": "none",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
+      "moves": [
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"Splendour!\" (about 0.4 s after it appears)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "ca030b4e5ab53c81b20abbb1f7c552a5469af0c7f90848f754c794359bb021e6",
+      "bytes": 1625233
+    },
+    "raw/tablet7/en/09-win.png": {
+      "scene": "win",
+      "what": "Level complete: three stars, score and coins",
+      "lang": "en",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 82,
+      "world": "Caverns",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 2,
+      "startBoosters": "none",
+      "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "moves": [
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
+      ],
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "stars": 3,
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "20b10fd64a250ce03d0857181f53f7f88b62c57904f30cdd2e2e8a32b961b61a",
+      "bytes": 1344741
+    },
+    "raw/tablet10/en/01-title.png": {
+      "scene": "title",
+      "what": "Title screen",
+      "lang": "en",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "world": "Caverns",
+      "moment": "title screen after start-up",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "18cddd169a80593b1a4e8ca97e7393e4e4c5e7ddc0a9b294d8a40a4f40587ae4",
+      "bytes": 1346544
+    },
+    "raw/tablet10/en/02-map.png": {
+      "scene": "map",
+      "what": "World map, mid-journey",
+      "lang": "en",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "world": "Caverns",
+      "moment": "map as it opens, scrolled by the game to the current level 82",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "8375482130f6e71fc6fe4baad0d7ad562fc374e11e9c2256420c7567bfdb739d",
+      "bytes": 2281344
+    },
+    "raw/tablet10/en/04-play-combo.png": {
+      "scene": "combo",
+      "what": "Gameplay: two special pieces swapped — a big combo",
+      "lang": "en",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 28,
+      "world": "Dunes",
+      "theme": "dunes",
+      "worldLocal": "Dunes",
+      "blockers": [],
+      "seed": 7,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 56 of 60 taken while the effect runs, 491 ms after the swipe on the game's own clock (19.1 % of the board is effect light, 28.3 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "016a14cba2ac4896b063a5ceceb70c10a6ffaa03140798606a88d29d067d4c64",
+      "bytes": 3114949
+    },
+    "raw/tablet10/en/05-play-beam.png": {
+      "scene": "beam",
+      "what": "Gameplay: a beam fires along its line",
+      "lang": "en",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 51,
+      "world": "Bazaar",
+      "theme": "bazaar",
+      "worldLocal": "Bazaar",
+      "blockers": [],
+      "seed": 4,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
+      "moves": [
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
+      ],
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 19 of 45 taken while the effect runs, 628 ms after the swipe on the game's own clock (5.3 % of the board is effect light, 29.3 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "66ec67b3d8c254df240c0ba132749af99d3816e15913d2b8bfa5a76288e9feab",
+      "bytes": 2707737
+    },
+    "raw/tablet10/en/06-play-blockers.png": {
+      "scene": "blockers",
+      "what": "Gameplay: lamps, stone, chains, vines and sand on one board",
+      "lang": "en",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 80,
+      "world": "Palace",
+      "theme": "palace",
+      "worldLocal": "Palace",
+      "blockers": [
+        "stone",
+        "chain",
+        "vine",
+        "lamp",
+        "sand"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, before the first move",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "9cbeee97ecfdd4808324f22e50cb21f5ca2de11c3f620e040ca357d9cb181bed",
+      "bytes": 2146185
+    },
+    "raw/tablet10/en/07-play-booster.png": {
+      "scene": "booster",
+      "what": "Gameplay: the Hammer booster, choosing where to strike",
+      "lang": "en",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 17,
+      "world": "Oasis",
+      "theme": "oasis",
+      "worldLocal": "Oasis",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–16 cleared; level 17 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "6886fa755db0616b88f6a35f01977b30f932621d5aaf8ef0a2875128db61b14a",
+      "bytes": 1994457
+    },
+    "raw/tablet10/en/08-play-praise.png": {
+      "scene": "praise",
+      "what": "Gameplay: a long cascade and the praise word it earns",
+      "lang": "en",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 104,
+      "world": "Starlit Sky",
+      "theme": "stars",
+      "worldLocal": "Starlit Sky",
+      "blockers": [],
+      "seed": 3,
+      "startBoosters": "none",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
+      "moves": [
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"Splendour!\" (about 0.4 s after it appears)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "8cf13915e94aab5bbb5abcefb3bbb57c3528bcde303582a80b17a04e98b1b4a5",
+      "bytes": 2517793
+    },
+    "raw/tablet10/en/09-win.png": {
+      "scene": "win",
+      "what": "Level complete: three stars, score and coins",
+      "lang": "en",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 82,
+      "world": "Caverns",
+      "theme": "caverns",
+      "worldLocal": "Caverns",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 2,
+      "startBoosters": "none",
+      "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "moves": [
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
+      ],
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "stars": 3,
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "9461a028c6ffb98ee25c7e5fd14f52874f38a9592da3bba94beab79ea85d3c3c",
+      "bytes": 2474150
+    },
+    "raw/ar/01-title.png": {
+      "scene": "title",
+      "what": "Title screen",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "world": "Caverns",
+      "moment": "title screen after start-up",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "ce60a368b5d5759b289d051acad7cd66adb1e4798841769eedf9c4c87e9d5bda",
+      "bytes": 846857
+    },
+    "raw/ar/02-map.png": {
+      "scene": "map",
+      "what": "World map, mid-journey",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "world": "Caverns",
+      "moment": "map as it opens, scrolled by the game to the current level 82",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "bbd76c0fe7b78069004e461cc6dfb74f8ab2a1dd0c533d451707d04fd4c497f5",
+      "bytes": 1107756
+    },
+    "raw/ar/03-level-intro.png": {
+      "scene": "intro",
+      "what": "Level intro: goals, Caravan, start boosters",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives, Caravan streak 2",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "world": "Caverns",
+      "level": 82,
+      "moment": "intro dialog of the current level 82 (tap on its map node)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "99bb2fc2b207a1aa850f9df2cd8bdf15e6916df6f68aad0a03611be104fa3afa",
+      "bytes": 971792
+    },
+    "raw/ar/04-play-combo.png": {
+      "scene": "combo",
+      "what": "Gameplay: two special pieces swapped — a big combo",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 28,
+      "world": "Dunes",
+      "theme": "dunes",
+      "worldLocal": "الكثبان",
+      "blockers": [],
+      "seed": 7,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 15 of 31 taken while the effect runs, 532 ms after the swipe on the game's own clock (17.5 % of the board is effect light, 30.1 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "31d9e98fa223bfd1c61f5bfeca983641b68aba3f5b89890be9926656e8308fcd",
+      "bytes": 1753014
+    },
+    "raw/ar/05-play-beam.png": {
+      "scene": "beam",
+      "what": "Gameplay: a beam fires along its line",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 51,
+      "world": "Bazaar",
+      "theme": "bazaar",
+      "worldLocal": "السوق",
+      "blockers": [],
+      "seed": 4,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
+      "moves": [
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
+      ],
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 12 of 26 taken while the effect runs, 602 ms after the swipe on the game's own clock (5.2 % of the board is effect light, 29.0 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "794da45c4011f189f7789ed167da8e9f422476a8c355210da78cf11ecf305d23",
+      "bytes": 1542521
+    },
+    "raw/ar/06-play-blockers.png": {
+      "scene": "blockers",
+      "what": "Gameplay: lamps, stone, chains, vines and sand on one board",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 80,
+      "world": "Palace",
+      "theme": "palace",
+      "worldLocal": "القصر",
+      "blockers": [
+        "stone",
+        "chain",
+        "vine",
+        "lamp",
+        "sand"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, before the first move",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "6cecf87f98a6cdc8a26d0b2016e9bb8ce33ee815f379ce4d636c24abbafed843",
+      "bytes": 1264728
+    },
+    "raw/ar/07-play-booster.png": {
+      "scene": "booster",
+      "what": "Gameplay: the Hammer booster, choosing where to strike",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 17,
+      "world": "Oasis",
+      "theme": "oasis",
+      "worldLocal": "الواحة",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–16 cleared; level 17 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "fcf6616a34b1d8afa02a44f61394ccfec833f0223556c243b65fc22ce9c1eeb8",
+      "bytes": 1184955
+    },
+    "raw/ar/08-play-praise.png": {
+      "scene": "praise",
+      "what": "Gameplay: a long cascade and the praise word it earns",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 104,
+      "world": "Starlit Sky",
+      "theme": "stars",
+      "worldLocal": "سماء النجوم",
+      "blockers": [],
+      "seed": 3,
+      "startBoosters": "none",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
+      "moves": [
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"بهاء!\" (about 0.4 s after it appears)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "98828c04703846ee7fd0011b579096e9c1c2b45482fcfc2c50c4ac6aefe41be2",
+      "bytes": 1444144
+    },
+    "raw/ar/09-win.png": {
+      "scene": "win",
+      "what": "Level complete: three stars, score and coins",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "level": 82,
+      "world": "Caverns",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 2,
+      "startBoosters": "none",
+      "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "moves": [
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
+      ],
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "stars": 3,
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "ad11a2c11227eab5b6f79cebe4e3196a10ef7902aad5f6a626d3174b1a00c178",
+      "bytes": 1141483
+    },
+    "raw/ar/10-daily-gift.png": {
+      "scene": "daily",
+      "what": "Daily gift: seven-day cycle, day 4 ready",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives, daily gift of day 4 not yet taken",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "world": "Caverns",
+      "moment": "daily gift dialog, day 4 of the seven-day cycle ready to take",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "ab4f28aaf97c9512d88fc59268dfbb96b1e14e3c1a1be4b1c88b6e9a1b677ac0",
+      "bytes": 1026521
+    },
+    "raw/ar/11-shop-boosters.png": {
+      "scene": "shop",
+      "what": "Shop: boosters priced in coins",
+      "lang": "ar",
+      "device": "phone",
+      "viewport": "360×640 CSS px × 3",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "world": "Caverns",
+      "moment": "shop dialog as it opens: boosters for coins (no store is connected, so no money price exists)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "0a3caebfc45b92e73ca9810f49baacb3466fbda515d5885c76dd9f020360ece9",
+      "bytes": 970850
+    },
+    "raw/tablet7/ar/01-title.png": {
+      "scene": "title",
+      "what": "Title screen",
+      "lang": "ar",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "world": "Caverns",
+      "moment": "title screen after start-up",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "ff573b821e4a66a90b1261f2a9f97bac5738c69dcd4b34ff1edc40f60c0fa026",
+      "bytes": 981826
+    },
+    "raw/tablet7/ar/02-map.png": {
+      "scene": "map",
+      "what": "World map, mid-journey",
+      "lang": "ar",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "world": "Caverns",
+      "moment": "map as it opens, scrolled by the game to the current level 82",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "a718e9547c1aec70153569b624d0f490c59a182b85bfe6bca1a58398411996f0",
+      "bytes": 1382712
+    },
+    "raw/tablet7/ar/04-play-combo.png": {
+      "scene": "combo",
+      "what": "Gameplay: two special pieces swapped — a big combo",
+      "lang": "ar",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 28,
+      "world": "Dunes",
+      "theme": "dunes",
+      "worldLocal": "الكثبان",
+      "blockers": [],
+      "seed": 7,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 43 of 60 taken while the effect runs, 539 ms after the swipe on the game's own clock (16.5 % of the board is effect light, 28.9 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "d65b33851036225b2489ac0611fca8a20cbd7e2543355523c30114d7081f3aae",
+      "bytes": 2005360
+    },
+    "raw/tablet7/ar/05-play-beam.png": {
+      "scene": "beam",
+      "what": "Gameplay: a beam fires along its line",
+      "lang": "ar",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 51,
+      "world": "Bazaar",
+      "theme": "bazaar",
+      "worldLocal": "السوق",
+      "blockers": [],
+      "seed": 4,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
+      "moves": [
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
+      ],
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 13 of 27 taken while the effect runs, 612 ms after the swipe on the game's own clock (5.3 % of the board is effect light, 29.4 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "d6b83dbe517ddb42bda92c3b9ee095400d2404cb5352704f2d6d4d217b4097e5",
+      "bytes": 1728468
+    },
+    "raw/tablet7/ar/06-play-blockers.png": {
+      "scene": "blockers",
+      "what": "Gameplay: lamps, stone, chains, vines and sand on one board",
+      "lang": "ar",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 80,
+      "world": "Palace",
+      "theme": "palace",
+      "worldLocal": "القصر",
+      "blockers": [
+        "stone",
+        "chain",
+        "vine",
+        "lamp",
+        "sand"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, before the first move",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "d3bc145da81a72a3b80bf1acdca3ae51c974a8410744fb36b6412bdaa270b724",
+      "bytes": 1380343
+    },
+    "raw/tablet7/ar/07-play-booster.png": {
+      "scene": "booster",
+      "what": "Gameplay: the Hammer booster, choosing where to strike",
+      "lang": "ar",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 17,
+      "world": "Oasis",
+      "theme": "oasis",
+      "worldLocal": "الواحة",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–16 cleared; level 17 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "5ceaecb27f87504f329d8cf6340ffda9a75d6558b9e604663310abb658a6eb56",
+      "bytes": 1334289
+    },
+    "raw/tablet7/ar/08-play-praise.png": {
+      "scene": "praise",
+      "what": "Gameplay: a long cascade and the praise word it earns",
+      "lang": "ar",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 104,
+      "world": "Starlit Sky",
+      "theme": "stars",
+      "worldLocal": "سماء النجوم",
+      "blockers": [],
+      "seed": 3,
+      "startBoosters": "none",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
+      "moves": [
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"بهاء!\" (about 0.4 s after it appears)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "6142da27336f7019a2656f89b6f4e35079fdee795aedde6178f4d4a8c55f531e",
+      "bytes": 1621206
+    },
+    "raw/tablet7/ar/09-win.png": {
+      "scene": "win",
+      "what": "Level complete: three stars, score and coins",
+      "lang": "ar",
+      "device": "tablet7",
+      "viewport": "600×960 CSS px × 2",
+      "level": 82,
+      "world": "Caverns",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 2,
+      "startBoosters": "none",
+      "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "moves": [
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
+      ],
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "stars": 3,
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "672abb5313535a04443a91681a09da149ece304cb1c8d40469c8df82cf256477",
+      "bytes": 1350744
+    },
+    "raw/tablet10/ar/01-title.png": {
+      "scene": "title",
+      "what": "Title screen",
+      "lang": "ar",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "world": "Caverns",
+      "moment": "title screen after start-up",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "7e4f6a8237929449a09ece59a5e43cdba343919f6776f3f4975c3b707ca1a2ed",
+      "bytes": 1360571
+    },
+    "raw/tablet10/ar/02-map.png": {
+      "scene": "map",
+      "what": "World map, mid-journey",
+      "lang": "ar",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "save": "levels 1–81 cleared, 3450 coins, 5 lives",
+      "flags": "still=1 (idle sparkle loops stand still)",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "world": "Caverns",
+      "moment": "map as it opens, scrolled by the game to the current level 82",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "0af5e5853daa23aa1016fd38bbf0f89d7982071b82ff8057b49fd4ce5de9c0ac",
+      "bytes": 2265036
+    },
+    "raw/tablet10/ar/04-play-combo.png": {
+      "scene": "combo",
+      "what": "Gameplay: two special pieces swapped — a big combo",
+      "lang": "ar",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 28,
+      "world": "Dunes",
+      "theme": "dunes",
+      "worldLocal": "الكثبان",
+      "blockers": [],
+      "seed": 7,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 48 of 60 taken while the effect runs, 455 ms after the swipe on the game's own clock (22.8 % of the board is effect light, 29.0 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "9fc985c6bb2b511b4d6fed8c3207bcf20e951835bf5c6c3343927744aea35e57",
+      "bytes": 2962877
+    },
+    "raw/tablet10/ar/05-play-beam.png": {
+      "scene": "beam",
+      "what": "Gameplay: a beam fires along its line",
+      "lang": "ar",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 51,
+      "world": "Bazaar",
+      "theme": "bazaar",
+      "worldLocal": "السوق",
+      "blockers": [],
+      "seed": 4,
+      "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
+      "moves": [
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
+      ],
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 14 of 36 taken while the effect runs, 611 ms after the swipe on the game's own clock (5.7 % of the board is effect light, 29.3 % gem colour)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "9ddc685c157dd1505e4ba7c54fd3025d831b44423b8354903630f5c543e08f5d",
+      "bytes": 2688627
+    },
+    "raw/tablet10/ar/06-play-blockers.png": {
+      "scene": "blockers",
+      "what": "Gameplay: lamps, stone, chains, vines and sand on one board",
+      "lang": "ar",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 80,
+      "world": "Palace",
+      "theme": "palace",
+      "worldLocal": "القصر",
+      "blockers": [
+        "stone",
+        "chain",
+        "vine",
+        "lamp",
+        "sand"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, before the first move",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "fc03f916609181f50e01a9c9eed84f3982126b3374b639725255a4a5761f1369",
+      "bytes": 2147523
+    },
+    "raw/tablet10/ar/07-play-booster.png": {
+      "scene": "booster",
+      "what": "Gameplay: the Hammer booster, choosing where to strike",
+      "lang": "ar",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 17,
+      "world": "Oasis",
+      "theme": "oasis",
+      "worldLocal": "الواحة",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 7,
+      "startBoosters": "none",
+      "save": "levels 1–16 cleared; level 17 is the current level, played for the first time",
+      "flags": "seed=7",
+      "moves": [],
+      "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "6b5de97f26abe2f8541fff425775dbdffc159cec658c4418f152ab1634d895e5",
+      "bytes": 1995459
+    },
+    "raw/tablet10/ar/08-play-praise.png": {
+      "scene": "praise",
+      "what": "Gameplay: a long cascade and the praise word it earns",
+      "lang": "ar",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 104,
+      "world": "Starlit Sky",
+      "theme": "stars",
+      "worldLocal": "سماء النجوم",
+      "blockers": [],
+      "seed": 3,
+      "startBoosters": "none",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
+      "moves": [
+        "(2,3)↔(2,4)"
+      ],
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"بهاء!\" (about 0.4 s after it appears)",
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "33db36424a20eca85d03f5bfae21f6b13cf1c58fe8839185ad87b92fc26e9517",
+      "bytes": 2507119
+    },
+    "raw/tablet10/ar/09-win.png": {
+      "scene": "win",
+      "what": "Level complete: three stars, score and coins",
+      "lang": "ar",
+      "device": "tablet10",
+      "viewport": "800×1280 CSS px × 2",
+      "level": 82,
+      "world": "Caverns",
+      "theme": "caverns",
+      "worldLocal": "الكهوف",
+      "blockers": [
+        "stone"
+      ],
+      "seed": 2,
+      "startBoosters": "none",
+      "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "moves": [
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
+      ],
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "stars": 3,
+      "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
+      "levelsInGame": 120,
+      "sha256": "cd44a10cd0f105efd8f28ba5f2dab076cc9bf614b8612a2c6a85892b4fe6d3b5",
+      "bytes": 2479683
+    }
+  },
+  "finals": {
+    "phone/en/01-match-gems.png": {
+      "n": 1,
+      "lang": "en",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/en/04-play-combo.png",
+      "sourceLang": "en",
+      "caption": [
+        "Match Gems,",
+        "Unleash the Light"
+      ],
+      "alt": "A board of gems in the Dunes world as two special pieces combine and beams of light sweep across rows and columns.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 132,
+        "y": 98,
+        "w": 815,
+        "h": 156
+      },
+      "captionShare": 0.0613,
+      "fontSize": 100,
+      "bytes": 1841250,
+      "sha256": "f46194de5abbce13b4a96fc38f1faf5d47d742aca36d5fb01595552006f9257e",
+      "sourceSha256": "a0809676583c154b4ddbc4b250fd383e4bbaa4a5067bf99f9697ee3434fb9c75"
+    },
+    "phone/en/02-special-pieces.png": {
+      "n": 2,
+      "lang": "en",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/en/05-play-beam.png",
+      "sourceLang": "en",
+      "caption": [
+        "Fire Beams, Novas",
+        "and Prisms"
+      ],
+      "alt": "A beam fires along its line in a level of the Bazaar world while other special pieces wait on the board.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 116,
+        "y": 98,
+        "w": 847,
+        "h": 156
+      },
+      "captionShare": 0.0637,
+      "fontSize": 100,
+      "bytes": 1871173,
+      "sha256": "3b1295ed2de64d3ef9ca5be836c9d3710951248d6ae594a87b905fb37304fd51",
+      "sourceSha256": "a7bdeba57c4823cc80922a29088cdb6d63902e1f3f0e94b26c38cd692e114ed0"
+    },
+    "phone/en/03-six-worlds.png": {
+      "n": 3,
+      "lang": "en",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/en/02-map.png",
+      "sourceLang": "en",
+      "caption": [
+        "120 Levels",
+        "Across Six Worlds"
+      ],
+      "alt": "The level map at the entrance to the Caverns world, with stars earned on the levels already cleared.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 128,
+        "y": 98,
+        "w": 825,
+        "h": 156
+      },
+      "captionShare": 0.0621,
+      "fontSize": 100,
+      "bytes": 1390832,
+      "sha256": "214806b34111df2d89431e5a1ee88c283ce9f0e1cbef3d9840199f3b6f22733e",
+      "sourceSha256": "d520d0c5e26658a5e14928ace7ecd22bd0c46eec8c48429dee1bb98f2d207337"
+    },
+    "phone/en/04-goals.png": {
+      "n": 4,
+      "lang": "en",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/en/06-play-blockers.png",
+      "sourceLang": "en",
+      "caption": [
+        "Every Level,",
+        "a Fresh Puzzle"
+      ],
+      "alt": "A level of the Palace world with lamps to bring down, chained gems, stone blocks, vines and sand; its goals are in the top bar.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 209,
+        "y": 98,
+        "w": 663,
+        "h": 156
+      },
+      "captionShare": 0.0499,
+      "fontSize": 100,
+      "bytes": 1940641,
+      "sha256": "d879a884daa5bc50cc9e3f80b3b7d7459445b0de9f02d26be4d11a106380a38f",
+      "sourceSha256": "df4d9af67380fe3b4f48571fb163f599988b2dc5154560227002a2b47aadedcf"
+    },
+    "phone/en/05-boosters.png": {
+      "n": 5,
+      "lang": "en",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/en/07-play-booster.png",
+      "sourceLang": "en",
+      "caption": [
+        "Boosters for",
+        "Tricky Moments"
+      ],
+      "alt": "The Hammer booster is selected in a level of the Oasis world and the game asks which piece to smash.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 169,
+        "y": 98,
+        "w": 741,
+        "h": 156
+      },
+      "captionShare": 0.0557,
+      "fontSize": 100,
+      "bytes": 1730060,
+      "sha256": "2b03d76c95931a02b1d5d19595146e2a9b2736d8e5457054db9d73084d733686",
+      "sourceSha256": "1fc7cef2d0d5246ea93f637026da35774a89965fe1c2a72b69c76d24cf9f23ca"
+    },
+    "phone/en/06-rewards.png": {
+      "n": 6,
+      "lang": "en",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/en/09-win.png",
+      "sourceLang": "en",
+      "caption": [
+        "Earn Stars",
+        "and Rewards"
+      ],
+      "alt": "The level complete dialog with three stars, the score and the coins earned.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 236,
+        "y": 98,
+        "w": 608,
+        "h": 156
+      },
+      "captionShare": 0.0457,
+      "fontSize": 100,
+      "bytes": 1360472,
+      "sha256": "78e24177818ec0998d99eedbbff3e35704f650c1cd7aaae144f58d19a1d0e4e5",
+      "sourceSha256": "80ee5a7549e39110598a0e5b0ef2f03a5c72de44ab9318eef58aa937b9dfc64e"
+    },
+    "phone/en/07-offline.png": {
+      "n": 7,
+      "lang": "en",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/en/08-play-praise.png",
+      "sourceLang": "en",
+      "caption": [
+        "Works Offline,",
+        "Anywhere"
+      ],
+      "alt": "A level of the Starlit Sky world just after a long cascade, with the praise word the game shows for it.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 202,
+        "y": 98,
+        "w": 675,
+        "h": 156
+      },
+      "captionShare": 0.0508,
+      "fontSize": 100,
+      "bytes": 1792170,
+      "sha256": "ec4bced795f174d9003e69902290f261e66669d6471546e6d1a7cd69a2df0da9",
+      "sourceSha256": "d23d09bbe64f966f74740d160b7ccca3d959386ed0525b1ae78b97714f698a01"
+    },
+    "phone/en/08-languages.png": {
+      "n": 8,
+      "lang": "en",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/ar/01-title.png",
+      "sourceLang": "ar",
+      "caption": [
+        "In English",
+        "and Arabic"
+      ],
+      "alt": "The title screen of the game in Arabic: the emblem, the Arabic wordmark and the Play button.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 289,
+        "y": 98,
+        "w": 502,
+        "h": 156
+      },
+      "captionShare": 0.0378,
+      "fontSize": 100,
+      "bytes": 1207414,
+      "sha256": "ea026c8f39fc85e81a7fb26606763d794bf5a194068d7dd8e9341ba510a371ce",
+      "sourceSha256": "ce60a368b5d5759b289d051acad7cd66adb1e4798841769eedf9c4c87e9d5bda"
+    },
+    "tablet7/en/01-match-gems.png": {
+      "n": 1,
+      "lang": "en",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/en/04-play-combo.png",
+      "sourceLang": "en",
+      "caption": [
+        "Match Gems,",
+        "Unleash the Light"
+      ],
+      "alt": "A board of gems in the Dunes world as two special pieces combine and beams of light sweep across rows and columns.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 143,
+        "y": 121,
+        "w": 913,
+        "h": 175
+      },
+      "captionShare": 0.0693,
+      "fontSize": 112,
+      "bytes": 1958094,
+      "sha256": "409f2c0f27c0cc55d2ae7614f8bb550927d112d325ce157a6b3806b4b91e8c0d",
+      "sourceSha256": "22b49f922e22524c46afc0c64fbbb66152491ef6a5d745f1982be00170e5e7f8"
+    },
+    "tablet7/en/02-special-pieces.png": {
+      "n": 2,
+      "lang": "en",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/en/05-play-beam.png",
+      "sourceLang": "en",
+      "caption": [
+        "Fire Beams, Novas",
+        "and Prisms"
+      ],
+      "alt": "A beam fires along its line in a level of the Bazaar world while other special pieces wait on the board.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 126,
+        "y": 121,
+        "w": 949,
+        "h": 175
+      },
+      "captionShare": 0.0721,
+      "fontSize": 112,
+      "bytes": 1950499,
+      "sha256": "afb5c892fc60274dea560385378a2c87d78a3fd84e078dd475ec37453fff6416",
+      "sourceSha256": "c763e68de1facbfcac1bfab1e4bad24b2825249e231573057157610565ca330a"
+    },
+    "tablet7/en/03-six-worlds.png": {
+      "n": 3,
+      "lang": "en",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/en/02-map.png",
+      "sourceLang": "en",
+      "caption": [
+        "120 Levels",
+        "Across Six Worlds"
+      ],
+      "alt": "The level map at the entrance to the Caverns world, with stars earned on the levels already cleared.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 138,
+        "y": 121,
+        "w": 923,
+        "h": 175
+      },
+      "captionShare": 0.0701,
+      "fontSize": 112,
+      "bytes": 1519329,
+      "sha256": "1d14db4d082fc6865dfae0c1bc38e84d2a15cb7bfe0de70ed02313c524452909",
+      "sourceSha256": "f0c5a592716652fbe6af398df465f4ff2e6f23329aeca9afc0d4175925a28199"
+    },
+    "tablet7/en/04-goals.png": {
+      "n": 4,
+      "lang": "en",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/en/06-play-blockers.png",
+      "sourceLang": "en",
+      "caption": [
+        "Every Level,",
+        "a Fresh Puzzle"
+      ],
+      "alt": "A level of the Palace world with lamps to bring down, chained gems, stone blocks, vines and sand; its goals are in the top bar.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 229,
+        "y": 121,
+        "w": 742,
+        "h": 175
+      },
+      "captionShare": 0.0564,
+      "fontSize": 112,
+      "bytes": 2037145,
+      "sha256": "c38c37cb7a7a025a0589ffba875995da32a34a7b679c339a1e5e402dc3ad269b",
+      "sourceSha256": "8dd0e5b5316fd50923447a7a2da54c98a417e0ae98bcae4b066effadac5aadab"
+    },
+    "tablet7/en/05-boosters.png": {
+      "n": 5,
+      "lang": "en",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/en/07-play-booster.png",
+      "sourceLang": "en",
+      "caption": [
+        "Boosters for",
+        "Tricky Moments"
+      ],
+      "alt": "The Hammer booster is selected in a level of the Oasis world and the game asks which piece to smash.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 185,
+        "y": 121,
+        "w": 830,
+        "h": 175
+      },
+      "captionShare": 0.063,
+      "fontSize": 112,
+      "bytes": 1867897,
+      "sha256": "36c023dc811b29b321aae7ab2e60d9f32a6062057cfa30ef8ed0f2ea362b71f2",
+      "sourceSha256": "295cfb231c776382c8d99633ee28e01c7447ade17d955934d225daf6adfd625d"
+    },
+    "tablet7/en/06-rewards.png": {
+      "n": 6,
+      "lang": "en",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/en/09-win.png",
+      "sourceLang": "en",
+      "caption": [
+        "Earn Stars",
+        "and Rewards"
+      ],
+      "alt": "The level complete dialog with three stars, the score and the coins earned.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 260,
+        "y": 121,
+        "w": 680,
+        "h": 175
+      },
+      "captionShare": 0.0516,
+      "fontSize": 112,
+      "bytes": 1503220,
+      "sha256": "3137075fec7f53c1f040a2ee05866016dd507ec1baf1e0ac75a8968edace9562",
+      "sourceSha256": "20b10fd64a250ce03d0857181f53f7f88b62c57904f30cdd2e2e8a32b961b61a"
+    },
+    "tablet7/en/07-offline.png": {
+      "n": 7,
+      "lang": "en",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/en/08-play-praise.png",
+      "sourceLang": "en",
+      "caption": [
+        "Works Offline,",
+        "Anywhere"
+      ],
+      "alt": "A level of the Starlit Sky world just after a long cascade, with the praise word the game shows for it.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 222,
+        "y": 121,
+        "w": 756,
+        "h": 175
+      },
+      "captionShare": 0.0574,
+      "fontSize": 112,
+      "bytes": 1927585,
+      "sha256": "22c85c413f50cdb9e6223eac4997642e35eb837753c832f202ca68cb2c02d613",
+      "sourceSha256": "ca030b4e5ab53c81b20abbb1f7c552a5469af0c7f90848f754c794359bb021e6"
+    },
+    "tablet7/en/08-languages.png": {
+      "n": 8,
+      "lang": "en",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/ar/01-title.png",
+      "sourceLang": "ar",
+      "caption": [
+        "In English",
+        "and Arabic"
+      ],
+      "alt": "The title screen of the game in Arabic: the emblem, the Arabic wordmark and the Play button.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 319,
+        "y": 121,
+        "w": 562,
+        "h": 175
+      },
+      "captionShare": 0.0427,
+      "fontSize": 112,
+      "bytes": 1327818,
+      "sha256": "549fd5b63ee969668a7c0cca9fa70a3967ab40123b3f21c0761cbfe7154f2823",
+      "sourceSha256": "ff573b821e4a66a90b1261f2a9f97bac5738c69dcd4b34ff1edc40f60c0fa026"
+    },
+    "tablet10/en/01-match-gems.png": {
+      "n": 1,
+      "lang": "en",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/en/04-play-combo.png",
+      "sourceLang": "en",
+      "caption": [
+        "Match Gems,",
+        "Unleash the Light"
+      ],
+      "alt": "A board of gems in the Dunes world as two special pieces combine and beams of light sweep across rows and columns.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 193,
+        "y": 163,
+        "w": 1214,
+        "h": 232
+      },
+      "captionShare": 0.0688,
+      "fontSize": 149,
+      "bytes": 3046539,
+      "sha256": "332eac3b24268227ae2ef3b0fcfd4f47c32a1311f426d78c07e0d80a6ce8d723",
+      "sourceSha256": "016a14cba2ac4896b063a5ceceb70c10a6ffaa03140798606a88d29d067d4c64"
+    },
+    "tablet10/en/02-special-pieces.png": {
+      "n": 2,
+      "lang": "en",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/en/05-play-beam.png",
+      "sourceLang": "en",
+      "caption": [
+        "Fire Beams, Novas",
+        "and Prisms"
+      ],
+      "alt": "A beam fires along its line in a level of the Bazaar world while other special pieces wait on the board.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 169,
+        "y": 163,
+        "w": 1262,
+        "h": 232
+      },
+      "captionShare": 0.0715,
+      "fontSize": 149,
+      "bytes": 3101527,
+      "sha256": "6b6f6ccbaee190bffb8be63f8b696c12eb9ca9214478ad2cbe96e91ab1ce8d6a",
+      "sourceSha256": "66ec67b3d8c254df240c0ba132749af99d3816e15913d2b8bfa5a76288e9feab"
+    },
+    "tablet10/en/03-six-worlds.png": {
+      "n": 3,
+      "lang": "en",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/en/02-map.png",
+      "sourceLang": "en",
+      "caption": [
+        "120 Levels",
+        "Across Six Worlds"
+      ],
+      "alt": "The level map at the entrance to the Caverns world, with stars earned on the levels already cleared.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 186,
+        "y": 163,
+        "w": 1228,
+        "h": 232
+      },
+      "captionShare": 0.0696,
+      "fontSize": 149,
+      "bytes": 2515067,
+      "sha256": "b5417a1e576b115e8c5663295d87be089b1272698a3479746419dccc9cdcadab",
+      "sourceSha256": "8375482130f6e71fc6fe4baad0d7ad562fc374e11e9c2256420c7567bfdb739d"
+    },
+    "tablet10/en/04-goals.png": {
+      "n": 4,
+      "lang": "en",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/en/06-play-blockers.png",
+      "sourceLang": "en",
+      "caption": [
+        "Every Level,",
+        "a Fresh Puzzle"
+      ],
+      "alt": "A level of the Palace world with lamps to bring down, chained gems, stone blocks, vines and sand; its goals are in the top bar.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 306,
+        "y": 163,
+        "w": 987,
+        "h": 232
+      },
+      "captionShare": 0.0559,
+      "fontSize": 149,
+      "bytes": 3212561,
+      "sha256": "91ac6ec89220742670748b948cb9f8251cd00536d93d669b0cb931e562ddace3",
+      "sourceSha256": "9cbeee97ecfdd4808324f22e50cb21f5ca2de11c3f620e040ca357d9cb181bed"
+    },
+    "tablet10/en/05-boosters.png": {
+      "n": 5,
+      "lang": "en",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/en/07-play-booster.png",
+      "sourceLang": "en",
+      "caption": [
+        "Boosters for",
+        "Tricky Moments"
+      ],
+      "alt": "The Hammer booster is selected in a level of the Oasis world and the game asks which piece to smash.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 248,
+        "y": 163,
+        "w": 1104,
+        "h": 232
+      },
+      "captionShare": 0.0625,
+      "fontSize": 149,
+      "bytes": 2887559,
+      "sha256": "6c08414f7106782cb5b5703be540a4fdc388b496f76ed2314402fdfc164c315f",
+      "sourceSha256": "6886fa755db0616b88f6a35f01977b30f932621d5aaf8ef0a2875128db61b14a"
+    },
+    "tablet10/en/06-rewards.png": {
+      "n": 6,
+      "lang": "en",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/en/09-win.png",
+      "sourceLang": "en",
+      "caption": [
+        "Earn Stars",
+        "and Rewards"
+      ],
+      "alt": "The level complete dialog with three stars, the score and the coins earned.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 348,
+        "y": 163,
+        "w": 904,
+        "h": 232
+      },
+      "captionShare": 0.0512,
+      "fontSize": 149,
+      "bytes": 2564653,
+      "sha256": "fd6027678e499f5f10f81d93e8aa50877a0b052aa3263ba93e62524f027a1592",
+      "sourceSha256": "9461a028c6ffb98ee25c7e5fd14f52874f38a9592da3bba94beab79ea85d3c3c"
+    },
+    "tablet10/en/07-offline.png": {
+      "n": 7,
+      "lang": "en",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/en/08-play-praise.png",
+      "sourceLang": "en",
+      "caption": [
+        "Works Offline,",
+        "Anywhere"
+      ],
+      "alt": "A level of the Starlit Sky world just after a long cascade, with the praise word the game shows for it.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 297,
+        "y": 163,
+        "w": 1006,
+        "h": 232
+      },
+      "captionShare": 0.057,
+      "fontSize": 149,
+      "bytes": 3057304,
+      "sha256": "1bc4947e434554ff7254e93335da85468eb2c1b99679e3e2f46a07daebb03601",
+      "sourceSha256": "8cf13915e94aab5bbb5abcefb3bbb57c3528bcde303582a80b17a04e98b1b4a5"
+    },
+    "tablet10/en/08-languages.png": {
+      "n": 8,
+      "lang": "en",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/ar/01-title.png",
+      "sourceLang": "ar",
+      "caption": [
+        "In English",
+        "and Arabic"
+      ],
+      "alt": "The title screen of the game in Arabic: the emblem, the Arabic wordmark and the Play button.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 426,
+        "y": 163,
+        "w": 747,
+        "h": 232
+      },
+      "captionShare": 0.0423,
+      "fontSize": 149,
+      "bytes": 2025304,
+      "sha256": "38a8410991441bc1d07d2e926df5e87b27e060c79e912f076e76bc39eb886784",
+      "sourceSha256": "7e4f6a8237929449a09ece59a5e43cdba343919f6776f3f4975c3b707ca1a2ed"
+    },
+    "phone/ar/01-match-gems.png": {
+      "n": 1,
+      "lang": "ar",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/ar/04-play-combo.png",
+      "sourceLang": "ar",
+      "caption": [
+        "طابق الجواهر",
+        "وأطلق وهجها"
+      ],
+      "alt": "لوح من الجواهر في عالم الكثبان لحظة دمج قطعتين خاصتين وأشعة الضوء تكتسح الصفوف والأعمدة.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 268,
+        "y": 88,
+        "w": 543,
+        "h": 187
+      },
+      "captionShare": 0.049,
+      "fontSize": 96,
+      "bytes": 1869484,
+      "sha256": "702a0ab686eaf3ea23e102923399763b7e7f44b8708f867b9f58c66d7853e847",
+      "sourceSha256": "31d9e98fa223bfd1c61f5bfeca983641b68aba3f5b89890be9926656e8308fcd"
+    },
+    "phone/ar/02-special-pieces.png": {
+      "n": 2,
+      "lang": "ar",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/ar/05-play-beam.png",
+      "sourceLang": "ar",
+      "caption": [
+        "أشعل الشعاع",
+        "والنوفا والمنشور"
+      ],
+      "alt": "شعاع ينطلق على طول خطه في مرحلة من عالم السوق، وعلى اللوح قطع خاصة أخرى تنتظر دورها.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 204,
+        "y": 88,
+        "w": 673,
+        "h": 187
+      },
+      "captionShare": 0.0607,
+      "fontSize": 96,
+      "bytes": 1890108,
+      "sha256": "7834ebf371c1520fb51378725e99f2d65d11ebb5422fab64e619b2ea2963ff3f",
+      "sourceSha256": "794da45c4011f189f7789ed167da8e9f422476a8c355210da78cf11ecf305d23"
+    },
+    "phone/ar/03-six-worlds.png": {
+      "n": 3,
+      "lang": "ar",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/ar/02-map.png",
+      "sourceLang": "ar",
+      "caption": [
+        "120 مرحلة",
+        "في ستة عوالم"
+      ],
+      "alt": "خريطة المراحل عند مدخل عالم الكهوف، وعليها النجوم المكتسبة في المراحل المنجزة.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 283,
+        "y": 88,
+        "w": 515,
+        "h": 187
+      },
+      "captionShare": 0.0464,
+      "fontSize": 96,
+      "bytes": 1415360,
+      "sha256": "d0b0901b294a41cb212e5a42bc3566403c51b0d9e009dda50c19102523f09137",
+      "sourceSha256": "bbd76c0fe7b78069004e461cc6dfb74f8ab2a1dd0c533d451707d04fd4c497f5"
+    },
+    "phone/ar/04-goals.png": {
+      "n": 4,
+      "lang": "ar",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/ar/06-play-blockers.png",
+      "sourceLang": "ar",
+      "caption": [
+        "في كل مرحلة",
+        "تحدٍّ مختلف"
+      ],
+      "alt": "مرحلة من عالم القصر فيها مصابيح يجب إنزالها، جواهر مقيّدة، حجارة، نباتات متسلقة ورمال، وأهدافها في الشريط العلوي.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 301,
+        "y": 88,
+        "w": 477,
+        "h": 187
+      },
+      "captionShare": 0.043,
+      "fontSize": 96,
+      "bytes": 1964484,
+      "sha256": "dc0a5f0211b4bf4d5852b79b1bd16a117184d623185b6af47e1e1a7d1b8e6ae9",
+      "sourceSha256": "6cecf87f98a6cdc8a26d0b2016e9bb8ce33ee815f379ce4d636c24abbafed843"
+    },
+    "phone/ar/05-boosters.png": {
+      "n": 5,
+      "lang": "ar",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/ar/07-play-booster.png",
+      "sourceLang": "ar",
+      "caption": [
+        "معزّزات",
+        "تنقذ الموقف"
+      ],
+      "alt": "معزّز المطرقة محدد في مرحلة من عالم الواحة، واللعبة تسأل أي قطعة تُحطَّم.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 285,
+        "y": 88,
+        "w": 511,
+        "h": 187
+      },
+      "captionShare": 0.0461,
+      "fontSize": 96,
+      "bytes": 1744949,
+      "sha256": "b42aa5ceca58e13ec4bfb79d26dc20dcdb0b5857a8bc5c1835a317a38fc6b590",
+      "sourceSha256": "fcf6616a34b1d8afa02a44f61394ccfec833f0223556c243b65fc22ce9c1eeb8"
+    },
+    "phone/ar/06-rewards.png": {
+      "n": 6,
+      "lang": "ar",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/ar/09-win.png",
+      "sourceLang": "ar",
+      "caption": [
+        "اكسب النجوم",
+        "والمكافآت"
+      ],
+      "alt": "نافذة إتمام المرحلة بثلاث نجوم مع النتيجة والعملات المكتسبة.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 267,
+        "y": 88,
+        "w": 546,
+        "h": 187
+      },
+      "captionShare": 0.0492,
+      "fontSize": 96,
+      "bytes": 1376647,
+      "sha256": "ca5b0281d3ef4cfe2869c16f722dcc861a3e2afe00f5376d6a49b5f11c9d0fd9",
+      "sourceSha256": "ad11a2c11227eab5b6f79cebe4e3196a10ef7902aad5f6a626d3174b1a00c178"
+    },
+    "phone/ar/07-offline.png": {
+      "n": 7,
+      "lang": "ar",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/ar/08-play-praise.png",
+      "sourceLang": "ar",
+      "caption": [
+        "تعمل بلا إنترنت",
+        "أينما كنت"
+      ],
+      "alt": "مرحلة من عالم سماء النجوم بعد سلسلة تطابقات طويلة، مع كلمة الثناء التي تعرضها اللعبة.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 231,
+        "y": 88,
+        "w": 619,
+        "h": 187
+      },
+      "captionShare": 0.0558,
+      "fontSize": 96,
+      "bytes": 1829622,
+      "sha256": "4d64d1cc661d25335c7537a3f22aea2f3588f9315f669255fbcb52728fa9901d",
+      "sourceSha256": "98828c04703846ee7fd0011b579096e9c1c2b45482fcfc2c50c4ac6aefe41be2"
+    },
+    "phone/ar/08-languages.png": {
+      "n": 8,
+      "lang": "ar",
+      "device": "phone",
+      "size": "1080×1920",
+      "source": "raw/en/01-title.png",
+      "sourceLang": "en",
+      "caption": [
+        "بالعربية",
+        "والإنجليزية"
+      ],
+      "alt": "شاشة البداية باللغة الإنجليزية: الشعار واسم اللعبة وزر اللعب.",
+      "shot": {
+        "x": 96,
+        "y": 303,
+        "w": 888,
+        "h": 1579
+      },
+      "radius": 50,
+      "band": 297,
+      "captionBox": {
+        "x": 323,
+        "y": 88,
+        "w": 434,
+        "h": 187
+      },
+      "captionShare": 0.0391,
+      "fontSize": 96,
+      "bytes": 1213481,
+      "sha256": "d0bbc262668de776333ffd930d5d8780994eae39129de43737a6712ddc97a9a0",
+      "sourceSha256": "c1d56c10d6b8092bc47c1967ca990f47ccd42a76ce21aff454bd79422a4aada7"
+    },
+    "tablet7/ar/01-match-gems.png": {
+      "n": 1,
+      "lang": "ar",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/ar/04-play-combo.png",
+      "sourceLang": "ar",
+      "caption": [
+        "طابق الجواهر",
+        "وأطلق وهجها"
+      ],
+      "alt": "لوح من الجواهر في عالم الكثبان لحظة دمج قطعتين خاصتين وأشعة الضوء تكتسح الصفوف والأعمدة.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 300,
+        "y": 111,
+        "w": 600,
+        "h": 207
+      },
+      "captionShare": 0.0539,
+      "fontSize": 106,
+      "bytes": 1987112,
+      "sha256": "ccf602a637c5596314daa70a8a53c2ae69940bf65451f72cb58519e2acdae1a5",
+      "sourceSha256": "d65b33851036225b2489ac0611fca8a20cbd7e2543355523c30114d7081f3aae"
+    },
+    "tablet7/ar/02-special-pieces.png": {
+      "n": 2,
+      "lang": "ar",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/ar/05-play-beam.png",
+      "sourceLang": "ar",
+      "caption": [
+        "أشعل الشعاع",
+        "والنوفا والمنشور"
+      ],
+      "alt": "شعاع ينطلق على طول خطه في مرحلة من عالم السوق، وعلى اللوح قطع خاصة أخرى تنتظر دورها.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 229,
+        "y": 111,
+        "w": 743,
+        "h": 207
+      },
+      "captionShare": 0.0668,
+      "fontSize": 106,
+      "bytes": 1985578,
+      "sha256": "e7279122ca35df5211773aae9975606def14161a983765cd48fd4e36a49e8cd2",
+      "sourceSha256": "d6b83dbe517ddb42bda92c3b9ee095400d2404cb5352704f2d6d4d217b4097e5"
+    },
+    "tablet7/ar/03-six-worlds.png": {
+      "n": 3,
+      "lang": "ar",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/ar/02-map.png",
+      "sourceLang": "ar",
+      "caption": [
+        "120 مرحلة",
+        "في ستة عوالم"
+      ],
+      "alt": "خريطة المراحل عند مدخل عالم الكهوف، وعليها النجوم المكتسبة في المراحل المنجزة.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 316,
+        "y": 111,
+        "w": 569,
+        "h": 207
+      },
+      "captionShare": 0.0511,
+      "fontSize": 106,
+      "bytes": 1538871,
+      "sha256": "4b7cfc5cf905553b5519275cae860c1c1aac4c4996453fddd78e6bdf965939f7",
+      "sourceSha256": "a718e9547c1aec70153569b624d0f490c59a182b85bfe6bca1a58398411996f0"
+    },
+    "tablet7/ar/04-goals.png": {
+      "n": 4,
+      "lang": "ar",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/ar/06-play-blockers.png",
+      "sourceLang": "ar",
+      "caption": [
+        "في كل مرحلة",
+        "تحدٍّ مختلف"
+      ],
+      "alt": "مرحلة من عالم القصر فيها مصابيح يجب إنزالها، جواهر مقيّدة، حجارة، نباتات متسلقة ورمال، وأهدافها في الشريط العلوي.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 336,
+        "y": 111,
+        "w": 527,
+        "h": 207
+      },
+      "captionShare": 0.0473,
+      "fontSize": 106,
+      "bytes": 2058110,
+      "sha256": "047fab5c91a8d76b775c52e799b18383ae36b3cca80424754abe7f04153800f9",
+      "sourceSha256": "d3bc145da81a72a3b80bf1acdca3ae51c974a8410744fb36b6412bdaa270b724"
+    },
+    "tablet7/ar/05-boosters.png": {
+      "n": 5,
+      "lang": "ar",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/ar/07-play-booster.png",
+      "sourceLang": "ar",
+      "caption": [
+        "معزّزات",
+        "تنقذ الموقف"
+      ],
+      "alt": "معزّز المطرقة محدد في مرحلة من عالم الواحة، واللعبة تسأل أي قطعة تُحطَّم.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 318,
+        "y": 111,
+        "w": 564,
+        "h": 207
+      },
+      "captionShare": 0.0507,
+      "fontSize": 106,
+      "bytes": 1883023,
+      "sha256": "eec781ed6ea094e1bda916ccc264070ba51b88b94a2d4fe703a1606c2a5e2377",
+      "sourceSha256": "5ceaecb27f87504f329d8cf6340ffda9a75d6558b9e604663310abb658a6eb56"
+    },
+    "tablet7/ar/06-rewards.png": {
+      "n": 6,
+      "lang": "ar",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/ar/09-win.png",
+      "sourceLang": "ar",
+      "caption": [
+        "اكسب النجوم",
+        "والمكافآت"
+      ],
+      "alt": "نافذة إتمام المرحلة بثلاث نجوم مع النتيجة والعملات المكتسبة.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 298,
+        "y": 111,
+        "w": 603,
+        "h": 207
+      },
+      "captionShare": 0.0542,
+      "fontSize": 106,
+      "bytes": 1520498,
+      "sha256": "7c15257251f6bb2bd298f13f246fba53d16909490d8dd2a02586b8e010da9305",
+      "sourceSha256": "672abb5313535a04443a91681a09da149ece304cb1c8d40469c8df82cf256477"
+    },
+    "tablet7/ar/07-offline.png": {
+      "n": 7,
+      "lang": "ar",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/ar/08-play-praise.png",
+      "sourceLang": "ar",
+      "caption": [
+        "تعمل بلا إنترنت",
+        "أينما كنت"
+      ],
+      "alt": "مرحلة من عالم سماء النجوم بعد سلسلة تطابقات طويلة، مع كلمة الثناء التي تعرضها اللعبة.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 258,
+        "y": 111,
+        "w": 684,
+        "h": 207
+      },
+      "captionShare": 0.0615,
+      "fontSize": 106,
+      "bytes": 1953520,
+      "sha256": "daf00a2a9fee211f5fc4c8e73b3a408e1322f33b3efaf1f8090163630495fd4a",
+      "sourceSha256": "6142da27336f7019a2656f89b6f4e35079fdee795aedde6178f4d4a8c55f531e"
+    },
+    "tablet7/ar/08-languages.png": {
+      "n": 8,
+      "lang": "ar",
+      "device": "tablet7",
+      "size": "1200×1920",
+      "source": "raw/tablet7/en/01-title.png",
+      "sourceLang": "en",
+      "caption": [
+        "بالعربية",
+        "والإنجليزية"
+      ],
+      "alt": "شاشة البداية باللغة الإنجليزية: الشعار واسم اللعبة وزر اللعب.",
+      "shot": {
+        "x": 126,
+        "y": 361,
+        "w": 948,
+        "h": 1517
+      },
+      "radius": 55,
+      "band": 355,
+      "captionBox": {
+        "x": 360,
+        "y": 111,
+        "w": 480,
+        "h": 207
+      },
+      "captionShare": 0.0431,
+      "fontSize": 106,
+      "bytes": 1328956,
+      "sha256": "42dafb00411b5e7ea0006a2e7d64e9d55491c9e77330f410563bdfbb07b83458",
+      "sourceSha256": "265360b7a1c0b6089cf7fa9d48923d3e48d5fe334a5d1843f46443723deb9345"
+    },
+    "tablet10/ar/01-match-gems.png": {
+      "n": 1,
+      "lang": "ar",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/ar/04-play-combo.png",
+      "sourceLang": "ar",
+      "caption": [
+        "طابق الجواهر",
+        "وأطلق وهجها"
+      ],
+      "alt": "لوح من الجواهر في عالم الكثبان لحظة دمج قطعتين خاصتين وأشعة الضوء تكتسح الصفوف والأعمدة.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 398,
+        "y": 148,
+        "w": 804,
+        "h": 277
+      },
+      "captionShare": 0.0544,
+      "fontSize": 142,
+      "bytes": 3021422,
+      "sha256": "957f5ff3770024d8a812b50e1733ec65c1d907b2fc88245bbfda32d153dd9a99",
+      "sourceSha256": "9fc985c6bb2b511b4d6fed8c3207bcf20e951835bf5c6c3343927744aea35e57"
+    },
+    "tablet10/ar/02-special-pieces.png": {
+      "n": 2,
+      "lang": "ar",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/ar/05-play-beam.png",
+      "sourceLang": "ar",
+      "caption": [
+        "أشعل الشعاع",
+        "والنوفا والمنشور"
+      ],
+      "alt": "شعاع ينطلق على طول خطه في مرحلة من عالم السوق، وعلى اللوح قطع خاصة أخرى تنتظر دورها.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 302,
+        "y": 148,
+        "w": 995,
+        "h": 277
+      },
+      "captionShare": 0.0673,
+      "fontSize": 142,
+      "bytes": 3131895,
+      "sha256": "6c84d936976d7fb062508ea8b09fd9c6ae58000eee31479e5c5e04f0624dfaaa",
+      "sourceSha256": "9ddc685c157dd1505e4ba7c54fd3025d831b44423b8354903630f5c543e08f5d"
+    },
+    "tablet10/ar/03-six-worlds.png": {
+      "n": 3,
+      "lang": "ar",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/ar/02-map.png",
+      "sourceLang": "ar",
+      "caption": [
+        "120 مرحلة",
+        "في ستة عوالم"
+      ],
+      "alt": "خريطة المراحل عند مدخل عالم الكهوف، وعليها النجوم المكتسبة في المراحل المنجزة.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 419,
+        "y": 148,
+        "w": 762,
+        "h": 277
+      },
+      "captionShare": 0.0515,
+      "fontSize": 142,
+      "bytes": 2527162,
+      "sha256": "72c95fac195d5830827fa32f95623f734bfad6d6254c85f342f9db44f7ba9f58",
+      "sourceSha256": "0af5e5853daa23aa1016fd38bbf0f89d7982071b82ff8057b49fd4ce5de9c0ac"
+    },
+    "tablet10/ar/04-goals.png": {
+      "n": 4,
+      "lang": "ar",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/ar/06-play-blockers.png",
+      "sourceLang": "ar",
+      "caption": [
+        "في كل مرحلة",
+        "تحدٍّ مختلف"
+      ],
+      "alt": "مرحلة من عالم القصر فيها مصابيح يجب إنزالها، جواهر مقيّدة، حجارة، نباتات متسلقة ورمال، وأهدافها في الشريط العلوي.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 447,
+        "y": 148,
+        "w": 706,
+        "h": 277
+      },
+      "captionShare": 0.0477,
+      "fontSize": 142,
+      "bytes": 3240780,
+      "sha256": "40efbeb2331e3247efba315cedaae52cf13c5f4ce13738722a3abf0d4bca7cc5",
+      "sourceSha256": "fc03f916609181f50e01a9c9eed84f3982126b3374b639725255a4a5761f1369"
+    },
+    "tablet10/ar/05-boosters.png": {
+      "n": 5,
+      "lang": "ar",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/ar/07-play-booster.png",
+      "sourceLang": "ar",
+      "caption": [
+        "معزّزات",
+        "تنقذ الموقف"
+      ],
+      "alt": "معزّز المطرقة محدد في مرحلة من عالم الواحة، واللعبة تسأل أي قطعة تُحطَّم.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 422,
+        "y": 148,
+        "w": 755,
+        "h": 277
+      },
+      "captionShare": 0.0511,
+      "fontSize": 142,
+      "bytes": 2919326,
+      "sha256": "31d69a92733d97b609784c6e3779fe99beb287cc80cf76832e45421992c64dbc",
+      "sourceSha256": "6b5de97f26abe2f8541fff425775dbdffc159cec658c4418f152ab1634d895e5"
+    },
+    "tablet10/ar/06-rewards.png": {
+      "n": 6,
+      "lang": "ar",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/ar/09-win.png",
+      "sourceLang": "ar",
+      "caption": [
+        "اكسب النجوم",
+        "والمكافآت"
+      ],
+      "alt": "نافذة إتمام المرحلة بثلاث نجوم مع النتيجة والعملات المكتسبة.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 396,
+        "y": 148,
+        "w": 808,
+        "h": 277
+      },
+      "captionShare": 0.0546,
+      "fontSize": 142,
+      "bytes": 2590598,
+      "sha256": "b7e47c1c289fcb50245b655a355a5efb4ba46ff191c295daf0d818f45dbdc329",
+      "sourceSha256": "cd44a10cd0f105efd8f28ba5f2dab076cc9bf614b8612a2c6a85892b4fe6d3b5"
+    },
+    "tablet10/ar/07-offline.png": {
+      "n": 7,
+      "lang": "ar",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/ar/08-play-praise.png",
+      "sourceLang": "ar",
+      "caption": [
+        "تعمل بلا إنترنت",
+        "أينما كنت"
+      ],
+      "alt": "مرحلة من عالم سماء النجوم بعد سلسلة تطابقات طويلة، مع كلمة الثناء التي تعرضها اللعبة.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 342,
+        "y": 148,
+        "w": 916,
+        "h": 277
+      },
+      "captionShare": 0.0619,
+      "fontSize": 142,
+      "bytes": 3084466,
+      "sha256": "b4babad69861f48cc3e23a8e696336e98abca1aee4c51867b261e29b152c9f90",
+      "sourceSha256": "33db36424a20eca85d03f5bfae21f6b13cf1c58fe8839185ad87b92fc26e9517"
+    },
+    "tablet10/ar/08-languages.png": {
+      "n": 8,
+      "lang": "ar",
+      "device": "tablet10",
+      "size": "1600×2560",
+      "source": "raw/tablet10/en/01-title.png",
+      "sourceLang": "en",
+      "caption": [
+        "بالعربية",
+        "والإنجليزية"
+      ],
+      "alt": "شاشة البداية باللغة الإنجليزية: الشعار واسم اللعبة وزر اللعب.",
+      "shot": {
+        "x": 168,
+        "y": 483,
+        "w": 1264,
+        "h": 2022
+      },
+      "radius": 74,
+      "band": 475,
+      "captionBox": {
+        "x": 479,
+        "y": 148,
+        "w": 643,
+        "h": 277
+      },
+      "captionShare": 0.0435,
+      "fontSize": 142,
+      "bytes": 2043883,
+      "sha256": "abaa92efcdc20365b4fe15a88c60739aede45704a5b7dcfe37fe98009b715a8e",
+      "sourceSha256": "18cddd169a80593b1a4e8ca97e7393e4e4c5e7ddc0a9b294d8a40a4f40587ae4"
+    }
+  },
+  "levelsInGame": 120,
+  "capturedAt": "2026-11-14T01:05:10.784Z",
+  "game": {
+    "version": "1.0.0",
+    "commit": "464f239",
+    "sourceEditedSinceCommit": false
+  },
+  "laidOutAt": "2026-11-14T01:11:43.493Z"
+}

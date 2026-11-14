@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Audio lab (dev only)</title>
+    <!-- Development page for src/audio. It is not an entry of the production build. -->
+    <style>
+      html, body { margin: 0; background: #14123a; color: #fff6dc; font: 15px/1.45 system-ui, sans-serif; }
+      #lab { max-width: 1180px; margin: 0 auto; padding: 16px 16px 48px; }
+      h1 { margin: 0 0 4px; font-size: 24px; color: #f5c95a; }
+      h2 { margin: 22px 0 8px; font-size: 16px; color: #ffe7a3; letter-spacing: 0.02em; }
+      .note { margin: 0 0 12px; color: #c9c2e6; }
+      .status { margin: 0 0 14px; padding: 10px 12px; background: #231f5c; border: 1px solid #3a2a7a; border-radius: 10px; color: #c9c2e6; font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap; }
+      .row { display: flex; flex-wrap: wrap; align-items: center; margin: 0 -4px 8px; }
+      .row > * { margin: 4px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+      button { min-height: 44px; padding: 8px 14px; border-radius: 12px; border: 1px solid #5a4aa8; background: #3a2a7a; color: #fff6dc; font: inherit; cursor: pointer; }
+      button:hover { background: #4a39928f; }
+      button:active { transform: translateY(1px); }
+      button.primary { background: #f5c95a; border-color: #b8862e; color: #231a05; font-weight: 600; }
+      button.sfx.ui { border-color: #5ab8ff; }
+      button.sfx.jingle { border-color: #f5c95a; }
+      .check, .slider { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; color: #c9c2e6; }
+      .slider input { margin: 0 8px; width: 160px; }
+      .slider span { min-width: 2.5em; color: #ffe7a3; font-variant-numeric: tabular-nums; }
+      select { min-height: 44px; padding: 0 10px; border-radius: 10px; background: #231f5c; color: #fff6dc; border: 1px solid #5a4aa8; font: inherit; }
+      .result pre { margin: 8px 0; color: #c9c2e6; font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap; }
+      .result canvas { display: block; max-width: 100%; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <div id="lab"></div>
+    <script type="module" src="/src/audio/lab.ts"></script>
+  </body>
+</html>

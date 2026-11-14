@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        The "ads" flavour adds exactly one thing by hand: the AdMob app id. Google's consent SDK
+        (UMP) reads it from here; the ad SDK itself receives it in code (BuildConfig.ADMOB_APP_ID).
+        The value comes from the build (ADMOB_APP_ID, see android/README.md).
+
+        Everything else the ad SDK needs is merged in from its own manifest and is not repeated:
+        INTERNET, ACCESS_NETWORK_STATE, the advertising-id permission (com.google.android.gms.
+        permission.AD_ID), READ_BASIC_PHONE_STATE, its ad activity and its <queries>.
+        The GMA Next-Gen SDK needs no start-up "optimisation" flags: it already initialises and loads
+        off the main thread.
+    -->
+    <application>
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
+    </application>
+
+</manifest>

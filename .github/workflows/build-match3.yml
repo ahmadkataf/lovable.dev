@@ -1,0 +1,186 @@
+# Builds Zumurud (match3/): the App Bundle (.aab) to upload to Google Play, and an APK for testing on a device.
+# Start it by hand from the Actions tab (Build Zumurud → Run workflow); it never runs on a push.
+# The files appear under "Artifacts" of the finished run.
+#
+# Flavour:
+#   plain  purchases only (Google Play Billing), no ad SDK
+#   both   one run builds plain and ads (both sets of files in one artifact)
+#   ads    purchases + AdMob ads. Needs the three AdMob ids (they are not secrets), as repository
+#          VARIABLES (Settings → Secrets and variables → Actions → Variables):
+#            ADMOB_APP_ID           ca-app-pub-0000000000000000~0000000000
+#            ADMOB_REWARDED_ID      ca-app-pub-0000000000000000/0000000000
+#            ADMOB_INTERSTITIAL_ID  ca-app-pub-0000000000000000/0000000000
+#          A variable wins over the same name in match3/android/admob.properties, which is used for
+#          any id that has no variable. With an id in neither place the ads flavour is refused
+#          (it would ship test ads).
+#
+# Signing uses the upload key from the repository SECRETS:
+#   ZUMURUD_KEYSTORE_BASE64    the upload keystore file, base64-encoded (base64 -w0 upload.jks)
+#   ZUMURUD_KEYSTORE_PASSWORD  its password
+#   ZUMURUD_KEY_ALIAS          the key alias inside it
+#   ZUMURUD_KEY_PASSWORD       optional: the key's own password when it differs from the keystore's
+# Without the keystore the run still builds, signed with a throw-away debug key and named
+# "…-DEBUGSIGNED": fine for a test device, NOT accepted by Google Play.
+name: Build Zumurud
+
+on:
+  workflow_dispatch:
+    inputs:
+      flavour:
+        description: 'plain = purchases only; ads = purchases + AdMob (needs the ADMOB_* variables); both = plain and ads'
+        type: choice
+        options: [plain, ads, both]
+        default: plain
+        required: true
+      version_code:
+        description: 'Version code: a whole number that must grow with every upload to Google Play'
+        default: '1'
+        required: true
+      version_name:
+        description: 'Version name shown to players'
+        default: '1.0.0'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-match3-${{ inputs.flavour }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (${{ inputs.flavour }} ${{ inputs.version_name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: match3
+    env:
+      FLAVOUR: ${{ inputs.flavour }}
+      VERSION_CODE: ${{ inputs.version_code }}
+      VERSION_NAME: ${{ inputs.version_name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the inputs
+        env:
+          ADMOB_APP_ID: ${{ vars.ADMOB_APP_ID }}
+          ADMOB_REWARDED_ID: ${{ vars.ADMOB_REWARDED_ID }}
+          ADMOB_INTERSTITIAL_ID: ${{ vars.ADMOB_INTERSTITIAL_ID }}
+        run: |
+          case "$VERSION_CODE" in
+            ''|*[!0-9]*) echo "::error::version_code must be a whole number (got '$VERSION_CODE')."; exit 1 ;;
+          esac
+          if [ "$VERSION_CODE" -lt 1 ] || [ "$VERSION_CODE" -gt 2100000000 ]; then
+            echo "::error::version_code must be between 1 and 2100000000."; exit 1
+          fi
+          case "$VERSION_NAME" in
+            ''|*[!0-9A-Za-z._-]*) echo "::error::version_name may only contain letters, digits, dots, dashes and underscores."; exit 1 ;;
+          esac
+          if [ "$FLAVOUR" = "ads" ] || [ "$FLAVOUR" = "both" ]; then
+            # Each id: the repository variable, or else the same name in android/admob.properties.
+            missing=""
+            for name in ADMOB_APP_ID ADMOB_REWARDED_ID ADMOB_INTERSTITIAL_ID; do
+              if [ -z "$(printenv "$name" || true)" ] && ! grep -Eq "^[[:space:]]*$name[[:space:]]*=[[:space:]]*[^[:space:]]" android/admob.properties 2>/dev/null; then
+                missing="$missing $name"
+              fi
+            done
+            if [ -n "$missing" ]; then
+              echo "::error::The ads flavour needs the AdMob ids:$missing missing. Set them as repository variables (Settings → Secrets and variables → Actions → Variables) or in match3/android/admob.properties. Without them the app would ship test ads only."
+              exit 1
+            fi
+          fi
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: match3/package-lock.json
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Android SDK packages
+        run: |
+          # The runner's SDK usually has them, and the build can fetch them itself; asking here
+          # first gives a readable message when it cannot.
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$sdkmanager" ]; then
+            yes 2>/dev/null | "$sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null \
+              || echo "::warning::sdkmanager could not install the Android 17 SDK platform; the build will try by itself."
+          else
+            echo "::warning::sdkmanager not found under ANDROID_HOME; the build will fetch the SDK packages by itself."
+          fi
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          # The open-source cache on top of GitHub's own; no outside service involved.
+          cache-provider: basic
+
+      - name: Build the web game
+        run: |
+          npm ci
+          npm run build
+
+      - name: Get the signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ZUMURUD_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ZUMURUD_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ZUMURUD_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No ZUMURUD_KEYSTORE_BASE64 secret: this build is signed with a throw-away debug key. It installs on a test device but is NOT accepted by Google Play."
+            exit 0
+          fi
+          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
+            echo "::error::ZUMURUD_KEYSTORE_BASE64 is set, but ZUMURUD_KEYSTORE_PASSWORD or ZUMURUD_KEY_ALIAS is missing."
+            exit 1
+          fi
+          umask 077
+          if ! printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/zumurud-upload.jks" || [ ! -s "$RUNNER_TEMP/zumurud-upload.jks" ]; then
+            echo "::error::ZUMURUD_KEYSTORE_BASE64 is not a base64-encoded keystore file."
+            exit 1
+          fi
+          # Later steps find the key through this variable; the passwords stay in the secrets.
+          echo "ZUMURUD_KEYSTORE=$RUNNER_TEMP/zumurud-upload.jks" >> "$GITHUB_ENV"
+
+      - name: Build the App Bundle and the APK
+        env:
+          ZUMURUD_KEYSTORE_PASSWORD: ${{ secrets.ZUMURUD_KEYSTORE_PASSWORD }}
+          ZUMURUD_KEY_ALIAS: ${{ secrets.ZUMURUD_KEY_ALIAS }}
+          ZUMURUD_KEY_PASSWORD: ${{ secrets.ZUMURUD_KEY_PASSWORD }}
+          ADMOB_APP_ID: ${{ vars.ADMOB_APP_ID }}
+          ADMOB_REWARDED_ID: ${{ vars.ADMOB_REWARDED_ID }}
+          ADMOB_INTERSTITIAL_ID: ${{ vars.ADMOB_INTERSTITIAL_ID }}
+        run: |
+          # The web game was built in its own step; lint + release APK + App Bundle of the flavour(s).
+          tools/android/build.sh all --flavor "$FLAVOUR" --skip-web
+
+      - name: Check the signatures
+        run: |
+          shopt -s nullglob
+          apksigner="$(ls -1d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
+          for apk in android/out/*.apk; do
+            echo "$apk"
+            "$apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate \(DN\|SHA-256 digest\)/   \1/p'
+          done
+          for aab in android/out/*.aab; do
+            echo "$aab"
+            jarsigner -verify "$aab" | sed 's/^/   /' | grep -m1 'jar verified' || { echo "::error::The App Bundle is not signed."; exit 1; }
+          done
+          ls -l android/out
+
+      - name: Remove the signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/zumurud-upload.jks"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: zumurud-${{ inputs.flavour }}-${{ inputs.version_name }}-${{ inputs.version_code }}
+          path: |
+            match3/android/out/*.aab
+            match3/android/out/*.apk
+          if-no-files-found: error

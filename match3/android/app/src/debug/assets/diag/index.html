@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Zumurud diagnostics</title>
+    <link rel="stylesheet" href="./diag.css" />
+    <script>
+      // If the module below never runs (wrong MIME type, blocked request), say so on screen.
+      // Module scripts run before the load event, so that is the moment to look.
+      window.__diagModuleRan = false;
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          if (window.__diagModuleRan) return;
+          var out = document.getElementById('out');
+          if (out) out.textContent = 'FAIL  module script did not execute';
+          console.error('DIAG FAIL module: module script did not execute');
+          console.warn('DIAG SUMMARY pass=0 fail=1 wait=0');
+        }, 1500);
+      });
+    </script>
+    <script type="module" crossorigin src="./diag.js"></script>
+  </head>
+  <body>
+    <div id="frame">
+      <h1>Zumurud diagnostics — زمرد <button id="tab" type="button">store ▸</button></h1>
+      <div id="summary">starting…</div>
+      <div id="out"></div>
+      <!-- Monetisation: every MonetizeBridge method by hand, every StoreEvent as it arrives. -->
+      <div id="store" hidden>
+        <div id="store-caps"></div>
+        <div class="row">
+          <button type="button" data-act="sync">storeSync</button>
+          <button type="button" data-act="query">iapQuery ×7</button>
+          <button type="button" data-act="restore">iapRestore</button>
+        </div>
+        <div class="row">
+          <select id="store-product"></select>
+          <button type="button" data-act="buy">iapBuy</button>
+        </div>
+        <div class="row">
+          <button type="button" data-act="rewarded">adShowRewarded</button>
+          <button type="button" data-act="interstitial">adShowInterstitial</button>
+          <button type="button" data-act="privacy">adPrivacyOptions</button>
+        </div>
+        <div id="store-log"></div>
+      </div>
+    </div>
+    <span id="probe">The quick brown fox 0123456789</span>
+    <span id="css-mark"></span>
+  </body>
+</html>

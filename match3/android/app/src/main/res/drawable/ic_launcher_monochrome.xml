@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Themed-icon layer (Android 13+ tints it with the wallpaper colours): the emblem reduced to one
+    flat shape — a cut gem set in the eight-pointed khatam star. Hand-written; only the alpha
+    matters. 108dp canvas, everything inside the 66dp safe zone (the star spans 62dp).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- The star: two overlapped squares, with a round window for the gem. -->
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M54,23 L63.08,32.08 L75.92,32.08 L75.92,44.92 L85,54 L75.92,63.08 L75.92,75.92 L63.08,75.92 L54,85 L44.92,75.92 L32.08,75.92 L32.08,63.08 L23,54 L32.08,44.92 L32.08,32.08 L44.92,32.08 Z
+            M37,54 a17,17 0 1,0 34,0 a17,17 0 1,0 -34,0 Z" />
+
+    <!-- The gem, seen from the side: crown above, pavilion below, a thin gap at the girdle. -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M46.8,42.6 L61.2,42.6 L66.7,48.9 L41.3,48.9 Z
+            M42.2,51.3 L65.8,51.3 L54,65.5 Z" />
+</vector>

@@ -1,0 +1,1665 @@
+/*
+ * Play screen styles (class prefix "pl-"). Built on the UI kit's tokens (--k-u, --k-*, --safe-*).
+ * Same Chrome / WebView 80 limits as kit.css: no flex `gap`, no `inset`, no `aspect-ratio`,
+ * no :is()/:where(), no nesting, no container queries, no dvh. Left/right that must mirror in
+ * Arabic gets an explicit [dir='rtl'] override. Motion: transform / opacity only.
+ */
+
+.pl-root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #14123a;
+  /* no scrolling, no pinch, no double-tap zoom anywhere on the play screen */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  overscroll-behavior: none;
+  --pl-side: clamp(204px, 35vw, calc(var(--k-u) * 264));
+  --pl-bx: 0px;
+  --pl-by: 0px;
+  --pl-bw: 100px;
+  --pl-bh: 100px;
+}
+
+.pl-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* a soft veil so the HUD and board always read on the bright backdrops */
+.pl-veil {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(20, 18, 58, 0.42) 0%, rgba(20, 18, 58, 0.1) 26%, rgba(20, 18, 58, 0.1) 70%, rgba(20, 18, 58, 0.5) 100%);
+  pointer-events: none;
+}
+
+.pl-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 100%;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'hud' 'stage' 'tray';
+  padding: calc(var(--safe-top) + var(--k-u) * 6) calc(var(--safe-right) + var(--k-u) * 6) calc(var(--safe-bottom) + var(--k-u) * 7) calc(var(--safe-left) + var(--k-u) * 6);
+}
+
+/* ───────────────────────────── header ───────────────────────────── */
+
+.pl-hud {
+  grid-area: hud;
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  /* on tablets the header keeps a phone-like proportion instead of stretching edge to edge */
+  justify-self: center;
+  width: 100%;
+  /* as wide as the board's frame, never narrower than a phone header (--pl-colw: set by hud.ts) */
+  max-width: max(calc(var(--k-u) * 440), var(--pl-colw, 0px));
+  padding: calc(var(--k-u) * 2.5);
+  margin-bottom: calc(var(--k-u) * 15);
+  border-radius: calc(var(--k-u) * 22);
+  background: linear-gradient(165deg, #fff3c4 0%, #f5c95a 26%, #b8862e 58%, #f1c152 82%, #ffe7a3 100%);
+  box-shadow:
+    0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.9),
+    0 calc(var(--k-u) * 7) calc(var(--k-u) * 16) rgba(4, 2, 20, 0.45);
+  transition: opacity 160ms linear;
+}
+
+.pl-hud__in {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  min-height: calc(var(--k-u) * 78);
+  padding: calc(var(--k-u) * 6) calc(var(--k-u) * 9) calc(var(--k-u) * 7);
+  border-radius: calc(var(--k-u) * 19.5);
+  background-color: var(--k-indigo);
+  background-image:
+    radial-gradient(120% 90% at 50% 0%, rgba(132, 108, 232, 0.55) 0%, rgba(132, 108, 232, 0) 70%),
+    linear-gradient(180deg, #3d3190 0%, #241f5e 100%);
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.75), inset 0 calc(var(--k-u) * 3) 0 rgba(255, 255, 255, 0.1);
+}
+
+.pl-hud__side {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.pl-level {
+  flex: none;
+  align-self: flex-start;
+  max-width: 100%;
+  margin: 0 0 calc(var(--k-u) * 4);
+  padding: calc(var(--k-u) * 1) calc(var(--k-u) * 9) 0;
+  border-radius: calc(var(--k-u) * 9);
+  background: rgba(13, 10, 44, 0.55);
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1) rgba(245, 201, 90, 0.5);
+  color: var(--k-gold-light);
+  font-size: calc(var(--k-u) * 12.5);
+  font-weight: 800;
+  line-height: calc(var(--k-u) * 19);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pl-goals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: calc(var(--k-u) * -1.5);
+}
+
+/* three or four goals: a 2-column grid of smaller chips; an odd last chip is centred under them */
+.pl-goals--many {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-gap: calc(var(--k-u) * 3);
+  gap: calc(var(--k-u) * 3);
+  margin: 0;
+}
+
+.pl-goals--many .pl-goal {
+  min-width: 0;
+  height: calc(var(--k-u) * 22);
+  margin: 0;
+  padding-inline-start: calc(var(--k-u) * 2);
+  padding-inline-end: calc(var(--k-u) * 4);
+  font-size: calc(var(--k-u) * 14);
+}
+
+.pl-goals--many .pl-goal:nth-child(3):last-child {
+  grid-column: 1 / span 2;
+  justify-self: center;
+  width: calc(50% - var(--k-u) * 1.5);
+}
+
+.pl-goals--many .pl-goal__icon {
+  width: calc(var(--k-u) * 18) !important;
+  height: calc(var(--k-u) * 18) !important;
+  margin-inline-end: calc(var(--k-u) * 1.5);
+}
+
+.pl-hud__side--many .pl-level {
+  margin-bottom: calc(var(--k-u) * 3);
+  font-size: calc(var(--k-u) * 11.5);
+  line-height: calc(var(--k-u) * 16);
+}
+
+.pl-goal {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: calc(var(--k-u) * 29);
+  min-width: calc(var(--k-u) * 50);
+  margin: calc(var(--k-u) * 1.5);
+  padding-inline-start: calc(var(--k-u) * 2.5);
+  padding-inline-end: calc(var(--k-u) * 7);
+  border-radius: calc(var(--k-u) * 14.5);
+  background: linear-gradient(180deg, rgba(13, 10, 44, 0.9) 0%, rgba(30, 24, 82, 0.9) 100%);
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(245, 201, 90, 0.8), 0 calc(var(--k-u) * 2) calc(var(--k-u) * 4) rgba(6, 4, 26, 0.35);
+  color: var(--k-cream);
+  font-size: calc(var(--k-u) * 16.5);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.pl-goal__icon {
+  flex: none;
+  display: block;
+  margin-inline-end: calc(var(--k-u) * 3);
+  filter: drop-shadow(0 calc(var(--k-u) * 1.5) calc(var(--k-u) * 1.5) rgba(6, 4, 26, 0.5));
+}
+
+.pl-goal__n {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-top: 0.12em;
+  text-align: center;
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.pl-goal__tick {
+  display: none;
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.pl-goal--done {
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) var(--k-success), 0 calc(var(--k-u) * 2) calc(var(--k-u) * 4) rgba(6, 4, 26, 0.35);
+}
+
+.pl-goal--done .pl-goal__n {
+  display: none;
+}
+
+.pl-goal--done .pl-goal__tick {
+  display: flex;
+  animation: pl-pop 320ms var(--k-ease-back) both;
+}
+
+.pl-goal.pl-bump .pl-goal__n {
+  animation: pl-bump 280ms var(--k-ease-out);
+}
+
+.pl-goal.pl-bump .pl-goal__icon {
+  animation: pl-bump-icon 320ms var(--k-ease-out);
+}
+
+/* the moves medallion: the largest numeral on screen, hanging from the header's lower edge */
+.pl-moves {
+  flex: none;
+  position: relative;
+  width: calc(var(--k-u) * 84);
+  margin: 0 calc(var(--k-u) * 3);
+}
+
+.pl-moves__ring {
+  position: absolute;
+  top: calc(var(--k-u) * -3);
+  left: 50%;
+  box-sizing: border-box;
+  width: calc(var(--k-u) * 84);
+  height: calc(var(--k-u) * 84);
+  margin-left: calc(var(--k-u) * -42);
+  padding: calc(var(--k-u) * 4.5);
+  border-radius: 50%;
+  background: linear-gradient(165deg, #fff3c4 0%, #f5c95a 30%, #b8862e 62%, #f1c152 84%, #ffe7a3 100%);
+  box-shadow:
+    0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.9),
+    0 calc(var(--k-u) * 6) calc(var(--k-u) * 10) rgba(4, 2, 20, 0.5);
+}
+
+.pl-moves__core {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 28%, #5a47b4 0%, #2a226e 58%, #17134a 100%);
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.8), inset 0 calc(var(--k-u) * 4) calc(var(--k-u) * 6) rgba(255, 255, 255, 0.12);
+}
+
+.pl-moves__n {
+  display: block;
+  margin-top: calc(var(--k-u) * 2);
+  color: var(--k-cream);
+  font-size: calc(var(--k-u) * 37);
+  font-weight: 800;
+  line-height: 0.92;
+  direction: ltr;
+  text-shadow: 0 calc(var(--k-u) * 2) 0 rgba(13, 10, 44, 0.7);
+  transform-origin: 50% 55%;
+}
+
+.pl-moves__cap {
+  display: block;
+  margin-top: calc(var(--k-u) * 1);
+  color: var(--k-gold-light);
+  font-size: calc(var(--k-u) * 10.5);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.pl-moves--low .pl-moves__n {
+  color: #ffa630;
+  animation: pl-low 500ms ease-in-out infinite alternate;
+}
+
+/* the last moves: a warm halo breathes round the medallion (opacity only) */
+.pl-moves__ring::after {
+  content: '';
+  position: absolute;
+  /* hugs the ring: wider, it ran off the top of the screen and out of the gold header */
+  top: calc(var(--k-u) * -1);
+  left: calc(var(--k-u) * -1);
+  right: calc(var(--k-u) * -1);
+  bottom: calc(var(--k-u) * -1);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 calc(var(--k-u) * 2.5) rgba(255, 140, 48, 0.95),
+    0 0 calc(var(--k-u) * 8) 0 rgba(255, 110, 40, 0.7),
+    inset 0 0 calc(var(--k-u) * 6) rgba(255, 140, 48, 0.6);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pl-moves--low .pl-moves__ring::after {
+  animation: pl-low-halo 500ms ease-in-out infinite alternate;
+}
+
+.pl-moves--out .pl-moves__n {
+  color: var(--k-danger);
+}
+
+.pl-moves.pl-bump .pl-moves__ring {
+  animation: pl-ring-bump 220ms var(--k-ease-out);
+}
+
+.pl-hud__side--score {
+  align-items: stretch;
+}
+
+.pl-scorerow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: calc(var(--k-u) * 40);
+}
+
+.pl-score {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* never touching the pause button (or, in Arabic, the moves medallion) */
+  padding-inline-end: calc(var(--k-u) * 2);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: start;
+}
+
+.pl-score__cap {
+  color: var(--k-muted);
+  font-size: calc(var(--k-u) * 10.5);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.pl-score__n {
+  color: var(--k-cream);
+  font-size: calc(var(--k-u) * 19);
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+
+[dir='rtl'] .pl-score__n {
+  text-align: right;
+}
+
+/* a long score steps down until it fits (hud.ts fitScore); the line keeps its height */
+.pl-score__n--s1 {
+  font-size: calc(var(--k-u) * 16.5);
+  line-height: calc(var(--k-u) * 20.9);
+}
+
+.pl-score__n--s2 {
+  font-size: calc(var(--k-u) * 14);
+  line-height: calc(var(--k-u) * 20.9);
+}
+
+.pl-score__n--s3 {
+  font-size: calc(var(--k-u) * 11.5);
+  line-height: calc(var(--k-u) * 20.9);
+}
+
+.pl-pause {
+  flex: none;
+  margin-inline-start: calc(var(--k-u) * 4);
+}
+
+/* drawn at 44 CSS px at least, like every other control (the kit's small round button is 42 units) */
+.pl-hud .pl-pause.k-btn--round.k-btn--sm {
+  --k-btn-h: max(40px, calc(var(--k-u) * 44));
+  width: max(44px, calc(var(--k-u) * 46));
+}
+
+.pl-bar {
+  margin-top: calc(var(--k-u) * 1);
+}
+
+.pl-bar .k-progress--notched {
+  padding-top: calc(var(--k-u) * 5);
+  padding-bottom: calc(var(--k-u) * 5);
+}
+
+.pl-bar .k-progress__track {
+  height: calc(var(--k-u) * 12);
+}
+
+.pl-bar .k-progress__notch {
+  width: calc(var(--k-u) * 20);
+  height: calc(var(--k-u) * 20);
+  margin-top: calc(var(--k-u) * -10.5);
+}
+
+/* ───────────────────────────── stage ───────────────────────────── */
+
+.pl-stage {
+  grid-area: stage;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  /* full-bleed: the board may use the whole screen width; --pl-ly (index.ts): a tall screen's
+     spare height, put under the board so it stands nearer the header */
+  margin: 0 calc(var(--k-u) * -6) var(--pl-ly, 0px);
+}
+
+.pl-board {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  touch-action: none;
+}
+
+.pl-over {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ───────────────────────────── booster tray ───────────────────────────── */
+
+.pl-tray {
+  grid-area: tray;
+  position: relative;
+  z-index: 2;
+  justify-self: center;
+  box-sizing: border-box;
+  width: 100%;
+  /* the same column as the header and the board frame */
+  max-width: max(calc(var(--k-u) * 440), var(--pl-colw, 0px));
+  margin-top: calc(var(--k-u) * 6);
+  padding: calc(var(--k-u) * 2.5);
+  border-radius: calc(var(--k-u) * 30);
+  background: linear-gradient(165deg, #fff3c4 0%, #f5c95a 26%, #b8862e 58%, #f1c152 82%, #ffe7a3 100%);
+  box-shadow:
+    0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.9),
+    0 calc(var(--k-u) * 7) calc(var(--k-u) * 16) rgba(4, 2, 20, 0.45);
+  transition: opacity 160ms linear;
+}
+
+.pl-tray--empty {
+  display: none;
+}
+
+.pl-tray__in {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  box-sizing: border-box;
+  padding: calc(var(--k-u) * 8) calc(var(--k-u) * 8) calc(var(--k-u) * 6);
+  border-radius: calc(var(--k-u) * 27.5);
+  background-color: var(--k-indigo);
+  background-image:
+    radial-gradient(120% 110% at 50% 0%, rgba(132, 108, 232, 0.5) 0%, rgba(132, 108, 232, 0) 70%),
+    linear-gradient(180deg, #3d3190 0%, #241f5e 100%);
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.75), inset 0 calc(var(--k-u) * 3) 0 rgba(255, 255, 255, 0.1);
+}
+
+.pl-boost {
+  flex: none;
+  position: relative;
+  /* declared here, not under .pl-targeting, so the lift and dim also ease back out */
+  transition: opacity 160ms linear, transform 160ms var(--k-ease-out);
+}
+
+.pl-boost .k-badge {
+  top: calc(var(--k-u) * -4);
+  right: calc(var(--k-u) * -6);
+}
+
+[dir='rtl'] .pl-boost .k-badge {
+  right: auto;
+  left: calc(var(--k-u) * -6);
+}
+
+/* a tall screen names each booster under its button */
+.pl-boost__name {
+  display: none;
+}
+
+.pl-tall .pl-boost__name {
+  display: block;
+  margin-top: calc(var(--k-u) * 3);
+  color: var(--k-gold-light);
+  font-size: calc(var(--k-u) * 12);
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pl-tall .pl-tray__in {
+  padding-bottom: calc(var(--k-u) * 7);
+}
+
+/* "+" when the booster is used up */
+.pl-boost--empty .k-badge {
+  background: linear-gradient(180deg, #a2fbcd 0%, #2abd7c 100%);
+  color: var(--k-ink);
+  font-size: calc(var(--k-u) * 17);
+}
+
+.pl-boost--active .k-btn {
+  --k-btn-face: linear-gradient(180deg, #fff1c0 0%, #fbd873 40%, #f0b93f 100%);
+  --k-btn-edge: #9a6a1c;
+  --k-btn-rim: rgba(255, 250, 225, 0.75);
+}
+
+/* compact: short screens get smaller tray buttons and a tighter header */
+.pl-compact .pl-tray .k-btn--round.k-btn--lg {
+  --k-btn-h: calc(var(--k-u) * 50);
+  --k-btn-depth: calc(var(--k-u) * 5);
+  width: calc(var(--k-u) * 50);
+}
+
+.pl-compact .pl-tray__in {
+  padding: calc(var(--k-u) * 6) calc(var(--k-u) * 8) calc(var(--k-u) * 4);
+}
+
+.pl-compact .pl-hud {
+  margin-bottom: calc(var(--k-u) * 12);
+}
+
+.pl-compact .pl-hud__in {
+  min-height: calc(var(--k-u) * 70);
+  padding-top: calc(var(--k-u) * 4);
+  padding-bottom: calc(var(--k-u) * 5);
+}
+
+.pl-compact .pl-moves__ring {
+  width: calc(var(--k-u) * 76);
+  height: calc(var(--k-u) * 76);
+  margin-left: calc(var(--k-u) * -38);
+}
+
+.pl-compact .pl-moves {
+  width: calc(var(--k-u) * 76);
+}
+
+.pl-compact .pl-moves__n {
+  font-size: calc(var(--k-u) * 33);
+}
+
+/* ───────────────────────────── landscape: HUD beside the board ───────────────────────────── */
+
+.pl-land .pl-grid {
+  /* --pl-lx (index.ts relayout): a wide screen's slack, so the panel and the board stand together */
+  padding-left: calc(var(--safe-left) + var(--k-u) * 6 + var(--pl-lx, 0px));
+  padding-right: calc(var(--safe-right) + var(--k-u) * 6 + var(--pl-lx, 0px));
+  grid-template-columns: var(--pl-side) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: 'hud stage' 'tray stage';
+}
+
+.pl-land .pl-hud {
+  align-self: center;
+  max-width: none;
+  margin-bottom: 0;
+}
+
+.pl-land .pl-hud__in {
+  flex-direction: column;
+  align-items: stretch;
+  padding: calc(var(--k-u) * 8) calc(var(--k-u) * 10) calc(var(--k-u) * 9);
+}
+
+.pl-land .pl-hud__side {
+  flex: none;
+}
+
+.pl-land .pl-hud__side--goals {
+  order: 1;
+  align-items: center;
+}
+
+.pl-land .pl-level {
+  align-self: center;
+}
+
+.pl-land .pl-goals {
+  justify-content: center;
+}
+
+.pl-land .pl-moves {
+  order: 2;
+  align-self: center;
+  width: calc(var(--k-u) * 84);
+  height: calc(var(--k-u) * 84);
+  margin: calc(var(--k-u) * 8) 0 calc(var(--k-u) * 6);
+}
+
+.pl-land .pl-moves__ring {
+  top: 0;
+}
+
+.pl-land .pl-hud__side--score {
+  order: 3;
+}
+
+/* the score sits centred under the medallion; the pause button takes the panel's top corner */
+.pl-land .pl-scorerow {
+  justify-content: center;
+  min-height: 0;
+}
+
+.pl-land .pl-score {
+  flex: none;
+  max-width: 100%;
+  padding-inline-end: 0;
+  align-items: center;
+  text-align: center;
+}
+
+.pl-land .pl-score__n,
+[dir='rtl'] .pl-land .pl-score__n {
+  text-align: center;
+}
+
+.pl-land .pl-pause {
+  position: absolute;
+  top: calc(var(--k-u) * 6);
+  right: calc(var(--k-u) * 7);
+  margin: 0;
+}
+
+[dir='rtl'] .pl-land .pl-pause {
+  right: auto;
+  left: calc(var(--k-u) * 7);
+}
+
+.pl-land .pl-stage {
+  margin: 0;
+  margin-inline-start: calc(var(--k-u) * 4);
+}
+
+.pl-land .pl-tray {
+  max-width: none;
+  margin-top: calc(var(--k-u) * 8);
+}
+
+.pl-land.pl-compact .pl-moves {
+  width: calc(var(--k-u) * 70);
+  height: calc(var(--k-u) * 70);
+  margin: calc(var(--k-u) * 4) 0 calc(var(--k-u) * 3);
+}
+
+.pl-land.pl-compact .pl-moves__ring {
+  width: calc(var(--k-u) * 70);
+  height: calc(var(--k-u) * 70);
+  margin-left: calc(var(--k-u) * -35);
+}
+
+.pl-land.pl-compact .pl-moves__n {
+  font-size: calc(var(--k-u) * 30);
+}
+
+.pl-land.pl-compact .pl-hud__in {
+  min-height: 0;
+  padding: calc(var(--k-u) * 5) calc(var(--k-u) * 9) calc(var(--k-u) * 6);
+}
+
+.pl-land.pl-compact .pl-tray {
+  margin-top: calc(var(--k-u) * 5);
+}
+
+/* ───────────────────────────── targeting mode ───────────────────────────── */
+
+.pl-targeting .pl-hud {
+  opacity: 0.32;
+  pointer-events: none;
+}
+
+/* the tray stays: the chosen booster is lit and lifted, the others step back */
+.pl-targeting .pl-tray {
+  pointer-events: none;
+}
+
+.pl-targeting .pl-boost {
+  opacity: 0.35;
+}
+
+.pl-targeting .pl-boost--active {
+  opacity: 1;
+  transform: translateY(calc(var(--k-u) * -4)) scale(1.08);
+}
+
+.pl-targeting .pl-boost--active .k-btn {
+  box-shadow:
+    0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.85),
+    0 0 0 calc(var(--k-u) * 4) rgba(255, 231, 163, 0.95),
+    0 0 calc(var(--k-u) * 18) calc(var(--k-u) * 5) rgba(245, 201, 90, 0.75);
+}
+
+.pl-target {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 calc(var(--k-u) * 6);
+  pointer-events: none;
+}
+
+.pl-target__pill {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: calc(var(--k-u) * 5) calc(var(--k-u) * 6);
+  padding-inline-start: calc(var(--k-u) * 10);
+  border-radius: calc(var(--k-u) * 27);
+  background: linear-gradient(180deg, #fff1c0 0%, #fbd873 40%, #f0b93f 100%);
+  box-shadow:
+    0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.9),
+    0 calc(var(--k-u) * 6) calc(var(--k-u) * 14) rgba(4, 2, 20, 0.5);
+  color: var(--k-ink);
+  font-size: calc(var(--k-u) * 16.5);
+  font-weight: 800;
+  line-height: 1.2;
+  pointer-events: auto;
+  animation: pl-target-in 220ms var(--k-ease-back) both;
+}
+
+.pl-target__pill .k-btn {
+  flex: none;
+}
+
+.pl-target__pill .k-btn__label {
+  white-space: nowrap;
+}
+
+.pl-target__icon {
+  flex: none;
+  margin-inline-end: calc(var(--k-u) * 6);
+}
+
+.pl-target__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-inline-end: calc(var(--k-u) * 10);
+}
+
+/* ───────────────────────────── banners ───────────────────────────── */
+
+.pl-banner {
+  position: absolute;
+  top: calc(var(--pl-by) + var(--pl-bh) * 0.5);
+  left: 50%;
+  box-sizing: border-box;
+  width: calc(var(--k-u) * 300);
+  max-width: calc(100% - var(--k-u) * 20);
+  margin-left: 0;
+  padding: calc(var(--k-u) * 2.5);
+  border-radius: calc(var(--k-u) * 24);
+  background: linear-gradient(165deg, #fff3c4 0%, #f5c95a 26%, #b8862e 58%, #f1c152 82%, #ffe7a3 100%);
+  /* the last shadow is a scrim: the board steps back while the goals are announced */
+  box-shadow:
+    0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.9),
+    0 calc(var(--k-u) * 12) calc(var(--k-u) * 30) rgba(4, 2, 20, 0.55),
+    0 0 0 200vmax rgba(10, 8, 40, 0.38);
+  transform: translate(-50%, -50%);
+  animation: pl-banner-in 260ms var(--k-ease-back) both;
+}
+
+.pl-banner.pl-out {
+  animation: pl-banner-out 200ms var(--k-ease-in) both;
+}
+
+.pl-banner__in {
+  padding: calc(var(--k-u) * 10) calc(var(--k-u) * 14) calc(var(--k-u) * 14);
+  border-radius: calc(var(--k-u) * 21.5);
+  background-color: var(--k-indigo);
+  background-image:
+    radial-gradient(120% 90% at 50% 0%, rgba(132, 108, 232, 0.6) 0%, rgba(132, 108, 232, 0) 70%),
+    linear-gradient(180deg, #3d3190 0%, #241f5e 100%);
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.75);
+  text-align: center;
+}
+
+.pl-banner__title {
+  display: inline-block;
+  margin: calc(var(--k-u) * -26) 0 0;
+  padding: calc(var(--k-u) * 3) calc(var(--k-u) * 22) 0;
+  border-radius: calc(var(--k-u) * 18);
+  background: linear-gradient(180deg, #fff1c0 0%, #fbd873 40%, #f0b93f 100%);
+  box-shadow:
+    0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.9),
+    0 calc(var(--k-u) * 4) calc(var(--k-u) * 8) rgba(4, 2, 20, 0.45);
+  color: var(--k-ink);
+  font-size: calc(var(--k-u) * 24);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.pl-banner__sub {
+  margin: calc(var(--k-u) * 2) 0 0;
+  color: var(--k-cream);
+  font-size: calc(var(--k-u) * 15);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.pl-banner__goals {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: calc(var(--k-u) * 6);
+}
+
+.pl-banner__goals .pl-goal {
+  height: calc(var(--k-u) * 42);
+  min-width: calc(var(--k-u) * 76);
+  margin: calc(var(--k-u) * 4);
+  padding-inline-start: calc(var(--k-u) * 4);
+  padding-inline-end: calc(var(--k-u) * 12);
+  border-radius: calc(var(--k-u) * 21);
+  font-size: calc(var(--k-u) * 23);
+}
+
+.pl-banner__goals .pl-goal__icon {
+  width: calc(var(--k-u) * 34) !important;
+  height: calc(var(--k-u) * 34) !important;
+}
+
+/* "no more moves — shuffling" */
+.pl-note {
+  position: absolute;
+  top: calc(var(--pl-by) + var(--pl-bh) * 0.5);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 calc(var(--k-u) * 12);
+  transform: translateY(-50%);
+}
+
+.pl-note__in {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: calc(var(--k-u) * 9) calc(var(--k-u) * 18) calc(var(--k-u) * 8);
+  border-radius: calc(var(--k-u) * 22);
+  background: linear-gradient(180deg, rgba(20, 16, 62, 0.96) 0%, rgba(40, 32, 104, 0.96) 100%);
+  box-shadow:
+    inset 0 0 0 calc(var(--k-u) * 2) var(--k-gold),
+    0 calc(var(--k-u) * 10) calc(var(--k-u) * 24) rgba(4, 2, 20, 0.55);
+  color: var(--k-cream);
+  font-size: calc(var(--k-u) * 17);
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+  animation: pl-pop 240ms var(--k-ease-back) both;
+}
+
+.pl-note.pl-out .pl-note__in {
+  animation: pl-fade-out 200ms linear both;
+}
+
+/* praise word: light-gold lettering, indigo outline, a khatam spark behind it */
+.pl-praise {
+  position: absolute;
+  top: calc(var(--pl-by) + var(--pl-bh) * 0.26);
+  left: 50%;
+  width: 0;
+  height: 0;
+}
+
+.pl-praise__box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  animation: pl-praise 1120ms linear both;
+}
+
+.pl-praise__spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  margin: calc(var(--k-u) * -70) 0 0 calc(var(--k-u) * -70);
+  opacity: 0.9;
+  animation: pl-spin 5s linear infinite;
+}
+
+.pl-praise__word {
+  position: relative;
+  color: #ffe7a3;
+  font-size: calc(var(--k-u) * 44);
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-shadow:
+    calc(var(--k-u) * 2.5) 0 0 #231f5c,
+    calc(var(--k-u) * -2.5) 0 0 #231f5c,
+    0 calc(var(--k-u) * 2.5) 0 #231f5c,
+    0 calc(var(--k-u) * -2.5) 0 #231f5c,
+    calc(var(--k-u) * 1.8) calc(var(--k-u) * 1.8) 0 #231f5c,
+    calc(var(--k-u) * -1.8) calc(var(--k-u) * 1.8) 0 #231f5c,
+    calc(var(--k-u) * 1.8) calc(var(--k-u) * -1.8) 0 #231f5c,
+    calc(var(--k-u) * -1.8) calc(var(--k-u) * -1.8) 0 #231f5c,
+    0 calc(var(--k-u) * 6) calc(var(--k-u) * 2) rgba(13, 10, 44, 0.7);
+}
+
+/* the face of the word: a vertical gold gradient with a bright top edge, and a gleam that sweeps
+   across it once (the outline and the shadow stay on the word underneath) */
+.pl-praise__word::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  text-shadow: none;
+  color: transparent;
+  background-image:
+    linear-gradient(105deg, rgba(255, 255, 255, 0) 38%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(180deg, #fffbe6 0%, #ffe7a3 26%, #f5c95a 56%, #d9a440 74%, #b8862e 100%);
+  background-size: 260% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  background-position: 130% 0, 0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: pl-praise-gleam 620ms 180ms ease-in-out both;
+}
+
+@keyframes pl-praise-gleam {
+  0% {
+    background-position: 130% 0, 0 0;
+  }
+  100% {
+    background-position: -30% 0, 0 0;
+  }
+}
+
+.pl-praise--t2 .pl-praise__word {
+  font-size: calc(var(--k-u) * 48);
+}
+
+.pl-praise--t3 .pl-praise__word {
+  font-size: calc(var(--k-u) * 52);
+  color: #fff3c4;
+}
+
+.pl-praise--t4 .pl-praise__word,
+.pl-praise--finale .pl-praise__word {
+  font-size: calc(var(--k-u) * 56);
+  color: #fffbe6;
+}
+
+.pl-praise--finale {
+  top: calc(var(--pl-by) + var(--pl-bh) * 0.42);
+}
+
+.pl-praise--finale .pl-praise__box {
+  animation-duration: 1000ms;
+}
+
+/* cascade counter beside the board */
+.pl-chain {
+  position: absolute;
+  /* straddles the top edge of the frame (it never hides a piece of the top row), but never rides
+     up over the header or off the screen: --pl-hb (hud.ts) is the lowest edge it may reach — the
+     header's bottom in portrait, the top of the screen in landscape */
+  top: max(calc(var(--pl-hb, 0px) + var(--k-u) * 4), calc(var(--pl-by) - var(--k-u) * 30));
+  z-index: 1;
+  left: calc(var(--pl-bx) + var(--pl-bw) - var(--k-u) * 62);
+  min-width: calc(var(--k-u) * 50);
+  padding: calc(var(--k-u) * 3) calc(var(--k-u) * 8) calc(var(--k-u) * 1);
+  border-radius: calc(var(--k-u) * 16);
+  background: linear-gradient(180deg, #fff1c0 0%, #fbd873 40%, #f0b93f 100%);
+  box-shadow:
+    0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.9),
+    0 calc(var(--k-u) * 4) calc(var(--k-u) * 8) rgba(4, 2, 20, 0.5);
+  color: var(--k-ink);
+  font-size: calc(var(--k-u) * 20);
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  direction: ltr;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 160ms linear, transform 160ms var(--k-ease-out);
+}
+
+[dir='rtl'] .pl-chain {
+  left: calc(var(--pl-bx) + var(--k-u) * 12);
+}
+
+.pl-chain.pl-on {
+  opacity: 1;
+  transform: none;
+}
+
+.pl-chain.pl-bump {
+  animation: pl-chain-bump 260ms var(--k-ease-back);
+}
+
+/* a short portrait screen (320×480): no room between the header and the board, so the counter
+   tucks a little under the header's lower rim (below its star bar) and straddles the frame line
+   by at most 40 % of its height, not the whole top row */
+.pl-compact .pl-chain {
+  top: max(calc(var(--pl-hb, 0px) - var(--k-u) * 6), calc(var(--pl-by) - var(--k-u) * 17));
+}
+
+/* landscape: the counter hangs in the side panel, beside the moves medallion (between the goals
+   above and the score below), instead of over the gems of the top row */
+.pl-chain.pl-chain--side {
+  top: calc(50% - var(--k-u) * 30);
+  left: calc(100% - var(--k-u) * 2);
+  right: auto;
+  min-width: calc(var(--k-u) * 44);
+  padding: calc(var(--k-u) * 2) calc(var(--k-u) * 7) 0;
+  font-size: calc(var(--k-u) * 18);
+}
+
+[dir='rtl'] .pl-chain.pl-chain--side {
+  left: auto;
+  right: calc(100% - var(--k-u) * 2);
+}
+
+/* ───────────────────────────── flyers (cross the HUD) ───────────────────────────── */
+
+.pl-fly {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.pl-flyer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+.pl-orb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--k-u) * 30);
+  height: calc(var(--k-u) * 30);
+  margin: calc(var(--k-u) * -15) 0 0 calc(var(--k-u) * -15);
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, #fff3c4 28%, rgba(255, 201, 74, 0.75) 52%, rgba(255, 180, 60, 0) 72%);
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* everything driven by CSS freezes with the game */
+.pl-frozen .pl-over *,
+.pl-frozen .pl-moves__ring::after,
+.pl-frozen .pl-moves__n {
+  animation-play-state: paused !important;
+}
+
+/* ───────────────────────────── dialogs of the play screen ───────────────────────────── */
+
+.pl-dlg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.pl-dlg.pl-dlg > * + * {
+  margin-top: calc(var(--k-u) * 12);
+}
+
+.pl-dlg__text {
+  margin: 0;
+  color: var(--k-cream);
+  font-size: calc(var(--k-u) * 16.5);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.pl-dlg__note {
+  margin: 0;
+  color: var(--k-muted);
+  font-size: calc(var(--k-u) * 14);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.pl-dlg__warn {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: calc(var(--k-u) * 7) calc(var(--k-u) * 10) calc(var(--k-u) * 6);
+  border-radius: calc(var(--k-u) * 14);
+  background: rgba(13, 10, 44, 0.5);
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(255, 166, 48, 0.75);
+  color: #ffd9a0;
+  font-size: calc(var(--k-u) * 14.5);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.pl-dlg__goals {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pl-dlg__goals .pl-goal {
+  margin: calc(var(--k-u) * 3);
+}
+
+.pl-dlg__stack {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pl-dlg__stack > * + * {
+  margin-top: calc(var(--k-u) * 10);
+}
+
+.pl-dlg__row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pl-dlg__row > * + * {
+  margin-inline-start: calc(var(--k-u) * 8);
+}
+
+/* buttons of a result dialog ignore input for a moment after it opens */
+.pl-locked .k-btn {
+  pointer-events: none;
+}
+
+.pl-win__stars {
+  position: relative;
+  min-height: calc(var(--k-u) * 84);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* a slow wheel of light behind the stars once the last one has landed (brighter for three) */
+.pl-win__halo {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pl-win__stars--lit .pl-win__halo {
+  opacity: 0.22;
+  animation: pl-halo-in 420ms var(--k-ease-out) both, pl-spin 14s linear 420ms infinite;
+}
+
+.pl-win__stars--lit.pl-win__stars--2 .pl-win__halo {
+  opacity: 0.32;
+}
+
+.pl-win__stars--lit.pl-win__stars--3 .pl-win__halo {
+  opacity: 0.5;
+}
+
+.pl-win__stars .k-stars {
+  position: relative;
+}
+
+.pl-win__stars.pl-thump .k-stars {
+  animation: pl-thump 220ms var(--k-ease-out);
+}
+
+/* a star slams in: from large and bright down onto its seat, with a little rebound */
+.pl-win .k-star {
+  position: relative;
+}
+
+.pl-win .k-star.pl-star-in .k-on-icon {
+  animation: pl-star-slam 420ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+.pl-star-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.pl-star-rays {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  opacity: 0;
+  animation: pl-star-rays 520ms var(--k-ease-out) 140ms both;
+}
+
+.pl-star-spark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--k-u) * 9);
+  height: calc(var(--k-u) * 9);
+  margin: calc(var(--k-u) * -4.5) 0 0 calc(var(--k-u) * -4.5);
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, #fff3c4 35%, rgba(255, 201, 74, 0.8) 55%, rgba(255, 180, 60, 0) 72%);
+  opacity: 0;
+  animation: pl-star-spark 560ms var(--k-ease-out) 150ms both;
+}
+
+.pl-win__score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pl-win__scorecap {
+  color: var(--k-muted);
+  font-size: calc(var(--k-u) * 13);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pl-win__scoren {
+  color: var(--k-cream);
+  font-size: calc(var(--k-u) * 34);
+  font-weight: 800;
+  line-height: 1.1;
+  direction: ltr;
+  text-shadow: 0 calc(var(--k-u) * 2) 0 rgba(13, 10, 44, 0.7);
+}
+
+.pl-win__best {
+  display: inline-block;
+  padding: calc(var(--k-u) * 2) calc(var(--k-u) * 10) 0;
+  border-radius: calc(var(--k-u) * 10);
+  background: linear-gradient(180deg, #a2fbcd 0%, #2abd7c 100%);
+  box-shadow: 0 0 0 calc(var(--k-u) * 1.5) rgba(15, 12, 48, 0.85);
+  color: var(--k-ink);
+  font-size: calc(var(--k-u) * 13);
+  font-weight: 800;
+  line-height: calc(var(--k-u) * 20);
+  animation: pl-pop 360ms var(--k-ease-back) 900ms both;
+}
+
+.pl-win__coins {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--k-u) * 4) calc(var(--k-u) * 14) calc(var(--k-u) * 3);
+  border-radius: calc(var(--k-u) * 18);
+  background: rgba(13, 10, 44, 0.55);
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(245, 201, 90, 0.7);
+  color: var(--k-gold-light);
+  font-size: calc(var(--k-u) * 22);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.pl-win__coins > * + * {
+  margin-inline-start: calc(var(--k-u) * 6);
+}
+
+.pl-win__coins.pl-bump {
+  animation: pl-chain-bump 320ms var(--k-ease-back);
+}
+
+/* the coins wait for the stars, then pop in */
+.pl-win__coins--wait {
+  opacity: 0;
+}
+
+.pl-win__coins--in {
+  animation: pl-pop 320ms var(--k-ease-back) both;
+}
+
+.pl-win__coinsn {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* tutorial tip */
+.pl-tip__art {
+  display: block;
+  max-width: 100%;
+  border-radius: calc(var(--k-u) * 14);
+  box-shadow: 0 0 0 calc(var(--k-u) * 2) rgba(245, 201, 90, 0.85), 0 calc(var(--k-u) * 6) calc(var(--k-u) * 12) rgba(4, 2, 20, 0.45);
+}
+
+/* pause */
+/* sound, music, vibration: three tiles side by side (icon, name, switch), so Resume is in view
+   without scrolling even on a 320-px-tall landscape screen */
+.pl-pause__toggles {
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.pl-pause__toggles > * + * {
+  margin-inline-start: calc(var(--k-u) * 6);
+}
+
+.pl-pause__toggles .k-toggle {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: calc(var(--k-u) * 7) calc(var(--k-u) * 3) calc(var(--k-u) * 8);
+  border-radius: calc(var(--k-u) * 16);
+  background: rgba(13, 10, 44, 0.45);
+  box-shadow: inset 0 0 0 calc(var(--k-u) * 1.5) rgba(245, 201, 90, 0.35);
+  font-size: calc(var(--k-u) * 14);
+  line-height: 1.15;
+  text-align: center;
+}
+
+.pl-pause__toggles .k-toggle__in {
+  flex-direction: column;
+  justify-content: center;
+}
+
+.pl-pause__toggles .k-toggle__icon {
+  margin: 0 0 calc(var(--k-u) * 3);
+}
+
+.pl-pause__toggles .k-toggle__label {
+  flex: none;
+  width: 100%;
+  margin: 0 0 calc(var(--k-u) * 6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* short screens (landscape phones): the tiles keep only icon and switch (the name stays for screen
+   readers), and Restart / Quit share a row under Resume — every button is in view without scrolling */
+@media (max-height: 480px) and (min-aspect-ratio: 1/1) {
+  .pl-pause__toggles .k-toggle {
+    padding: calc(var(--k-u) * 6) calc(var(--k-u) * 3);
+  }
+
+  .pl-pause__toggles .k-toggle__in {
+    flex-direction: row;
+  }
+
+  .pl-pause__toggles .k-toggle__icon {
+    margin: 0 calc(var(--k-u) * 6) 0 0;
+  }
+
+  [dir='rtl'] .pl-pause__toggles .k-toggle__icon {
+    margin: 0 0 0 calc(var(--k-u) * 6);
+  }
+
+  .pl-pause__toggles .k-toggle__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  [data-pl='pause'] .k-dialog__foot--col {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  [data-pl='pause'] .k-dialog__foot--col > .k-btn {
+    flex: 1 1 40%;
+    min-width: 0;
+  }
+
+  [data-pl='pause'] .k-dialog__foot--col > .k-btn:first-child {
+    flex: 0 0 100%;
+  }
+
+  [data-pl='pause'] .k-dialog__foot--col > .k-btn + .k-btn + .k-btn {
+    margin-inline-start: calc(var(--k-u) * 10);
+  }
+
+  [data-pl='pause'] .k-dialog__foot--col > .k-btn + .k-btn {
+    --k-btn-fs: calc(var(--k-u) * 15);
+    --k-btn-px: calc(var(--k-u) * 8);
+  }
+
+  [data-pl='pause'] .k-dialog__foot--col {
+    padding-top: calc(var(--k-u) * 6);
+  }
+}
+
+/* ───────────────────────────── keyframes ───────────────────────────── */
+
+@keyframes pl-low-halo {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pl-low {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.2);
+  }
+}
+
+@keyframes pl-bump {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pl-bump-icon {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  35% {
+    transform: scale(1.25) rotate(-10deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes pl-ring-bump {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pl-chain-bump {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pl-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pl-banner-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.55);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes pl-banner-out {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -62%) scale(0.9);
+  }
+}
+
+@keyframes pl-target-in {
+  0% {
+    opacity: 0;
+    transform: translateY(calc(var(--k-u) * 10)) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pl-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* 220 in (0 → 110 % → 100 %), 900 hold, 200 out */
+@keyframes pl-praise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.1);
+  }
+  11% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+  17% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translate(-50%, -54%) scale(1.03);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -70%) scale(1.12);
+  }
+}
+
+@keyframes pl-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pl-thump {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.06) translateY(calc(var(--k-u) * 2));
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pl-halo-in {
+  0% {
+    transform: scale(0.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pl-star-rays {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.15) rotate(40deg);
+  }
+}
+
+@keyframes pl-star-spark {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(0) scale(0.3);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(var(--d)) scale(1);
+  }
+}
+
+@keyframes pl-star-slam {
+  0% {
+    opacity: 0;
+    transform: scale(3.2) rotate(-24deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.86) rotate(0deg);
+  }
+  78% {
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-moves--low .pl-moves__n,
+  .pl-praise__spark,
+  .pl-win__stars--lit .pl-win__halo,
+  .pl-win .k-star.pl-star-in .k-on-icon,
+  .pl-win__stars.pl-thump .k-stars,
+  .pl-win__coins--in {
+    animation: none;
+  }
+}

@@ -1,0 +1,31 @@
+# Version catalog. Every version here was checked against the release metadata on 2026-11-13
+# (docs/research/toolchain.md). AGP 9.5.x needs Gradle 9.6+, JDK 17+ and brings built-in Kotlin,
+# so there is no kotlin-android plugin; the Kotlin Gradle plugin is only pinned (root build file)
+# to a newer release than the one AGP bundles.
+[versions]
+agp = "9.5.1"
+kotlin = "2.4.21"
+androidx-core = "1.19.1"           # needs compileSdk 37 and AGP 9.1+
+androidx-activity = "1.13.0"
+androidx-webkit = "1.18.0"         # needs minSdk 24
+androidx-splashscreen = "1.2.0"
+# Monetisation (docs/research/billing.md, ads.md — checked against Google Maven on 2026-11-13).
+play-billing = "9.1.0"             # Play accepts Billing Library 9 until 31 Aug 2028
+gma-nextgen = "1.6.0"              # GMA Next-Gen SDK; the legacy play-services-ads is in maintenance mode
+ump = "4.0.0"                      # Google's consent SDK (User Messaging Platform)
+
+[libraries]
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+# The -ktx artifacts of core and activity are empty since 1.19 / 1.13: depend on the real ones.
+androidx-core = { module = "androidx.core:core", version.ref = "androidx-core" }
+androidx-activity = { module = "androidx.activity:activity", version.ref = "androidx-activity" }
+androidx-webkit = { module = "androidx.webkit:webkit", version.ref = "androidx-webkit" }
+androidx-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "androidx-splashscreen" }
+# Both flavours: Google Play Billing (callback API; billing-ktx would hide the "unfetched products" list).
+play-billing = { module = "com.android.billingclient:billing", version.ref = "play-billing" }
+# "ads" flavour only.
+gma-nextgen = { module = "com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk", version.ref = "gma-nextgen" }
+ump = { module = "com.google.android.ump:user-messaging-platform", version.ref = "ump" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }

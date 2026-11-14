@@ -1,0 +1,67 @@
+<!doctype html>
+<!--
+  Dev-only harness of the play screen (not part of the production build):
+    npx vite --port 5184 --strictPort   →   http://127.0.0.1:5184/play-demo.html
+  It builds a real AppContext (art, audio, i18n, platform, profile) with a stub Navigator and store.
+  Query:
+    level=<id | name>   a level of src/levels by id, or a harness level by name (mix, easy, hard, fx, combo, lamp, vine, holes, tiny, goals4, perf)
+    lang=ar             Arabic (RTL)
+    seed=<n>            deterministic level seed          fast=1   animations ×6 faster
+    boosters=a,b        start boosters (extraMoves, prism, beamNova)
+    inv=<n>             own n of every in-level booster   coins=<n>   lives=<n>
+    progress=<n>        highest level already cleared (default 119: everything unlocked; 0 = a new player)
+    caravan=<n>         a win streak of n
+    ads=1               rewarded videos "ready" (always earned)        ads=fail  ready but never earned
+    tut=<id>            force this tutorial tip on the level           tut=0     no tips
+    keep=1              keep the saved profile (default: every load starts from a fresh one)
+    mute=1              no sound
+  Screenshots: node tools/play-shots.cjs     End-to-end test: node tests/e2e/play.cjs
+-->
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#14123a" />
+    <title>Play screen harness</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #14123a;
+        overflow: hidden;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 16px;
+        overflow: auto;
+        color: #fff6dc;
+        font: 600 16px system-ui, sans-serif;
+        display: none;
+      }
+      #map button {
+        margin: 4px;
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 10px;
+        background: #f5c95a;
+        color: #1b1547;
+        font: 700 15px system-ui, sans-serif;
+      }
+      #map pre {
+        white-space: pre-wrap;
+        font: 12px ui-monospace, monospace;
+        color: #c9c2e6;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/play/demo.ts"></script>
+  </body>
+</html>

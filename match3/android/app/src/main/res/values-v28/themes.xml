@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 9–10: draw into a cutout on the short edges whether or not the bars are visible. -->
+    <style name="Theme.Zumurud" parent="Base.Theme.Zumurud">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+
+    <style name="Theme.Zumurud.Starting" parent="Base.Theme.Zumurud.Starting">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

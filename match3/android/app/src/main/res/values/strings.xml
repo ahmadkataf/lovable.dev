@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher label. The game's own texts live in the web game (src/i18n). -->
+    <string name="app_name">Zumurud</string>
+
+    <!-- Native error screen, shown only if the bundled game page cannot be loaded. -->
+    <string name="error_title">Something went wrong</string>
+    <string name="error_message">The game could not start. Your progress is safe.</string>
+    <string name="error_retry">Try again</string>
+</resources>

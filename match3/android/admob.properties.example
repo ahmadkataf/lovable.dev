@@ -1,0 +1,22 @@
+# AdMob ids of the "ads" flavour. Copy to android/admob.properties and fill in — or set the same
+# three names as environment variables, or pass them as -P properties. They are not secrets (they
+# can be read out of any published app), so this file may be committed if that is convenient.
+#
+# Where to find them: AdMob → Apps → (the app) → App settings (app id, with a "~"),
+# and AdMob → Apps → (the app) → Ad units (one REWARDED and one INTERSTITIAL unit, each with a "/").
+#
+# RELEASE builds use these ids. DEBUG builds never do: they always carry Google's public SAMPLE ids
+# (test ads only), so real ads are not requested while developing.
+# Without the ids a release build is refused, because it would ship the sample ids. To try a release
+# build on a device with test ads: tools/android/build.sh release --flavor ads --allow-test-ads
+# (Gradle: -PuseSampleAdIds=true -PallowTestAds=true). Those files are named "…-TESTADS": never upload them.
+ADMOB_APP_ID=ca-app-pub-0000000000000000~0000000000
+ADMOB_REWARDED_ID=ca-app-pub-0000000000000000/0000000000
+ADMOB_INTERSTITIAL_ID=ca-app-pub-0000000000000000/0000000000
+
+# Debug builds only (ignored by release builds):
+#   test devices for the consent SDK (needed for UMP_DEBUG_GEOGRAPHY on a real phone) and the ad
+#   SDK, comma separated — the id of a device is printed to Logcat by those SDKs on first use
+#ADS_TEST_DEVICE_IDS=33BE2250B43518CCDA7DE426D04EE231
+#   pretend to be in a consent region, to see the consent form anywhere: EEA, REGULATED_US_STATE or OTHER
+#UMP_DEBUG_GEOGRAPHY=EEA

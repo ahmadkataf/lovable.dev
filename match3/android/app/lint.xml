@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lint configuration: justified suppressions only, each with its reason. -->
+<lint>
+    <!--
+        The app IS a JavaScript game. The WebView only ever executes the files bundled in the APK:
+        every navigation and every request to another origin is refused (LocalContent.kt), network
+        loads are blocked, and file/content access is off — there is no untrusted script to inject.
+    -->
+    <issue id="SetJavaScriptEnabled">
+        <ignore path="src/main/kotlin/com/zumurud/game/MainActivity.kt" />
+    </issue>
+
+    <!--
+        SaveStore.flush() must use commit(), and must see its result: before a purchase is consumed
+        or acknowledged the save that holds the grant has to be on disk, not queued (apply() would
+        only queue it). It runs on the store's worker thread, never on the main thread. The KTX
+        edit(commit = true) helper throws that result away, hence the plain call.
+    -->
+    <issue id="ApplySharedPref">
+        <ignore path="src/main/kotlin/com/zumurud/game/SaveStore.kt" />
+    </issue>
+    <issue id="UseKtx">
+        <ignore path="src/main/kotlin/com/zumurud/game/SaveStore.kt" />
+    </issue>
+
+    <!--
+        drawable-xxhdpi holds a single image, the splash-screen emblem, on purpose: one 864px WebP
+        (288dp at xxhdpi) is scaled by the system for the other densities, instead of shipping the
+        same picture five times. The launcher icons do come in every density (mipmap-*).
+    -->
+    <issue id="IconMissingDensityFolder" severity="ignore" />
+</lint>
