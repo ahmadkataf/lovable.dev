@@ -62,15 +62,20 @@ the left; the hero is cornered at the right end, on a slightly raised rock.
 - Each character stands on the ground plane Z = 0 with its feet centre at the world origin, facing +X
   (dragon) or −X (hero), turned about 25–35° toward the camera so that it reads in three-quarter view.
 - Dragon size: about 2.2 m long (snout to tail tip, tail curled) and 1.5 m tall at the horns.
-  Hero size: about 0.75 m tall at the ear tips.
+  Hero size: about 1.0 m tall at the ear tips (it must read on a phone, where 1 m is about 60 CSS px).
 - Camera: orthographic, looking slightly down (10–15°), so that sprites can be moved along the path
   in the game without perspective errors. Film transparent. A shadow-catcher ground gives each sprite
   its own soft contact shadow.
 - Lighting rig shared by every render (one file, `studio.py`, owned by the art lead): warm key from
   the upper left front, cool low fill, a strong cool rim from behind for the silhouette, and soft
   ambient; view transform chosen for vivid, clean colour (no grey film look).
-- Frames: dragon 384×384 px, hero 256×256 px, RGBA PNG, 16 frames per second, the feet anchor at the
-  same pixel in every frame of a character (state it in the manifest).
+- **One scale for everything: 160 px per metre**, one orthographic camera angle for every sprite and
+  for the cave plate, so that sprites sit on the plate without any perspective error.
+- Frames: dragon 512×384 px (3.2 m × 2.4 m), hero 256×256 px (1.6 m × 1.6 m), RGBA, 16 frames per
+  second; the feet anchor is at the same pixel in every frame of a character (dragon about (256, 340),
+  hero about (128, 224)); the exact values go into the manifest.
+- Cave plate: 960×480 px (6 m × 3 m of the ledge). The dragon enters from beyond the left edge and
+  stops about 1.2 m short of the hero, who sits on a rock about 0.35 m high near the right edge.
 - Everything is made by script, so every asset can be rebuilt: keep the Python sources, and write
   nothing outside your own folder.
 
@@ -107,3 +112,73 @@ acceptable, as long as the result looks seamless.
 | hero | alarm | 8 | ears flatten, shrinks back, as the dragon gets close |
 | hero | cheer | 12 | jumps for joy holding the Emerald up; the Emerald flashes |
 | hero | hide | 12 | drops the Emerald and ducks behind the rock, only the ears showing |
+
+## The owner's choice
+
+The owner looked at the first dragon candidates and chose candidate B (`/home/user/zw/art3d/cand-b`):
+the glossy, toy-like red dragon with gold horns, cream belly, violet wings and the amethyst tail
+crystal. That design is now fixed: refine it, do not redesign it. Candidate A (`cand-a`) stays on disk
+for ideas only (its organic skin and subtle scale pattern).
+
+## Delivery to the game
+
+Everything the game loads lives in `/home/user/zw/art3d/final/game/` and is copied to the game's
+`public/rescue/` folder unchanged:
+
+- `manifest.json` (the game is driven by this file; write it exactly in this shape):
+
+```json
+{
+  "version": 1,
+  "fps": 16,
+  "pxPerMetre": 160,
+  "characters": {
+    "dragon": {
+      "frame": [512, 384],
+      "anchor": [256, 340],
+      "clips": {
+        "idle":   { "atlas": "dragon-idle.webp",   "cols": 4, "rows": 3, "frames": 12, "loop": true },
+        "step":   { "atlas": "dragon-step.webp",   "cols": 4, "rows": 3, "frames": 10, "loop": false, "advance": 0 },
+        "recoil": { "atlas": "dragon-recoil.webp", "cols": 4, "rows": 3, "frames": 10, "loop": false },
+        "menace": { "atlas": "dragon-menace.webp", "cols": 4, "rows": 4, "frames": 14, "loop": false },
+        "snatch": { "atlas": "dragon-snatch.webp", "cols": 4, "rows": 4, "frames": 16, "loop": false },
+        "flee":   { "atlas": "dragon-flee.webp",   "cols": 4, "rows": 4, "frames": 16, "loop": false }
+      }
+    },
+    "hero": {
+      "frame": [256, 256],
+      "anchor": [128, 224],
+      "clips": {
+        "idle":  { "atlas": "hero-idle.webp",  "cols": 4, "rows": 3, "frames": 12, "loop": true },
+        "alarm": { "atlas": "hero-alarm.webp", "cols": 4, "rows": 2, "frames": 8,  "loop": false },
+        "cheer": { "atlas": "hero-cheer.webp", "cols": 4, "rows": 3, "frames": 12, "loop": false },
+        "hide":  { "atlas": "hero-hide.webp",  "cols": 4, "rows": 3, "frames": 12, "loop": false }
+      }
+    }
+  },
+  "scene": {
+    "size": [960, 480],
+    "plate": "cave-plate.webp",
+    "front": "cave-front.webp",
+    "dragonFar": [-170, 404],
+    "dragonNear": [560, 404],
+    "hero": [820, 372]
+  },
+  "credits": ["Poly Haven CC0: <asset ids visible in the plate>"]
+}
+```
+
+- An atlas is a grid of frames, left to right then top to bottom, with no padding; WebP with alpha,
+  quality about 85 (Pillow is installed in the venv: `from PIL import Image`). No atlas wider or taller
+  than 2048 px.
+- `dragonFar` / `dragonNear` are where the dragon's feet anchor is, in plate pixels, when he is the
+  farthest and the nearest; the game places him between them according to the steps left. `hero` is
+  where the hero's feet anchor is. The *step* clip is rendered in place (the game slides the sprite
+  during the clip); the feet must not seem to skate — make the stride match a slide of 20 to 60 px.
+- Every clip starts and ends in a pose that blends with *idle* (first and last frames close to an idle
+  frame), except the closing clips (*snatch*, *flee*, *cheer*, *hide*), which end held.
+- `cave-plate.webp` is opaque (the whole 960×480 view); `cave-front.webp` is transparent except for a
+  few foreground rocks and crystals that pass in front of the dragon's feet.
+- Also deliver `contact-<character>-<clip>.png` (every frame of a clip side by side over the plate's
+  dark colours) and `preview-scene.png` (the plate with the dragon mid-path in *idle* and the hero in
+  *idle*, composited exactly as the game will) for review.
