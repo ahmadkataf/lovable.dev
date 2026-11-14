@@ -345,7 +345,8 @@ export function createShell(deps: ShellDeps): Shell {
         kit.toast(ui.t('meta.error.level'), { icon: 'info' });
         return;
       }
-      if (id > profile.highestUnlocked()) return;
+      // (tester mode opens every level)
+      if (id > profile.highestUnlocked() && !flags.tester) return;
       if (introOpen && introOpen.isOpen()) return;
       // a win celebration is playing on the map: the intro follows it instead of covering it
       if (kind === 'map' && mapScreen && mapScreen.queueIntro(id)) return;

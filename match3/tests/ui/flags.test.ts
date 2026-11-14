@@ -15,8 +15,16 @@ describe('debug flags', () => {
   it('are all off outside dev unless ?debug=1 is given', () => {
     expect(readFlags('?lang=ar&mocklevels=120&gate=off&screen=map', false, atob)).toEqual(NO_FLAGS);
     const on = readFlags('?debug=1&lang=ar&mocklevels=120&gate=off&screen=map&still=1', false, atob);
-    expect(on).toEqual({ debug: true, lang: 'ar', mockLevels: 120, save: null, gateOff: true, screen: 'map', still: true });
+    expect(on).toEqual({ debug: true, lang: 'ar', mockLevels: 120, save: null, gateOff: true, screen: 'map', still: true, tester: false });
     expect(readFlags('', true, atob).debug).toBe(true);
+  });
+
+  it('tester mode needs ?debug=1 and unlocks every feature', () => {
+    expect(readFlags('?tester=1', false, atob)).toEqual(NO_FLAGS);
+    const t = readFlags('?debug=1&tester=1', false, atob);
+    expect(t.tester).toBe(true);
+    expect(t.gateOff).toBe(true);
+    expect(readFlags('?debug=1&tester=0', false, atob).tester).toBe(false);
   });
 
   it('ignore nonsense values', () => {

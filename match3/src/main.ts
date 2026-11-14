@@ -93,6 +93,9 @@ async function boot(): Promise<void> {
     },
   });
 
+  // tester mode (the owner's tester APK, `?debug=1&tester=1`): a large balance at every start
+  if (flags.tester) (await import('./ui/dev/tester.ts')).topUpTester(profile);
+
   // the same platform, with haptics following the player's setting
   const platform: PlatformApi = {
     info: () => device.info(),

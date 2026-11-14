@@ -9,6 +9,9 @@
  *   ?gate=off         every feature and booster counts as unlocked
  *   ?screen=map       open this screen right after boot (title | map)
  *   ?still=1          no ambient animation loops (stable screenshots)
+ *   ?tester=1         tester mode (the owner's tester APK starts with it, see android/app/build.gradle.kts):
+ *                     a large balance topped up at every start, every feature unlocked and every level
+ *                     open on the map. Never on in a build that can be published.
  *
  * The store has its own switch, read by src/monetize: `?fakestore=1` starts its test store in a
  * browser (it is on by default under the dev server; `?fakestore=0` turns it off).
@@ -24,6 +27,8 @@ export interface Flags {
   gateOff: boolean;
   screen: 'title' | 'map' | null;
   still: boolean;
+  /** Tester mode: a large balance, every feature unlocked, every level open. */
+  tester: boolean;
 }
 
 export const NO_FLAGS: Flags = {
@@ -34,6 +39,7 @@ export const NO_FLAGS: Flags = {
   gateOff: false,
   screen: null,
   still: false,
+  tester: false,
 };
 
 /** "a=1&b=two" → { a: '1', b: 'two' } (later keys win; values are URI-decoded). */
@@ -92,8 +98,9 @@ export function readFlags(search: string, dev: boolean, atobFn: (s: string) => s
     lang,
     mockLevels: n >= 1 && n <= 2000 ? n : 0,
     save: q['save'] ? decodeSaveParam(q['save'], atobFn) : null,
-    gateOff: q['gate'] === 'off',
+    gateOff: q['gate'] === 'off' || q['tester'] === '1',
     screen,
     still: q['still'] === '1',
+    tester: q['tester'] === '1',
   };
 }

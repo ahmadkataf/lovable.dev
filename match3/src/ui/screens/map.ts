@@ -704,7 +704,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     }
     const level = Number(node.dataset.level);
     if (!(level >= 1)) return;
-    if (level > profile.highestUnlocked()) {
+    if (level > profile.highestUnlocked() && !ui.flags.tester) {
       node.classList.remove('m-node--deny');
       void node.offsetWidth;
       node.classList.add('m-node--deny');
