@@ -131,6 +131,16 @@ val umpDebugGeography = optionalSetting("UMP_DEBUG_GEOGRAPHY").orEmpty().upperca
  */
 val adsDiagForceInit = optionalSetting("adsDiagForceInit").equals("true", ignoreCase = true)
 
+/**
+ * Tester build (-PtesterBuild=true): an APK for the owner's own phone. The game starts with its tester
+ * switch on (a large balance, everything unlocked — see src/ui/flags.ts), the version name ends in
+ * "-tester", and the ads flavour must use Google's sample ids. It can never be packaged as an App Bundle,
+ * so it cannot reach Google Play by accident.
+ */
+val testerBuild = optionalSetting("testerBuild").equals("true", ignoreCase = true)
+/** What the start page's address carries after "?"; empty for every build that can be published. */
+val startQuery = if (testerBuild) "debug=1&tester=1" else ""
+
 // ───────────────────────── Android ─────────────────────────
 
 android {
@@ -142,7 +152,8 @@ android {
         minSdk = 24
         targetSdk = appTargetSdk
         versionCode = appVersionCode
-        versionName = appVersionName
+        versionName = appVersionName + (if (testerBuild) "-tester" else "")
+        buildConfigField("String", "START_QUERY", "\"" + startQuery + "\"")
     }
 
     signingConfigs {
@@ -329,6 +340,31 @@ if (uploadKey == null) {
                     "this release build is signed with the DEBUG key — NOT FOR GOOGLE PLAY.\n",
             )
         }
+    }
+}
+
+// Tester builds: an APK only, and never with real ad ids.
+if (testerBuild) {
+    gradle.taskGraph.whenReady {
+        val mine = allTasks.filter { it.project == project }
+        if (mine.any { Regex("bundle\\w*|sign\\w*Bundle|package\\w*Bundle").matches(it.name) }) {
+            throw GradleException(
+                "-PtesterBuild=true makes an APK for the owner's phone (big balance, everything unlocked).\n" +
+                    "It must never become an App Bundle: build the bundle without -PtesterBuild.",
+            )
+        }
+        val packagesAdsRelease = mine.any { Regex("package\\w*AdsRelease").matches(it.name) }
+        if (packagesAdsRelease && !adMob.test) {
+            throw GradleException(
+                "A tester build of the ads flavour must show test ads only: add -PuseSampleAdIds=true -PallowTestAds=true.",
+            )
+        }
+        logger.warn(
+            "\n" + "!".repeat(78) + "\n" +
+                "!! TESTER BUILD: the game starts with a large balance and everything unlocked.\n" +
+                "!! For the owner's phone only — NOT FOR GOOGLE PLAY.\n" +
+                "!".repeat(78) + "\n",
+        )
     }
 }
 

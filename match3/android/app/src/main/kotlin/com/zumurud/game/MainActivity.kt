@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
 
     private var webView: WebView? = null
     private var errorView: View? = null
-    private var startUrl: String = LocalContent.GAME_URL
+    private var startUrl: String = LocalContent.START_URL
 
     private var resumed = false
     private var inBackground = false
@@ -131,7 +131,7 @@ class MainActivity : ComponentActivity(), GameBridge.Host, StoreHost {
         publishInfo()
 
         assetLoader = LocalContent.createLoader(this, Diagnostics.EXTRA_ASSET_ROOTS)
-        startUrl = Diagnostics.startUrl(intent) ?: LocalContent.GAME_URL
+        startUrl = Diagnostics.startUrl(intent) ?: LocalContent.START_URL
 
         onBackPressedDispatcher.addCallback(this, backToPage)
         applyOrientationPolicy(resources.configuration)

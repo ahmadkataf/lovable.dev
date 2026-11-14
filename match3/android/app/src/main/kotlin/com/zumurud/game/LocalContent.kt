@@ -33,6 +33,12 @@ internal object LocalContent {
     /** The one page the app shows. */
     const val GAME_URL: String = "https://$HOST/assets/$GAME_ROOT/index.html"
 
+    /**
+     * The address the app opens: the page, plus the build's start query. The query is empty in every
+     * build that can be published; a tester build (-PtesterBuild=true) turns the game's tester switch on.
+     */
+    val START_URL: String = if (BuildConfig.START_QUERY.isEmpty()) GAME_URL else GAME_URL + "?" + BuildConfig.START_QUERY
+
     fun urlFor(assetRoot: String, file: String): String = "https://$HOST/assets/$assetRoot/$file"
 
     /**

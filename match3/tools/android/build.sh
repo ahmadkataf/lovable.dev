@@ -2,7 +2,7 @@
 # Builds the Android app end to end: the web game first, then the Gradle project.
 #
 #   tools/android/build.sh [debug|release|bundle|all] [--flavor plain|ads|both] [--allow-test-ads]
-#                          [--skip-web] [-- extra gradle arguments]
+#                          [--tester] [--skip-web] [-- extra gradle arguments]
 #
 #     debug     debuggable APK with the diagnostics page          → zumurud-<version>-<flavour>-debug.apk
 #               (the ads flavour's debug build always shows Google's test ads, never real ones)
@@ -18,6 +18,10 @@
 #   --allow-test-ads build a release of the ads flavour with Google's sample ids instead (test ads
 #                    only), whether or not real ids are configured — for trying a release build on
 #                    a device. The files are named "…-TESTADS" and must never be uploaded.
+#   --tester         a TESTER APK for the owner's own phone: the game starts with a large balance and
+#                    everything unlocked, the version name ends in "-tester" and the ads flavour shows
+#                    test ads only. Only with "release" (an APK); Gradle refuses to make a bundle of it.
+#                    The file is named "…-TESTER" and must never be uploaded.
 #   --skip-web       reuse the existing ../dist instead of running `npm run build`
 #
 # Results are copied to android/out/. Version and application id come from android/gradle.properties
@@ -38,6 +42,7 @@ what="all"
 flavour="plain"
 skip_web=0
 allow_test_ads=0
+tester=0
 gradle_args=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -48,6 +53,7 @@ while [ $# -gt 0 ]; do
       ;;
     --flavor=*|--flavour=*) flavour="${1#*=}" ;;
     --allow-test-ads) allow_test_ads=1 ;;
+    --tester) tester=1 ;;
     --skip-web) skip_web=1 ;;
     --) shift; gradle_args=("$@"); break ;;
     -h|--help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "${BASH_SOURCE[0]}"; exit 0 ;;
@@ -61,6 +67,7 @@ case "$flavour" in
   both)
     # plain first (it builds the web game unless --skip-web), then ads reusing that web build.
     [ "$allow_test_ads" -eq 0 ] || { echo "build.sh: --allow-test-ads only makes sense with --flavor ads" >&2; exit 2; }
+    [ "$tester" -eq 0 ] || { echo "build.sh: --tester builds one flavour at a time (--flavor plain or ads)" >&2; exit 2; }
     web_flag=()
     [ "$skip_web" -eq 1 ] && web_flag=(--skip-web)
     "${BASH_SOURCE[0]}" "$what" --flavor plain ${web_flag[@]+"${web_flag[@]}"} -- ${gradle_args[@]+"${gradle_args[@]}"}
@@ -68,6 +75,12 @@ case "$flavour" in
     ;;
   *) echo "build.sh: --flavor must be 'plain', 'ads' or 'both' (got '$flavour')" >&2; exit 2 ;;
 esac
+if [ "$tester" -eq 1 ]; then
+  [ "$what" = "release" ] || { echo "build.sh: --tester makes an APK only: use it with 'release'" >&2; exit 2; }
+  gradle_args+=("-PtesterBuild=true")
+  # a tester build never carries real ad ids
+  [ "$flavour" = "ads" ] && allow_test_ads=1
+fi
 if [ "$allow_test_ads" -eq 1 ]; then
   [ "$flavour" = "ads" ] || { echo "build.sh: --allow-test-ads only makes sense with --flavor ads" >&2; exit 2; }
   gradle_args+=("-PuseSampleAdIds=true" "-PallowTestAds=true")
@@ -135,6 +148,7 @@ ads="$(value ads)"
 [ -n "$version" ] || { echo "build.sh: could not read the version from Gradle" >&2; exit 1; }
 suffix=""
 if [ "$flavour" = "ads" ] && [ "$ads" != "real-ids" ]; then suffix="$suffix-TESTADS"; fi
+if [ "$tester" -eq 1 ]; then suffix="$suffix-TESTER"; fi
 if [ "$signing" != "upload-key" ]; then suffix="$suffix-DEBUGSIGNED"; fi
 
 mkdir -p "$OUT"
