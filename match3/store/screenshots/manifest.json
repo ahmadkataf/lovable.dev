@@ -49,8 +49,8 @@
       "moment": "intro dialog of the current level 82 (tap on its map node)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "604b973617c47da681e2f473d0bdf33c92b6092ecd09c0ae2ca68aa1b7870c65",
-      "bytes": 1084705
+      "sha256": "eafc2ab027a90f7ba39596cfa80bccfbfdab03c134d2af114b1caaf70de486a6",
+      "bytes": 975281
     },
     "raw/en/04-play-combo.png": {
       "scene": "combo",
@@ -63,19 +63,19 @@
       "theme": "dunes",
       "worldLocal": "Dunes",
       "blockers": [],
-      "seed": 1,
+      "seed": 7,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
       "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
-      "flags": "seed=1",
+      "flags": "seed=7",
       "moves": [
-        "(4,2)↔(5,2)",
-        "(0,4)↔(1,4)"
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (0,4)↔(1,4) (bigCross×1, prism×1, beamH×1); frame 1 of 5 taken while the effect runs, 865 ms after the swipe on the game's own clock (2.0 % of the board is effect light, 29.1 % gem colour)",
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 15 of 32 taken while the effect runs, 525 ms after the swipe on the game's own clock (16.7 % of the board is effect light, 29.7 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "0134c07d139bcb0db552cba4173ae9511a54f6c7e121421a4666d8d5adfa2f59",
-      "bytes": 1212699
+      "sha256": "a0809676583c154b4ddbc4b250fd383e4bbaa4a5067bf99f9697ee3434fb9c75",
+      "bytes": 1746755
     },
     "raw/en/05-play-beam.png": {
       "scene": "beam",
@@ -83,24 +83,24 @@
       "lang": "en",
       "device": "phone",
       "viewport": "360×640 CSS px × 3",
-      "level": 45,
+      "level": 51,
       "world": "Bazaar",
       "theme": "bazaar",
       "worldLocal": "Bazaar",
       "blockers": [],
-      "seed": 3,
+      "seed": 4,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
-      "save": "levels 1–44 cleared; level 45 is the current level, played for the first time",
-      "flags": "seed=3",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
       "moves": [
-        "(4,0)↔(4,1)",
-        "(8,7)↔(8,8)"
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
       ],
-      "moment": "move 2 (8,7)↔(8,8) (beamV×2, nova×1, prism×1); frame 8 of 20 taken while the effect runs, 665 ms after the swipe on the game's own clock (4.8 % of the board is effect light, 30.2 % gem colour)",
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 12 of 25 taken while the effect runs, 626 ms after the swipe on the game's own clock (4.9 % of the board is effect light, 29.4 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "046225e852606c71d10a6ea0ad27d18417d1dd3d541eae17f3ba09cd32cd0f54",
-      "bytes": 1461329
+      "sha256": "a7bdeba57c4823cc80922a29088cdb6d63902e1f3f0e94b26c38cd692e114ed0",
+      "bytes": 1544054
     },
     "raw/en/06-play-blockers.png": {
       "scene": "blockers",
@@ -108,26 +108,27 @@
       "lang": "en",
       "device": "phone",
       "viewport": "360×640 CSS px × 3",
-      "level": 79,
+      "level": 80,
       "world": "Palace",
       "theme": "palace",
       "worldLocal": "Palace",
       "blockers": [
         "stone",
         "chain",
+        "vine",
         "lamp",
         "sand"
       ],
       "seed": 7,
       "startBoosters": "none",
-      "save": "levels 1–78 cleared; level 79 is the current level, played for the first time",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
       "flags": "seed=7",
       "moves": [],
       "moment": "start of the level, before the first move",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "0288eddc9cf4dd20f8f38aaa0e9471ed82f2ea8c328f4bef7d0f6d55bf62f1b0",
-      "bytes": 1270189
+      "sha256": "df4d9af67380fe3b4f48571fb163f599988b2dc5154560227002a2b47aadedcf",
+      "bytes": 1260854
     },
     "raw/en/07-play-booster.png": {
       "scene": "booster",
@@ -150,8 +151,8 @@
       "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "c24e4dfa54e46ea47d47e025ec87f1a27cff25dee0eca473931ab93af0f41fa5",
-      "bytes": 1186494
+      "sha256": "1fc7cef2d0d5246ea93f637026da35774a89965fe1c2a72b69c76d24cf9f23ca",
+      "bytes": 1185017
     },
     "raw/en/08-play-praise.png": {
       "scene": "praise",
@@ -159,24 +160,23 @@
       "lang": "en",
       "device": "phone",
       "viewport": "360×640 CSS px × 3",
-      "level": 105,
+      "level": 104,
       "world": "Starlit Sky",
       "theme": "stars",
       "worldLocal": "Starlit Sky",
       "blockers": [],
-      "seed": 2,
+      "seed": 3,
       "startBoosters": "none",
-      "save": "levels 1–104 cleared; level 105 is the current level, played for the first time",
-      "flags": "seed=2",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
       "moves": [
-        "(2,2)↔(2,3)",
-        "(5,7)↔(6,7)"
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (5,7)↔(6,7) set off 7 cascades; frame taken while the game shows its praise word \"Splendour!\" (about 0.4 s after it appears)",
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"Splendour!\" (about 0.4 s after it appears)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "a7bff2250d23c27c0ec3cda94fad71e869d79f40dd900eb5f5531def4f887ac4",
-      "bytes": 1384256
+      "sha256": "d23d09bbe64f966f74740d160b7ccca3d959386ed0525b1ae78b97714f698a01",
+      "bytes": 1436741
     },
     "raw/en/09-win.png": {
       "scene": "win",
@@ -191,31 +191,37 @@
       "blockers": [
         "stone"
       ],
-      "seed": 1,
+      "seed": 2,
       "startBoosters": "none",
       "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
-      "flags": "seed=1, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
       "moves": [
-        "(2,3)↔(3,3)",
-        "(3,4)↔(3,3)",
-        "(4,3)↔(3,3)",
-        "(6,4)↔(6,3)",
-        "(5,5)↔(5,4)",
-        "(2,3)↔(3,3)",
-        "(5,5)↔(5,6)",
-        "(3,3)↔(2,3)",
-        "(2,5)↔(2,6)",
-        "(6,3)↔(6,4)",
-        "(6,4)↔(7,4)",
-        "(6,1)↔(5,1)",
-        "(5,1)↔(6,1)"
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
       ],
-      "moment": "level won in 13 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
       "stars": 3,
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "aef4114958ec3fb5196c82fefd1590d8685853bf49495457a7477d5970a9953a",
-      "bytes": 1129567
+      "sha256": "80ee5a7549e39110598a0e5b0ef2f03a5c72de44ab9318eef58aa937b9dfc64e",
+      "bytes": 1139774
     },
     "raw/en/10-daily-gift.png": {
       "scene": "daily",
@@ -296,19 +302,19 @@
       "theme": "dunes",
       "worldLocal": "Dunes",
       "blockers": [],
-      "seed": 1,
+      "seed": 7,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
       "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
-      "flags": "seed=1",
+      "flags": "seed=7",
       "moves": [
-        "(4,2)↔(5,2)",
-        "(0,4)↔(1,4)"
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (0,4)↔(1,4) (bigCross×1, prism×1, beamH×1); frame 14 of 32 taken while the effect runs, 474 ms after the swipe on the game's own clock (20.5 % of the board is effect light, 34.9 % gem colour)",
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 20 of 42 taken while the effect runs, 514 ms after the swipe on the game's own clock (16.5 % of the board is effect light, 28.9 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "c9438936be9e153bc56c0f990d951244f41c7223e6e5c4f07f3590f630c7cd37",
-      "bytes": 1894439
+      "sha256": "22b49f922e22524c46afc0c64fbbb66152491ef6a5d745f1982be00170e5e7f8",
+      "bytes": 1995809
     },
     "raw/tablet7/en/05-play-beam.png": {
       "scene": "beam",
@@ -316,24 +322,24 @@
       "lang": "en",
       "device": "tablet7",
       "viewport": "600×960 CSS px × 2",
-      "level": 45,
+      "level": 51,
       "world": "Bazaar",
       "theme": "bazaar",
       "worldLocal": "Bazaar",
       "blockers": [],
-      "seed": 3,
+      "seed": 4,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
-      "save": "levels 1–44 cleared; level 45 is the current level, played for the first time",
-      "flags": "seed=3",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
       "moves": [
-        "(4,0)↔(4,1)",
-        "(8,7)↔(8,8)"
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
       ],
-      "moment": "move 2 (8,7)↔(8,8) (beamV×2, nova×1, prism×1); frame 13 of 29 taken while the effect runs, 646 ms after the swipe on the game's own clock (5.3 % of the board is effect light, 29.4 % gem colour)",
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 13 of 27 taken while the effect runs, 592 ms after the swipe on the game's own clock (5.7 % of the board is effect light, 29.5 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "2cc805c818c397b62102e1a67d6e8ca84ebc4e46c6380c4286b62b631f0361ac",
-      "bytes": 1628030
+      "sha256": "c763e68de1facbfcac1bfab1e4bad24b2825249e231573057157610565ca330a",
+      "bytes": 1714038
     },
     "raw/tablet7/en/06-play-blockers.png": {
       "scene": "blockers",
@@ -341,26 +347,27 @@
       "lang": "en",
       "device": "tablet7",
       "viewport": "600×960 CSS px × 2",
-      "level": 79,
+      "level": 80,
       "world": "Palace",
       "theme": "palace",
       "worldLocal": "Palace",
       "blockers": [
         "stone",
         "chain",
+        "vine",
         "lamp",
         "sand"
       ],
       "seed": 7,
       "startBoosters": "none",
-      "save": "levels 1–78 cleared; level 79 is the current level, played for the first time",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
       "flags": "seed=7",
       "moves": [],
       "moment": "start of the level, before the first move",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "6f0304b9d56de9c6d1adbf1deaa4b1cd67042c41bb643cf05f4fc2b15696c205",
-      "bytes": 1392194
+      "sha256": "8dd0e5b5316fd50923447a7a2da54c98a417e0ae98bcae4b066effadac5aadab",
+      "bytes": 1379232
     },
     "raw/tablet7/en/07-play-booster.png": {
       "scene": "booster",
@@ -383,8 +390,8 @@
       "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "243fe996e677e170a1191a54d121451b30419da4788769efa40e09a5d8c71a12",
-      "bytes": 1337036
+      "sha256": "295cfb231c776382c8d99633ee28e01c7447ade17d955934d225daf6adfd625d",
+      "bytes": 1336197
     },
     "raw/tablet7/en/08-play-praise.png": {
       "scene": "praise",
@@ -392,24 +399,23 @@
       "lang": "en",
       "device": "tablet7",
       "viewport": "600×960 CSS px × 2",
-      "level": 105,
+      "level": 104,
       "world": "Starlit Sky",
       "theme": "stars",
       "worldLocal": "Starlit Sky",
       "blockers": [],
-      "seed": 2,
+      "seed": 3,
       "startBoosters": "none",
-      "save": "levels 1–104 cleared; level 105 is the current level, played for the first time",
-      "flags": "seed=2",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
       "moves": [
-        "(2,2)↔(2,3)",
-        "(5,7)↔(6,7)"
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (5,7)↔(6,7) set off 7 cascades; frame taken while the game shows its praise word \"Splendour!\" (about 0.4 s after it appears)",
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"Splendour!\" (about 0.4 s after it appears)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "ff2bbeafbd479b18c5da7bbd62d00cfd57b18400e47aa02db77e8e9ba4b9466a",
-      "bytes": 1603625
+      "sha256": "ca030b4e5ab53c81b20abbb1f7c552a5469af0c7f90848f754c794359bb021e6",
+      "bytes": 1625233
     },
     "raw/tablet7/en/09-win.png": {
       "scene": "win",
@@ -424,31 +430,37 @@
       "blockers": [
         "stone"
       ],
-      "seed": 1,
+      "seed": 2,
       "startBoosters": "none",
       "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
-      "flags": "seed=1, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
       "moves": [
-        "(2,3)↔(3,3)",
-        "(3,4)↔(3,3)",
-        "(4,3)↔(3,3)",
-        "(6,4)↔(6,3)",
-        "(5,5)↔(5,4)",
-        "(2,3)↔(3,3)",
-        "(5,5)↔(5,6)",
-        "(3,3)↔(2,3)",
-        "(2,5)↔(2,6)",
-        "(6,3)↔(6,4)",
-        "(6,4)↔(7,4)",
-        "(6,1)↔(5,1)",
-        "(5,1)↔(6,1)"
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
       ],
-      "moment": "level won in 13 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
       "stars": 3,
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "48f760e2a39fe1bd1a416955926b6f6f5df88892b5a3d3f4b5f10c0641b2abd6",
-      "bytes": 1336429
+      "sha256": "20b10fd64a250ce03d0857181f53f7f88b62c57904f30cdd2e2e8a32b961b61a",
+      "bytes": 1344741
     },
     "raw/tablet10/en/01-title.png": {
       "scene": "title",
@@ -495,19 +507,19 @@
       "theme": "dunes",
       "worldLocal": "Dunes",
       "blockers": [],
-      "seed": 1,
+      "seed": 7,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
       "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
-      "flags": "seed=1",
+      "flags": "seed=7",
       "moves": [
-        "(4,2)↔(5,2)",
-        "(0,4)↔(1,4)"
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (0,4)↔(1,4) (bigCross×1, prism×1, beamH×1); frame 21 of 58 taken while the effect runs, 550 ms after the swipe on the game's own clock (14.5 % of the board is effect light, 37.9 % gem colour)",
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 56 of 60 taken while the effect runs, 491 ms after the swipe on the game's own clock (19.1 % of the board is effect light, 28.3 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "2e632bada0e57331c607c448e2eeab2215fca183dfabfffed2334f99f3d3e224",
-      "bytes": 3120769
+      "sha256": "016a14cba2ac4896b063a5ceceb70c10a6ffaa03140798606a88d29d067d4c64",
+      "bytes": 3114949
     },
     "raw/tablet10/en/05-play-beam.png": {
       "scene": "beam",
@@ -515,24 +527,24 @@
       "lang": "en",
       "device": "tablet10",
       "viewport": "800×1280 CSS px × 2",
-      "level": 45,
+      "level": 51,
       "world": "Bazaar",
       "theme": "bazaar",
       "worldLocal": "Bazaar",
       "blockers": [],
-      "seed": 3,
+      "seed": 4,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
-      "save": "levels 1–44 cleared; level 45 is the current level, played for the first time",
-      "flags": "seed=3",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
       "moves": [
-        "(4,0)↔(4,1)",
-        "(8,7)↔(8,8)"
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
       ],
-      "moment": "move 2 (8,7)↔(8,8) (beamV×2, nova×1, prism×1); frame 17 of 34 taken while the effect runs, 659 ms after the swipe on the game's own clock (5.7 % of the board is effect light, 29.0 % gem colour)",
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 19 of 45 taken while the effect runs, 628 ms after the swipe on the game's own clock (5.3 % of the board is effect light, 29.3 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "8d2459ca7275a6b9b75c9300c22e1262da724b8afac20141724a9e88120c89ca",
-      "bytes": 2527035
+      "sha256": "66ec67b3d8c254df240c0ba132749af99d3816e15913d2b8bfa5a76288e9feab",
+      "bytes": 2707737
     },
     "raw/tablet10/en/06-play-blockers.png": {
       "scene": "blockers",
@@ -540,26 +552,27 @@
       "lang": "en",
       "device": "tablet10",
       "viewport": "800×1280 CSS px × 2",
-      "level": 79,
+      "level": 80,
       "world": "Palace",
       "theme": "palace",
       "worldLocal": "Palace",
       "blockers": [
         "stone",
         "chain",
+        "vine",
         "lamp",
         "sand"
       ],
       "seed": 7,
       "startBoosters": "none",
-      "save": "levels 1–78 cleared; level 79 is the current level, played for the first time",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
       "flags": "seed=7",
       "moves": [],
       "moment": "start of the level, before the first move",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "13bac3b14d1225cf99e686c51e21f17a26c8b882435e071d923c3e7a7f76c8e8",
-      "bytes": 2168750
+      "sha256": "9cbeee97ecfdd4808324f22e50cb21f5ca2de11c3f620e040ca357d9cb181bed",
+      "bytes": 2146185
     },
     "raw/tablet10/en/07-play-booster.png": {
       "scene": "booster",
@@ -582,8 +595,8 @@
       "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "7bee32cd004914c3499319d11af2c7645b984ef47816113e8d438d3e5abfc2e1",
-      "bytes": 1995139
+      "sha256": "6886fa755db0616b88f6a35f01977b30f932621d5aaf8ef0a2875128db61b14a",
+      "bytes": 1994457
     },
     "raw/tablet10/en/08-play-praise.png": {
       "scene": "praise",
@@ -591,24 +604,23 @@
       "lang": "en",
       "device": "tablet10",
       "viewport": "800×1280 CSS px × 2",
-      "level": 105,
+      "level": 104,
       "world": "Starlit Sky",
       "theme": "stars",
       "worldLocal": "Starlit Sky",
       "blockers": [],
-      "seed": 2,
+      "seed": 3,
       "startBoosters": "none",
-      "save": "levels 1–104 cleared; level 105 is the current level, played for the first time",
-      "flags": "seed=2",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
       "moves": [
-        "(2,2)↔(2,3)",
-        "(5,7)↔(6,7)"
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (5,7)↔(6,7) set off 7 cascades; frame taken while the game shows its praise word \"Splendour!\" (about 0.4 s after it appears)",
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"Splendour!\" (about 0.4 s after it appears)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "5d5a23b780eafd1105d0c626692f2e7376944b2d7a2207f3ecc36379667c56cb",
-      "bytes": 2489600
+      "sha256": "8cf13915e94aab5bbb5abcefb3bbb57c3528bcde303582a80b17a04e98b1b4a5",
+      "bytes": 2517793
     },
     "raw/tablet10/en/09-win.png": {
       "scene": "win",
@@ -623,31 +635,37 @@
       "blockers": [
         "stone"
       ],
-      "seed": 1,
+      "seed": 2,
       "startBoosters": "none",
       "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
-      "flags": "seed=1, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
       "moves": [
-        "(2,3)↔(3,3)",
-        "(3,4)↔(3,3)",
-        "(4,3)↔(3,3)",
-        "(6,4)↔(6,3)",
-        "(5,5)↔(5,4)",
-        "(2,3)↔(3,3)",
-        "(5,5)↔(5,6)",
-        "(3,3)↔(2,3)",
-        "(2,5)↔(2,6)",
-        "(6,3)↔(6,4)",
-        "(6,4)↔(7,4)",
-        "(6,1)↔(5,1)",
-        "(5,1)↔(6,1)"
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
       ],
-      "moment": "level won in 13 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
       "stars": 3,
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "f0baa789e03d94fe601943f86053831218c9aaa017777d5b1293368632f55d80",
-      "bytes": 2449405
+      "sha256": "9461a028c6ffb98ee25c7e5fd14f52874f38a9592da3bba94beab79ea85d3c3c",
+      "bytes": 2474150
     },
     "raw/ar/01-title.png": {
       "scene": "title",
@@ -698,8 +716,8 @@
       "moment": "intro dialog of the current level 82 (tap on its map node)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "00f1d67360a3b4ac39d8f7daa1433c35eeaa969c8966c1444422f141f79b4283",
-      "bytes": 1085294
+      "sha256": "99bb2fc2b207a1aa850f9df2cd8bdf15e6916df6f68aad0a03611be104fa3afa",
+      "bytes": 971792
     },
     "raw/ar/04-play-combo.png": {
       "scene": "combo",
@@ -712,19 +730,19 @@
       "theme": "dunes",
       "worldLocal": "الكثبان",
       "blockers": [],
-      "seed": 1,
+      "seed": 7,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
       "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
-      "flags": "seed=1",
+      "flags": "seed=7",
       "moves": [
-        "(4,2)↔(5,2)",
-        "(0,4)↔(1,4)"
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (0,4)↔(1,4) (bigCross×1, prism×1, beamH×1); frame 7 of 24 taken while the effect runs, 496 ms after the swipe on the game's own clock (18.8 % of the board is effect light, 36.3 % gem colour)",
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 15 of 31 taken while the effect runs, 532 ms after the swipe on the game's own clock (17.5 % of the board is effect light, 30.1 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "86c6949718ceabba2da6450d352f103ed00dd93309ae3af475ec15c13a495cfb",
-      "bytes": 1670989
+      "sha256": "31d9e98fa223bfd1c61f5bfeca983641b68aba3f5b89890be9926656e8308fcd",
+      "bytes": 1753014
     },
     "raw/ar/05-play-beam.png": {
       "scene": "beam",
@@ -732,24 +750,24 @@
       "lang": "ar",
       "device": "phone",
       "viewport": "360×640 CSS px × 3",
-      "level": 45,
+      "level": 51,
       "world": "Bazaar",
       "theme": "bazaar",
       "worldLocal": "السوق",
       "blockers": [],
-      "seed": 3,
+      "seed": 4,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
-      "save": "levels 1–44 cleared; level 45 is the current level, played for the first time",
-      "flags": "seed=3",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
       "moves": [
-        "(4,0)↔(4,1)",
-        "(8,7)↔(8,8)"
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
       ],
-      "moment": "move 2 (8,7)↔(8,8) (beamV×2, nova×1, prism×1); frame 16 of 29 taken while the effect runs, 634 ms after the swipe on the game's own clock (5.4 % of the board is effect light, 29.4 % gem colour)",
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 12 of 26 taken while the effect runs, 602 ms after the swipe on the game's own clock (5.2 % of the board is effect light, 29.0 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "575e5ad29a70093d663428c221a890c40ab0713ecf468a5c9c27fb951bb68957",
-      "bytes": 1451505
+      "sha256": "794da45c4011f189f7789ed167da8e9f422476a8c355210da78cf11ecf305d23",
+      "bytes": 1542521
     },
     "raw/ar/06-play-blockers.png": {
       "scene": "blockers",
@@ -757,26 +775,27 @@
       "lang": "ar",
       "device": "phone",
       "viewport": "360×640 CSS px × 3",
-      "level": 79,
+      "level": 80,
       "world": "Palace",
       "theme": "palace",
       "worldLocal": "القصر",
       "blockers": [
         "stone",
         "chain",
+        "vine",
         "lamp",
         "sand"
       ],
       "seed": 7,
       "startBoosters": "none",
-      "save": "levels 1–78 cleared; level 79 is the current level, played for the first time",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
       "flags": "seed=7",
       "moves": [],
       "moment": "start of the level, before the first move",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "389c88d0297d53b292daa14c4c28dcd2b5303dfb241a0bc2ad35ab72b1c21d60",
-      "bytes": 1273663
+      "sha256": "6cecf87f98a6cdc8a26d0b2016e9bb8ce33ee815f379ce4d636c24abbafed843",
+      "bytes": 1264728
     },
     "raw/ar/07-play-booster.png": {
       "scene": "booster",
@@ -799,8 +818,8 @@
       "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "7bd42e8bd423722f5ccf36735bd6753c32fb4b35566d89b35dfe5972d5862cc9",
-      "bytes": 1185813
+      "sha256": "fcf6616a34b1d8afa02a44f61394ccfec833f0223556c243b65fc22ce9c1eeb8",
+      "bytes": 1184955
     },
     "raw/ar/08-play-praise.png": {
       "scene": "praise",
@@ -808,24 +827,23 @@
       "lang": "ar",
       "device": "phone",
       "viewport": "360×640 CSS px × 3",
-      "level": 105,
+      "level": 104,
       "world": "Starlit Sky",
       "theme": "stars",
       "worldLocal": "سماء النجوم",
       "blockers": [],
-      "seed": 2,
+      "seed": 3,
       "startBoosters": "none",
-      "save": "levels 1–104 cleared; level 105 is the current level, played for the first time",
-      "flags": "seed=2",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
       "moves": [
-        "(2,2)↔(2,3)",
-        "(5,7)↔(6,7)"
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (5,7)↔(6,7) set off 7 cascades; frame taken while the game shows its praise word \"بهاء!\" (about 0.4 s after it appears)",
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"بهاء!\" (about 0.4 s after it appears)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "4542b75dbfe9f095034ecd9e862b51cf1cb7025c0f6d05309a063b1ad9b684bf",
-      "bytes": 1409421
+      "sha256": "98828c04703846ee7fd0011b579096e9c1c2b45482fcfc2c50c4ac6aefe41be2",
+      "bytes": 1444144
     },
     "raw/ar/09-win.png": {
       "scene": "win",
@@ -840,31 +858,37 @@
       "blockers": [
         "stone"
       ],
-      "seed": 1,
+      "seed": 2,
       "startBoosters": "none",
       "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
-      "flags": "seed=1, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
       "moves": [
-        "(2,3)↔(3,3)",
-        "(3,4)↔(3,3)",
-        "(4,3)↔(3,3)",
-        "(6,4)↔(6,3)",
-        "(5,5)↔(5,4)",
-        "(2,3)↔(3,3)",
-        "(5,5)↔(5,6)",
-        "(3,3)↔(2,3)",
-        "(2,5)↔(2,6)",
-        "(6,3)↔(6,4)",
-        "(6,4)↔(7,4)",
-        "(6,1)↔(5,1)",
-        "(5,1)↔(6,1)"
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
       ],
-      "moment": "level won in 13 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
       "stars": 3,
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "a19a7282ac4e6c40fb2ad4fb25164de955e558930472101abbd1408676308d4c",
-      "bytes": 1138419
+      "sha256": "ad11a2c11227eab5b6f79cebe4e3196a10ef7902aad5f6a626d3174b1a00c178",
+      "bytes": 1141483
     },
     "raw/ar/10-daily-gift.png": {
       "scene": "daily",
@@ -945,19 +969,19 @@
       "theme": "dunes",
       "worldLocal": "الكثبان",
       "blockers": [],
-      "seed": 1,
+      "seed": 7,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
       "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
-      "flags": "seed=1",
+      "flags": "seed=7",
       "moves": [
-        "(4,2)↔(5,2)",
-        "(0,4)↔(1,4)"
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (0,4)↔(1,4) (bigCross×1, prism×1, beamH×1); frame 14 of 36 taken while the effect runs, 512 ms after the swipe on the game's own clock (17.2 % of the board is effect light, 37.0 % gem colour)",
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 43 of 60 taken while the effect runs, 539 ms after the swipe on the game's own clock (16.5 % of the board is effect light, 28.9 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "d76c550829082f3c97720d7ca695516d44d5d55f8c3d2d3ea80a8862bc491352",
-      "bytes": 1918522
+      "sha256": "d65b33851036225b2489ac0611fca8a20cbd7e2543355523c30114d7081f3aae",
+      "bytes": 2005360
     },
     "raw/tablet7/ar/05-play-beam.png": {
       "scene": "beam",
@@ -965,24 +989,24 @@
       "lang": "ar",
       "device": "tablet7",
       "viewport": "600×960 CSS px × 2",
-      "level": 45,
+      "level": 51,
       "world": "Bazaar",
       "theme": "bazaar",
       "worldLocal": "السوق",
       "blockers": [],
-      "seed": 3,
+      "seed": 4,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
-      "save": "levels 1–44 cleared; level 45 is the current level, played for the first time",
-      "flags": "seed=3",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
       "moves": [
-        "(4,0)↔(4,1)",
-        "(8,7)↔(8,8)"
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
       ],
-      "moment": "move 2 (8,7)↔(8,8) (beamV×2, nova×1, prism×1); frame 13 of 17 taken while the effect runs, 648 ms after the swipe on the game's own clock (5.3 % of the board is effect light, 29.4 % gem colour)",
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 13 of 27 taken while the effect runs, 612 ms after the swipe on the game's own clock (5.3 % of the board is effect light, 29.4 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "bf9b4b3fcdd500eddaae7b44d0092a1deac6a4024be5620fee04930ca862a81c",
-      "bytes": 1617992
+      "sha256": "d6b83dbe517ddb42bda92c3b9ee095400d2404cb5352704f2d6d4d217b4097e5",
+      "bytes": 1728468
     },
     "raw/tablet7/ar/06-play-blockers.png": {
       "scene": "blockers",
@@ -990,26 +1014,27 @@
       "lang": "ar",
       "device": "tablet7",
       "viewport": "600×960 CSS px × 2",
-      "level": 79,
+      "level": 80,
       "world": "Palace",
       "theme": "palace",
       "worldLocal": "القصر",
       "blockers": [
         "stone",
         "chain",
+        "vine",
         "lamp",
         "sand"
       ],
       "seed": 7,
       "startBoosters": "none",
-      "save": "levels 1–78 cleared; level 79 is the current level, played for the first time",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
       "flags": "seed=7",
       "moves": [],
       "moment": "start of the level, before the first move",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "0bc90e433fccc3de224b8d9537bb6a116e5008c6626269a35a3eedc61448f5c8",
-      "bytes": 1392928
+      "sha256": "d3bc145da81a72a3b80bf1acdca3ae51c974a8410744fb36b6412bdaa270b724",
+      "bytes": 1380343
     },
     "raw/tablet7/ar/07-play-booster.png": {
       "scene": "booster",
@@ -1032,8 +1057,8 @@
       "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "bbc88b3f4cae031f0ae688edc51c672e2a2186a27f1dbf641f6ea0f7f5a552fc",
-      "bytes": 1335871
+      "sha256": "5ceaecb27f87504f329d8cf6340ffda9a75d6558b9e604663310abb658a6eb56",
+      "bytes": 1334289
     },
     "raw/tablet7/ar/08-play-praise.png": {
       "scene": "praise",
@@ -1041,24 +1066,23 @@
       "lang": "ar",
       "device": "tablet7",
       "viewport": "600×960 CSS px × 2",
-      "level": 105,
+      "level": 104,
       "world": "Starlit Sky",
       "theme": "stars",
       "worldLocal": "سماء النجوم",
       "blockers": [],
-      "seed": 2,
+      "seed": 3,
       "startBoosters": "none",
-      "save": "levels 1–104 cleared; level 105 is the current level, played for the first time",
-      "flags": "seed=2",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
       "moves": [
-        "(2,2)↔(2,3)",
-        "(5,7)↔(6,7)"
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (5,7)↔(6,7) set off 7 cascades; frame taken while the game shows its praise word \"بهاء!\" (about 0.4 s after it appears)",
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"بهاء!\" (about 0.4 s after it appears)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "f42ced40b89aa9cbb7e6b5ca66bc2498186598f3c964737bf2fd87ca8a38cc41",
-      "bytes": 1606279
+      "sha256": "6142da27336f7019a2656f89b6f4e35079fdee795aedde6178f4d4a8c55f531e",
+      "bytes": 1621206
     },
     "raw/tablet7/ar/09-win.png": {
       "scene": "win",
@@ -1073,31 +1097,37 @@
       "blockers": [
         "stone"
       ],
-      "seed": 1,
+      "seed": 2,
       "startBoosters": "none",
       "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
-      "flags": "seed=1, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
       "moves": [
-        "(2,3)↔(3,3)",
-        "(3,4)↔(3,3)",
-        "(4,3)↔(3,3)",
-        "(6,4)↔(6,3)",
-        "(5,5)↔(5,4)",
-        "(2,3)↔(3,3)",
-        "(5,5)↔(5,6)",
-        "(3,3)↔(2,3)",
-        "(2,5)↔(2,6)",
-        "(6,3)↔(6,4)",
-        "(6,4)↔(7,4)",
-        "(6,1)↔(5,1)",
-        "(5,1)↔(6,1)"
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
       ],
-      "moment": "level won in 13 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
       "stars": 3,
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "20f3b8909996a660ca7798ed6aa229af814ffe1de6b054ccbe8547b2a5f6e9a5",
-      "bytes": 1340425
+      "sha256": "672abb5313535a04443a91681a09da149ece304cb1c8d40469c8df82cf256477",
+      "bytes": 1350744
     },
     "raw/tablet10/ar/01-title.png": {
       "scene": "title",
@@ -1144,19 +1174,19 @@
       "theme": "dunes",
       "worldLocal": "الكثبان",
       "blockers": [],
-      "seed": 1,
+      "seed": 7,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
       "save": "levels 1–27 cleared; level 28 is the current level, played for the first time",
-      "flags": "seed=1",
+      "flags": "seed=7",
       "moves": [
-        "(4,2)↔(5,2)",
-        "(0,4)↔(1,4)"
+        "(2,4)↔(2,5)",
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (0,4)↔(1,4) (bigCross×1, prism×1, beamH×1); frame 23 of 43 taken while the effect runs, 480 ms after the swipe on the game's own clock (19.1 % of the board is effect light, 35.9 % gem colour)",
+      "moment": "move 2 (2,3)↔(2,4) (bigCross×1, beamH×1); frame 48 of 60 taken while the effect runs, 455 ms after the swipe on the game's own clock (22.8 % of the board is effect light, 29.0 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "9d0ec234234c4e476206f2ddee6b703213941294a1e9a6468d8d6070e28b8027",
-      "bytes": 3015208
+      "sha256": "9fc985c6bb2b511b4d6fed8c3207bcf20e951835bf5c6c3343927744aea35e57",
+      "bytes": 2962877
     },
     "raw/tablet10/ar/05-play-beam.png": {
       "scene": "beam",
@@ -1164,24 +1194,24 @@
       "lang": "ar",
       "device": "tablet10",
       "viewport": "800×1280 CSS px × 2",
-      "level": 45,
+      "level": 51,
       "world": "Bazaar",
       "theme": "bazaar",
       "worldLocal": "السوق",
       "blockers": [],
-      "seed": 3,
+      "seed": 4,
       "startBoosters": "beamNova + prism + extraMoves (brought by the Caravan, streak 3)",
-      "save": "levels 1–44 cleared; level 45 is the current level, played for the first time",
-      "flags": "seed=3",
+      "save": "levels 1–50 cleared; level 51 is the current level, played for the first time",
+      "flags": "seed=4",
       "moves": [
-        "(4,0)↔(4,1)",
-        "(8,7)↔(8,8)"
+        "(0,6)↔(1,6)",
+        "(5,3)↔(6,3)"
       ],
-      "moment": "move 2 (8,7)↔(8,8) (beamV×2, nova×1, prism×1); frame 23 of 40 taken while the effect runs, 624 ms after the swipe on the game's own clock (5.4 % of the board is effect light, 29.2 % gem colour)",
+      "moment": "move 2 (5,3)↔(6,3) (beamV×3, prism×1, nova×1); frame 14 of 36 taken while the effect runs, 611 ms after the swipe on the game's own clock (5.7 % of the board is effect light, 29.3 % gem colour)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "23b18c0dd07a37f867f128b8a573dfe20efea371af0c6820af128cca9391abbb",
-      "bytes": 2533892
+      "sha256": "9ddc685c157dd1505e4ba7c54fd3025d831b44423b8354903630f5c543e08f5d",
+      "bytes": 2688627
     },
     "raw/tablet10/ar/06-play-blockers.png": {
       "scene": "blockers",
@@ -1189,26 +1219,27 @@
       "lang": "ar",
       "device": "tablet10",
       "viewport": "800×1280 CSS px × 2",
-      "level": 79,
+      "level": 80,
       "world": "Palace",
       "theme": "palace",
       "worldLocal": "القصر",
       "blockers": [
         "stone",
         "chain",
+        "vine",
         "lamp",
         "sand"
       ],
       "seed": 7,
       "startBoosters": "none",
-      "save": "levels 1–78 cleared; level 79 is the current level, played for the first time",
+      "save": "levels 1–79 cleared; level 80 is the current level, played for the first time",
       "flags": "seed=7",
       "moves": [],
       "moment": "start of the level, before the first move",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "0f20ca0c1cc5742e33c7b84617bc071e367d3943700efc253d5bad7dd41de311",
-      "bytes": 2169854
+      "sha256": "fc03f916609181f50e01a9c9eed84f3982126b3374b639725255a4a5761f1369",
+      "bytes": 2147523
     },
     "raw/tablet10/ar/07-play-booster.png": {
       "scene": "booster",
@@ -1231,8 +1262,8 @@
       "moment": "start of the level, Hammer booster tapped: the game asks which piece to strike",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "2df24548ea800084b7617626d5165f4015d060dce7895b3919caedc04cfa9723",
-      "bytes": 1994038
+      "sha256": "6b5de97f26abe2f8541fff425775dbdffc159cec658c4418f152ab1634d895e5",
+      "bytes": 1995459
     },
     "raw/tablet10/ar/08-play-praise.png": {
       "scene": "praise",
@@ -1240,24 +1271,23 @@
       "lang": "ar",
       "device": "tablet10",
       "viewport": "800×1280 CSS px × 2",
-      "level": 105,
+      "level": 104,
       "world": "Starlit Sky",
       "theme": "stars",
       "worldLocal": "سماء النجوم",
       "blockers": [],
-      "seed": 2,
+      "seed": 3,
       "startBoosters": "none",
-      "save": "levels 1–104 cleared; level 105 is the current level, played for the first time",
-      "flags": "seed=2",
+      "save": "levels 1–103 cleared; level 104 is the current level, played for the first time",
+      "flags": "seed=3",
       "moves": [
-        "(2,2)↔(2,3)",
-        "(5,7)↔(6,7)"
+        "(2,3)↔(2,4)"
       ],
-      "moment": "move 2 (5,7)↔(6,7) set off 7 cascades; frame taken while the game shows its praise word \"بهاء!\" (about 0.4 s after it appears)",
+      "moment": "move 1 (2,3)↔(2,4) set off 6 cascades; frame taken while the game shows its praise word \"بهاء!\" (about 0.4 s after it appears)",
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "a5670a7572a615b439228e6ba7fa54ebb991116d47fd68e1d9eaf8f22e2fe5e8",
-      "bytes": 2481719
+      "sha256": "33db36424a20eca85d03f5bfae21f6b13cf1c58fe8839185ad87b92fc26e9517",
+      "bytes": 2507119
     },
     "raw/tablet10/ar/09-win.png": {
       "scene": "win",
@@ -1272,31 +1302,37 @@
       "blockers": [
         "stone"
       ],
-      "seed": 1,
+      "seed": 2,
       "startBoosters": "none",
       "save": "levels 1–81 cleared; level 82 is the current level, played for the first time",
-      "flags": "seed=1, fast=1 (the playthrough runs faster; the dialog is the same)",
+      "flags": "seed=2, fast=1 (the playthrough runs faster; the dialog is the same)",
       "moves": [
-        "(2,3)↔(3,3)",
-        "(3,4)↔(3,3)",
-        "(4,3)↔(3,3)",
-        "(6,4)↔(6,3)",
-        "(5,5)↔(5,4)",
-        "(2,3)↔(3,3)",
-        "(5,5)↔(5,6)",
-        "(3,3)↔(2,3)",
-        "(2,5)↔(2,6)",
-        "(6,3)↔(6,4)",
-        "(6,4)↔(7,4)",
-        "(6,1)↔(5,1)",
-        "(5,1)↔(6,1)"
+        "(2,2)↔(3,2)",
+        "(4,4)↔(4,3)",
+        "(4,6)↔(4,5)",
+        "(6,5)↔(6,4)",
+        "(4,4)↔(4,5)",
+        "(4,4)↔(4,5)",
+        "(5,5)↔(6,5)",
+        "(4,5)↔(5,5)",
+        "(5,4)↔(5,3)",
+        "(3,4)↔(4,4)",
+        "(5,4)↔(4,4)",
+        "(3,3)↔(3,4)",
+        "(3,6)↔(4,6)",
+        "(4,5)↔(5,5)",
+        "(2,1)↔(3,1)",
+        "(2,1)↔(3,1)",
+        "(1,7)↔(1,6)",
+        "(1,4)↔(1,5)",
+        "(2,5)↔(3,5)"
       ],
-      "moment": "level won in 13 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
+      "moment": "level won in 19 moves (the engine's own hint at every move); result dialog after its stars and score have counted up — 3 stars",
       "stars": 3,
       "store": "no store connected (fakestore=0): no purchases, no ads, no money prices on screen",
       "levelsInGame": 120,
-      "sha256": "4bc019c35db72575a662a9bb786916bea9d9854962f2e1c268c205137caa814d",
-      "bytes": 2456230
+      "sha256": "cd44a10cd0f105efd8f28ba5f2dab076cc9bf614b8612a2c6a85892b4fe6d3b5",
+      "bytes": 2479683
     }
   },
   "finals": {
@@ -1322,15 +1358,15 @@
       "band": 297,
       "captionBox": {
         "x": 132,
-        "y": 96,
+        "y": 98,
         "w": 815,
         "h": 156
       },
       "captionShare": 0.0613,
       "fontSize": 100,
-      "bytes": 1576137,
-      "sha256": "6423e5d67c5a7d26cd67ade929d9b4daa71b21ae85f8b6701071b7da072c7a09",
-      "sourceSha256": "0134c07d139bcb0db552cba4173ae9511a54f6c7e121421a4666d8d5adfa2f59"
+      "bytes": 1841250,
+      "sha256": "f46194de5abbce13b4a96fc38f1faf5d47d742aca36d5fb01595552006f9257e",
+      "sourceSha256": "a0809676583c154b4ddbc4b250fd383e4bbaa4a5067bf99f9697ee3434fb9c75"
     },
     "phone/en/02-special-pieces.png": {
       "n": 2,
@@ -1354,15 +1390,15 @@
       "band": 297,
       "captionBox": {
         "x": 116,
-        "y": 96,
+        "y": 98,
         "w": 847,
         "h": 156
       },
       "captionShare": 0.0637,
       "fontSize": 100,
-      "bytes": 1887195,
-      "sha256": "92132e2340c44585467b8b1d859d258dd57a72c10941a811cf9d11e9d4c00e0e",
-      "sourceSha256": "046225e852606c71d10a6ea0ad27d18417d1dd3d541eae17f3ba09cd32cd0f54"
+      "bytes": 1871173,
+      "sha256": "3b1295ed2de64d3ef9ca5be836c9d3710951248d6ae594a87b905fb37304fd51",
+      "sourceSha256": "a7bdeba57c4823cc80922a29088cdb6d63902e1f3f0e94b26c38cd692e114ed0"
     },
     "phone/en/03-six-worlds.png": {
       "n": 3,
@@ -1386,14 +1422,14 @@
       "band": 297,
       "captionBox": {
         "x": 128,
-        "y": 96,
+        "y": 98,
         "w": 825,
         "h": 156
       },
       "captionShare": 0.0621,
       "fontSize": 100,
-      "bytes": 1391492,
-      "sha256": "9c012eb2ecb2c1b4a67dfc7097ed7468e57ac58d31b644a6dbf0827c6a7c25e7",
+      "bytes": 1390832,
+      "sha256": "214806b34111df2d89431e5a1ee88c283ce9f0e1cbef3d9840199f3b6f22733e",
       "sourceSha256": "d520d0c5e26658a5e14928ace7ecd22bd0c46eec8c48429dee1bb98f2d207337"
     },
     "phone/en/04-goals.png": {
@@ -1407,7 +1443,7 @@
         "Every Level,",
         "a Fresh Puzzle"
       ],
-      "alt": "A level of the Palace world with lamps to bring down, chained gems, stone blocks and sand; its goals are in the top bar.",
+      "alt": "A level of the Palace world with lamps to bring down, chained gems, stone blocks, vines and sand; its goals are in the top bar.",
       "shot": {
         "x": 96,
         "y": 303,
@@ -1418,15 +1454,15 @@
       "band": 297,
       "captionBox": {
         "x": 209,
-        "y": 96,
+        "y": 98,
         "w": 663,
         "h": 156
       },
       "captionShare": 0.0499,
       "fontSize": 100,
-      "bytes": 1947706,
-      "sha256": "edf145bd18e10e9de8271f3cc880b62a2a2e99f79b18af6c47badfc664f1bd2b",
-      "sourceSha256": "0288eddc9cf4dd20f8f38aaa0e9471ed82f2ea8c328f4bef7d0f6d55bf62f1b0"
+      "bytes": 1940641,
+      "sha256": "d879a884daa5bc50cc9e3f80b3b7d7459445b0de9f02d26be4d11a106380a38f",
+      "sourceSha256": "df4d9af67380fe3b4f48571fb163f599988b2dc5154560227002a2b47aadedcf"
     },
     "phone/en/05-boosters.png": {
       "n": 5,
@@ -1450,15 +1486,15 @@
       "band": 297,
       "captionBox": {
         "x": 169,
-        "y": 96,
+        "y": 98,
         "w": 741,
         "h": 156
       },
       "captionShare": 0.0557,
       "fontSize": 100,
-      "bytes": 1731570,
-      "sha256": "60a0d56e429b0109f9f30601780809889760622d3bd491a4ddfcfeb0ea112868",
-      "sourceSha256": "c24e4dfa54e46ea47d47e025ec87f1a27cff25dee0eca473931ab93af0f41fa5"
+      "bytes": 1730060,
+      "sha256": "2b03d76c95931a02b1d5d19595146e2a9b2736d8e5457054db9d73084d733686",
+      "sourceSha256": "1fc7cef2d0d5246ea93f637026da35774a89965fe1c2a72b69c76d24cf9f23ca"
     },
     "phone/en/06-rewards.png": {
       "n": 6,
@@ -1482,15 +1518,15 @@
       "band": 297,
       "captionBox": {
         "x": 236,
-        "y": 96,
+        "y": 98,
         "w": 608,
         "h": 156
       },
       "captionShare": 0.0457,
       "fontSize": 100,
-      "bytes": 1357903,
-      "sha256": "dc05dca1c19f5d7b7e379a935706b5bde5ecee7127a1205e34edaa1d782b78b9",
-      "sourceSha256": "aef4114958ec3fb5196c82fefd1590d8685853bf49495457a7477d5970a9953a"
+      "bytes": 1360472,
+      "sha256": "78e24177818ec0998d99eedbbff3e35704f650c1cd7aaae144f58d19a1d0e4e5",
+      "sourceSha256": "80ee5a7549e39110598a0e5b0ef2f03a5c72de44ab9318eef58aa937b9dfc64e"
     },
     "phone/en/07-offline.png": {
       "n": 7,
@@ -1514,15 +1550,15 @@
       "band": 297,
       "captionBox": {
         "x": 202,
-        "y": 96,
+        "y": 98,
         "w": 675,
         "h": 156
       },
       "captionShare": 0.0508,
       "fontSize": 100,
-      "bytes": 1769221,
-      "sha256": "7960c66de29b10a1a7d4c3feb59d5a1a109730d7635086202c081f543ff21d68",
-      "sourceSha256": "a7bff2250d23c27c0ec3cda94fad71e869d79f40dd900eb5f5531def4f887ac4"
+      "bytes": 1792170,
+      "sha256": "ec4bced795f174d9003e69902290f261e66669d6471546e6d1a7cd69a2df0da9",
+      "sourceSha256": "d23d09bbe64f966f74740d160b7ccca3d959386ed0525b1ae78b97714f698a01"
     },
     "phone/en/08-languages.png": {
       "n": 8,
@@ -1546,14 +1582,14 @@
       "band": 297,
       "captionBox": {
         "x": 289,
-        "y": 96,
+        "y": 98,
         "w": 502,
         "h": 156
       },
       "captionShare": 0.0378,
       "fontSize": 100,
-      "bytes": 1208169,
-      "sha256": "150da9261d9be3e161f3280877f5bed3b6061fe6a8ed5f944a2aa1fc607ac9ea",
+      "bytes": 1207414,
+      "sha256": "ea026c8f39fc85e81a7fb26606763d794bf5a194068d7dd8e9341ba510a371ce",
       "sourceSha256": "ce60a368b5d5759b289d051acad7cd66adb1e4798841769eedf9c4c87e9d5bda"
     },
     "tablet7/en/01-match-gems.png": {
@@ -1578,15 +1614,15 @@
       "band": 355,
       "captionBox": {
         "x": 143,
-        "y": 118,
+        "y": 121,
         "w": 913,
         "h": 175
       },
       "captionShare": 0.0693,
       "fontSize": 112,
-      "bytes": 1872384,
-      "sha256": "497191bde846c14dbe5582bd47d5f476451fdb70036fcf87b04a65b5c6b8f86a",
-      "sourceSha256": "c9438936be9e153bc56c0f990d951244f41c7223e6e5c4f07f3590f630c7cd37"
+      "bytes": 1958094,
+      "sha256": "409f2c0f27c0cc55d2ae7614f8bb550927d112d325ce157a6b3806b4b91e8c0d",
+      "sourceSha256": "22b49f922e22524c46afc0c64fbbb66152491ef6a5d745f1982be00170e5e7f8"
     },
     "tablet7/en/02-special-pieces.png": {
       "n": 2,
@@ -1610,15 +1646,15 @@
       "band": 355,
       "captionBox": {
         "x": 126,
-        "y": 118,
+        "y": 121,
         "w": 949,
         "h": 175
       },
       "captionShare": 0.0721,
       "fontSize": 112,
-      "bytes": 1992863,
-      "sha256": "c78e81fa65c64e8118a6206871ce32a9d6406f7e14c050ef8d80fd4ce9454041",
-      "sourceSha256": "2cc805c818c397b62102e1a67d6e8ca84ebc4e46c6380c4286b62b631f0361ac"
+      "bytes": 1950499,
+      "sha256": "afb5c892fc60274dea560385378a2c87d78a3fd84e078dd475ec37453fff6416",
+      "sourceSha256": "c763e68de1facbfcac1bfab1e4bad24b2825249e231573057157610565ca330a"
     },
     "tablet7/en/03-six-worlds.png": {
       "n": 3,
@@ -1642,14 +1678,14 @@
       "band": 355,
       "captionBox": {
         "x": 138,
-        "y": 118,
+        "y": 121,
         "w": 923,
         "h": 175
       },
       "captionShare": 0.0701,
       "fontSize": 112,
-      "bytes": 1519340,
-      "sha256": "e9515934d6712389243977c604f5137e7995ed04e0da79a980831b461e85f931",
+      "bytes": 1519329,
+      "sha256": "1d14db4d082fc6865dfae0c1bc38e84d2a15cb7bfe0de70ed02313c524452909",
       "sourceSha256": "f0c5a592716652fbe6af398df465f4ff2e6f23329aeca9afc0d4175925a28199"
     },
     "tablet7/en/04-goals.png": {
@@ -1663,7 +1699,7 @@
         "Every Level,",
         "a Fresh Puzzle"
       ],
-      "alt": "A level of the Palace world with lamps to bring down, chained gems, stone blocks and sand; its goals are in the top bar.",
+      "alt": "A level of the Palace world with lamps to bring down, chained gems, stone blocks, vines and sand; its goals are in the top bar.",
       "shot": {
         "x": 126,
         "y": 361,
@@ -1674,15 +1710,15 @@
       "band": 355,
       "captionBox": {
         "x": 229,
-        "y": 118,
+        "y": 121,
         "w": 742,
         "h": 175
       },
       "captionShare": 0.0564,
       "fontSize": 112,
-      "bytes": 2040054,
-      "sha256": "17025ebabb59866ddd5fc031fec94b790827d707b3b169c621fa4f1bc9f83e2d",
-      "sourceSha256": "6f0304b9d56de9c6d1adbf1deaa4b1cd67042c41bb643cf05f4fc2b15696c205"
+      "bytes": 2037145,
+      "sha256": "c38c37cb7a7a025a0589ffba875995da32a34a7b679c339a1e5e402dc3ad269b",
+      "sourceSha256": "8dd0e5b5316fd50923447a7a2da54c98a417e0ae98bcae4b066effadac5aadab"
     },
     "tablet7/en/05-boosters.png": {
       "n": 5,
@@ -1706,15 +1742,15 @@
       "band": 355,
       "captionBox": {
         "x": 185,
-        "y": 118,
+        "y": 121,
         "w": 830,
         "h": 175
       },
       "captionShare": 0.063,
       "fontSize": 112,
-      "bytes": 1871861,
-      "sha256": "a4fdf7fdd7b3396a75f7a67fcb0fab871b31e021dac37e23e1d921cd69c03242",
-      "sourceSha256": "243fe996e677e170a1191a54d121451b30419da4788769efa40e09a5d8c71a12"
+      "bytes": 1867897,
+      "sha256": "36c023dc811b29b321aae7ab2e60d9f32a6062057cfa30ef8ed0f2ea362b71f2",
+      "sourceSha256": "295cfb231c776382c8d99633ee28e01c7447ade17d955934d225daf6adfd625d"
     },
     "tablet7/en/06-rewards.png": {
       "n": 6,
@@ -1738,15 +1774,15 @@
       "band": 355,
       "captionBox": {
         "x": 260,
-        "y": 118,
+        "y": 121,
         "w": 680,
         "h": 175
       },
       "captionShare": 0.0516,
       "fontSize": 112,
-      "bytes": 1497473,
-      "sha256": "e032b9e9b70b1da73caf9188bdfabe7ee871fd0057119ea33dbcae70b9ff3fa4",
-      "sourceSha256": "48f760e2a39fe1bd1a416955926b6f6f5df88892b5a3d3f4b5f10c0641b2abd6"
+      "bytes": 1503220,
+      "sha256": "3137075fec7f53c1f040a2ee05866016dd507ec1baf1e0ac75a8968edace9562",
+      "sourceSha256": "20b10fd64a250ce03d0857181f53f7f88b62c57904f30cdd2e2e8a32b961b61a"
     },
     "tablet7/en/07-offline.png": {
       "n": 7,
@@ -1770,15 +1806,15 @@
       "band": 355,
       "captionBox": {
         "x": 222,
-        "y": 118,
+        "y": 121,
         "w": 756,
         "h": 175
       },
       "captionShare": 0.0574,
       "fontSize": 112,
-      "bytes": 1917388,
-      "sha256": "149029b589e197c9b14c5b875e9fc04d83faeaf94e952232124b9e09b34d62fe",
-      "sourceSha256": "ff2bbeafbd479b18c5da7bbd62d00cfd57b18400e47aa02db77e8e9ba4b9466a"
+      "bytes": 1927585,
+      "sha256": "22c85c413f50cdb9e6223eac4997642e35eb837753c832f202ca68cb2c02d613",
+      "sourceSha256": "ca030b4e5ab53c81b20abbb1f7c552a5469af0c7f90848f754c794359bb021e6"
     },
     "tablet7/en/08-languages.png": {
       "n": 8,
@@ -1802,14 +1838,14 @@
       "band": 355,
       "captionBox": {
         "x": 319,
-        "y": 118,
+        "y": 121,
         "w": 562,
         "h": 175
       },
       "captionShare": 0.0427,
       "fontSize": 112,
-      "bytes": 1326769,
-      "sha256": "087d7dbe352deabb8791f4c9eae7eaf979140c10abd60127fbe0773aaecbac7b",
+      "bytes": 1327818,
+      "sha256": "549fd5b63ee969668a7c0cca9fa70a3967ab40123b3f21c0761cbfe7154f2823",
       "sourceSha256": "ff573b821e4a66a90b1261f2a9f97bac5738c69dcd4b34ff1edc40f60c0fa026"
     },
     "tablet10/en/01-match-gems.png": {
@@ -1834,15 +1870,15 @@
       "band": 475,
       "captionBox": {
         "x": 193,
-        "y": 159,
+        "y": 163,
         "w": 1214,
         "h": 232
       },
       "captionShare": 0.0688,
       "fontSize": 149,
-      "bytes": 2971958,
-      "sha256": "3cf211499621f0dd3dcb718bce5fee5f9e3614f3ecd36bb1f8ce0d775198a4b7",
-      "sourceSha256": "2e632bada0e57331c607c448e2eeab2215fca183dfabfffed2334f99f3d3e224"
+      "bytes": 3046539,
+      "sha256": "332eac3b24268227ae2ef3b0fcfd4f47c32a1311f426d78c07e0d80a6ce8d723",
+      "sourceSha256": "016a14cba2ac4896b063a5ceceb70c10a6ffaa03140798606a88d29d067d4c64"
     },
     "tablet10/en/02-special-pieces.png": {
       "n": 2,
@@ -1866,15 +1902,15 @@
       "band": 475,
       "captionBox": {
         "x": 169,
-        "y": 159,
+        "y": 163,
         "w": 1262,
         "h": 232
       },
       "captionShare": 0.0715,
       "fontSize": 149,
-      "bytes": 3146179,
-      "sha256": "3aeb6fd5b5c04f8495705d459d7b4ddeaaeb15ac2c04b15ce3adb331fc0a0357",
-      "sourceSha256": "8d2459ca7275a6b9b75c9300c22e1262da724b8afac20141724a9e88120c89ca"
+      "bytes": 3101527,
+      "sha256": "6b6f6ccbaee190bffb8be63f8b696c12eb9ca9214478ad2cbe96e91ab1ce8d6a",
+      "sourceSha256": "66ec67b3d8c254df240c0ba132749af99d3816e15913d2b8bfa5a76288e9feab"
     },
     "tablet10/en/03-six-worlds.png": {
       "n": 3,
@@ -1898,14 +1934,14 @@
       "band": 475,
       "captionBox": {
         "x": 186,
-        "y": 159,
+        "y": 163,
         "w": 1228,
         "h": 232
       },
       "captionShare": 0.0696,
       "fontSize": 149,
-      "bytes": 2514347,
-      "sha256": "ae5a0e4c71804cfeaf74b7fed9bfc3930d7ea4e6afba44f5d1bd9c7dedf61fde",
+      "bytes": 2515067,
+      "sha256": "b5417a1e576b115e8c5663295d87be089b1272698a3479746419dccc9cdcadab",
       "sourceSha256": "8375482130f6e71fc6fe4baad0d7ad562fc374e11e9c2256420c7567bfdb739d"
     },
     "tablet10/en/04-goals.png": {
@@ -1919,7 +1955,7 @@
         "Every Level,",
         "a Fresh Puzzle"
       ],
-      "alt": "A level of the Palace world with lamps to bring down, chained gems, stone blocks and sand; its goals are in the top bar.",
+      "alt": "A level of the Palace world with lamps to bring down, chained gems, stone blocks, vines and sand; its goals are in the top bar.",
       "shot": {
         "x": 168,
         "y": 483,
@@ -1930,15 +1966,15 @@
       "band": 475,
       "captionBox": {
         "x": 306,
-        "y": 159,
+        "y": 163,
         "w": 987,
         "h": 232
       },
       "captionShare": 0.0559,
       "fontSize": 149,
-      "bytes": 3217842,
-      "sha256": "88a23c4832ec9987ab5d7bc2383c8ee81a1cc75fc51a3ad50d3e9421a8e86465",
-      "sourceSha256": "13bac3b14d1225cf99e686c51e21f17a26c8b882435e071d923c3e7a7f76c8e8"
+      "bytes": 3212561,
+      "sha256": "91ac6ec89220742670748b948cb9f8251cd00536d93d669b0cb931e562ddace3",
+      "sourceSha256": "9cbeee97ecfdd4808324f22e50cb21f5ca2de11c3f620e040ca357d9cb181bed"
     },
     "tablet10/en/05-boosters.png": {
       "n": 5,
@@ -1962,15 +1998,15 @@
       "band": 475,
       "captionBox": {
         "x": 248,
-        "y": 159,
+        "y": 163,
         "w": 1104,
         "h": 232
       },
       "captionShare": 0.0625,
       "fontSize": 149,
-      "bytes": 2886981,
-      "sha256": "131e69e66cb69b97800038be265a9fe8c451f4c45c0a1248d466f4f54fce5731",
-      "sourceSha256": "7bee32cd004914c3499319d11af2c7645b984ef47816113e8d438d3e5abfc2e1"
+      "bytes": 2887559,
+      "sha256": "6c08414f7106782cb5b5703be540a4fdc388b496f76ed2314402fdfc164c315f",
+      "sourceSha256": "6886fa755db0616b88f6a35f01977b30f932621d5aaf8ef0a2875128db61b14a"
     },
     "tablet10/en/06-rewards.png": {
       "n": 6,
@@ -1994,15 +2030,15 @@
       "band": 475,
       "captionBox": {
         "x": 348,
-        "y": 159,
+        "y": 163,
         "w": 904,
         "h": 232
       },
       "captionShare": 0.0512,
       "fontSize": 149,
-      "bytes": 2549576,
-      "sha256": "709d8af536e8b15a14390a525dd9126da6bcf865c701c347b46e6951d09abe81",
-      "sourceSha256": "f0baa789e03d94fe601943f86053831218c9aaa017777d5b1293368632f55d80"
+      "bytes": 2564653,
+      "sha256": "fd6027678e499f5f10f81d93e8aa50877a0b052aa3263ba93e62524f027a1592",
+      "sourceSha256": "9461a028c6ffb98ee25c7e5fd14f52874f38a9592da3bba94beab79ea85d3c3c"
     },
     "tablet10/en/07-offline.png": {
       "n": 7,
@@ -2026,15 +2062,15 @@
       "band": 475,
       "captionBox": {
         "x": 297,
-        "y": 159,
+        "y": 163,
         "w": 1006,
         "h": 232
       },
       "captionShare": 0.057,
       "fontSize": 149,
-      "bytes": 3042260,
-      "sha256": "5499f03fa489b6ad962cfe059b0019307e9b0d22f2e0fe45966458809dd7d29c",
-      "sourceSha256": "5d5a23b780eafd1105d0c626692f2e7376944b2d7a2207f3ecc36379667c56cb"
+      "bytes": 3057304,
+      "sha256": "1bc4947e434554ff7254e93335da85468eb2c1b99679e3e2f46a07daebb03601",
+      "sourceSha256": "8cf13915e94aab5bbb5abcefb3bbb57c3528bcde303582a80b17a04e98b1b4a5"
     },
     "tablet10/en/08-languages.png": {
       "n": 8,
@@ -2058,14 +2094,14 @@
       "band": 475,
       "captionBox": {
         "x": 426,
-        "y": 159,
+        "y": 163,
         "w": 747,
         "h": 232
       },
       "captionShare": 0.0423,
       "fontSize": 149,
-      "bytes": 2025535,
-      "sha256": "b5f1b619daaa3a00f83aa513b8488e84f5bbc98b790f9a671a2e33a4865ad899",
+      "bytes": 2025304,
+      "sha256": "38a8410991441bc1d07d2e926df5e87b27e060c79e912f076e76bc39eb886784",
       "sourceSha256": "7e4f6a8237929449a09ece59a5e43cdba343919f6776f3f4975c3b707ca1a2ed"
     },
     "phone/ar/01-match-gems.png": {
@@ -2090,15 +2126,15 @@
       "band": 297,
       "captionBox": {
         "x": 268,
-        "y": 85,
+        "y": 88,
         "w": 543,
         "h": 187
       },
       "captionShare": 0.049,
       "fontSize": 96,
-      "bytes": 1803301,
-      "sha256": "9c829f09414905a1d18883bfadd427953d6cfb74b8c90c712e757a1c0eb5b569",
-      "sourceSha256": "86c6949718ceabba2da6450d352f103ed00dd93309ae3af475ec15c13a495cfb"
+      "bytes": 1869484,
+      "sha256": "702a0ab686eaf3ea23e102923399763b7e7f44b8708f867b9f58c66d7853e847",
+      "sourceSha256": "31d9e98fa223bfd1c61f5bfeca983641b68aba3f5b89890be9926656e8308fcd"
     },
     "phone/ar/02-special-pieces.png": {
       "n": 2,
@@ -2122,15 +2158,15 @@
       "band": 297,
       "captionBox": {
         "x": 204,
-        "y": 85,
+        "y": 88,
         "w": 673,
         "h": 187
       },
       "captionShare": 0.0607,
       "fontSize": 96,
-      "bytes": 1906336,
-      "sha256": "cd2e4f5b474317aa2fc0513fb12caa6b079bbc2b6feeff2956ddbaeb1f1a5dde",
-      "sourceSha256": "575e5ad29a70093d663428c221a890c40ab0713ecf468a5c9c27fb951bb68957"
+      "bytes": 1890108,
+      "sha256": "7834ebf371c1520fb51378725e99f2d65d11ebb5422fab64e619b2ea2963ff3f",
+      "sourceSha256": "794da45c4011f189f7789ed167da8e9f422476a8c355210da78cf11ecf305d23"
     },
     "phone/ar/03-six-worlds.png": {
       "n": 3,
@@ -2154,14 +2190,14 @@
       "band": 297,
       "captionBox": {
         "x": 283,
-        "y": 85,
+        "y": 88,
         "w": 515,
         "h": 187
       },
       "captionShare": 0.0464,
       "fontSize": 96,
-      "bytes": 1414682,
-      "sha256": "7b7eadabe2ab56ba6ea6b4ff7d6c041cecc3da831549465d143049ef677d5b9f",
+      "bytes": 1415360,
+      "sha256": "d0b0901b294a41cb212e5a42bc3566403c51b0d9e009dda50c19102523f09137",
       "sourceSha256": "bbd76c0fe7b78069004e461cc6dfb74f8ab2a1dd0c533d451707d04fd4c497f5"
     },
     "phone/ar/04-goals.png": {
@@ -2175,7 +2211,7 @@
         "في كل مرحلة",
         "تحدٍّ مختلف"
       ],
-      "alt": "مرحلة من عالم القصر فيها مصابيح يجب إنزالها، جواهر مقيّدة، حجارة ورمال، وأهدافها في الشريط العلوي.",
+      "alt": "مرحلة من عالم القصر فيها مصابيح يجب إنزالها، جواهر مقيّدة، حجارة، نباتات متسلقة ورمال، وأهدافها في الشريط العلوي.",
       "shot": {
         "x": 96,
         "y": 303,
@@ -2186,15 +2222,15 @@
       "band": 297,
       "captionBox": {
         "x": 301,
-        "y": 85,
+        "y": 88,
         "w": 477,
         "h": 187
       },
       "captionShare": 0.043,
       "fontSize": 96,
-      "bytes": 1969589,
-      "sha256": "5397db8a2746cb17b21c0d674f83ebe4bbac82ea7d6bf9b2c197293e67003f32",
-      "sourceSha256": "389c88d0297d53b292daa14c4c28dcd2b5303dfb241a0bc2ad35ab72b1c21d60"
+      "bytes": 1964484,
+      "sha256": "dc0a5f0211b4bf4d5852b79b1bd16a117184d623185b6af47e1e1a7d1b8e6ae9",
+      "sourceSha256": "6cecf87f98a6cdc8a26d0b2016e9bb8ce33ee815f379ce4d636c24abbafed843"
     },
     "phone/ar/05-boosters.png": {
       "n": 5,
@@ -2218,15 +2254,15 @@
       "band": 297,
       "captionBox": {
         "x": 285,
-        "y": 85,
+        "y": 88,
         "w": 511,
         "h": 187
       },
       "captionShare": 0.0461,
       "fontSize": 96,
-      "bytes": 1746905,
-      "sha256": "59505f0b18a1c90c4444f37e9f9fccf7fad8780cdb0612712007c6b04dcf03b2",
-      "sourceSha256": "7bd42e8bd423722f5ccf36735bd6753c32fb4b35566d89b35dfe5972d5862cc9"
+      "bytes": 1744949,
+      "sha256": "b42aa5ceca58e13ec4bfb79d26dc20dcdb0b5857a8bc5c1835a317a38fc6b590",
+      "sourceSha256": "fcf6616a34b1d8afa02a44f61394ccfec833f0223556c243b65fc22ce9c1eeb8"
     },
     "phone/ar/06-rewards.png": {
       "n": 6,
@@ -2250,15 +2286,15 @@
       "band": 297,
       "captionBox": {
         "x": 267,
-        "y": 85,
+        "y": 88,
         "w": 546,
         "h": 187
       },
       "captionShare": 0.0492,
       "fontSize": 96,
-      "bytes": 1374694,
-      "sha256": "c23a11dff684d0bba3db008afd80c254eab5968948d30076adb7b092b7e3f00a",
-      "sourceSha256": "a19a7282ac4e6c40fb2ad4fb25164de955e558930472101abbd1408676308d4c"
+      "bytes": 1376647,
+      "sha256": "ca5b0281d3ef4cfe2869c16f722dcc861a3e2afe00f5376d6a49b5f11c9d0fd9",
+      "sourceSha256": "ad11a2c11227eab5b6f79cebe4e3196a10ef7902aad5f6a626d3174b1a00c178"
     },
     "phone/ar/07-offline.png": {
       "n": 7,
@@ -2282,15 +2318,15 @@
       "band": 297,
       "captionBox": {
         "x": 231,
-        "y": 85,
+        "y": 88,
         "w": 619,
         "h": 187
       },
       "captionShare": 0.0558,
       "fontSize": 96,
-      "bytes": 1797905,
-      "sha256": "e63aed3d8e96b0d22fec95d4a121a5376ce29c9c2767f56a8ae89536cdf8b36d",
-      "sourceSha256": "4542b75dbfe9f095034ecd9e862b51cf1cb7025c0f6d05309a063b1ad9b684bf"
+      "bytes": 1829622,
+      "sha256": "4d64d1cc661d25335c7537a3f22aea2f3588f9315f669255fbcb52728fa9901d",
+      "sourceSha256": "98828c04703846ee7fd0011b579096e9c1c2b45482fcfc2c50c4ac6aefe41be2"
     },
     "phone/ar/08-languages.png": {
       "n": 8,
@@ -2314,14 +2350,14 @@
       "band": 297,
       "captionBox": {
         "x": 323,
-        "y": 85,
+        "y": 88,
         "w": 434,
         "h": 187
       },
       "captionShare": 0.0391,
       "fontSize": 96,
-      "bytes": 1212807,
-      "sha256": "7f7935ed70ca7f83ac00221c2c83ca50e60d10d12cac22fc9028e0a93d0ae30f",
+      "bytes": 1213481,
+      "sha256": "d0bbc262668de776333ffd930d5d8780994eae39129de43737a6712ddc97a9a0",
       "sourceSha256": "c1d56c10d6b8092bc47c1967ca990f47ccd42a76ce21aff454bd79422a4aada7"
     },
     "tablet7/ar/01-match-gems.png": {
@@ -2346,15 +2382,15 @@
       "band": 355,
       "captionBox": {
         "x": 300,
-        "y": 108,
+        "y": 111,
         "w": 600,
         "h": 207
       },
       "captionShare": 0.0539,
       "fontSize": 106,
-      "bytes": 1903725,
-      "sha256": "ef7a57c3b43e5010785e4537cc333fd9fd7d23d1dd956f3001ba51dbb8751404",
-      "sourceSha256": "d76c550829082f3c97720d7ca695516d44d5d55f8c3d2d3ea80a8862bc491352"
+      "bytes": 1987112,
+      "sha256": "ccf602a637c5596314daa70a8a53c2ae69940bf65451f72cb58519e2acdae1a5",
+      "sourceSha256": "d65b33851036225b2489ac0611fca8a20cbd7e2543355523c30114d7081f3aae"
     },
     "tablet7/ar/02-special-pieces.png": {
       "n": 2,
@@ -2378,15 +2414,15 @@
       "band": 355,
       "captionBox": {
         "x": 229,
-        "y": 108,
+        "y": 111,
         "w": 743,
         "h": 207
       },
       "captionShare": 0.0668,
       "fontSize": 106,
-      "bytes": 2018196,
-      "sha256": "39010365138d3153cb8267831a44bcd97f01a57b9b2b459e047ad77d351fe7bf",
-      "sourceSha256": "bf9b4b3fcdd500eddaae7b44d0092a1deac6a4024be5620fee04930ca862a81c"
+      "bytes": 1985578,
+      "sha256": "e7279122ca35df5211773aae9975606def14161a983765cd48fd4e36a49e8cd2",
+      "sourceSha256": "d6b83dbe517ddb42bda92c3b9ee095400d2404cb5352704f2d6d4d217b4097e5"
     },
     "tablet7/ar/03-six-worlds.png": {
       "n": 3,
@@ -2410,14 +2446,14 @@
       "band": 355,
       "captionBox": {
         "x": 316,
-        "y": 108,
+        "y": 111,
         "w": 569,
         "h": 207
       },
       "captionShare": 0.0511,
       "fontSize": 106,
-      "bytes": 1538683,
-      "sha256": "597d3b8efe997c946b2b67a728596ce235d4b8bb75557355dac94837562e8289",
+      "bytes": 1538871,
+      "sha256": "4b7cfc5cf905553b5519275cae860c1c1aac4c4996453fddd78e6bdf965939f7",
       "sourceSha256": "a718e9547c1aec70153569b624d0f490c59a182b85bfe6bca1a58398411996f0"
     },
     "tablet7/ar/04-goals.png": {
@@ -2431,7 +2467,7 @@
         "في كل مرحلة",
         "تحدٍّ مختلف"
       ],
-      "alt": "مرحلة من عالم القصر فيها مصابيح يجب إنزالها، جواهر مقيّدة، حجارة ورمال، وأهدافها في الشريط العلوي.",
+      "alt": "مرحلة من عالم القصر فيها مصابيح يجب إنزالها، جواهر مقيّدة، حجارة، نباتات متسلقة ورمال، وأهدافها في الشريط العلوي.",
       "shot": {
         "x": 126,
         "y": 361,
@@ -2442,15 +2478,15 @@
       "band": 355,
       "captionBox": {
         "x": 336,
-        "y": 108,
+        "y": 111,
         "w": 527,
         "h": 207
       },
       "captionShare": 0.0473,
       "fontSize": 106,
-      "bytes": 2061473,
-      "sha256": "63b5c147c03bcc918317ab0c2f426704beefe86afba88390b1820c7e3a156506",
-      "sourceSha256": "0bc90e433fccc3de224b8d9537bb6a116e5008c6626269a35a3eedc61448f5c8"
+      "bytes": 2058110,
+      "sha256": "047fab5c91a8d76b775c52e799b18383ae36b3cca80424754abe7f04153800f9",
+      "sourceSha256": "d3bc145da81a72a3b80bf1acdca3ae51c974a8410744fb36b6412bdaa270b724"
     },
     "tablet7/ar/05-boosters.png": {
       "n": 5,
@@ -2474,15 +2510,15 @@
       "band": 355,
       "captionBox": {
         "x": 318,
-        "y": 108,
+        "y": 111,
         "w": 564,
         "h": 207
       },
       "captionShare": 0.0507,
       "fontSize": 106,
-      "bytes": 1883223,
-      "sha256": "045003d307606b8649681632dd89bff5e2222b7c19f08aea12b1e87280cc3d4e",
-      "sourceSha256": "bbc88b3f4cae031f0ae688edc51c672e2a2186a27f1dbf641f6ea0f7f5a552fc"
+      "bytes": 1883023,
+      "sha256": "eec781ed6ea094e1bda916ccc264070ba51b88b94a2d4fe703a1606c2a5e2377",
+      "sourceSha256": "5ceaecb27f87504f329d8cf6340ffda9a75d6558b9e604663310abb658a6eb56"
     },
     "tablet7/ar/06-rewards.png": {
       "n": 6,
@@ -2506,15 +2542,15 @@
       "band": 355,
       "captionBox": {
         "x": 298,
-        "y": 108,
+        "y": 111,
         "w": 603,
         "h": 207
       },
       "captionShare": 0.0542,
       "fontSize": 106,
-      "bytes": 1514682,
-      "sha256": "6dd95a925e29fbe1daf9823920d123d58da5ea113f744010bd986a94eeb4bc89",
-      "sourceSha256": "20f3b8909996a660ca7798ed6aa229af814ffe1de6b054ccbe8547b2a5f6e9a5"
+      "bytes": 1520498,
+      "sha256": "7c15257251f6bb2bd298f13f246fba53d16909490d8dd2a02586b8e010da9305",
+      "sourceSha256": "672abb5313535a04443a91681a09da149ece304cb1c8d40469c8df82cf256477"
     },
     "tablet7/ar/07-offline.png": {
       "n": 7,
@@ -2538,15 +2574,15 @@
       "band": 355,
       "captionBox": {
         "x": 258,
-        "y": 108,
+        "y": 111,
         "w": 684,
         "h": 207
       },
       "captionShare": 0.0615,
       "fontSize": 106,
-      "bytes": 1942737,
-      "sha256": "167ea38826aba0283e9e7dbff0acf4ca52e3e16474d1b6044c1ceae4060aac52",
-      "sourceSha256": "f42ced40b89aa9cbb7e6b5ca66bc2498186598f3c964737bf2fd87ca8a38cc41"
+      "bytes": 1953520,
+      "sha256": "daf00a2a9fee211f5fc4c8e73b3a408e1322f33b3efaf1f8090163630495fd4a",
+      "sourceSha256": "6142da27336f7019a2656f89b6f4e35079fdee795aedde6178f4d4a8c55f531e"
     },
     "tablet7/ar/08-languages.png": {
       "n": 8,
@@ -2570,14 +2606,14 @@
       "band": 355,
       "captionBox": {
         "x": 360,
-        "y": 108,
+        "y": 111,
         "w": 480,
         "h": 207
       },
       "captionShare": 0.0431,
       "fontSize": 106,
-      "bytes": 1328948,
-      "sha256": "3e51c963a7f33982f54392aa4ae4f9c2fc1d6dc271e3fcaf932cf449ef13391c",
+      "bytes": 1328956,
+      "sha256": "42dafb00411b5e7ea0006a2e7d64e9d55491c9e77330f410563bdfbb07b83458",
       "sourceSha256": "265360b7a1c0b6089cf7fa9d48923d3e48d5fe334a5d1843f46443723deb9345"
     },
     "tablet10/ar/01-match-gems.png": {
@@ -2602,15 +2638,15 @@
       "band": 475,
       "captionBox": {
         "x": 398,
-        "y": 144,
+        "y": 148,
         "w": 804,
         "h": 277
       },
       "captionShare": 0.0544,
       "fontSize": 142,
-      "bytes": 2977731,
-      "sha256": "b7d47ba9e925620fb6836e9bfd6cce7ed870864a8bcf4433ed20feed93cd9ee2",
-      "sourceSha256": "9d0ec234234c4e476206f2ddee6b703213941294a1e9a6468d8d6070e28b8027"
+      "bytes": 3021422,
+      "sha256": "957f5ff3770024d8a812b50e1733ec65c1d907b2fc88245bbfda32d153dd9a99",
+      "sourceSha256": "9fc985c6bb2b511b4d6fed8c3207bcf20e951835bf5c6c3343927744aea35e57"
     },
     "tablet10/ar/02-special-pieces.png": {
       "n": 2,
@@ -2634,15 +2670,15 @@
       "band": 475,
       "captionBox": {
         "x": 302,
-        "y": 144,
+        "y": 148,
         "w": 995,
         "h": 277
       },
       "captionShare": 0.0673,
       "fontSize": 142,
-      "bytes": 3190805,
-      "sha256": "30fb394ec0ab32077b61d5b58d9b3bd82efed3f3392e9386e3f4f95e5de5d1c6",
-      "sourceSha256": "23b18c0dd07a37f867f128b8a573dfe20efea371af0c6820af128cca9391abbb"
+      "bytes": 3131895,
+      "sha256": "6c84d936976d7fb062508ea8b09fd9c6ae58000eee31479e5c5e04f0624dfaaa",
+      "sourceSha256": "9ddc685c157dd1505e4ba7c54fd3025d831b44423b8354903630f5c543e08f5d"
     },
     "tablet10/ar/03-six-worlds.png": {
       "n": 3,
@@ -2666,14 +2702,14 @@
       "band": 475,
       "captionBox": {
         "x": 419,
-        "y": 144,
+        "y": 148,
         "w": 762,
         "h": 277
       },
       "captionShare": 0.0515,
       "fontSize": 142,
-      "bytes": 2526204,
-      "sha256": "0346e685ac8674e22a29f501db405b57de4d4456a97b5ccedd9fa18a0aeea634",
+      "bytes": 2527162,
+      "sha256": "72c95fac195d5830827fa32f95623f734bfad6d6254c85f342f9db44f7ba9f58",
       "sourceSha256": "0af5e5853daa23aa1016fd38bbf0f89d7982071b82ff8057b49fd4ce5de9c0ac"
     },
     "tablet10/ar/04-goals.png": {
@@ -2687,7 +2723,7 @@
         "في كل مرحلة",
         "تحدٍّ مختلف"
       ],
-      "alt": "مرحلة من عالم القصر فيها مصابيح يجب إنزالها، جواهر مقيّدة، حجارة ورمال، وأهدافها في الشريط العلوي.",
+      "alt": "مرحلة من عالم القصر فيها مصابيح يجب إنزالها، جواهر مقيّدة، حجارة، نباتات متسلقة ورمال، وأهدافها في الشريط العلوي.",
       "shot": {
         "x": 168,
         "y": 483,
@@ -2698,15 +2734,15 @@
       "band": 475,
       "captionBox": {
         "x": 447,
-        "y": 144,
+        "y": 148,
         "w": 706,
         "h": 277
       },
       "captionShare": 0.0477,
       "fontSize": 142,
-      "bytes": 3244157,
-      "sha256": "9139e311d82f32af5d816aec934040a7c0ee29dd1f0dc4f1bda4a5a1bdb20cf3",
-      "sourceSha256": "0f20ca0c1cc5742e33c7b84617bc071e367d3943700efc253d5bad7dd41de311"
+      "bytes": 3240780,
+      "sha256": "40efbeb2331e3247efba315cedaae52cf13c5f4ce13738722a3abf0d4bca7cc5",
+      "sourceSha256": "fc03f916609181f50e01a9c9eed84f3982126b3374b639725255a4a5761f1369"
     },
     "tablet10/ar/05-boosters.png": {
       "n": 5,
@@ -2730,15 +2766,15 @@
       "band": 475,
       "captionBox": {
         "x": 422,
-        "y": 144,
+        "y": 148,
         "w": 755,
         "h": 277
       },
       "captionShare": 0.0511,
       "fontSize": 142,
-      "bytes": 2915346,
-      "sha256": "94e19a37d393a44a9ee7c8cc10b2fe954cdca7fa9487dc3c5f6765b92b91cfa8",
-      "sourceSha256": "2df24548ea800084b7617626d5165f4015d060dce7895b3919caedc04cfa9723"
+      "bytes": 2919326,
+      "sha256": "31d69a92733d97b609784c6e3779fe99beb287cc80cf76832e45421992c64dbc",
+      "sourceSha256": "6b5de97f26abe2f8541fff425775dbdffc159cec658c4418f152ab1634d895e5"
     },
     "tablet10/ar/06-rewards.png": {
       "n": 6,
@@ -2762,15 +2798,15 @@
       "band": 475,
       "captionBox": {
         "x": 396,
-        "y": 144,
+        "y": 148,
         "w": 808,
         "h": 277
       },
       "captionShare": 0.0546,
       "fontSize": 142,
-      "bytes": 2576901,
-      "sha256": "ee48d8a05c4563558aa68644648da043862895410997e3092b2c7538b8f0efda",
-      "sourceSha256": "4bc019c35db72575a662a9bb786916bea9d9854962f2e1c268c205137caa814d"
+      "bytes": 2590598,
+      "sha256": "b7e47c1c289fcb50245b655a355a5efb4ba46ff191c295daf0d818f45dbdc329",
+      "sourceSha256": "cd44a10cd0f105efd8f28ba5f2dab076cc9bf614b8612a2c6a85892b4fe6d3b5"
     },
     "tablet10/ar/07-offline.png": {
       "n": 7,
@@ -2794,15 +2830,15 @@
       "band": 475,
       "captionBox": {
         "x": 342,
-        "y": 144,
+        "y": 148,
         "w": 916,
         "h": 277
       },
       "captionShare": 0.0619,
       "fontSize": 142,
-      "bytes": 3071556,
-      "sha256": "18bc7db7d37d48d066d37f9c85e1ce0de301e02834760d985c61316e72c871a4",
-      "sourceSha256": "a5670a7572a615b439228e6ba7fa54ebb991116d47fd68e1d9eaf8f22e2fe5e8"
+      "bytes": 3084466,
+      "sha256": "b4babad69861f48cc3e23a8e696336e98abca1aee4c51867b261e29b152c9f90",
+      "sourceSha256": "33db36424a20eca85d03f5bfae21f6b13cf1c58fe8839185ad87b92fc26e9517"
     },
     "tablet10/ar/08-languages.png": {
       "n": 8,
@@ -2826,23 +2862,23 @@
       "band": 475,
       "captionBox": {
         "x": 479,
-        "y": 144,
+        "y": 148,
         "w": 643,
         "h": 277
       },
       "captionShare": 0.0435,
       "fontSize": 142,
-      "bytes": 2043563,
-      "sha256": "8871ac97d1d0236130663ff1125633cbc8ea68597b5fc647ceb1daafcc7b085a",
+      "bytes": 2043883,
+      "sha256": "abaa92efcdc20365b4fe15a88c60739aede45704a5b7dcfe37fe98009b715a8e",
       "sourceSha256": "18cddd169a80593b1a4e8ca97e7393e4e4c5e7ddc0a9b294d8a40a4f40587ae4"
     }
   },
   "levelsInGame": 120,
-  "capturedAt": "2026-11-13T21:53:00.834Z",
+  "capturedAt": "2026-11-14T01:05:10.784Z",
   "game": {
     "version": "1.0.0",
-    "commit": "087a59d",
-    "sourceEditedSinceCommit": true
+    "commit": "464f239",
+    "sourceEditedSinceCommit": false
   },
-  "laidOutAt": "2026-11-13T21:55:35.717Z"
+  "laidOutAt": "2026-11-14T01:11:43.493Z"
 }

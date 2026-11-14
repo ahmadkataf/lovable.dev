@@ -137,7 +137,7 @@ async function fitCaptions(page, specs, layout) {
   let size = Infinity;
   for (const spec of specs) {
     const geo = spec.geo;
-    const pad = Math.round(geo.gap * 0.9);
+    const pad = Math.round(geo.gap * 1.15);
     const lh = layout.lineHeight[spec.lang];
     let font = Math.floor(layout.font[spec.lang] * geo.W);
     // height: the lines must fit between the top padding and the gap above the frame
@@ -167,7 +167,7 @@ async function fitCaptions(page, specs, layout) {
 async function composeFinal(page, spec) {
   const geo = spec.geo;
   await page.setViewportSize({ width: geo.W, height: geo.H });
-  const pad = Math.round(geo.gap * 0.9);
+  const pad = Math.round(geo.gap * 1.15);
   const measure = await page.evaluate(
     async ([fn, s, g, palette, shotUrl, tint]) => {
       const stage = document.getElementById('stage');
