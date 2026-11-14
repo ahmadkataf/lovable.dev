@@ -210,9 +210,11 @@ async function devTests(browser) {
     const hardId = await page.evaluate(() => (window.__app.ctx.levels.filter((l) => l.hard)[0] || { id: 0 }).id);
     ok(hardId > 0, 'the game has hard levels (first: ' + hardId + ')');
     await page.evaluate((id) => window.__app.ctx.nav.openLevelIntro(id), hardId);
-    await page.waitForSelector('.m-dialog-intro', { timeout: 5000 });
-    eq(await page.locator('.m-dialog-intro .k-dialog__head .m-tag--hard').count(), 1, 'a hard level is tagged as hard under its title');
-    ok(await page.locator('.m-dialog-intro .k-dialog__head .m-best').isVisible(), 'a level won before shows its stars and best score there too');
+    // the 120 intros closed just above may still be fading out: look only at the dialog that is open
+    const openIntro = '.k-overlay:not(.k-closing) .m-dialog-intro';
+    await page.waitForSelector(openIntro, { timeout: 5000 });
+    eq(await page.locator(openIntro + ' .k-dialog__head .m-tag--hard').count(), 1, 'a hard level is tagged as hard under its title');
+    ok(await page.locator(openIntro + ' .k-dialog__head .m-best').isVisible(), 'a level won before shows its stars and best score there too');
     await page.evaluate(() => window.__app.kit.closeAll());
     await page.waitForSelector('.k-overlay', { state: 'detached', timeout: 3000 });
     await sleep(500);
