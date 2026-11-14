@@ -19,7 +19,9 @@ export function openLivesDialog(ui: Ui): Promise<void> {
   const clock = h('b', { class: 'm-lives__clock k-num' });
   const regenMinutes = Math.round(econ.LIFE_REGEN_MS / 60000);
   const hint = kit.text(t('meta.lives.regen', { n: regenMinutes }), 'k-text--center k-text--muted k-text--sm');
-  const body = h('div', { class: 'm-lives' }, heart, pips, status, hint);
+  // the state on one side, what can be done about it on the other (side by side on a short landscape screen)
+  const info = h('div', { class: 'm-lives__info' }, heart, pips, status, hint);
+  const body = h('div', { class: 'm-lives' }, info);
 
   const price = econ.REFILL_LIVES_PRICE;
 

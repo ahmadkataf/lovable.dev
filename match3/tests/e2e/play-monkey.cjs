@@ -423,6 +423,10 @@ function randomPointNearBoard(g) {
 async function resize(page) {
   const [w, h] = pick(SIZES);
   await page.setViewportSize({ width: w, height: h });
+  // the page sees the new size (and gets its resize event, dispatched with the next frame) a moment
+  // later — on a loaded machine late enough for the geometry check to look at the old layout
+  await page.waitForFunction(([vw, vh]) => window.innerWidth === vw && window.innerHeight === vh, [w, h], { timeout: 5000 });
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   stats.resizes++;
   note(`resize ${w}×${h}`);
 }

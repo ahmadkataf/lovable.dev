@@ -59,7 +59,8 @@ async function tests(browser) {
       expected -= PRICES[id];
       eq(await coinsOf(page), expected, id + ': coins after buying');
       eq(await boosterCount(page, id), 1, id + ': one in the inventory');
-      eq((await page.locator('[data-booster="' + id + '"] .k-qty').innerText()).replace(/[^\d]/g, ''), '1', id + ': the card shows ×1');
+      eq((await page.locator('[data-booster="' + id + '"] .k-offer__sub').innerText()).replace(/[^\d]/g, ''), '1', id + ': the card says "You have 1"');
+      eq(await page.locator('[data-booster="' + id + '"] .k-qty').count(), 0, id + ': and shows the count once (no badge on the icon)');
     }
     eq(expected, 399, 'six boosters cost 3,600 coins in all');
     eq(await page.locator('.m-dialog-shop .m-shop__balance .k-chip__text').innerText(), '399', 'the balance in the shop shows 399');

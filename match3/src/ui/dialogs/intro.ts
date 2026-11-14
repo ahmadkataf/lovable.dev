@@ -22,7 +22,11 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
   const h = kit.el;
   const t = ui.t;
 
-  const body = h('div', { class: 'm-intro' });
+  // Two groups: what the level asks (moves, lives, goals) and what the player brings (Caravan,
+  // boosters). Stacked on a phone held upright; side by side on a short landscape screen (meta.css).
+  const main = h('div', { class: 'm-intro__col m-intro__col--main' });
+  const side = h('div', { class: 'm-intro__col m-intro__col--side' });
+  const body = h('div', { class: 'm-intro' }, main, side);
   const selected: StartBoosters = {};
   let launched = false;
 
@@ -47,14 +51,14 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
     livesPill.setAttribute('aria-label', t('meta.map.aria.lives', { n: info.count }));
     return info.count >= info.max ? 0 : info.nextInMs;
   }
-  body.appendChild(h('div', { class: 'm-intro__meta' }, h('div', { class: 'm-pill' }, kit.icon('moves', 20), h('span', { text: t('meta.intro.moves', { n: level.moves }) })), livesPill));
+  main.appendChild(h('div', { class: 'm-intro__meta' }, h('div', { class: 'm-pill' }, kit.icon('moves', 20), h('span', { text: t('meta.intro.moves', { n: level.moves }) })), livesPill));
 
   // ── goals ──
   const goals = h('div', { class: 'm-goals' });
   for (const goal of level.goals) {
     goals.appendChild(h('div', { class: 'm-goal' }, h('span', { class: 'm-goal__icon' }, kit.icon(goalIcon(goal), 30)), h('span', { class: 'm-goal__text', text: goalText(t, goal) })));
   }
-  body.appendChild(goals);
+  main.appendChild(goals);
 
   // ── Caravan: the streak as three steps; what it brings for this level, or how to get it going ──
   let gift: StartBoosters = {};
@@ -73,7 +77,7 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
     } else {
       box.appendChild(h('div', { class: 'm-caravan__hint', text: t('meta.caravan.hint') }));
     }
-    body.appendChild(box);
+    side.appendChild(box);
   }
 
   // ── start boosters ──
@@ -152,8 +156,15 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
       renderTile(tile);
       row.appendChild(el);
     }
-    body.appendChild(h('div', { class: 'm-intro__boosters' }, h('div', { class: 'm-intro__label', text: t('meta.intro.boosters') }), row));
+    side.appendChild(h('div', { class: 'm-intro__boosters' }, h('div', { class: 'm-intro__label', text: t('meta.intro.boosters') }), row));
   }
+
+  // nothing to bring yet (an early level): one group only, also in landscape
+  if (!side.firstChild) {
+    body.removeChild(side);
+    body.classList.add('m-intro--one');
+  }
+  const oneColumn = !body.contains(side);
 
   // ── Play ──
   function play(): void {
@@ -193,9 +204,35 @@ export function openIntroDialog(ui: Ui, level: LevelDef): DialogHandle<unknown> 
       unsubscribe();
       if (stopTicker) stopTicker();
       stopTicker = null;
+      window.removeEventListener('resize', fadeAll);
     },
   });
   dialog.el.dataset.dialog = 'intro';
+  if (oneColumn) dialog.el.classList.add('m-dialog-intro--one');
+
+  // Side by side, each group scrolls on its own when it is too tall: its bottom edge then fades out,
+  // so it is plain that there is more below (see meta.css, level intro in landscape).
+  // Stacked (a phone held upright), the whole body scrolls instead, and fades the same way.
+  const cols = [main, side];
+  const more = (el: HTMLElement): boolean => el.clientHeight > 0 && el.scrollHeight - el.scrollTop - el.clientHeight > 2;
+  function fade(col: HTMLElement): void {
+    col.classList.toggle('m-intro__col--more', more(col));
+  }
+  function fadeBody(): void {
+    dialog.body.classList.toggle('m-intro--more', more(dialog.body));
+  }
+  function fadeAll(): void {
+    for (const col of cols) fade(col);
+    fadeBody();
+  }
+  for (const col of cols) col.addEventListener('scroll', () => fade(col), { passive: true });
+  dialog.body.addEventListener('scroll', fadeBody, { passive: true });
+  window.addEventListener('resize', fadeAll);
+  window.requestAnimationFrame(fadeAll);
+  // (the dialog grows into place: measure again once it has landed)
+  window.setTimeout(() => {
+    if (dialog.isOpen()) fadeAll();
+  }, 360);
 
   // Under the title, in place of the ornament: the "hard level" tag, or the stars won so far and the best score.
   const head = dialog.el.querySelector('.k-dialog__head');

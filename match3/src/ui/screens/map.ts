@@ -4,7 +4,7 @@
  * while the section crosses the screen), a banner at its start and small landmarks along the way.
  * Only the sections near the viewport hold their backdrop canvas and nodes.
  *
- * Top bar: lives · coins · stars · settings. Bottom tray: Home · Shop · Daily gift.
+ * Top bar: home · lives · coins · stars · settings. Bottom tray: Shop · Play (the current level, raised, gold) · Daily gift.
  */
 import type { ChapterTheme } from '../../art/types.ts';
 import { compactNumber, focusLevel, levelById, nodeState } from '../helpers.ts';
@@ -150,7 +150,8 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   let livesChip: Chip | null = null;
   let livesCount: HTMLElement | null = null;
   if (showLives) {
-    livesChip = kit.chip({ icon: 'heart', text: '', onClick: () => ui.openLives(), className: 'm-chip m-chip--lives' });
+    // (its green "+" shows only with no lives left: then a tap is the way to get one — see meta.css)
+    livesChip = kit.chip({ icon: 'heart', text: '', plus: true, onClick: () => ui.openLives(), className: 'm-chip m-chip--lives' });
     livesCount = h('span', { class: 'm-chip__count k-num' });
     livesChip.el.appendChild(livesCount);
     livesChip.el.dataset.act = 'lives';
@@ -179,13 +180,26 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   });
   settingsButton.dataset.act = 'settings';
 
-  const topPanel = h('div', { class: 'm-top__panel' }, livesChip ? livesChip.el : null, coinsChip.el, starsChip.el, h('span', { class: 'm-top__gap' }), settingsButton);
+  // back to the title screen: a round button on the start side, matching the settings button
+  const homeButton = kit.iconButton({
+    icon: 'home',
+    ariaLabel: ui.t('meta.map.home'),
+    variant: 'secondary',
+    size: 'sm',
+    onClick: () => ui.goTitle(),
+  });
+  homeButton.dataset.act = 'home';
+  homeButton.classList.add('m-top__home');
+
+  const topPanel = h('div', { class: 'm-top__panel' }, homeButton, livesChip ? livesChip.el : null, coinsChip.el, starsChip.el, h('span', { class: 'm-top__gap' }), settingsButton);
   const topBar = h('header', { class: 'm-top' }, topPanel);
 
   /**
    * The top bar holds whatever the numbers grow to. When the counters do not fit side by side
    * (a narrow phone, six-digit coins, a countdown) it first tightens its spacing, then writes the
-   * coins in short ("987K"), and as the last resort leaves the star counter out.
+   * coins in short ("987K"), then lets the star counter shrink to its icon and number, then shows
+   * the lives counter without its countdown (the heart says how many, the "+" what to do), and as
+   * the last resort leaves the star counter out.
    */
   let coinsCompact = false;
   const coinText = (n: number): string => (coinsCompact ? compactNumber(n, i18n.num) : i18n.num(n));
@@ -203,7 +217,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   function fitTopBar(coins: number): void {
     const before = coinsChip.el.querySelector('.k-chip__text');
     const shown = before ? before.textContent : null;
-    topPanel.classList.remove('m-top__panel--tight', 'm-top__panel--nostars');
+    topPanel.classList.remove('m-top__panel--tight', 'm-top__panel--slimstars', 'm-top__panel--nowait', 'm-top__panel--nostars');
     coinsCompact = false;
     coinsChip.set(coinText(coins), false);
     if (topBarClipped()) {
@@ -211,6 +225,8 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       if (topBarClipped()) {
         coinsCompact = true;
         coinsChip.set(coinText(coins), false);
+        if (topBarClipped()) topPanel.classList.add('m-top__panel--slimstars');
+        if (topBarClipped()) topPanel.classList.add('m-top__panel--nowait');
         if (topBarClipped()) topPanel.classList.add('m-top__panel--nostars');
       }
     }
@@ -220,7 +236,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
 
   // ───────────────────────────── bottom tray ─────────────────────────────
 
-  function trayButton(act: string, icon: 'home' | 'shop' | 'gift', label: string, onClick: () => unknown): KitButton {
+  function trayButton(act: string, icon: 'shop' | 'gift', label: string, onClick: () => unknown): KitButton {
     const b = kit.button({ label, variant: 'secondary', className: 'm-traybtn', onClick });
     // a large icon above the label (the kit's own button icons sit beside the label)
     const content = b.querySelector('.k-btn__content');
@@ -229,10 +245,64 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     return b;
   }
 
-  const homeButton = trayButton('home', 'home', ui.t('meta.map.home'), () => ui.goTitle());
+  /** The level the journey has reached (the last one once all are won). */
+  const playLevel = (): number => focusLevel(profile.highestUnlocked(), levelCount);
+  /** Every level won (the same test as the title screen's "Journey complete"). */
+  const journeyDone = (): boolean => levelCount > 0 && profile.record(playLevel()) !== null;
+  /** Once the journey is complete: the first level that still has a star to win (0 = none). */
+  function missedStarsLevel(): number {
+    for (let id = 1; id <= levelCount; id++) {
+      const record = profile.record(id);
+      if (!record || record.stars < 3) return id;
+    }
+    return 0;
+  }
+  const playCaption = (): string => (journeyDone() ? ui.t('meta.title.complete') : ui.t('common.level', { n: playLevel() }));
+  let finishedNote: { isOpen(): boolean } | null = null;
+  function openFinished(): void {
+    if (finishedNote && finishedNote.isOpen()) return;
+    finishedNote = kit.openDialog({
+      title: ui.t('meta.map.finished.title'),
+      icon: 'trophy',
+      body: ui.t('meta.map.finished.body'),
+      buttons: [{ label: ui.t('common.ok'), variant: 'primary' }],
+    });
+  }
+  /** Play: the level the journey has reached; once it is complete, the first level with a star still to win, or the "journey complete" note. */
+  function playMain(): void {
+    if (!journeyDone()) {
+      ctx.nav.openLevelIntro(playLevel());
+      return;
+    }
+    const missed = missedStarsLevel();
+    if (missed > 0) ctx.nav.openLevelIntro(missed);
+    else openFinished();
+  }
+  // The tray's main action, in the middle and raised above the bar: Play the current level.
+  let shownPlayCaption = playCaption();
+  const playButton = kit.button({
+    label: ui.t('common.play'),
+    caption: shownPlayCaption,
+    icon: 'play',
+    variant: 'primary',
+    shine: true,
+    className: 'm-traybtn m-traybtn--play',
+    onClick: () => {
+      if (celebrating) {
+        finishCelebration();
+        return;
+      }
+      playMain();
+    },
+  });
+  playButton.dataset.act = 'map-play';
   const shopButton = showShop ? trayButton('shop', 'shop', ui.t('common.shop'), () => ctx.nav.openShop()) : null;
   const dailyButton = showDaily ? trayButton('daily', 'gift', ui.t('meta.map.daily'), () => ui.openDaily()) : null;
-  const tray = h('footer', { class: 'm-tray' }, h('div', { class: 'm-tray__panel' }, homeButton, shopButton, dailyButton));
+  // (a side whose button is not unlocked yet keeps its room, so Play stays in the middle)
+  const spacer = (): HTMLElement => h('span', { class: 'm-tray__spacer', 'aria-hidden': 'true' });
+  const tray = h('footer', { class: 'm-tray' }, h('div', { class: 'm-tray__panel' }, shopButton || spacer(), playButton, dailyButton || spacer()));
+  /** How far the raised Play button stands above the tray's top edge, in design units (see .m-traybtn--play). */
+  const PLAY_RAISE = 18;
 
   root.appendChild(scroller);
   root.appendChild(topBar);
@@ -273,7 +343,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     const worldH = scroller.scrollHeight;
     if (s && level - s.ch.from < 2) {
       const bannerBottom = s.top + s.heightPx - (s.geo.foot + BANNER_LIFT) * unit;
-      const clear = tray.offsetHeight + 12 * unit;
+      const clear = tray.offsetHeight + (PLAY_RAISE + 12) * unit;
       const top = bannerBottom + clear - viewH;
       const maxTop = Math.max(0, worldH - viewH);
       // only when the level itself stays well inside the view
@@ -555,7 +625,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     sections = [];
     const chapters = world.chapters;
     const minUnits = Math.ceil(viewH / unit);
-    const footUnits = Math.ceil((tray.offsetHeight + 10) / unit);
+    const footUnits = Math.ceil((tray.offsetHeight + 10) / unit) + PLAY_RAISE;
     const geos: SectionGeo[] = chapters.map((ch, i) => {
       const isLast = i === chapters.length - 1;
       const foot = i === 0 ? footUnits : 0;
@@ -713,7 +783,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
   function refreshLives(): number {
     if (!livesChip || !livesCount) return 0;
     const info = profile.lives();
-    const text = info.count >= info.max ? ui.t('common.full') : i18n.clock(info.nextInMs);
+    const text = info.count >= info.max ? ui.t('meta.map.livesFull') : i18n.clock(info.nextInMs);
     const full = info.count >= info.max;
     livesChip.set(text, false);
     if (full !== livesShownFull) {
@@ -727,7 +797,12 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       livesCount.textContent = String(info.count);
       if (!first) livesChip.bump();
     }
-    livesChip.el.classList.toggle('m-chip--empty', info.count <= 0);
+    const empty = info.count <= 0;
+    if (empty !== livesChip.el.classList.contains('m-chip--empty')) {
+      livesChip.el.classList.toggle('m-chip--empty', empty);
+      // the "+" came or went: the bar is laid out again
+      if (livesShownFull !== null && livesCount.textContent !== '') fitTopBar(shownCoins);
+    }
     livesChip.el.setAttribute('aria-label', ui.t('meta.map.aria.lives', { n: info.count }));
     return info.count >= info.max ? 0 : info.nextInMs;
   }
@@ -754,6 +829,11 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
       starsChip.set(i18n.num(stars));
       starsChip.el.setAttribute('aria-label', ui.t('meta.map.aria.stars', { n: stars }));
       fitTopBar(shownCoins);
+    }
+    const caption = playCaption();
+    if (caption !== shownPlayCaption) {
+      shownPlayCaption = caption;
+      playButton.update({ caption });
     }
     if (!celebrating) {
       const frontier = profile.highestUnlocked();
@@ -868,12 +948,7 @@ export function createMapScreen(ui: Ui, opts: MapOptions): MapScreen {
     afterCelebration = () => {
       if (disposed) return;
       if (w.firstClear && !hasNext) {
-        kit.openDialog({
-          title: ui.t('meta.map.finished.title'),
-          icon: 'trophy',
-          body: ui.t('meta.map.finished.body'),
-          buttons: [{ label: ui.t('common.ok'), variant: 'primary' }],
-        });
+        openFinished();
         return;
       }
       // the next level's intro: always after a first clear, otherwise only when it was asked for

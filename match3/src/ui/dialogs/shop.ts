@@ -38,7 +38,9 @@ export function openShopDialog(ui: Ui): Promise<void> {
   const moneyBox = h('div', { class: 'm-shop__money' });
   const freeBox = h('div', { class: 'm-shop__free' });
   const boosterBox = h('div', { class: 'm-shop__boosters' });
-  const body = h('div', { class: 'm-shop' }, h('div', { class: 'm-shop__head' }, balance.el), moneyBox, freeBox, boosterBox);
+  // without a store (Play Store unreachable, or a build without purchases) a quiet line says so
+  const packsOff = kit.text(t('meta.shop.packsOff'), 'k-text--center k-text--muted k-text--sm m-shop__note m-shop__off m-hidden');
+  const body = h('div', { class: 'm-shop' }, h('div', { class: 'm-shop__head' }, balance.el), moneyBox, freeBox, boosterBox, packsOff);
 
   function sfx(name: 'purchase' | 'coin' | 'reward' | 'invalid'): void {
     try {
@@ -180,7 +182,9 @@ export function openShopDialog(ui: Ui): Promise<void> {
     if (key === moneyKey) return;
     moneyKey = key;
     kit.clear(moneyBox);
-    if (!available || (packs.length === 0 && !showStarter && !showRemove)) return;
+    const none = !available || (packs.length === 0 && !showStarter && !showRemove);
+    packsOff.classList.toggle('m-hidden', !none);
+    if (none) return;
 
     if (showStarter || showRemove) {
       moneyBox.appendChild(heading(t('meta.shop.offers')));
@@ -215,6 +219,7 @@ export function openShopDialog(ui: Ui): Promise<void> {
           onBuy: (c) => buyProduct(product.def.id, c),
         });
         card.el.dataset.product = product.def.id;
+        card.el.classList.add('m-noads');
         list.appendChild(card.el);
       }
       moneyBox.appendChild(list);
@@ -272,7 +277,8 @@ export function openShopDialog(ui: Ui): Promise<void> {
       kit.clear(freeBox);
       freeLeftEl = h('div', { class: 'k-offer__sub' });
       freeButton = kit.adButton({
-        label: '+' + i18n.num(amount),
+        // (in Arabic a left-to-right mark keeps the plus in front of the number: "+50", not "50+")
+        label: (i18n.lang() === 'ar' ? '\u200e+' : '+') + i18n.num(amount),
         rewardIcon: 'coin',
         size: 'sm',
         ariaLabel: t('meta.ad.watch') + ': ' + t('meta.shop.coins', { n: amount }),
@@ -341,7 +347,7 @@ export function openShopDialog(ui: Ui): Promise<void> {
         priceIcon: 'coin',
         variant: 'primary',
         layout: 'row',
-        quantity: '×' + i18n.num(profile.boosterCount(id)),
+        quantity: null,
         onBuy: () => {
           if (profile.buyBooster(id)) {
             sfx('coin');
@@ -369,7 +375,10 @@ export function openShopDialog(ui: Ui): Promise<void> {
   function patchBoosters(): void {
     const coins = profile.coins();
     for (const { id, card } of boosterCards) {
-      card.update({ quantity: '×' + i18n.num(profile.boosterCount(id)) });
+      // how many the player owns: "You have N" under the name (nothing at 0; said once — no count on
+      // the icon as well — and never "×N" beside the price, which would read like the size of the pack)
+      const owned = profile.boosterCount(id);
+      card.update({ quantity: null, subtitle: owned > 0 ? t('meta.shop.owned', { n: owned }) : null });
       // a price out of reach is shown as such, but the button still answers (see onBuy)
       card.el.classList.toggle('m-brow--short', coins < profile.boosterPrice(id));
     }

@@ -32,7 +32,7 @@ import { createBoardView } from './board-view.ts';
 import type { VPiece } from './board-view.ts';
 import type { DialogDeps } from './dialogs.ts';
 import { openBuyBooster, openConfirm, openLose, openPause, openTip, openWin } from './dialogs.ts';
-import { outQuad } from './ease.ts';
+import { inOutQuad, outBack, outQuad } from './ease.ts';
 import type { GoalTracker } from './feedback.ts';
 import { FEEDBACK, FINALE_KEY, PRAISE_KEYS, createGoalTracker, praiseTier, turnStats } from './feedback.ts';
 import { cellAtPoint, isAdjacent, samePos } from './geometry.ts';
@@ -366,11 +366,57 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
 
   function relayout(): void {
     if (!session) return;
+    hud.setSideInset(0);
+    hud.setTall(0);
+    hud.setLift(0);
     const size = hud.measure(view.cols() > 0 ? view.rows() / view.cols() : 1);
     if (size.w < 8 || size.h < 8) return;
     const u = kit.unit();
     view.layout(size.w, size.h, Math.round(7 * u), 112 * u);
-    hud.setBoardRect(view.rect());
+    let changed = hud.setBoardRect(view.rect());
+    // a wide landscape screen with a height-limited board: the slack on either side of the board
+    // goes to the outer edges, so the side panel and the board stand together, about half a
+    // cell apart (measured from the full-width stage, so a narrower screen gives it back)
+    if (size.landscape) {
+      const r = view.rect();
+      const keep = Math.max(Math.round(7 * u), r.cell * 0.5);
+      const slack = r.x - keep;
+      const inset = slack > 2 ? slack : 0;
+      hud.setSideInset(inset);
+      if (inset > 0) changed = true;
+    } else if (!size.compact) {
+      // a tall portrait screen (20:9) whose board is limited by the width: rather than two
+      // empty bands above and below the board, the tray grows into part of the height (setTall)
+      // and the board then moves up towards the header (setLift below)
+      const r = view.rect();
+      const keep = Math.max(Math.round(7 * u), r.cell * 0.6);
+      const spare = 2 * (r.y - keep);
+      if (spare > r.cell) {
+        hud.setTall(spare);
+        changed = true;
+      }
+    }
+    if (changed) {
+      // the header / tray took the board's width and changed height: fit the board once more
+      // (they never change again for the same board width, so this does not loop)
+      const again = hud.measure(view.cols() > 0 ? view.rows() / view.cols() : 1);
+      if (again.w >= 8 && again.h >= 8) {
+        view.layout(again.w, again.h, Math.round(7 * u), 112 * u);
+        hud.setBoardRect(view.rect());
+        // what height is left: a third stays above the board, the rest goes below it
+        const r = view.rect();
+        const keep = Math.max(Math.round(7 * u), r.cell * 0.6);
+        const slack = r.y - keep;
+        if (!again.landscape && !again.compact && slack > 4) {
+          hud.setLift(slack * 1.3);
+          const last = hud.measure(view.cols() > 0 ? view.rows() / view.cols() : 1);
+          if (last.w >= 8 && last.h >= 8) {
+            view.layout(last.w, last.h, Math.round(7 * u), 112 * u);
+            hud.setBoardRect(view.rect());
+          }
+        }
+      }
+    }
     hud.paintBackdrop(false);
     view.draw();
     kick();
@@ -659,13 +705,33 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
       }
     });
     kick();
-    s.hintOffTimer = timers.after(T.hintShow, () => {
+    // the halo stays up until the next hint; at each swell of its light (board-view, every
+    // hintCue) the two pieces lean toward each other, so the player sees the move itself
+    let cues = 0;
+    const nudge = (): void => {
       s.hintOffTimer = 0;
+      cues++;
       if (my !== hintToken) return;
-      s.hintPieces.length = 0;
-      view.setHintCells(null, null);
+      const na = ++a.tw;
+      const nb = ++b.tw;
+      sched.run(T.hintNudge, (k) => {
+        if (my !== hintToken) return;
+        // out with a small overshoot (ease-out-back), then back
+        const w = k >= 1 ? 0 : k < 0.5 ? outBack(k * 2) * 0.08 : (1 - inOutQuad((k - 0.5) * 2)) * 0.08;
+        if (a.tw === na && !a.dying) {
+          a.ox = dx * w;
+          a.oy = dy * w;
+        }
+        if (b.tw === nb && !b.dying) {
+          b.ox = -dx * w;
+          b.oy = -dy * w;
+        }
+      });
       kick();
-    });
+      // (the last one well before the next hint's own hop)
+      if ((cues + 1) * T.hintCue + T.hintNudge < T.hintRepeat) s.hintOffTimer = timers.after(T.hintCue, nudge);
+    };
+    s.hintOffTimer = timers.after(T.hintCue, nudge);
     s.hintTimer = timers.after(T.hintRepeat, showHint);
   }
 
@@ -1641,6 +1707,8 @@ export function createPlayScreen(ctx: AppContext, deps?: PlayDeps): PlayScreen {
         runTurn(res, { swapCostsMove: false });
         return true;
       },
+      /** layout tests: write a number into the header's score (display only, the engine keeps its own) */
+      showScore: (n: number) => hud.setScore(n, false),
       /** the renderer's own model: what is drawn where (compare with snapshot()) */
       model: () => (session ? view.debugState() : null),
       /** bookkeeping of the running attempt */

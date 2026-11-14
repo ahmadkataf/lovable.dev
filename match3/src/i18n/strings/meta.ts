@@ -9,9 +9,11 @@ import type { StringTable } from '../types.ts';
 const table: StringTable = {
   en: {
     // ── map ──
+    'meta.title.complete': 'Journey complete',
     'meta.map.chapter': 'Chapter {n}',
     'meta.map.daily': 'Daily gift',
     'meta.map.home': 'Home',
+    'meta.map.livesFull': 'Full',
     'meta.map.lockedToast': 'Win level {n} to open this one',
     'meta.map.comingSoon': 'More levels are on the way',
     'meta.map.finished.title': 'Journey complete!',
@@ -63,7 +65,7 @@ const table: StringTable = {
     'meta.shop.removeAdsSub': 'No ads between levels, even after a reinstall.',
     'meta.shop.noAdsIncluded': 'No ads',
     'meta.shop.payerNote': 'Any purchase turns off ads between levels on this device.',
-    'meta.shop.badge.popular': 'Featured',
+    'meta.shop.badge.popular': 'Most popular',
     'meta.shop.badge.best': 'Best value',
     'meta.shop.free': 'Free coins',
     'meta.shop.freeGot': 'You got {n} coins!',
@@ -74,6 +76,8 @@ const table: StringTable = {
     'meta.shop.error': 'The purchase could not be completed. Please try again.',
     'meta.shop.boosterBought': '{name} added to your boosters',
     'meta.shop.boostersLocked': 'Boosters appear here as you unlock them on your journey.',
+    'meta.shop.owned': 'You have {n}',
+    'meta.shop.packsOff': 'Coin packs are not available right now.',
 
     // ── settings ──
     'meta.settings.sfx': 'Sound effects',
@@ -97,7 +101,9 @@ const table: StringTable = {
     'meta.settings.version': 'Version {v}',
 
     // ── daily reward ──
-    'meta.daily.title': 'Daily reward',
+    'meta.daily.title': 'Daily gift',
+    'meta.daily.day': 'Day {n}',
+    'meta.daily.today': 'Today',
     'meta.daily.hint': 'Come back every day. Missing a day starts again from day 1.',
     'meta.daily.next': 'Next reward in',
     'meta.daily.received': 'You received',
@@ -137,9 +143,11 @@ const table: StringTable = {
 
   ar: {
     // ── map ──
+    'meta.title.complete': 'اكتملت الرحلة',
     'meta.map.chapter': 'الفصل {n}',
-    'meta.map.daily': 'هدية اليوم',
+    'meta.map.daily': 'الهدية اليومية',
     'meta.map.home': 'الرئيسية',
+    'meta.map.livesFull': 'كاملة',
     'meta.map.lockedToast': 'فُز بالمرحلة {n} لتفتح هذه المرحلة',
     'meta.map.comingSoon': 'مراحل جديدة في الطريق',
     'meta.map.finished.title': 'اكتملت الرحلة!',
@@ -191,7 +199,7 @@ const table: StringTable = {
     'meta.shop.removeAdsSub': 'بلا إعلانات بين المراحل، حتى بعد إعادة التثبيت.',
     'meta.shop.noAdsIncluded': 'بلا إعلانات',
     'meta.shop.payerNote': 'أي عملية شراء توقف الإعلانات بين المراحل على هذا الجهاز.',
-    'meta.shop.badge.popular': 'مميّزة',
+    'meta.shop.badge.popular': 'الأكثر طلبًا',
     'meta.shop.badge.best': 'أفضل قيمة',
     'meta.shop.free': 'عملات مجانية',
     'meta.shop.freeGot': 'حصلت على {n} عملة!',
@@ -202,6 +210,8 @@ const table: StringTable = {
     'meta.shop.error': 'تعذّر إتمام عملية الشراء. حاول مرة أخرى.',
     'meta.shop.boosterBought': 'أُضيف «{name}» إلى معزّزاتك',
     'meta.shop.boostersLocked': 'ستظهر المعزّزات هنا كلما فتحتها خلال رحلتك.',
+    'meta.shop.owned': 'لديك {n}',
+    'meta.shop.packsOff': 'حزم العملات غير متاحة الآن.',
 
     // ── settings ──
     'meta.settings.sfx': 'المؤثرات الصوتية',
@@ -225,7 +235,9 @@ const table: StringTable = {
     'meta.settings.version': 'الإصدار {v}',
 
     // ── daily reward ──
-    'meta.daily.title': 'المكافأة اليومية',
+    'meta.daily.title': 'الهدية اليومية',
+    'meta.daily.day': 'يوم {n}',
+    'meta.daily.today': 'اليوم',
     'meta.daily.hint': 'عُد كل يوم، فتفويت يوم واحد يعيدك إلى اليوم الأول.',
     'meta.daily.next': 'المكافأة التالية بعد',
     'meta.daily.received': 'حصلت على',

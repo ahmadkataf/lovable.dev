@@ -135,7 +135,7 @@ export function openSettingsDialog(ui: Ui): Promise<void> {
       // the store is unavailable: neither row applies
     }
     if (consent) {
-      add('privacy-options', kit.listItem({ icon: 'shield', label: t('meta.settings.privacyOptions'), onClick: () => store.showPrivacyOptions() }));
+      add('privacy-options', kit.listItem({ icon: 'adVideo', label: t('meta.settings.privacyOptions'), onClick: () => store.showPrivacyOptions() }));
     }
     if (iap) {
       const item = kit.listItem({

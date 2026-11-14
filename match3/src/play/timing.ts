@@ -42,8 +42,8 @@ export const T = {
   prismFlight: 180,
   prismAllWave: 520,
   /** stagger between pieces of a prism + special transform */
-  transformStagger: 34,
-  transformMax: 400,
+  transformStagger: 26,
+  transformMax: 220,
   transformPop: 180,
 
   // ── gravity ──
@@ -56,8 +56,8 @@ export const T = {
   landSquash: 150,
 
   // ── other steps ──
-  scorePopup: 650,
-  scorePopupFade: 250,
+  scorePopup: 560,
+  scorePopupFade: 200,
   collectSlide: 260,
   flyToChip: 350,
   grow: 320,
@@ -79,7 +79,7 @@ export const T = {
   flash: 140,
   slowMo: 120,
   praiseIn: 220,
-  praiseHold: 900,
+  praiseHold: 700,
   praiseOut: 200,
   chainBadge: 700,
 
@@ -90,8 +90,12 @@ export const T = {
   hintRepeat: 5000,
   /** two bounces toward each other */
   hintBounce: 600,
-  /** the hint halo stays this long */
-  hintShow: 1500,
+  /** the hint halo stays this long (it stays up until the next hint: hintRepeat) */
+  hintShow: 5000,
+  /** while a hint is up, a swell of light and a nudge of the two pieces toward each other every … */
+  hintCue: 1600,
+  /** … taking this long (out and back) */
+  hintNudge: 440,
 
   // ── input ──
   /** a swap made while the board resolves waits at most this long (real time) */

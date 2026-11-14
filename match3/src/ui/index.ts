@@ -194,6 +194,11 @@ export function createShell(deps: ShellDeps): Shell {
     active = next;
     kind = nextKind;
     navToken++;
+    // toasts on the map start below its top bar, so they never cover the counters (meta.css)
+    document.documentElement.classList.toggle('m-at-map', nextKind === 'map');
+    // (and over the meta screens' dialogs they keep clear of the close button; the play screen's dialogs place their own)
+    // (on <body>, under <html dir>, so that meta.css can mirror the rule for Arabic)
+    if (document.body) document.body.classList.toggle('m-at-meta', nextKind !== 'play');
     next.el.classList.add('m-screen');
     if (animate && prev && !kit.reducedMotion()) next.el.classList.add('m-screen--in');
     if (animate && prev) {

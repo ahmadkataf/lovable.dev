@@ -7,7 +7,7 @@
  *                                             → shots/play/frames/<name>-NN.png + <name>-sheet.png
  *                                             (names: match beam nova prism cross bigcross bignova
  *                                              prismall prismbeam cascade finale stars start hammer
- *                                              shuffle lose praise)
+ *                                              shuffle lose praise makebeam lowmoves)
  *   node tools/play-shots.cjs sizes           the mid-level scene at every screen size, both languages
  *
  * Every scene is captured at 360×640, 412×915, 800×1280 and 320×480 in English and Arabic (plus
@@ -597,6 +597,41 @@ const FRAME_SCENES = {
       await page.evaluate(() => window.__play.advance(50));
     }
     await sequence(browser, page, 'praise', null, { frames: 18, step: 80, cols: 6, full: true });
+    await page.context().close();
+  },
+
+  /** a straight four: the gems slide together into a new beam (converge, flash, pop-in, landing squash) */
+  async makebeam(browser) {
+    let page = await open(browser, SIZES[0], 'en', 'level=easy&seed=1&tut=0&inv=0');
+    await idle(page);
+    const found = await page.evaluate(async () => {
+      const { Game } = await import('/src/engine/index.ts');
+      const level = window.__demo.levels.easy;
+      for (let seed = 1; seed < 3000; seed++) {
+        const game = new Game(level, { seed });
+        for (const m of game.validMoves()) {
+          const res = new Game(level, { seed }).swap(m.a, m.b);
+          const clears = res.steps.filter((st) => st.type === 'clear');
+          if (clears.length === 1 && clears[0].created.length === 1 && /^beam/.test(clears[0].created[0].piece.kind)) return { seed, move: m };
+        }
+      }
+      return null;
+    });
+    await page.context().close();
+    if (!found) throw new Error('no seed with a plain four-match');
+    page = await open(browser, SIZES[0], 'en', `level=easy&seed=${found.seed}&tut=0&inv=0`);
+    await idle(page);
+    await page.waitForTimeout(900);
+    await sequence(browser, page, 'makebeam', () => page.evaluate((m) => window.__play.swap(m.a, m.b), found.move), { frames: 18, step: 45, cols: 6 });
+    await page.context().close();
+  },
+
+  /** the last moves: the medallion warns (numeral pulses, a warm halo breathes round the ring) */
+  async lowmoves(browser) {
+    const page = await open(browser, SIZES[0], 'en', 'level=hard&seed=11&tut=0&inv=3');
+    await idle(page);
+    await page.waitForTimeout(600);
+    await sequence(browser, page, 'lowmoves', null, { frames: 12, step: 90, cols: 6, full: true });
     await page.context().close();
   },
 };

@@ -382,7 +382,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
    * `crowd`: how many effects fire in the same instant. Light is expensive (every glow is a big
    * blended quad): one special gets the full show, a board full of them shares it.
    */
-  function launch(fx: Fx, crowd: number, index: number): void {
+  function launch(fx: Fx, crowd: number, index: number, quickVolley: boolean): void {
     const lite = crowd > 3;
     /** in a crowd only the first few get their shock-wave ring (the lit tiles show every blast's reach) */
     const ringed = !lite || index < 3;
@@ -415,7 +415,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           const t = targets[i] as Pos;
           arrive(t.c, t.r, horizontal ? hTime(t) : vTime(t));
         }
-        lightTiles(targets, color, lite ? 0.5 : 0.7);
+        lightTiles(targets, lite ? PAL_GOLD : color, lite ? 0.45 : 0.7);
         view.framePulse(0.55, 380);
         view.shake(FEEDBACK.shakeSmall, T.shakeSmall);
         break;
@@ -478,21 +478,24 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
           const t = targets[i] as Pos;
           arrive(t.c, t.r, ringTime(Math.hypot(t.c - ac, t.r - ar), radius, dur));
         }
-        lightTiles(targets, color, lite ? 0.55 : 0.75);
+        lightTiles(targets, lite ? PAL_GOLD : color, lite ? 0.5 : 0.75);
         view.framePulse(big ? 1 : 0.6, big ? 520 : 400);
         view.shake(big ? FEEDBACK.shakeBig : FEEDBACK.shakeSmall, big ? T.shakeBig : T.shakeSmall);
         break;
       }
       case 'prism': {
         // the prism sends a comet of light to every gem of the colour, one after the other
-        const flight = d(T.prismFlight);
+        // after a prism + special transform the rays have already shown which gems were chosen:
+        // the volley that sets them off goes all at once
+        const flight = d(quickVolley ? T.prismFlight * 0.35 : T.prismFlight);
+        const stagger = quickVolley ? 0 : 1;
         view.glow(x, y, 1, lite ? 2.2 : 3.2, d(360), PAL_WHITE, 1);
         if (!lite) view.rays(x, y, 1, 3.8, d(420), 0.9);
         view.flare(x, y, 3.2, d(360), 1);
         view.ring(x, y, 0.3, 1.8, d(300), color, 0.9);
         for (let i = 0; i < targets.length; i++) {
           const t = targets[i] as Pos;
-          const delay = d(prismRayDelay(i, targets.length));
+          const delay = d(prismRayDelay(i, targets.length) * stagger);
           const rayColor = fx.color >= 0 ? fx.color : i % 6;
           view.ray(x, y, t.c + 0.5, t.r + 0.5, flight, delay, rayColor);
           if (targets.length <= 14 || i % 2 === 0) view.flare(t.c + 0.5, t.r + 0.5, 1.5, 200, 0.95, delay + flight);
@@ -626,8 +629,23 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     });
   }
 
-  async function doActivate(step: { fx: Fx[] }): Promise<void> {
-    const wind = d(T.specialWindup);
+  /**
+   * The second activate wave of a prism + beam / nova (transform, activate, clear, activate): the
+   * specials the transform made, set off by the prism's volley. Only when that clear made no new
+   * special (one made there gets its full pop-in and its wave its full wind-up).
+   */
+  function isPrismComboFollowUp(steps: readonly Step[], i: number): boolean {
+    const clear = steps[i - 1];
+    const act = steps[i - 2];
+    const tr = steps[i - 3];
+    return (
+      clear !== undefined && clear.type === 'clear' && clear.created.length === 0 && act !== undefined && act.type === 'activate' && tr !== undefined && tr.type === 'transform' && tr.reason === 'prismCombo'
+    );
+  }
+
+  /** `quick`: part of a prism + special combo, whose transform already gave the anticipation */
+  async function doActivate(step: { fx: Fx[] }, quick: boolean): Promise<void> {
+    const wind = d(quick ? T.specialWindup * 0.4 : T.specialWindup);
     for (let i = 0; i < step.fx.length; i++) {
       const fx = step.fx[i] as Fx;
       const vp = armed.get(cellIndex(fx.at.c, fx.at.r)) || view.pieceAt(fx.at.c, fx.at.r);
@@ -647,7 +665,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     let sound: SfxName | null = null;
     for (let i = 0; i < step.fx.length; i++) {
       const fx = step.fx[i] as Fx;
-      launch(fx, step.fx.length, i);
+      launch(fx, step.fx.length, i, quick);
       const cell = cellIndex(fx.at.c, fx.at.r);
       const vp = armed.get(cell);
       if (vp) {
@@ -684,6 +702,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     let hasMatch = false;
     let ripple = 0;
     let end = 0;
+    let lastStart = 0;
     const popLen = d(T.popGrow + T.popShrink);
     for (let i = 0; i < step.hits.length; i++) {
       const hit = step.hits[i] as Hit;
@@ -698,6 +717,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
       } else if (hit.cause === 'adjacent') delay = d(T.popGrow);
       const len = made ? d(T.converge) : popLen;
       if (delay + len > end) end = delay + len;
+      if (delay > lastStart) lastStart = delay;
       if (delay <= 0) applyHit(hit, made, nextFx, sounded);
       else sched.after(delay, () => applyHit(hit, made, nextFx, sounded));
     }
@@ -728,6 +748,14 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
       const at = d(T.converge) * 0.8;
       sched.after(at, () => spawnSpecial(made));
       if (at + d(T.createPop) * 0.6 > end) end = at + d(T.createPop) * 0.6;
+    }
+    // a chain reaction: the specials this wave just reached go off as soon as the last hit has
+    // popped, not after every piece has shrunk away — the pops run on under the next wave's
+    // wind-up (no dead air on a near-empty board between two waves). Not when a special is being
+    // made: its pop-in is the beat the player must see.
+    if (step.created.length === 0 && next && next.type === 'activate') {
+      const quick = lastStart + d(T.popGrow);
+      if (quick < end) end = quick;
     }
     await sched.wait(end);
     arrival.clear();
@@ -892,7 +920,9 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
         last = host.flyMove(x, y, flight).then(() => {
           const vp = view.piece(change.piece.id);
           if (vp) morphPop(vp, change.piece, x, y);
-          view.popup(x, y - 0.3, Math.round(each), 380, 160, 0, false);
+          // the first few say what a move left is worth; after that the header counts and the
+          // labels would only cover the pieces that are turning into specials
+          if (i < 4) view.popup(x, y - 0.3, Math.round(each), 380, 160, 0, false);
           host.addScore(Math.round(each));
           host.sfx('createBeam', { volume: 0.6 });
         });
@@ -923,7 +953,7 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     }
     // prism + beam / nova: rays from the prism turn the gems into specials one after the other
     const from = lastSwapB;
-    const flight = d(120);
+    const flight = d(100);
     let end = 0;
     for (let i = 0; i < n; i++) {
       const change = step.changes[i] as { at: Pos; piece: Piece };
@@ -940,7 +970,8 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     }
     host.sfx('prism');
     if (step.score > 0) host.addScore(step.score);
-    await sched.wait(end + d(T.transformPop));
+    // the prism's volley starts while the last pieces are still popping
+    await sched.wait(end + d(T.transformPop * 0.35));
   }
 
   async function doGrow(step: Extract<Step, { type: 'grow' }>): Promise<void> {
@@ -1039,9 +1070,16 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
     const y = step.at.r + 0.5;
     const swing = d(T.hammer * 0.62);
     // the hammer swings down from the upper right and strikes the cell
-    view.ghost('hammer', x + 0.55, y - 0.6, swing, { a0: 1, a1: 1, s0: 1.25, s1: 1.1, r0: 0.9, r1: -0.5, dx: -0.3, dy: 0.35 });
+    // (large enough to read as a tool held over the board, not as one more piece)
+    // (on the right-hand columns it is pulled in, so its head stays on the screen)
+    // (and on the top row, where the stage has no room above the board — landscape — it is
+    // pulled down, so its head is not cut off by the top of the canvas)
+    const edge = view.cols() + 0.3;
+    const br = view.rect();
+    const top = br.cell > 0 ? -br.y / br.cell : -1;
+    view.ghost('hammer', Math.min(x + 0.6, edge - 0.925), Math.max(y - 0.7, top + 0.95), swing, { a0: 1, a1: 1, s0: 1.85, s1: 1.6, r0: 0.9, r1: -0.5, dx: -0.3, dy: 0.4 });
     await sched.wait(swing);
-    view.ghost('hammer', x + 0.25, y - 0.25, d(T.hammer * 0.5), { a0: 1, a1: 0, s0: 1.1, s1: 1.2, r0: -0.5, r1: -0.2 });
+    view.ghost('hammer', Math.min(x + 0.3, edge - 0.85), Math.max(y - 0.3, top + 0.85), d(T.hammer * 0.5), { a0: 1, a1: 0, s0: 1.6, s1: 1.7, r0: -0.5, r1: -0.2 });
     view.glow(x, y, 0.8, 2.6, 220, PAL_WHITE, 1);
     view.flare(x, y, 2.6, 240, 1);
     view.ring(x, y, 0.2, 1.4, 240, PAL_GOLD, 0.9);
@@ -1064,9 +1102,15 @@ export function createStepPlayer(view: BoardView, sched: Scheduler, host: Player
         case 'swap':
           await doSwap(step, opts.swapCostsMove);
           break;
-        case 'activate':
-          await doActivate(step);
+        case 'activate': {
+          // a prism + beam / nova: the rays of the transform have just shown which gems were
+          // chosen, so the prism's own volley that sets them off goes in one quick burst
+          // (and the specials it made fire with a short wind-up: they are already lit)
+          const prev = steps[i - 1];
+          const quick = (prev !== undefined && prev.type === 'transform' && prev.reason === 'prismCombo') || isPrismComboFollowUp(steps, i);
+          await doActivate(step, quick);
           break;
+        }
         case 'clear':
           await doClear(step, i, steps);
           break;

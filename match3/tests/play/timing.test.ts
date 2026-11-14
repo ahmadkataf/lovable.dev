@@ -44,7 +44,7 @@ describe('timing table', () => {
     expect(prismRayDelay(3, 5)).toBe(90);
     expect(prismRayDelay(39, 40)).toBeLessThanOrEqual(T.prismRaysMax);
     expect(transformDelay(19, 20)).toBeLessThanOrEqual(T.transformMax);
-    expect(transformDelay(2, 4)).toBe(68);
+    expect(transformDelay(2, 4)).toBe(52);
   });
 
   it('finale flights shrink by 10 % each, never below the floor, and fit the budget', () => {

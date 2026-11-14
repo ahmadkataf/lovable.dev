@@ -272,7 +272,7 @@ async function tests(browser) {
     eq(s.lives, 2, 'the lives are kept');
     ok(s.next > 0 && s.next <= 30 * 60000, 'a life timer from the future became a normal wait (' + Math.round(s.next / 1000) + ' s)');
     eq(await page.evaluate(() => window.__app.profile.daily().canClaim), false, 'a daily reward "claimed in the future" cannot be claimed again today');
-    eq(await page.locator('[data-act="play"] .k-btn__cap').count(), 0, 'the title names no level (all are won)');
+    eq(await page.locator('[data-act="play"] .k-btn__cap').innerText(), 'Journey complete', 'the title names no level (all are won): it says the journey is complete');
     await tap(page, '[data-act="play"]');
     await waitScreen(page, 'map');
     await sleep(700);
@@ -476,10 +476,13 @@ async function tests(browser) {
       await sleep(500);
       const info = await page.evaluate(() => {
         const node = document.querySelector('.m-node--current');
-        const top = document.querySelector('.m-top__panel').getBoundingClientRect();
-        const tray = document.querySelector('.m-tray__panel').getBoundingClientRect();
+        const top = document.querySelector('.m-top').getBoundingClientRect();
+        const tray = document.querySelector('.m-tray').getBoundingClientRect();
+        const play = document.querySelector('[data-act="map-play"]');
         const r = node ? node.getBoundingClientRect() : null;
-        return { node: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right } : null, topBottom: top.bottom, trayTop: tray.top, vw: window.innerWidth, vh: window.innerHeight, sections: document.querySelectorAll('.m-sec').length };
+        // (the raised Play button stands above the tray's top edge: the lower bound is whichever is higher)
+        const trayTop = Math.min(tray.top, play ? play.getBoundingClientRect().top : Infinity);
+        return { node: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right } : null, topBottom: top.bottom, trayTop, vw: window.innerWidth, vh: window.innerHeight, sections: document.querySelectorAll('.m-sec').length };
       });
       ok(!!info.node && info.node.bottom > info.topBottom && info.node.top < info.trayTop && info.node.left >= 0 && info.node.right <= info.vw, w + '×' + h + ': the current level is still on screen after the resize');
       eq(info.sections, 6, w + '×' + h + ': six sections');
@@ -547,12 +550,24 @@ async function tests(browser) {
       eq((await state(page)).dialogs, 1, 'map: a double tap on ' + act + ' opens one dialog');
       await back(page);
       await waitDialogs(page, 0);
+      // a closed dialog shields taps for a moment: the next taps must not land on that shield
+      await page.waitForSelector('.k-overlay', { state: 'detached', timeout: 3000 });
       await tripleTapSlow('[data-act="' + act + '"]');
       await sleep(800);
       ok((await state(page)).dialogs <= 1, 'map: three taps on ' + act + ' never stack dialogs');
       await page.evaluate(() => window.__app.kit.closeAll());
       await waitDialogs(page, 0);
+      await page.waitForSelector('.k-overlay', { state: 'detached', timeout: 3000 });
     }
+    // the tray's Play: a double tap opens one intro, of the frontier level (no slow third tap here: the
+    // intro's own Play stands right above it, and a deliberate tap there starts the level)
+    await doubleTap('[data-act="map-play"]');
+    await sleep(800);
+    eq((await state(page)).dialogs, 1, 'map: a double tap on the tray\'s Play opens one dialog');
+    eq(await page.locator('.m-dialog-intro .k-dialog__title').innerText(), 'Level 47', 'the intro of the level the journey has reached');
+    await back(page);
+    await waitDialogs(page, 0);
+    await page.waitForSelector('.k-overlay', { state: 'detached', timeout: 3000 });
     await doubleTap('.m-node[data-level="47"]');
     await sleep(800);
     eq((await state(page)).dialogs, 1, 'a double tap on a level opens one intro');
@@ -632,13 +647,33 @@ async function tests(browser) {
     const { context, page } = await open(browser, { gate: 'off', lang: 'en', fakestore: '0', still: '1', save: saveParam({ upTo: 46, coins: 3000, lives: 3, dailyDay: today, dailyStreak: 2 }) });
     const cdp = await context.newCDPSession(page);
     await cdp.send('Performance.enable');
-    const measure = async () => {
-      await sleep(600); // screens leave the document after their fade
+    const sample = async () => {
       for (let i = 0; i < 3; i++) await cdp.send('HeapProfiler.collectGarbage');
       const { metrics } = await cdp.send('Performance.getMetrics');
       const get = (name) => metrics.filter((m) => m.name === name)[0].value;
       const dom = await page.evaluate(() => ({ all: document.querySelectorAll('*').length, body: document.body.children.length, stage: document.querySelectorAll('.m-stage > *').length, canvases: document.querySelectorAll('canvas').length }));
       return { heap: get('JSHeapUsedSize'), nodes: get('Nodes'), listeners: get('JSEventListeners'), dom };
+    };
+    /**
+     * `base` given: the closing dialogs and departed screens are let go a little after they leave
+     * (exit animations, tap shields, timers; measured: the listener count is back to its baseline
+     * within about 3 s of a dialog storm), so the reading is repeated — garbage collected each time —
+     * until the listener count is back within reach of `base` or has stopped falling, for at most
+     * 6 s. A real leak never comes back down, so it still fails.
+     */
+    const measure = async (base) => {
+      await sleep(600); // screens leave the document after their fade
+      let m = await sample();
+      if (!base) return m;
+      const until = Date.now() + 6000;
+      let last = Infinity;
+      while (m.listeners - base.listeners > 6 && Date.now() < until) {
+        if (m.listeners >= last && m.listeners - base.listeners > 6 && Date.now() > until - 3000) break; // stuck: a leak
+        last = Math.min(last, m.listeners);
+        await sleep(500);
+        m = await sample();
+      }
+      return m;
     };
     /** One round trip: title → map (scroll a little, open and close the intro) → title. */
     const cycle = () =>
@@ -660,7 +695,7 @@ async function tests(browser) {
     for (let i = 0; i < 8; i++) await cycle(); // warm-up: sprite caches fill, the code gets compiled
     const before = await measure();
     for (let i = 0; i < 50; i++) await cycle();
-    const after = await measure();
+    const after = await measure(before);
     const mb = (n) => (n / 1048576).toFixed(2) + ' MB';
     console.log(
       '    50 round trips: heap ' + mb(before.heap) + ' → ' + mb(after.heap) + ' · DOM nodes (incl. detached) ' + before.nodes + ' → ' + after.nodes + ' · listeners ' + before.listeners + ' → ' + after.listeners +
@@ -696,7 +731,7 @@ async function tests(browser) {
       }
       await pause(500);
     });
-    const after2 = await measure();
+    const after2 = await measure(before2);
     console.log('    30 language switches + 20 × every dialog: heap ' + mb(before2.heap) + ' → ' + mb(after2.heap) + ' · listeners ' + before2.listeners + ' → ' + after2.listeners + ' · elements ' + before2.dom.all + ' → ' + after2.dom.all);
     eq(after2.dom.all, before2.dom.all, 'language switches and dialogs: the same number of elements');
     ok(after2.listeners - before2.listeners <= 6, 'no listeners pile up (' + (after2.listeners - before2.listeners) + ' more)');

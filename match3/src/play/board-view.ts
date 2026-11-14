@@ -15,6 +15,7 @@ import type { Color, Piece, PieceKind, Pos, Snapshot } from '../engine/types.ts'
 import type { BoardRect } from './geometry.ts';
 import { cappedDpr, fitBoard } from './geometry.ts';
 import { FEEDBACK } from './feedback.ts';
+import { T } from './timing.ts';
 
 export interface VPiece {
   id: number;
@@ -74,6 +75,8 @@ const FRAME_SHARE = 0.125;
 const DPR_CAP = 3;
 /** Additive light drawn per frame at most, in board areas (see draw()). */
 const LIGHT_BUDGET = 3.5;
+/** additive glow + flare light (in board areas) above which each light is dimmed (draw()) */
+const LIGHT_SOFT = 1.6;
 /**
  * Device pixels per CSS pixel at most, by quality step (BoardView.setQuality): a 3x screen fills
  * 44 % of its pixels at 2x, 25 % at 1.5x, 17 % at 1.25x.
@@ -380,6 +383,11 @@ function makeCanvas(w: number, h: number): HTMLCanvasElement {
   return c;
 }
 
+/** score labels: a newcomer this close (in cells) to a live label joins it */
+const POPUP_MERGE = 1.2;
+/** score labels up at once */
+const POPUP_MAX = 3;
+
 export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardView {
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 
@@ -484,6 +492,8 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   let hintAR = -1;
   let hintBC = -1;
   let hintBR = -1;
+  /** loopT when the hint appeared */
+  let hintT0 = 0;
   let handAC = -1;
   let handAR = -1;
   let handBC = -1;
@@ -1351,6 +1361,14 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   const MAX_GLOWS = 36;
   const MAX_FLARES = 28;
   const MAX_TILES = 200;
+  /** period of the hint's swell of light (and of the pieces' nudge, index.ts) */
+  const HINT_CUE = T.hintCue;
+  /** past this many tiles (or pieces) lit in one frame, each one's light is capped */
+  const LIT_TILES_SOFT = 12;
+  /** the cap just past the soft limit; it falls further (to a floor) as more light up */
+  const TILE_ALPHA_CROWD = 0.55;
+  const PIECE_FLASH_CROWD = 0.5;
+  let pieceFlashCap = 1;
 
   function beam(x: number, y: number, horizontal: boolean, color: number, thick: number, sweep: number, alpha?: number, lite?: boolean): void {
     if (beams.length >= MAX_BEAMS) return;
@@ -1439,33 +1457,42 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   }
 
   function popup(x: number, y: number, value: number, dur: number, fade: number, delay: number, big: boolean): void {
-    // two labels on the same spot would be unreadable: a young one takes the newcomer's points,
-    // an older one (already risen) is absorbed by the newcomer
-    let total = value;
-    let large = big;
+    // labels never stack: a newcomer within 1.2 cells of a live label adds its points to it and
+    // the label pops again (at its own spot) when the new hit lands
     for (let k = popups.length - 1; k >= 0; k--) {
       const p = popups[k] as PopupFx;
-      if (Math.abs(p.x - x) > 0.45 || Math.abs(p.y - y) > 0.45) continue;
-      // time between the two labels appearing
-      const gap = delay + p.t - p.delay;
-      if (gap <= 260 && gap >= -260) {
-        p.value += value;
-        p.big = p.big || big || p.value >= 300;
-        p.img = popupImage(p.value, p.big);
-        p.w = p.img.width / cs;
-        p.h = p.img.height / cs;
-        return;
-      }
-      if (gap > 260 && p.t - p.delay < p.dur) {
-        total += p.value;
-        large = large || p.big || total >= 300;
-        // it leaves as the newcomer arrives
-        p.dur = Math.min(p.dur, Math.max(0, p.t - p.delay) + delay + 60);
-        p.fade = Math.min(p.fade, 60);
-      }
+      if (p.t - p.delay >= p.dur) continue;
+      const dx = p.x - x;
+      const dy = p.y - y;
+      if (dx * dx + dy * dy > POPUP_MERGE * POPUP_MERGE) continue;
+      p.value += value;
+      p.big = p.big || big || p.value >= 300;
+      p.img = popupImage(p.value, p.big);
+      p.w = p.img.width / cs;
+      p.h = p.img.height / cs;
+      const at = p.t + delay;
+      p.delay = p.t < p.delay && p.delay < at ? p.delay : at;
+      p.dur = dur;
+      p.fade = fade;
+      return;
     }
-    value = total;
-    big = large;
+    // and at most three are up at once: the oldest leaves early as a fourth arrives
+    let live = 0;
+    for (let k = 0; k < popups.length; k++) {
+      const p = popups[k] as PopupFx;
+      if (p.t - p.delay < p.dur) live++;
+    }
+    for (let k = 0; k < popups.length && live >= POPUP_MAX; k++) {
+      const p = popups[k] as PopupFx;
+      const t = p.t - p.delay;
+      if (t >= p.dur) continue;
+      const end = Math.max(0, t) + delay + 120;
+      if (end < p.dur) {
+        p.dur = end;
+        p.fade = Math.min(p.fade, 120);
+      }
+      live--;
+    }
     const img = popupImage(value, big);
     popups.push({ x, y, t: 0, dur, fade, delay, img, w: img.width / cs, h: img.height / cs, value, big });
   }
@@ -1526,6 +1553,12 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
   }
 
   // ───────────────────────────── step ─────────────────────────────
+
+  /** Remove one entry keeping the order (draw order matters), without the array splice() allocates. */
+  function removeAt<E>(list: E[], at: number): void {
+    for (let j = at + 1; j < list.length; j++) list[j - 1] = list[j] as E;
+    list.length--;
+  }
 
   function step(dt: number): void {
     loopT += dt;
@@ -1634,16 +1667,12 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     for (let k = popups.length - 1; k >= 0; k--) {
       const p = popups[k] as PopupFx;
       p.t += dt;
-      if (p.t - p.delay >= p.dur) {
-        popups.splice(k, 1);
-      }
+      if (p.t - p.delay >= p.dur) removeAt(popups, k);
     }
     for (let k = ghosts.length - 1; k >= 0; k--) {
       const g = ghosts[k] as GhostFx;
       g.t += dt;
-      if (g.t - g.delay >= g.dur) {
-        ghosts.splice(k, 1);
-      }
+      if (g.t - g.delay >= g.dur) removeAt(ghosts, k);
     }
     if (flashT < flashDur) flashT += dt;
     if (shakeT < shakeDur) shakeT += dt;
@@ -1714,7 +1743,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     }
     if (p.flash > 0.01) {
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = p.flash > 1 ? 1 : p.flash;
+      ctx.globalAlpha = p.flash > pieceFlashCap ? pieceFlashCap : p.flash;
       ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
       ctx.globalCompositeOperation = 'source-over';
     }
@@ -1761,13 +1790,21 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
           }
         }
       }
+      // a blast that lights many tiles at once (a 3-wide cross, the finale's volley) would sum to
+      // a white board: past a dozen lit tiles each one is capped, so the bands still read as bands
+      let lit = 0;
+      for (let k = 0; k < tiles.length; k++) {
+        const f = tiles[k] as TileFx;
+        if (f.t >= f.delay) lit++;
+      }
+      const tileCap = lit > LIT_TILES_SOFT ? Math.max(0.15, TILE_ALPHA_CROWD * Math.sqrt(LIT_TILES_SOFT / lit)) : 1;
       for (let k = 0; k < tiles.length; k++) {
         const f = tiles[k] as TileFx;
         const t = f.t - f.delay;
         if (t < 0) continue;
         const p = t / f.dur;
         // quick in (first 18 %), slow out
-        ctx.globalAlpha = f.alpha * (p < 0.18 ? p / 0.18 : 1 - (p - 0.18) / 0.82);
+        ctx.globalAlpha = (f.alpha < tileCap ? f.alpha : tileCap) * (p < 0.18 ? p / 0.18 : 1 - (p - 0.18) / 0.82);
         ctx.drawImage(tileOf(f.color), bx + f.c * cs, by + f.r * cs, cs, cs);
       }
       ctx.globalAlpha = 1;
@@ -1786,15 +1823,34 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
 
     // hint halos under the pieces
     if (hintAC >= 0 && hintImg) {
-      const pulse = 0.65 + 0.35 * Math.sin(loopT * 0.012);
+      // a steady gold under-glow that breathes a little (never fades out between swells)
+      const pulse = 0.78 + 0.22 * Math.sin(loopT * 0.012);
       ctx.globalAlpha = pulse;
       const s = cs * (1.04 + 0.05 * Math.sin(loopT * 0.012));
       ctx.drawImage(hintImg, bx + (hintAC + 0.5) * cs - s / 2, by + (hintAR + 0.5) * cs - s / 2, s, s);
       ctx.drawImage(hintImg, bx + (hintBC + 0.5) * cs - s / 2, by + (hintBR + 0.5) * cs - s / 2, s, s);
+      // every 1.6 s a bright swell of light over both (a clear cue, not a constant blink)
+      // (timed from the moment the hint appeared, so it peaks with the nudge of the pieces)
+      const ph = ((loopT - hintT0 + HINT_CUE * 0.08) % HINT_CUE) / HINT_CUE;
+      if (ph < 0.3) {
+        const bob = Math.sin((ph / 0.3) * Math.PI);
+        const s2 = cs * (1.08 + 0.16 * bob);
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.75 * bob;
+        ctx.drawImage(hintImg, bx + (hintAC + 0.5) * cs - s2 / 2, by + (hintAR + 0.5) * cs - s2 / 2, s2, s2);
+        ctx.drawImage(hintImg, bx + (hintBC + 0.5) * cs - s2 / 2, by + (hintBR + 0.5) * cs - s2 / 2, s2, s2);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.globalAlpha = 1;
     }
 
     // pieces: resting ones first, lifted ones on top
     const n = list.length;
+    // many pieces lit white at once wash the board out: their light is capped so the
+    // silhouettes stay visible under it
+    let flashing = 0;
+    for (let i = 0; i < n; i++) if ((list[i] as VPiece).flash > 0.01) flashing++;
+    pieceFlashCap = flashing > LIT_TILES_SOFT ? Math.max(0.28, PIECE_FLASH_CROWD * Math.sqrt(LIT_TILES_SOFT / flashing)) : 1;
     let lifted = 0;
     for (let i = 0; i < n; i++) {
       const p = list[i] as VPiece;
@@ -1836,6 +1892,29 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
     // the picture is saturated by then. Beams and tile flashes always draw.
     const budget = nCols * nRows * cs * cs * LIGHT_BUDGET;
     let spent = 0;
+    // Many blasts at once (prism + beam: a dozen beams with a glow and a flare each) would sum
+    // their additive light to a white board even under the budget: past about two board areas of
+    // glow and flare light, every one of them is dimmed so the sum stays near that, and the gems
+    // keep their colour at the peak.
+    let area = 0;
+    for (let k = 0; k < glows.length; k++) {
+      const g = glows[k] as GlowFx;
+      const t = g.t - g.delay;
+      if (t < 0) continue;
+      const p = t / g.dur;
+      const z = g.s0 + (g.s1 - g.s0) * (1 - (1 - p) * (1 - p));
+      area += z * z * g.alpha * (1 - p * p);
+    }
+    for (let k = 0; k < flares.length; k++) {
+      const f = flares[k] as FlareFx;
+      const t = f.t - f.delay;
+      if (t < 0) continue;
+      const p = t / f.dur;
+      const z = f.s0 + (f.s1 - f.s0) * (1 - (1 - p) * (1 - p));
+      area += z * z * f.alpha * 0.5;
+    }
+    const soft = nCols * nRows * LIGHT_SOFT;
+    const lightK = area > soft ? Math.max(0.35, Math.sqrt(soft / area)) : 1;
 
     for (let k = 0; k < glows.length; k++) {
       const g = glows[k] as GlowFx;
@@ -1845,10 +1924,13 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       const s = (g.s0 + (g.s1 - g.s0) * (1 - (1 - p) * (1 - p))) * cs;
       if (spent > budget) break;
       spent += s * s;
-      ctx.globalAlpha = g.alpha * (1 - p * p);
+      ctx.globalAlpha = g.alpha * (1 - p * p) * lightK;
       ctx.drawImage(glowOf(g.color), bx + g.x * cs - s / 2, by + g.y * cs - s / 2, s, s);
     }
 
+    // several beams at once (a 3-wide cross, the finale): each is dimmed so their sum stays below
+    // white — 1 for up to two beams, ~0.6 for six
+    const beamK = beams.length > 2 ? Math.sqrt(2 / beams.length) : 1;
     for (let k = 0; k < beams.length; k++) {
       const b = beams[k] as BeamFx;
       const sweeping = b.t < b.sweep;
@@ -1875,11 +1957,11 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
         ctx.drawImage(glowOf(b.color), ox + mid - len * 0.56, oy - thick * 0.85, len * 1.12, thick * 1.7);
       }
       // 2. the streak itself
-      ctx.globalAlpha = (sweeping ? 1 : fade) * b.alpha;
+      ctx.globalAlpha = (sweeping ? 1 : fade) * b.alpha * beamK;
       ctx.drawImage(streakOf(b.color), ox - lo * cs - cs * 0.25, oy - thick / 2, len + cs * 0.5, thick);
       // 3. a white-hot hairline that outlives the streak
       if (!b.lite) {
-        ctx.globalAlpha = (sweeping ? 0.8 : fade * fade) * b.alpha;
+        ctx.globalAlpha = (sweeping ? 0.8 : fade * fade) * b.alpha * beamK;
         ctx.drawImage(streakOf(PAL_GOLD), ox - lo * cs - cs * 0.1, oy - thick * 0.11, len + cs * 0.2, thick * 0.22);
       }
       if (sweeping) {
@@ -1887,7 +1969,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
         // crossing beams do not pile up into a white blot at the centre)
         const head = flareTexture();
         const hs = cs * (b.lite ? 1.5 : 1.7 + b.thick * 0.7) * (0.85 + 0.15 * Math.sin(b.t * 0.05));
-        ctx.globalAlpha = (p < 0.25 ? p / 0.25 : 1) * b.alpha;
+        ctx.globalAlpha = (p < 0.25 ? p / 0.25 : 1) * b.alpha * beamK;
         ctx.drawImage(head, ox - lo * cs - hs / 2, oy - hs / 2, hs, hs);
         ctx.drawImage(head, ox + hi * cs - hs / 2, oy - hs / 2, hs, hs);
         if (!b.lite) {
@@ -1924,7 +2006,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       if (spent > budget) break;
       spent += size * size;
       // flares: full at once, then out; ray bursts: a short rise first
-      ctx.globalAlpha = f.alpha * (f.rays ? (p < 0.15 ? p / 0.15 : 1 - (p - 0.15) / 0.85) : 1 - p * p);
+      ctx.globalAlpha = f.alpha * lightK * (f.rays ? (p < 0.15 ? p / 0.15 : 1 - (p - 0.15) / 0.85) : 1 - p * p);
       const rot = f.rot + f.spin * p;
       const cos = Math.cos(rot);
       const sin = Math.sin(rot);
@@ -2017,7 +2099,15 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       ctx.globalAlpha = left < p.fade ? left / p.fade : 1;
       const w = p.w * cs * popIn;
       const h = p.h * cs * popIn;
-      ctx.drawImage(p.img, bx + p.x * cs - w / 2, by + (p.y - rise) * cs - h / 2, w, h);
+      // a label on an edge cell stays on the board: it would overhang the frame (or the screen)
+      const lo = w / 2 - cs * 0.06;
+      const hi = nCols * cs - lo;
+      let px = p.x * cs;
+      if (px < lo) px = lo;
+      else if (px > hi) px = hi;
+      let py = (p.y - rise) * cs;
+      if (py < h / 2 - cs * 0.06) py = h / 2 - cs * 0.06;
+      ctx.drawImage(p.img, bx + px - w / 2, by + py - h / 2, w, h);
     }
     ctx.globalAlpha = 1;
 
@@ -2102,6 +2192,7 @@ export function createBoardView(canvas: HTMLCanvasElement, art: ArtApi): BoardVi
       needsDraw = true;
     },
     setHintCells(a, b) {
+      if (a && b && (a.c !== hintAC || a.r !== hintAR || b.c !== hintBC || b.r !== hintBR)) hintT0 = loopT;
       hintAC = a && b ? a.c : -1;
       hintAR = a && b ? a.r : -1;
       hintBC = a && b ? b.c : -1;

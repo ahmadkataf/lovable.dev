@@ -28,7 +28,15 @@ const path = require('path');
 const L = require('../tests/e2e/meta-lib.cjs');
 
 const ROOT = L.ROOT;
-const OUT = path.join(ROOT, 'shots', 'meta');
+// META_OUT=shots/meta/before keeps a set apart (before / after comparisons)
+const OUT = process.env.META_OUT ? path.resolve(ROOT, process.env.META_OUT) : path.join(ROOT, 'shots', 'meta');
+/**
+ * META_INSETS=notch simulates a phone with a camera cut-out and a gesture bar: the wrapper's
+ * safe-area insets (window.__native.insets, the contract of src/main.ts) are fed in after boot.
+ * Scenes whose name ends in "-notch" always get them.
+ */
+const NOTCH = { top: 34, right: 0, bottom: 22, left: 0 };
+const NOTCH_LANDSCAPE = { top: 0, right: 22, bottom: 14, left: 34 };
 const SHEETS = path.join(OUT, 'sheets');
 const { sleep, today } = L;
 
@@ -68,6 +76,13 @@ const scenes = (pick) => [
   { name: 'title-returning', query: { save: save({ upTo: 46 }) }, run: async () => {} },
   { name: 'title-finished', query: { save: save({ upTo: 120, stars: 3 }) }, run: async () => {} },
 
+  { name: 'title-notch', query: { save: save({ upTo: 46 }) }, run: async () => {} },
+  { name: 'map-notch', query: { screen: 'map', save: save(MID) }, run: async () => {} },
+  { name: 'map-early-notch', query: { screen: 'map', gate: 'on', save: save({ upTo: 3, dailyDay: today, dailyStreak: 1, gifted: [] }) }, run: async () => {} },
+  { name: 'shop-notch', query: { screen: 'map', fakestore: '1', save: save({ upTo: 46, coins: 1250, dailyDay: today, dailyStreak: 3 }) }, run: async (page) => { await waitStore(page); await go(page, 'shop'); } },
+  // the six worlds, each in the middle of its journey; the gate = the first level of a world just opened
+  ...[10, 30, 50, 70, 90, 110].map((n, i) => ({ name: 'map-world' + (i + 1), query: { screen: 'map', save: save({ upTo: n - 1, dailyDay: today, dailyStreak: 3 }) }, run: async () => {} })),
+  ...[20, 60, 100].map((n) => ({ name: 'map-gate' + n, query: { screen: 'map', save: save({ upTo: n, dailyDay: today, dailyStreak: 3 }) }, run: async () => {} })),
   { name: 'map-start', query: { screen: 'map', save: save({ upTo: 0, dailyDay: today, dailyStreak: 1 }) }, run: async () => {} },
   { name: 'map-early', query: { screen: 'map', gate: 'on', save: save({ upTo: 3, dailyDay: today, dailyStreak: 1, gifted: [] }) }, run: async () => {} },
   { name: 'map-mid', query: { screen: 'map', save: save(MID) }, run: async () => {} },
@@ -98,6 +113,7 @@ const scenes = (pick) => [
       await go(page, 'intro', pick.max);
     },
   },
+  ...[0, 1, 3].map((c) => ({ name: 'intro-caravan' + c, query: { screen: 'map', save: save({ upTo: 46, caravan: c, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 47) })),
   { name: 'intro-nolives', query: { screen: 'map', save: save({ upTo: 46, lives: 0, lifeAgoMs: 500000, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'intro', 47) },
   { name: 'intro-first', query: { screen: 'map', gate: 'on', save: save({ upTo: 1, gifted: [], dailyDay: today, dailyStreak: 1 }) }, run: (page) => go(page, 'intro', 2) },
   {
@@ -138,6 +154,13 @@ const scenes = (pick) => [
         await sleep(250);
         await shoot(suffix);
       }
+      // the remove-ads card (a row card: the narrowest layout of the shop)
+      await page.evaluate(() => {
+        const card = document.querySelector('.m-dialog-shop [data-product="remove_ads"]');
+        if (card) card.scrollIntoView({ block: 'center' });
+      });
+      await sleep(250);
+      await shoot('-noads');
     },
   },
   { name: 'shop-plain', query: { screen: 'map', save: save({ upTo: 46, coins: 540, dailyDay: today, dailyStreak: 3 }) }, run: (page) => go(page, 'shop') },
@@ -235,6 +258,23 @@ const scenes = (pick) => [
         window.__app.goto('map', { justWon: 120 });
       });
       await page.waitForSelector('.k-dialog--medal', { timeout: 8000 });
+    },
+  },
+  {
+    // what the shop says after a purchase: done / pending / failed (a cancelled purchase says nothing)
+    name: 'toasts-purchase',
+    query: { screen: 'map', fakestore: '1', save: save({ upTo: 46, coins: 1250, dailyDay: today, dailyStreak: 3 }) },
+    run: async (page) => {
+      await waitStore(page);
+      await go(page, 'shop');
+      await sleep(400);
+      await page.evaluate(() => {
+        const a = window.__app;
+        const t = (k, v) => a.ctx.i18n.t(k, v);
+        a.kit.toast(t('meta.shop.purchased'), { icon: 'check', duration: 60000 });
+        a.kit.toast(t('meta.shop.pending'), { icon: 'info', duration: 60000 });
+        a.kit.toast(t('meta.shop.error'), { icon: 'info', duration: 60000 });
+      });
     },
   },
   {
@@ -365,6 +405,11 @@ async function main() {
             await page.goto(urlFor(scene, lang), { waitUntil: 'load' });
             await page.waitForFunction(() => window.__booted === true, null, { timeout: 30000 });
             await sleep(450);
+            if (process.env.META_INSETS === 'notch' || /-notch$/.test(scene.name)) {
+              const ins = size.w > size.h ? NOTCH_LANDSCAPE : NOTCH;
+              await page.evaluate((j) => window.__native.insets(j), JSON.stringify(ins));
+              await sleep(150);
+            }
             await scene.run(page);
             await sleep(700);
             const shoot = async (suffix) => {

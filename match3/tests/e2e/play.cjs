@@ -627,6 +627,111 @@ async function appKilled(browser) {
   await page.context().close();
 }
 
+/**
+ * Regression (1.0.1): on the fast setting the win dialog opened while the header was still counting
+ * up to the final score, and the count-up was cut short — the header kept a number far below the
+ * engine's under the dialog.
+ */
+async function headerAfterFastWin(browser) {
+  const page = await H.openHarness(browser, { w: 360, h: 640, lang: 'en', query: 'level=easy&seed=3&tut=0&inv=0&fast=1', problems, tag: '[fast win]' });
+  await H.idle(page);
+  await H.playHints(page, 40, 0);
+  await page.waitForSelector('.pl-win', { timeout: 60000 });
+  await page.waitForTimeout(1200);
+  const r = await page.evaluate(() => [Number(document.querySelector('.pl-score__n').textContent.replace(/[^\d]/g, '')), window.__play.snapshot().score]);
+  eq(r[0], r[1], 'the header shows the final score under the win dialog (fast setting)');
+  await page.context().close();
+}
+
+/**
+ * Regression (1.0.1 review): the cascade counter straddles the frame's top edge — in landscape it
+ * rode off the top of the screen, on a 320×480 phone over the header's star bar. It must lie inside
+ * the viewport and clear of the header at every size.
+ */
+async function chainBadgePlace(browser) {
+  // a swap that cascades (found once, the same engine and seed give the same steps everywhere)
+  let page = await H.openHarness(browser, { w: 360, h: 640, query: 'level=easy&seed=1&tut=0&inv=0', problems, tag: '[chain]' });
+  await H.idle(page);
+  const found = await page.evaluate(async () => {
+    const { Game } = await import('/src/engine/index.ts');
+    const level = window.__demo.levels.easy;
+    for (let seed = 1; seed < 400; seed++) {
+      for (const m of new Game(level, { seed }).validMoves()) {
+        const res = new Game(level, { seed }).swap(m.a, m.b);
+        if (res.steps.some((st) => st.type === 'clear' && st.cascade >= 2)) return { seed, move: m };
+      }
+    }
+    return null;
+  });
+  await page.context().close();
+  ok(found !== null, 'a cascading swap exists');
+  for (const [w, h, lang] of [[320, 480, 'en'], [320, 480, 'ar'], [360, 640, 'en'], [412, 915, 'ar'], [640, 360, 'en'], [640, 360, 'ar'], [915, 412, 'ar']]) {
+    page = await H.openHarness(browser, { w, h, lang, query: `level=easy&seed=${found.seed}&tut=0&inv=0`, problems, tag: `[chain ${w}x${h}]` });
+    await H.idle(page);
+    await H.freeze(page, true);
+    await page.evaluate((m) => window.__play.swap(m.a, m.b), found.move);
+    let r = null;
+    for (let i = 0; i < 200 && !r; i++) {
+      await page.evaluate(() => window.__play.advance(30));
+      r = await page.evaluate(() => {
+        const e = document.querySelector('.pl-chain.pl-on');
+        if (!e) return null;
+        // where it rests once its pop-in is over
+        const anims = e.getAnimations();
+        for (const a of anims) a.finish();
+        const b = e.getBoundingClientRect();
+        // it may tuck under the header's rim (or, in landscape, live in the side panel) but never
+        // cover what the header shows
+        const hit = (sel) => {
+          for (const n of document.querySelectorAll(sel)) {
+            const q = n.getBoundingClientRect();
+            if (b.left < q.right && q.left < b.right && b.top < q.bottom && q.top < b.bottom) return sel;
+          }
+          return null;
+        };
+        const over = hit('.pl-bar') || hit('.pl-goal') || hit('.pl-level') || hit('.pl-score__n') || hit('.pl-pause') || hit('.pl-moves__core');
+        // and covers no more than a sliver of the top row
+        const rect = window.__play.shown();
+        const c0 = window.__play.cell(0, 0);
+        const cN = window.__play.cell(window.__play.snapshot().cols - 1, 0);
+        const rowTop = c0.y - rect.cell / 2;
+        const across = b.left < cN.x + rect.cell / 2 && c0.x - rect.cell / 2 < b.right;
+        const intoRow = across ? b.bottom - rowTop : 0;
+        return { l: b.left, t: b.top, r: b.right, b: b.bottom, vw: innerWidth, vh: innerHeight, over, intoRow, cell: rect.cell };
+      });
+    }
+    ok(r !== null, `${w}x${h} ${lang}: the cascade counter shows`);
+    ok(r.l >= 0 && r.t >= 0 && r.r <= r.vw && r.b <= r.vh, `${w}x${h} ${lang}: the cascade counter is on screen ${JSON.stringify(r)}`);
+    ok(!r.over, `${w}x${h} ${lang}: the cascade counter covers nothing the header shows ${JSON.stringify(r)}`);
+    ok(r.intoRow <= r.cell * 0.3, `${w}x${h} ${lang}: the cascade counter covers at most a sliver of the top row ${JSON.stringify(r)}`);
+    await page.context().close();
+  }
+}
+
+/** A long score is fitted to its box: it never runs under the pause button or the moves medallion. */
+async function scoreFit(browser) {
+  for (const lang of ['en', 'ar']) {
+    for (const [w, h] of [[320, 480], [360, 640]]) {
+      const page = await H.openHarness(browser, { w, h, lang, dpr: 1, query: 'level=mix&seed=7&tut=0&inv=99', problems, tag: '[score]' });
+      await H.idle(page);
+      for (const n of [99999, 999999, 9999999]) {
+        const r = await page.evaluate((v) => {
+          window.__play.showScore(v);
+          const range = document.createRange();
+          range.selectNodeContents(document.querySelector('.pl-score__n'));
+          const t = range.getBoundingClientRect();
+          const p = document.querySelector('.pl-pause').getBoundingClientRect();
+          const m = document.querySelector('.pl-moves__ring').getBoundingClientRect();
+          const rtl = document.documentElement.dir === 'rtl';
+          return { pause: rtl ? t.left - p.right : p.left - t.right, moves: rtl ? m.left - t.right : t.left - m.right };
+        }, n);
+        ok(r.pause >= 1 && r.moves >= 1, `${w}x${h} ${lang}: score ${n} clear of the pause button and the medallion ${JSON.stringify(r)}`);
+      }
+      await page.context().close();
+    }
+  }
+}
+
 (async () => {
   const browser = await chromium.launch();
   let failed = null;
@@ -638,6 +743,9 @@ async function appKilled(browser) {
     await section('tutorial tip, start / stop cycles', () => tutorialAndCycles(browser));
     await section('hardening: gestures at rest, late swipe, skipped finale, pending videos, pause across levels', () => hardening(browser));
     await section('app closed mid-level: the life is charged once at the next start', () => appKilled(browser));
+    await section('fast setting: the header ends on the final score under the win dialog', () => headerAfterFastWin(browser));
+    await section('cascade counter: on screen and clear of the header (small portrait, landscape)', () => chainBadgePlace(browser));
+    await section('a long score fits its box (320×480, 360×640, en + ar)', () => scoreFit(browser));
   } catch (err) {
     failed = err;
   }

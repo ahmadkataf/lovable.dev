@@ -123,6 +123,7 @@ async function devTests(browser) {
     eq(after.can, false, 'the reward cannot be claimed twice');
     ok((await page.locator('.m-daily__result--on').count()) === 1, 'the dialog shows what was received');
     ok((await page.locator('.m-day--done').count()) === 3, 'three days are ticked');
+    await sleep(600); // Done stays locked for a moment after it takes Claim's place (DONE_ARM_MS in daily.ts)
     await tap(page, '[data-act="daily-done"]');
     await waitDialogs(page, 0);
 
@@ -135,6 +136,21 @@ async function devTests(browser) {
     ok((await page.locator('.m-node[data-level="47"].m-node--current').count()) === 1, 'level 47 is the current node');
     ok((await page.locator('.m-node[data-level="46"].m-node--done').count()) === 1, 'level 46 is done');
     ok((await page.locator('.m-node[data-level="48"].m-node--locked').count()) === 1, 'level 48 is locked');
+
+    // the tray's main button: "Play · Level 47"; a double tap opens one intro, of the frontier level
+    eq(await page.locator('[data-act="map-play"] .k-btn__cap').innerText(), 'Level 47', 'the tray\'s Play button names the level the journey has reached');
+    {
+      const box = await page.locator('[data-act="map-play"]').boundingBox();
+      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    }
+    await waitDialogs(page, 1);
+    await sleep(300);
+    eq((await state(page)).dialogs, 1, 'a double tap on the tray\'s Play opens one dialog');
+    eq(await page.locator('.m-dialog-intro .k-dialog__title').innerText(), 'Level 47', 'the intro of level 47');
+    await back(page);
+    await waitDialogs(page, 0);
+    await page.waitForSelector('.k-overlay', { state: 'detached', timeout: 3000 });
 
     // a locked node only explains itself
     await tap(page, '.m-node[data-level="48"]');
@@ -265,10 +281,39 @@ async function devTests(browser) {
     const s = await state(page);
     eq(s.overlay, false, 'a replay does not open the next intro by itself');
     ok(before <= 3 && (await page.locator('.m-node[data-level="3"] .m-node__stars i.on').count()) === 3, 'the replayed level shows three stars');
+    // the tray's Play agrees with the title: the journey is complete; it opens the first level with a star still to win
+    eq(await page.locator('[data-act="map-play"] .k-btn__cap').innerText(), 'Journey complete', 'with every level won, the tray\'s Play says the journey is complete');
+    const missed = await page.evaluate(() => {
+      for (let id = 1; id <= 12; id++) {
+        const r = window.__app.profile.record(id);
+        if (!r || r.stars < 3) return id;
+      }
+      return 0;
+    });
+    ok(missed > 0, 'a level still has a star to win (' + missed + ')');
+    await tap(page, '[data-act="map-play"]');
+    await waitDialogs(page, 1);
+    eq(await page.locator('.m-dialog-intro .k-dialog__title').innerText(), 'Level ' + missed, 'and Play opens it');
+    await back(page);
+    await waitDialogs(page, 0);
+    await page.waitForSelector('.k-overlay', { state: 'detached', timeout: 3000 });
+    // every star won: Play shows the "journey complete" note instead
+    await page.evaluate(() => {
+      const a = window.__app;
+      for (let id = 1; id <= 12; id++) a.profile.recordWin(id, 3, 99000, 3);
+    });
+    await sleep(300);
+    await tap(page, '[data-act="map-play"]');
+    await waitDialogs(page, 1);
+    ok(/complete/i.test(await page.locator('.k-overlay:not(.k-under) .k-dialog__title').innerText()), 'with every star won, Play shows the "journey complete" note');
+    await back(page);
+    await waitDialogs(page, 0);
+    await page.waitForSelector('.k-overlay', { state: 'detached', timeout: 3000 });
     // the title of a finished journey names no level
     await tap(page, '[data-act="home"]');
     await waitScreen(page, 'title');
-    eq(await page.locator('[data-act="play"] .k-btn__cap').count(), 0, 'with every level won, Play names no level');
+    eq(await page.locator('[data-act="play"] .k-btn__cap').innerText(), 'Journey complete', 'with every level won, Play names no level: it says the journey is complete');
+    ok(/^\s*\d+\/36\s*$/.test(await page.locator('.m-title__stars').innerText()), 'and the stars under it count out of all 36 (12 levels)');
   });
 
   await test('shop with the test store: products, every purchase outcome, ads, no store at all', async () => {
@@ -705,6 +750,13 @@ async function devTests(browser) {
     eq(await page.locator('[data-act="shop"]').count(), 0, 'no shop button before level 10');
     eq(await page.locator('[data-act="daily"]').count(), 0, 'no daily reward on the first day');
     eq(await page.locator('[data-act="coins"] .k-chip__plus').count(), 0, 'the coin counter has no "+" yet');
+    {
+      const geo = await page.evaluate(() => {
+        const r = document.querySelector('[data-act="map-play"]').getBoundingClientRect();
+        return { mid: (r.left + r.right) / 2, vw: window.innerWidth };
+      });
+      ok(Math.abs(geo.mid - geo.vw / 2) <= 2, 'with neither Shop nor Daily gift yet, Play stays in the middle of the tray (' + Math.round(geo.mid) + ' of ' + geo.vw + ')');
+    }
     await sleep(700);
     eq((await state(page)).overlay, false, 'nothing pops up');
     await tap(page, '.m-node[data-level="3"]');
@@ -812,8 +864,11 @@ async function devTests(browser) {
           const sc = document.querySelector('.m-map__scroll');
           return {
             node: rect('.m-node--current'),
-            top: rect('.m-top__panel'),
-            tray: rect('.m-tray__panel'),
+            // the visible bars (full width, holding the safe-area insets) and the top bar's content row
+            top: rect('.m-top'),
+            tray: rect('.m-tray'),
+            play: rect('[data-act="map-play"]'),
+            panel: rect('.m-top__panel'),
             chips: Array.from(document.querySelectorAll('.m-top__panel > *')).map((el) => {
               const r = el.getBoundingClientRect();
               return { left: r.left, right: r.right, w: r.width };
@@ -824,10 +879,12 @@ async function devTests(browser) {
             vh: window.innerHeight,
           };
         });
-        ok(!!info.node && info.node.top >= info.top.bottom - 4 && info.node.bottom <= info.tray.top + 4, tag + ': the current level sits between the bars');
+        // (the raised Play button stands above the tray's top edge: the lower bound is whichever is higher)
+        const lower = Math.min(info.tray.top, info.play ? info.play.top : Infinity);
+        ok(!!info.node && info.node.top >= info.top.bottom - 4 && info.node.bottom <= lower + 4, tag + ': the current level sits between the bars (and above the raised Play button)');
         ok(info.node && info.node.left >= 0 && info.node.right <= info.vw, tag + ': and inside the screen');
         ok(info.top.left >= 0 && info.top.right <= info.vw && info.tray.left >= 0 && info.tray.right <= info.vw, tag + ': the bars are inside the screen');
-        ok(info.chips.every((c) => c.left >= info.top.left - 1 && c.right <= info.top.right + 1), tag + ': everything in the top bar fits inside it (six-digit coins)');
+        ok(info.chips.every((c) => c.left >= info.panel.left - 1 && c.right <= info.panel.right + 1), tag + ': everything in the top bar fits inside it (six-digit coins)');
         ok(!info.hScroll && !info.docScroll, tag + ': nothing scrolls sideways');
         await context.close();
       }

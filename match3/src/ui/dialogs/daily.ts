@@ -9,8 +9,12 @@ import type { DailyStatus, Reward } from '../../state/types.ts';
 import { rewardView } from '../helpers.ts';
 import type { Ui } from '../types.ts';
 
-/** How long Done ignores presses after it has taken Claim's place. */
-const DONE_ARM_MS = 450;
+/**
+ * How long Done ignores presses after it has first been painted in Claim's place. Counted from that
+ * frame, not from the claim: on a busy phone the frame can come late, and the second tap of a double
+ * tap on Claim (up to about half a second later) must still find Done locked.
+ */
+const DONE_ARM_MS = 700;
 
 export function openDailyDialog(ui: Ui): Promise<void> {
   const { kit, ctx } = ui;
@@ -25,7 +29,8 @@ export function openDailyDialog(ui: Ui): Promise<void> {
   const wait = h('div', { class: 'm-daily__wait' }, h('span', { class: 'k-countdown' }, kit.icon('calendar', 20), h('span', { class: 'k-countdown__label', text: t('meta.daily.next') }), waitClock));
   const body = h('div', { class: 'm-daily' }, strip, result, hint, wait);
   let justClaimed = -1;
-  /** Done answers only from this moment on (see claimNow). */
+  /** Done answers only once it has been painted (doneLocked off) and DONE_ARM_MS have passed since (see claimNow). */
+  let doneLocked = false;
   let doneArmedAt = 0;
 
   function rewardNode(reward: Reward, size: number): HTMLElement {
@@ -55,7 +60,7 @@ export function openDailyDialog(ui: Ui): Promise<void> {
           class: 'm-day' + (done ? ' m-day--done' : today ? ' m-day--today' : ' m-day--later') + (last ? ' m-day--big' : '') + (i === justClaimed ? ' m-day--pop' : ''),
           dataset: { day: i + 1 },
         },
-        h('div', { class: 'm-day__label', text: today ? t('common.time.today') : t('common.time.day', { n: i + 1 }) }),
+        h('div', { class: 'm-day__label', text: today ? t('meta.daily.today') : t('meta.daily.day', { n: i + 1 }) }),
         h(
           'div',
           { class: 'm-day__rewards' },
@@ -101,7 +106,15 @@ export function openDailyDialog(ui: Ui): Promise<void> {
     );
     result.classList.add('m-daily__result--on');
     // Done now stands where Claim was: the second tap of a double tap on Claim must not close the dialog
-    doneArmedAt = Date.now() + DONE_ARM_MS;
+    doneLocked = true;
+    const arm = (): void => {
+      if (!doneLocked) return;
+      doneLocked = false;
+      doneArmedAt = performance.now() + DONE_ARM_MS;
+    };
+    // (the frame that paints Done starts the wait; the timer covers a page that paints no frames)
+    window.requestAnimationFrame(arm);
+    window.setTimeout(arm, 600);
     render();
     // on a short screen the strip fills the dialog: bring what was received into view
     try {
@@ -118,8 +131,8 @@ export function openDailyDialog(ui: Ui): Promise<void> {
     label: t('common.done'),
     variant: 'secondary',
     onClick: () => {
-      const now = Date.now();
-      // (a clock that was set back must not lock the button)
+      if (doneLocked) return;
+      const now = performance.now();
       if (now < doneArmedAt && doneArmedAt - now <= DONE_ARM_MS) return;
       dialog.close();
     },

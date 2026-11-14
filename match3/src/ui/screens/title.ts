@@ -24,8 +24,21 @@ export function createTitleScreen(ui: Ui): Screen {
   const caption = (): string | null => {
     if (isFirstRun()) return null;
     const next = focusLevel(profile.highestUnlocked(), ui.world.levels.length);
-    return profile.record(next) ? null : ui.t('common.level', { n: next });
+    // every level won: say so, rather than nothing
+    return profile.record(next) ? ui.t('meta.title.complete') : ui.t('common.level', { n: next });
   };
+  /** The stars collected so far, out of all there are (not on a first run). */
+  const starsText = el('span', { class: 'k-num' });
+  const starsPill = el('div', { class: 'm-title__stars' }, kit.icon('star', 22), starsText);
+  function renderStars(): void {
+    const first = isFirstRun();
+    starsPill.classList.toggle('m-hidden', first);
+    if (first) return;
+    const text = i18n.num(profile.totalStars()) + '/' + i18n.num(ui.world.levels.length * 3);
+    if (starsText.textContent !== text) starsText.textContent = text;
+    starsPill.setAttribute('aria-label', ui.t('meta.map.aria.stars', { n: profile.totalStars() }));
+  }
+  renderStars();
 
   const playButton = kit.button({
     label: ui.t('common.play'),
@@ -74,7 +87,7 @@ export function createTitleScreen(ui: Ui): Screen {
   root.appendChild(sparkles);
   root.appendChild(el('div', { class: 'm-title__top' }, settingsButton));
   root.appendChild(el('div', { class: 'm-title__mid' }, logoBox));
-  root.appendChild(el('div', { class: 'm-title__bottom' }, playButton));
+  root.appendChild(el('div', { class: 'm-title__bottom' }, playButton, starsPill));
 
   let disposed = false;
   let resizeTimer = 0;
@@ -95,7 +108,8 @@ export function createTitleScreen(ui: Ui): Screen {
     if (canvas) backdrop.appendChild(canvas);
     // logo: as wide as the screen allows, but never taller than the room above the button
     const unit = kit.unit();
-    const room = h - 190 * unit;
+    // (Play, the stars under it and the margins; on a short landscape screen the stars stand beside Play — meta.css)
+    const room = h - (w > h && h <= 520 ? 190 : 236) * unit;
     const width = Math.max(120, Math.min(w * 0.84, 330 * unit, room / 0.9));
     kit.clear(logoBox);
     const logo = art.logo(Math.round(width), i18n.lang());
@@ -115,7 +129,9 @@ export function createTitleScreen(ui: Ui): Screen {
       window.addEventListener('resize', onResize);
       // "Level N" under Play follows the profile (a reset from the settings turns it back into a first run)
       unsubscribe = profile.subscribe(() => {
-        if (!disposed) playButton.update({ caption: caption() });
+        if (disposed) return;
+        playButton.update({ caption: caption() });
+        renderStars();
       });
     },
     dispose(): void {

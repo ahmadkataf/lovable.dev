@@ -338,6 +338,22 @@ async function tap(page, selector) {
 async function waitScreen(page, screen) {
   await page.waitForFunction((s) => window.__app.shell.current() === s, screen, { timeout: 8000 });
   await sleep(400);
+  // and until the bars and the title's button have finished sliding in (on a loaded machine the
+  // entrance can outlast the pause above, and a tap would be aimed at where the button still moves)
+  await page
+    .waitForFunction(
+      () => {
+        const els = document.querySelectorAll('.m-screen:not(.m-screen--out) .m-top, .m-screen:not(.m-screen--out) .m-tray, .m-screen:not(.m-screen--out) .m-title__bottom');
+        for (let i = 0; i < els.length; i++) {
+          const el = els[i];
+          if (typeof el.getAnimations === 'function' && el.getAnimations().some((a) => a.playState === 'running' || a.playState === 'pending')) return false;
+        }
+        return true;
+      },
+      null,
+      { timeout: 4000 },
+    )
+    .catch(() => undefined);
 }
 
 /** Wait until exactly `n` dialogs are open, and past the moment a new dialog starts taking input. */

@@ -68,7 +68,25 @@ export interface Hud {
    * `aspect` = rows / columns of the board (how tall a full-width board would be).
    */
   measure(aspect: number): StageSize;
-  setBoardRect(rect: BoardRect): void;
+  /**
+   * Tell the HUD where the board is. In portrait the header and the tray take the width of the
+   * board's frame (on tablets they would otherwise float, narrower than the board); returns true
+   * when that changed the height of either, so the stage must be measured again.
+   */
+  setBoardRect(rect: BoardRect): boolean;
+  /**
+   * Landscape: extra space (CSS px) on both outer sides of the layout, so the side panel and a
+   * height-limited board sit together in the middle of a wide screen instead of a band of
+   * backdrop between them. 0 = none.
+   */
+  setSideInset(px: number): void;
+  /**
+   * Portrait, a tall screen whose board is limited by the width: `spare` CSS px of height the
+   * board cannot use. The tray grows into part of it (and names its boosters). 0 = back to normal. Measure again afterwards.
+   */
+  setTall(spare: number): void;
+  /** Portrait: CSS px taken off the bottom of the stage, so the board stands nearer the header. */
+  setLift(px: number): void;
   paintBackdrop(force: boolean): void;
 
   goalBanner(level: LevelDef, goals: readonly GoalProgress[]): void;
@@ -121,6 +139,11 @@ export function goalIconOf(goal: GoalProgress): IconName {
   }
 }
 
+/** How much a portrait tablet's header and tray may grow beyond the kit's largest unit. */
+const HUD_GROW_MAX = 1.4;
+/** How much a tall phone's tray may grow into height the board cannot use. */
+const HUD_TALL_MAX = 1.25;
+
 export function createHud(deps: HudDeps): Hud {
   const { kit, art, i18n, sched, timers } = deps;
   const el = kit.el;
@@ -150,6 +173,7 @@ export function createHud(deps: HudDeps): Hud {
     },
   });
   const barBox = el('div', { class: 'pl-bar' });
+  sharpen(pauseBtn, 'pause');
   const sideScore = el('div', { class: 'pl-hud__side pl-hud__side--score' }, el('div', { class: 'pl-scorerow' }, el('div', { class: 'pl-score' }, scoreCap, scoreN), pauseBtn), barBox);
 
   const header = el('div', { class: 'pl-hud' }, el('div', { class: 'pl-hud__in' }, sideGoals, movesBox, sideScore));
@@ -170,6 +194,9 @@ export function createHud(deps: HudDeps): Hud {
   let shownScore = 0;
   let scoreTween = 0;
   let theme: ChapterTheme = 'oasis';
+  let scoreSize = 0;
+  let scoreLen = -1;
+  let tallGrow = 1;
   let bgKey = '';
   let movesState: 'normal' | 'low' | 'out' = 'normal';
   const boosters: { id: InLevelBooster; wrap: HTMLElement; btn: KitButton }[] = [];
@@ -177,6 +204,58 @@ export function createHud(deps: HudDeps): Hud {
   let chainTimer = 0;
   let targetEl: HTMLElement | null = null;
   const transient: HTMLElement[] = [];
+
+  /**
+   * Writes the score numeral. A longer number (a 6-digit finale score on a 320 px phone) steps the
+   * font down until it fits its box, so it never runs under the pause button or, in Arabic, the
+   * moves medallion. The fit reads layout only when the number of characters changes (a few times
+   * a level), not on every frame of a count-up.
+   */
+  function writeScore(value: number): void {
+    const text = i18n.num(value);
+    scoreN.textContent = text;
+    if (text.length !== scoreLen) {
+      scoreLen = text.length;
+      fitScore();
+    }
+  }
+
+  function setScoreSize(size: number): void {
+    if (size === scoreSize) return;
+    scoreSize = size;
+    scoreN.classList.toggle('pl-score__n--s1', size === 1);
+    scoreN.classList.toggle('pl-score__n--s2', size === 2);
+    scoreN.classList.toggle('pl-score__n--s3', size === 3);
+  }
+
+  function fitScore(): void {
+    setScoreSize(0);
+    const box = scoreN.clientWidth;
+    if (box <= 0) {
+      scoreLen = -1; // not laid out yet: fit again at the next write or measure()
+      return;
+    }
+    let size = 0;
+    while (size < 3 && scoreN.scrollWidth > box + 0.5) setScoreSize(++size);
+  }
+
+  /**
+   * The kit draws an icon for the kit's own unit; the header and the tray may grow up to
+   * HUD_GROW_MAX× (measure()), which would stretch it. Redraw the icon canvas inside `node` with
+   * that head-room (same CSS size, more pixels).
+   */
+  function sharpen(node: HTMLElement, key: IconName): void {
+    const old = node.querySelector('canvas.k-icon') as HTMLCanvasElement | null;
+    if (!old || !old.parentNode) return;
+    const m = /\*\s*([\d.]+)\)/.exec(old.style.width);
+    const size = m ? Number(m[1]) : 0;
+    if (!(size > 0)) return;
+    const icon = art.icon(key, Math.round(size * kit.unit() * HUD_GROW_MAX));
+    icon.style.width = old.style.width;
+    icon.style.height = old.style.height;
+    icon.className = old.className;
+    old.parentNode.replaceChild(icon, old);
+  }
 
   function goalText(goal: GoalProgress): string {
     const g = goal.goal;
@@ -199,10 +278,20 @@ export function createHud(deps: HudDeps): Hud {
   function makeChip(goal: GoalProgress, remaining: number, done: boolean, iconSize: number): GoalChip {
     const text = chipText(goal, remaining);
     const n = el('span', { class: 'pl-goal__n k-num' }, text);
-    const icon = kit.icon(goalIconOf(goal), iconSize);
-    icon.classList.add('pl-goal__icon');
-    const chip = el('div', { class: 'pl-goal' + (done ? ' pl-goal--done' : ''), title: goalText(goal) }, icon, n, el('span', { class: 'pl-goal__tick' }, kit.icon('check', 16)));
+    // drawn with head-room: on a portrait tablet the header grows up to HUD_GROW_MAX× (measure())
+    const icon = art.icon(goalIconOf(goal), Math.round(iconSize * kit.unit() * HUD_GROW_MAX));
+    icon.style.width = icon.style.height = 'calc(var(--k-u) * ' + iconSize + ')';
+    icon.classList.add('k-icon', 'pl-goal__icon');
+    const chip = el('div', { class: 'pl-goal' + (done ? ' pl-goal--done' : ''), title: goalText(goal) }, icon, n, el('span', { class: 'pl-goal__tick' }, hiIcon('check', 16)));
     return { el: chip, n, shown: text, done, score: goal.goal.kind === 'score' };
+  }
+
+  /** an icon drawn with the header's growth head-room */
+  function hiIcon(key: IconName, size: number): HTMLCanvasElement {
+    const icon = art.icon(key, Math.round(size * kit.unit() * HUD_GROW_MAX));
+    icon.style.width = icon.style.height = 'calc(var(--k-u) * ' + size + ')';
+    icon.classList.add('k-icon');
+    return icon;
   }
 
   function rootRect(): DOMRect {
@@ -316,6 +405,10 @@ export function createHud(deps: HudDeps): Hud {
       pauseBtn.update({ ariaLabel: i18n.t('common.pause') });
       // goal chips
       kit.clear(goalsBox);
+      // three or four goals: two even columns of smaller chips (an odd last one centred), so the
+      // header keeps the height it has with one or two and the board does not change size
+      goalsBox.classList.toggle('pl-goals--many', goals.length >= 3);
+      sideGoals.classList.toggle('pl-hud__side--many', goals.length >= 3);
       chips = [];
       for (let i = 0; i < goals.length; i++) {
         const g = goals[i] as GoalProgress;
@@ -329,7 +422,7 @@ export function createHud(deps: HudDeps): Hud {
       bar = kit.progress({ value: 0, max, notches: level.stars, tone: 'gold', ariaLabel: i18n.t('common.score') });
       barBox.appendChild(bar.el);
       shownScore = 0;
-      scoreN.textContent = '0';
+      writeScore(0);
       hud.setMovesState('normal');
       hud.paintBackdrop(false);
     },
@@ -356,12 +449,12 @@ export function createHud(deps: HudDeps): Hud {
       shownScore = score;
       const my = ++scoreTween;
       if (!animate || from === score) {
-        scoreN.textContent = i18n.num(score);
+        writeScore(score);
         return;
       }
       sched.run(T.hudScore, (k) => {
         if (my !== scoreTween) return;
-        scoreN.textContent = i18n.num(Math.round(from + (score - from) * k));
+        writeScore(Math.round(from + (score - from) * k));
       });
       deps.kick();
     },
@@ -416,7 +509,9 @@ export function createHud(deps: HudDeps): Hud {
             if (hud.onBooster) hud.onBooster(id);
           },
         });
-        const wrap = el('div', { class: 'pl-boost', dataset: { booster: id } }, btn);
+        // the name under the button is shown only on tall screens (.pl-tall)
+        sharpen(btn, id);
+        const wrap = el('div', { class: 'pl-boost', dataset: { booster: id } }, btn, el('span', { class: 'pl-boost__name', 'aria-hidden': 'true' }, i18n.t('booster.' + id + '.name')));
         trayIn.appendChild(wrap);
         boosters.push({ id, wrap, btn });
         hud.updateBooster(id, slot.count);
@@ -446,6 +541,19 @@ export function createHud(deps: HudDeps): Hud {
       const landscape = isLandscape(w, h);
       const u = kit.unit();
       root.classList.toggle('pl-land', landscape);
+      // On a portrait tablet the kit's unit stops growing (1.375 px) while the board keeps
+      // filling the width: the header and the tray grow with the column instead (up to 1.4×), so
+      // they do not sit phone-sized in a wide, empty band. Measured on the screen width, which
+      // the board does not change, so the fit below cannot loop.
+      const grow = landscape ? 1 : Math.max(1, Math.min(HUD_GROW_MAX, (w - 12 * u) / (392 * u)));
+      const hu = grow > 1.02 ? Math.round(u * grow * 1000) / 1000 + 'px' : '';
+      if (header.style.getPropertyValue('--k-u') !== hu) header.style.setProperty('--k-u', hu);
+      // A tall phone (20:9) with a width-limited board grows the tray as well, by setTall()
+      // (index.ts). Only the tray: the header's width is the screen's, so a larger unit would
+      // squeeze its score and goals.
+      const tgrow = landscape ? 1 : Math.max(grow, tallGrow);
+      const tu = tgrow > 1.02 ? Math.round(u * tgrow * 1000) / 1000 + 'px' : '';
+      if (tray.style.getPropertyValue('--k-u') !== tu) tray.style.setProperty('--k-u', tu);
       let compact: boolean;
       if (landscape) {
         compact = h < 470 * u;
@@ -458,6 +566,7 @@ export function createHud(deps: HudDeps): Hud {
         compact = stage.clientHeight < need || h < 600 * u;
         if (compact) root.classList.add('pl-compact');
       }
+      fitScore();
       return { w: stage.clientWidth, h: stage.clientHeight, landscape, compact };
     },
 
@@ -466,7 +575,47 @@ export function createHud(deps: HudDeps): Hud {
       root.style.setProperty('--pl-by', rect.y + 'px');
       root.style.setProperty('--pl-bw', rect.w + 'px');
       root.style.setProperty('--pl-bh', rect.h + 'px');
+      // the outer edge of the gold frame (board-view draws it about an eighth of a cell outside)
+      const col = Math.round(rect.w + 2 * (rect.cell * 0.125 + 1.5));
+      let changed = false;
+      if (root.classList.contains('pl-land')) {
+        // beside the board the header and tray have no width cap: nothing to measure
+        root.style.setProperty('--pl-colw', col + 'px');
+      } else {
+        const before = header.offsetHeight + tray.offsetHeight;
+        root.style.setProperty('--pl-colw', col + 'px');
+        changed = header.offsetHeight + tray.offsetHeight !== before;
+      }
+      // the lowest point the cascade counter may ride up to (in the stage's coordinates): below
+      // the header in portrait, the top of the screen in landscape
+      const st = stage.getBoundingClientRect();
+      const top = root.classList.contains('pl-land') ? rootRect().top : header.getBoundingClientRect().bottom;
+      root.style.setProperty('--pl-hb', Math.round(top - st.top) + 'px');
       placeTarget();
+      fitScore();
+      return changed;
+    },
+
+    setTall(spare) {
+      // a share of the spare height goes to a larger tray (at most 1.25×, with the booster
+      // names shown under the buttons); the rest the caller puts under the board
+      let g = 1;
+      if (spare > 0) {
+        const base = tray.offsetHeight;
+        if (base > 0) g = Math.min(HUD_TALL_MAX, 1 + (spare * 0.25) / base);
+      }
+      tallGrow = Math.round(g * 1000) / 1000;
+      root.classList.toggle('pl-tall', spare > 0);
+    },
+
+    setLift(px) {
+      const v = px > 0.5 ? Math.round(px) + 'px' : '';
+      if (root.style.getPropertyValue('--pl-ly') !== v) root.style.setProperty('--pl-ly', v);
+    },
+
+    setSideInset(px) {
+      const v = px > 0.5 ? Math.round(px) + 'px' : '';
+      if (root.style.getPropertyValue('--pl-lx') !== v) root.style.setProperty('--pl-lx', v);
     },
 
     paintBackdrop(force) {
@@ -499,7 +648,7 @@ export function createHud(deps: HudDeps): Hud {
       const list = el('div', { class: 'pl-banner__goals' });
       for (let i = 0; i < goals.length; i++) {
         const g = goals[i] as GoalProgress;
-        list.appendChild(makeChip(g, Math.max(0, g.target - g.current), false, 26).el);
+        list.appendChild(makeChip(g, Math.max(0, g.target - g.current), false, 34).el);
       }
       const sub = goals.length === 1 ? goalText(goals[0] as GoalProgress) : i18n.t('common.goals');
       const node = el(
@@ -515,7 +664,7 @@ export function createHud(deps: HudDeps): Hud {
       const node = el(
         'div',
         { class: 'pl-praise pl-praise--' + (tier === 'finale' ? 'finale' : 't' + tier), role: 'status' },
-        el('div', { class: 'pl-praise__box' }, khatam(140), el('span', { class: 'pl-praise__word' }, text)),
+        el('div', { class: 'pl-praise__box' }, khatam(140), el('span', { class: 'pl-praise__word', 'data-text': text }, text)),
       );
       over.appendChild(node);
       transient.push(node);
@@ -533,10 +682,12 @@ export function createHud(deps: HudDeps): Hud {
         if (chainEl) chainEl.classList.remove('pl-on');
         return;
       }
-      if (!chainEl) {
-        chainEl = el('div', { class: 'pl-chain', 'aria-hidden': 'true' });
-        over.appendChild(chainEl);
-      }
+      if (!chainEl) chainEl = el('div', { class: 'pl-chain', 'aria-hidden': 'true' });
+      // landscape: in the side panel by the moves medallion; portrait: on the board's top edge
+      const side = root.classList.contains('pl-land');
+      const parent = side ? movesBox : over;
+      if (chainEl.parentNode !== parent) parent.appendChild(chainEl);
+      chainEl.classList.toggle('pl-chain--side', side);
       chainEl.textContent = '×' + n;
       chainEl.classList.add('pl-on');
       bumpClass(chainEl);
@@ -623,7 +774,10 @@ export function createHud(deps: HudDeps): Hud {
       }
       chainTimer = 0;
       hud.targeting(null, null, null);
+      // a count-up cut short lands on its final number (the win dialog opens over the header
+      // while the last count-up of the finale is still running)
       scoreTween++;
+      writeScore(shownScore);
     },
 
     clearFlyers() {
